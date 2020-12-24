@@ -1,0 +1,21 @@
+[package]
+name = "thrush"
+version = "0.1.0"
+authors = ["Gus Gutoski <gus@axelar.network>"]
+edition = "2018"
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+# multi-party-ecdsa = { git = "https://github.com/ZenGo-X/multi-party-ecdsa.git" }
+
+# baggage from multi-party-ecdsa
+curv = { git = "https://github.com/KZen-networks/curv", tag = "v0.2.6", features = ["ec_secp256k1"] }
+serde = { version = "1.0", features = ["derive"] }
+paillier = { git = "https://github.com/KZen-networks/rust-paillier", tag = "v0.3.4"}
+zk-paillier = { git = "https://github.com/KZen-networks/zk-paillier", tag = "v0.2.9"}
+
+[dev-dependencies]
+# serde_json = "1.0"
+# rand = "0.7"
