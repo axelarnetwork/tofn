@@ -129,3 +129,83 @@ pub struct R4State {
 
 #[cfg(test)]
 mod tests;
+
+// TODO split this into another module
+use crate::protocol::{Protocol, State};
+use bincode;
+
+// pub fn new<ID>(party_ids: Vec<ID>, my_party_id: usize, threshold: usize) -> Protocol {
+pub fn new(party_ids: &Vec<String>, my_party_id_index: usize, threshold: usize) -> Protocol {
+
+    // prepare a map of expected incoming messages from other parties
+    // each message is `None` until we receive it later
+    let incoming_msgs = party_ids.iter().enumerate()
+        .filter(|(index,_)| *index != my_party_id_index) // don't include myself
+        .map(|(_,id)| (id.clone(), None)) // initialize to None
+        .collect();
+
+    let (state, output) = r1::start();
+    Protocol {
+        state: Some(Box::new(R1::<String>{
+            state,
+            output,
+            incoming_msgs,
+            threshold,
+            my_uid: party_ids[my_party_id_index].clone(),
+            num_incoming_msgs: 0,
+        }))
+    }
+}
+
+#[derive(Debug)]
+pub struct R1<ID> {
+    state: R1State,
+    output: R1Bcast,
+    incoming_msgs: HashMap<ID, Option<R1Bcast>>,
+    threshold: usize,
+    my_uid: ID,
+    num_incoming_msgs: usize,
+}
+
+// impl<ID> State for R1<ID> {
+impl State for R1<String> {
+
+    fn add_message_in(&mut self, from: &str, msg: &Vec<u8>) {
+        let msg: R1Bcast = bincode::deserialize(msg).unwrap(); // panic: deserialization failure
+        let stored = self.incoming_msgs.get_mut(from).unwrap(); // panic: unexpected party id
+        if stored.is_some() {
+            panic!("repeated message from party id {}", from);
+        }
+        *stored = Some(msg);
+        self.num_incoming_msgs += 1;
+        assert!(self.num_incoming_msgs <= self.incoming_msgs.len());
+    }
+
+    fn can_proceed(&self) -> bool {self.num_incoming_msgs >= self.incoming_msgs.len()}
+
+    fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<String, Vec<u8>>) {
+        let bcast = bincode::serialize(&self.output).unwrap(); // panic: serialization failure
+        (
+            Some(bcast),
+            HashMap::new() // no p2p msgs this round
+        )
+    }
+
+    fn next(self: Box<Self>) -> Box<dyn State> {
+        assert!(self.can_proceed());
+        Box::new(R2{})
+    }
+}
+
+#[derive(Debug)]
+// pub struct R2<ID> {foo: ID}
+pub struct R2 {}
+
+// dummy impl State
+// impl State for R2<String> {
+impl State for R2 {
+    fn add_message_in(&mut self, from: &str, msg: &Vec<u8>) {}
+    fn can_proceed(&self) -> bool {false}
+    fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<String, Vec<u8>>) {(None, HashMap::new())}
+    fn next(self: Box<Self>) -> Box<dyn State> {self}
+}
