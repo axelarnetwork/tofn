@@ -8,11 +8,12 @@ edition = "2018"
 crate-type = ["lib"]
 
 [dependencies]
+serde = { version = "1.0", features = ["derive"] }
+bincode = "1.2.1"
 # multi-party-ecdsa = { git = "https://github.com/ZenGo-X/multi-party-ecdsa.git" }
 
 # baggage from multi-party-ecdsa
 curv = { git = "https://github.com/KZen-networks/curv", tag = "v0.2.6", features = ["ec_secp256k1"] }
-serde = { version = "1.0", features = ["derive"] }
 paillier = { git = "https://github.com/KZen-networks/rust-paillier", tag = "v0.3.4"}
 zk-paillier = { git = "https://github.com/KZen-networks/zk-paillier", tag = "v0.2.9"}
 
