@@ -31,3 +31,6 @@ pub trait State {
     fn can_proceed(&self) -> bool;
     fn next(self: Box<Self>) -> Box<dyn State>;
 }
+
+#[cfg(test)]
+mod tests;
