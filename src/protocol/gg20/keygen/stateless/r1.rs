@@ -8,7 +8,7 @@ use curv::{
 };
 use paillier::{Paillier, KeyGeneration};
 use zk_paillier::zkproofs::NICorrectKeyProof;
-use super::{R1State, R1Bcast, super::zkp::Zkp};
+use super::{R1State, R1Bcast, super::super::zkp::Zkp};
 
 pub fn start() -> (R1State, R1Bcast) {
     let u = FE::new_random();
