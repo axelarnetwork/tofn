@@ -161,3 +161,6 @@ impl State for R3 {
     fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<String, Vec<u8>>) {(None, HashMap::new())}
     fn next(self: Box<Self>) -> Box<dyn State> {self}
 }
+
+#[cfg(test)]
+mod tests;
