@@ -5,7 +5,7 @@ use curv::{
     cryptographic_primitives::{
         secret_sharing::feldman_vss::{VerifiableSS, ShamirSecretSharing},
     },
-    elliptic::curves::traits::{ECScalar},
+    elliptic::curves::traits::{ECScalar, ECPoint},
 };
 
 const SHARE_COUNT: usize = 5;
@@ -132,4 +132,10 @@ fn stateless_keygen<ID>(ids: Vec<ID>, threshold: usize)
     );
 
     assert_eq!(secret_key_reconstructed, secret_key_sum_u);
+
+    // test: verify that the reconstructed secret key yields the public key everyone deduced
+    for state in all_r4_states.values() {
+        let test_pubkey = GE::generator() * secret_key_reconstructed;
+        assert_eq!(test_pubkey, state.public_key);
+    }
 }
