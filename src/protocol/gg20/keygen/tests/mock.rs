@@ -18,7 +18,7 @@ pub fn new_party<'a, ID: 'static>(party_ids: &'a Vec<ID>, my_party_id_index: usi
     where ID: Eq + Hash + Ord + Clone + Debug
 {
     HappyParty::<'a>{
-        me: new(party_ids, my_party_id_index, threshold),
+        me: new_protocol(party_ids, my_party_id_index, threshold),
         transport,
     }
 }
