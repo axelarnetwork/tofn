@@ -11,10 +11,9 @@ mod stateless;
 use crate::protocol::{Protocol, State};
 use stateless::*;
 
-pub fn new<'a, ID: 'static>(party_ids: &Vec<ID>, my_party_id_index: usize, threshold: usize) -> Protocol<ID>
+pub fn new_protocol<'a, ID: 'static>(party_ids: &Vec<ID>, my_party_id_index: usize, threshold: usize) -> Protocol<ID>
     where ID: Eq + Hash + Ord + Clone + Debug
 {
-
     // prepare a map of expected incoming messages from other parties
     // each message is `None` until we receive it later
     let incoming_msgs = party_ids.iter().enumerate()
@@ -69,6 +68,8 @@ impl<ID: 'static> State<ID> for R1<ID>
         )
     }
 
+    fn get_id(&self) -> &ID {&self.my_uid}
+
     fn next(self: Box<Self>) -> Box<dyn State<ID>> {
         assert!(self.can_proceed());
         let incoming_bcast = self.incoming_msgs.keys().cloned().map(|k| (k,None)).collect();
@@ -76,10 +77,11 @@ impl<ID: 'static> State<ID> for R1<ID>
         let inputs = R2Input{
             other_r1_bcasts: self.incoming_msgs.into_iter().map(|(k,v)| (k, v.unwrap())).collect(),
             threshold: self.threshold,
-            my_uid: self.my_uid,
+            my_uid: self.my_uid.clone(),
         };
         let (state, output) = r2::execute(self.state, inputs);
         Box::new(R2{
+            my_id: self.my_uid,
             state,
             output_bcast: output.broadcast,
             output_p2p: output.p2p,
@@ -93,6 +95,7 @@ impl<ID: 'static> State<ID> for R1<ID>
 
 #[derive(Debug)]
 pub struct R2<ID> {
+    my_id: ID,
     state: R2State<ID>,
     output_bcast: R2Bcast,
     output_p2p: HashMap<ID, R2P2p>, // TODO use &ID instead of ID?
@@ -150,6 +153,8 @@ impl<ID: 'static> State<ID> for R2<ID>
         )
     }
 
+    fn get_id(&self) -> &ID {&self.my_id}
+
     fn next(self: Box<Self>) -> Box<dyn State<ID>> {
         assert!(self.can_proceed());
         let incoming = self.incoming_bcast.keys().cloned().map(|k| (k,None)).collect();
@@ -165,6 +170,7 @@ impl<ID: 'static> State<ID> for R2<ID>
         };
         let (state, output) = r3::execute(self.state, inputs);
         Box::new(R3{
+            my_id: self.my_id,
             state,
             output,
             incoming,
@@ -175,6 +181,7 @@ impl<ID: 'static> State<ID> for R2<ID>
 
 #[derive(Debug)]
 pub struct R3<ID> {
+    my_id: ID,
     state: R3State,
     output: R3Bcast,
     incoming: HashMap<ID, Option<R3Bcast>>,
@@ -182,7 +189,7 @@ pub struct R3<ID> {
 }
 
 // TODO refactor repeated code from R1, R2
-impl<ID> State<ID> for R3<ID>
+impl<ID: 'static> State<ID> for R3<ID>
     where ID: Eq + Hash + Ord + Clone + Debug
 {
     fn add_message_in(&mut self, from: &ID, msg: &Vec<u8>) {
@@ -205,6 +212,9 @@ impl<ID> State<ID> for R3<ID>
             HashMap::new() // no p2p msgs this round
         )
     }
+
+    fn get_id(&self) -> &ID {&self.my_id}
+
     fn next(self: Box<Self>) -> Box<dyn State<ID>> {
         assert!(self.can_proceed());
         let inputs = R4Input{
@@ -212,19 +222,22 @@ impl<ID> State<ID> for R3<ID>
         };
         let state = r4::execute(self.state, inputs);
         Box::new(R4{
+            my_id: self.my_id,
             state,
         })
     }
 }
 
 // TODO what to do with the result?
-pub struct R4{
+pub struct R4<ID>{
+    my_id: ID,
     state: R4State,
 }
-impl<ID> State<ID> for R4 {
+impl<ID: 'static> State<ID> for R4<ID> {
     fn add_message_in(&mut self, _from: &ID, _msg: &Vec<u8>) {}
     fn can_proceed(&self) -> bool {false}
     fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<ID, Vec<u8>>) {(None, HashMap::new())}
+    fn get_id(&self) -> &ID {&self.my_id}
     fn next(self: Box<Self>) -> Box<dyn State<ID>> {self}
 }
 

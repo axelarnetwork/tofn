@@ -21,6 +21,9 @@ impl<ID> Protocol<ID> {
     pub fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<ID, Vec<u8>>) {
         self.state.as_ref().unwrap().get_messages_out()
     }
+    pub fn get_id(&self) -> &ID {
+        self.state.as_ref().unwrap().get_id()
+    }
     pub fn can_proceed(&self) -> bool {
         self.state.as_ref().unwrap().can_proceed()
     }
@@ -30,6 +33,7 @@ pub trait State<ID> {
     // type ID;
     fn add_message_in(&mut self, from: &ID, msg: &Vec<u8>); // either bcast or p2p
     fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<ID, Vec<u8>>); // (bcast, p2p)
+    fn get_id(&self) -> &ID;
     fn can_proceed(&self) -> bool;
     fn next(self: Box<Self>) -> Box<dyn State<ID>>;
 }

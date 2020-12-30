@@ -7,9 +7,7 @@ use curv::{
     },
     elliptic::curves::traits::{ECScalar, ECPoint},
 };
-
-const SHARE_COUNT: usize = 5;
-const THRESHOLD: usize = 3;
+use super::super::tests::{SHARE_COUNT, THRESHOLD};
 
 #[test]
 fn stateless_keygen_usize_ids() {
