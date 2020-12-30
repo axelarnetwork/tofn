@@ -9,6 +9,7 @@ pub struct Protocol<ID> {
 }
 
 impl<ID> Protocol<ID> {
+    // TODO implement the iterator trait?
     pub fn next(&mut self) {
         if let Some(s) = self.state.take() {
             self.state = Some(s.next())
