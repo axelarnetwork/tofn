@@ -1,17 +1,17 @@
 //! Traits for mock tests
 // use super::*;
 
-pub trait Party {
+pub trait Party<ID> {
     fn execute();
-	fn msg_in(msg: &Vec<u8>);
+	fn msg_in(from: &ID, msg: &Vec<u8>);
 }
 
 pub trait Deliverer {
-    fn deliver();
+    fn deliver(&self);
 }
 
-pub trait Transport: Deliverer {
-    fn add_party(p: &impl Party);
+pub trait Transport<ID>: Deliverer {
+    fn add_party(p: &impl Party<ID>);
     fn execute_all();
 }
 

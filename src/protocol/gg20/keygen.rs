@@ -11,7 +11,7 @@ use crate::protocol::{Protocol, State};
 use stateless::*;
 
 // pub fn new<ID>(party_ids: Vec<ID>, my_party_id: usize, threshold: usize) -> Protocol {
-pub fn new<ID: 'static>(party_ids: &Vec<ID>, my_party_id_index: usize, threshold: usize) -> Protocol<ID>
+pub fn new<'a, ID: 'static>(party_ids: &Vec<ID>, my_party_id_index: usize, threshold: usize) -> Protocol<ID>
     where ID: Eq + Hash + Ord + Clone + Debug
     // where ID: Eq + Hash
 {
