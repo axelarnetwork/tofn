@@ -3,6 +3,7 @@ pub mod gg20;
 
 use std::collections::HashMap;
 
+// TODO why can't this just be a State interface??
 pub struct Protocol<ID> {
     state: Option<Box<dyn State<ID>>>,
 }
