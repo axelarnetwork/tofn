@@ -91,6 +91,8 @@ impl<ID: 'static> State<ID> for R1<ID>
             num_incoming_p2p: 0,
         })
     }
+
+    fn done(&self) -> bool {false}
 }
 
 #[derive(Debug)]
@@ -177,6 +179,8 @@ impl<ID: 'static> State<ID> for R2<ID>
             num_incoming: 0,
         })
     }
+
+    fn done(&self) -> bool {false}
 }
 
 #[derive(Debug)]
@@ -226,6 +230,8 @@ impl<ID: 'static> State<ID> for R3<ID>
             state,
         })
     }
+
+    fn done(&self) -> bool {false}
 }
 
 // TODO what to do with the result?
@@ -239,6 +245,7 @@ impl<ID: 'static> State<ID> for R4<ID> {
     fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<ID, Vec<u8>>) {(None, HashMap::new())}
     fn get_id(&self) -> &ID {&self.my_id}
     fn next(self: Box<Self>) -> Box<dyn State<ID>> {self}
+    fn done(&self) -> bool {true}
 }
 
 #[cfg(test)]
