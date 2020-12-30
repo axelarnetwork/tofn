@@ -27,6 +27,9 @@ impl<ID> Protocol<ID> {
     pub fn can_proceed(&self) -> bool {
         self.state.as_ref().unwrap().can_proceed()
     }
+    pub fn done(&self) -> bool {
+        self.state.as_ref().unwrap().done()
+    }
 }
 
 pub trait State<ID> {
@@ -36,6 +39,7 @@ pub trait State<ID> {
     fn get_id(&self) -> &ID;
     fn can_proceed(&self) -> bool;
     fn next(self: Box<Self>) -> Box<dyn State<ID>>;
+    fn done(&self) -> bool;
 }
 
 #[cfg(test)]

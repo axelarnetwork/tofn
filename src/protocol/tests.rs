@@ -1,28 +1,46 @@
 use super::*;
+use std::fmt::Debug;
 
 pub fn execute_protocol_vec<ID>(parties: &mut Vec<Protocol<ID>>)
-    where ID: Eq + Clone
+    where ID: Eq + Clone + Debug
 {
-    // need to iterate over indices 0..n instead of parties.iter()
-    // because otherwise the borrow checker complains
-    // that's why we use Vec instead of HashMap :(
-    for i in 0..parties.len() {
-        let (bcast, p2ps) = parties[i].get_messages_out();
-        let sender_id = parties[i].get_id().clone(); // clone to satisfy the borrow checker
 
-        // broadcast message to all other parties
-        if let Some(bcast) = bcast {
-            for j in 0..parties.len() {
-                if j==i {continue} // don't broadcast to myself
-                parties[j].add_message_in(&sender_id, &bcast);
+    while !all_done(parties) {
+
+        // need to iterate over indices 0..n instead of parties.iter()
+        // because otherwise the borrow checker complains
+        // that's why we use Vec instead of HashMap :(
+        for i in 0..parties.len() {
+            let (bcast, p2ps) = parties[i].get_messages_out();
+            let sender_id = parties[i].get_id().clone(); // clone to satisfy the borrow checker
+
+            // deliver bcast message to all other parties
+            if let Some(bcast) = bcast {
+                for j in 0..parties.len() {
+                    if j==i {continue} // don't broadcast to myself
+                    parties[j].add_message_in(&sender_id, &bcast);
+                }
+            }
+
+            // deliver p2p messages
+            for (receiver_id, p2p) in p2ps { // quadratic complexity :(
+                parties.iter_mut()
+                    .find(|p| *p.get_id()==receiver_id).unwrap() // linear search
+                    .add_message_in(&sender_id, &p2p);
             }
         }
 
-        // deliver p2p messages
-        for (receiver_id, p2p) in p2ps { // quadratic complexity :(
-            parties.iter_mut()
-                .find(|p| *p.get_id()==receiver_id).unwrap() // linear search
-                .add_message_in(&sender_id, &p2p);
+        // all messages delivered -- all parties should now be able to proceed
+        for p in parties.iter() {
+            if !p.can_proceed() {
+                panic!("party {:?} cannot proceed", p.get_id());
+            }
+        }
+
+        // advance all parties to next round
+        // iterate over indices 0..n to satisfy the borrow checker
+        for i in 0..parties.len() {
+            parties[i].next();
         }
     }
 }
@@ -45,6 +63,20 @@ pub fn execute_protocol_vec<ID>(parties: &mut Vec<Protocol<ID>>)
 //         }
 //     }
 // }
+
+fn all_done<ID>(parties: &Vec<Protocol<ID>>) -> bool
+    where ID: Debug
+{
+    // panic if there's disagreement
+    let done = parties[0].done();
+    let parties = parties.iter().next();
+    for p in parties {
+        if p.done() != done {
+            panic!("party {:?} done? [{}], party 0 done? [{}]", p.get_id(), p.done(), done);
+        }
+    }
+    done
+}
 
 #[cfg(test)]
 pub mod mock; // abandoned
