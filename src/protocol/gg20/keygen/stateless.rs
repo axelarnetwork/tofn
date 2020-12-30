@@ -101,7 +101,7 @@ pub struct R2State<ID> {
 
 #[derive(Debug)]
 pub struct R3Input<ID> {
-    other_r2_msgs: HashMap<ID, (R2Bcast, R2P2p)>,
+    pub other_r2_msgs: HashMap<ID, (R2Bcast, R2P2p)>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -119,7 +119,7 @@ pub struct R3State {
 
 #[derive(Debug)]
 pub struct R4Input<ID> {
-    other_r3_bcasts: HashMap<ID, R3Bcast>,
+    pub other_r3_bcasts: HashMap<ID, R3Bcast>,
 }
 
 #[derive(Debug)]

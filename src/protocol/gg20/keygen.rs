@@ -1,3 +1,4 @@
+//! Stateful keygen happy path
 use std::{
     collections::HashMap,
     hash::Hash,
@@ -10,10 +11,8 @@ mod stateless;
 use crate::protocol::{Protocol, State};
 use stateless::*;
 
-// pub fn new<ID>(party_ids: Vec<ID>, my_party_id: usize, threshold: usize) -> Protocol {
 pub fn new<'a, ID: 'static>(party_ids: &Vec<ID>, my_party_id_index: usize, threshold: usize) -> Protocol<ID>
     where ID: Eq + Hash + Ord + Clone + Debug
-    // where ID: Eq + Hash
 {
 
     // prepare a map of expected incoming messages from other parties
@@ -49,7 +48,6 @@ pub struct R1<ID> {
 impl<ID: 'static> State<ID> for R1<ID>
     where ID: Eq + Hash + Ord + Clone + Debug
 {
-
     fn add_message_in(&mut self, from: &ID, msg: &Vec<u8>) {
         let stored = self.incoming_msgs.get_mut(from).unwrap(); // panic: unexpected party id
         if stored.is_some() {
@@ -104,8 +102,7 @@ pub struct R2<ID> {
     num_incoming_p2p: usize,
 }
 
-// impl<ID> State for R2<ID> {
-impl<ID> State<ID> for R2<ID>
+impl<ID: 'static> State<ID> for R2<ID>
     where ID: Eq + Hash + Ord + Clone + Debug
 {
     fn add_message_in(&mut self, from: &ID, msg: &Vec<u8>) {
@@ -155,15 +152,76 @@ impl<ID> State<ID> for R2<ID>
 
     fn next(self: Box<Self>) -> Box<dyn State<ID>> {
         assert!(self.can_proceed());
-        Box::new(R3{})
+        let incoming = self.incoming_bcast.keys().cloned().map(|k| (k,None)).collect();
+        let inputs = R3Input{
+            other_r2_msgs: self.incoming_bcast.iter().map(|(k,v)| {
+                // TODO lots of cloning here
+                let p2p = self.incoming_p2p.get(k).unwrap().clone().unwrap();
+                (
+                    k.clone(),
+                    (v.clone().unwrap(), p2p)
+                )
+            }).collect(),
+        };
+        let (state, output) = r3::execute(self.state, inputs);
+        Box::new(R3{
+            state,
+            output,
+            incoming,
+            num_incoming: 0,
+        })
     }
 }
 
 #[derive(Debug)]
-pub struct R3{}
+pub struct R3<ID> {
+    state: R3State,
+    output: R3Bcast,
+    incoming: HashMap<ID, Option<R3Bcast>>,
+    num_incoming: usize,
+}
 
-// dummy impl State
-impl<ID> State<ID> for R3 {
+// TODO refactor repeated code from R1, R2
+impl<ID> State<ID> for R3<ID>
+    where ID: Eq + Hash + Ord + Clone + Debug
+{
+    fn add_message_in(&mut self, from: &ID, msg: &Vec<u8>) {
+        let stored = self.incoming.get_mut(from).unwrap(); // panic: unexpected party id
+        if stored.is_some() {
+            panic!("repeated message from party id {:?}", from);
+        }
+        let msg: R3Bcast = bincode::deserialize(msg).unwrap(); // panic: deserialization failure
+        *stored = Some(msg);
+        self.num_incoming += 1;
+        assert!(self.num_incoming <= self.incoming.len());
+    }
+
+    fn can_proceed(&self) -> bool {self.num_incoming >= self.incoming.len()}
+
+    fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<ID, Vec<u8>>) {
+        let bcast = bincode::serialize(&self.output).unwrap(); // panic: serialization failure
+        (
+            Some(bcast),
+            HashMap::new() // no p2p msgs this round
+        )
+    }
+    fn next(self: Box<Self>) -> Box<dyn State<ID>> {
+        assert!(self.can_proceed());
+        let inputs = R4Input{
+            other_r3_bcasts: self.incoming.into_iter().map(|(k,v)| (k,v.unwrap()) ).collect(),
+        };
+        let state = r4::execute(self.state, inputs);
+        Box::new(R4{
+            state,
+        })
+    }
+}
+
+// TODO what to do with the result?
+pub struct R4{
+    state: R4State,
+}
+impl<ID> State<ID> for R4 {
     fn add_message_in(&mut self, _from: &ID, _msg: &Vec<u8>) {}
     fn can_proceed(&self) -> bool {false}
     fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<ID, Vec<u8>>) {(None, HashMap::new())}
