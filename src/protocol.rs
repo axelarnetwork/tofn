@@ -4,24 +4,24 @@ pub mod gg20;
 use std::collections::HashMap;
 
 // TODO why can't this just be a State interface??
-pub struct Protocol<ID> {
-    state: Option<Box<dyn State<ID>>>,
+pub struct Protocol {
+    state: Option<Box<dyn State>>,
 }
 
-impl<ID> Protocol<ID> {
+impl Protocol {
     // TODO implement the iterator trait?
     pub fn next(&mut self) {
         if let Some(s) = self.state.take() {
             self.state = Some(s.next())
         }
     }
-    pub fn add_message_in(&mut self, from: &ID, msg: &Vec<u8>) {
+    pub fn add_message_in(&mut self, from: &str, msg: &Vec<u8>) {
         self.state.as_mut().unwrap().add_message_in(from, msg)
     }
-    pub fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<ID, Vec<u8>>) {
+    pub fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<String, Vec<u8>>) {
         self.state.as_ref().unwrap().get_messages_out()
     }
-    pub fn get_id(&self) -> &ID {
+    pub fn get_id(&self) -> &str {
         self.state.as_ref().unwrap().get_id()
     }
     pub fn can_proceed(&self) -> bool {
@@ -32,13 +32,13 @@ impl<ID> Protocol<ID> {
     }
 }
 
-pub trait State<ID> {
+pub trait State {
     // type ID;
-    fn add_message_in(&mut self, from: &ID, msg: &Vec<u8>); // either bcast or p2p
-    fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<ID, Vec<u8>>); // (bcast, p2p)
-    fn get_id(&self) -> &ID;
+    fn add_message_in(&mut self, from: &str, msg: &Vec<u8>); // either bcast or p2p
+    fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<String, Vec<u8>>); // (bcast, p2p)
+    fn get_id(&self) -> &str;
     fn can_proceed(&self) -> bool;
-    fn next(self: Box<Self>) -> Box<dyn State<ID>>;
+    fn next(self: Box<Self>) -> Box<dyn State>;
     fn done(&self) -> bool;
 }
 

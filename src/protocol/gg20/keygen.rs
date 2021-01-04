@@ -1,9 +1,5 @@
 //! Stateful keygen happy path
-use std::{
-    collections::HashMap,
-    hash::Hash,
-    fmt::Debug,
-};
+use std::collections::HashMap;
 use bincode;
 
 mod stateless;
@@ -11,9 +7,7 @@ mod stateless;
 use crate::protocol::{Protocol, State};
 use stateless::*;
 
-pub fn new_protocol<'a, ID: 'static>(party_ids: &Vec<ID>, my_party_id_index: usize, threshold: usize) -> Protocol<ID>
-    where ID: Eq + Hash + Ord + Clone + Debug
-{
+pub fn new_protocol(party_ids: &Vec<String>, my_party_id_index: usize, threshold: usize) -> Protocol {
     // prepare a map of expected incoming messages from other parties
     // each message is `None` until we receive it later
     let incoming_msgs = party_ids.iter().enumerate()
@@ -23,7 +17,7 @@ pub fn new_protocol<'a, ID: 'static>(party_ids: &Vec<ID>, my_party_id_index: usi
 
     let (state, output) = r1::start();
     Protocol {
-        state: Some(Box::new(R1::<ID>{
+        state: Some(Box::new(R1{
             state,
             output,
             incoming_msgs,
@@ -35,19 +29,17 @@ pub fn new_protocol<'a, ID: 'static>(party_ids: &Vec<ID>, my_party_id_index: usi
 }
 
 #[derive(Debug)]
-pub struct R1<ID> {
+pub struct R1 {
     state: R1State,
     output: R1Bcast,
-    incoming_msgs: HashMap<ID, Option<R1Bcast>>,
+    incoming_msgs: HashMap<String, Option<R1Bcast>>,
     threshold: usize,
-    my_uid: ID,
+    my_uid: String,
     num_incoming_msgs: usize,
 }
 
-impl<ID: 'static> State<ID> for R1<ID>
-    where ID: Eq + Hash + Ord + Clone + Debug
-{
-    fn add_message_in(&mut self, from: &ID, msg: &Vec<u8>) {
+impl State for R1 {
+    fn add_message_in(&mut self, from: &str, msg: &Vec<u8>) {
         let stored = self.incoming_msgs.get_mut(from).unwrap(); // panic: unexpected party id
         if stored.is_some() {
             panic!("repeated message from party id {:?}", from);
@@ -60,7 +52,7 @@ impl<ID: 'static> State<ID> for R1<ID>
 
     fn can_proceed(&self) -> bool {self.num_incoming_msgs >= self.incoming_msgs.len()}
 
-    fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<ID, Vec<u8>>) {
+    fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<String, Vec<u8>>) {
         let bcast = bincode::serialize(&self.output).unwrap(); // panic: serialization failure
         (
             Some(bcast),
@@ -68,9 +60,9 @@ impl<ID: 'static> State<ID> for R1<ID>
         )
     }
 
-    fn get_id(&self) -> &ID {&self.my_uid}
+    fn get_id(&self) -> &str {&self.my_uid}
 
-    fn next(self: Box<Self>) -> Box<dyn State<ID>> {
+    fn next(self: Box<Self>) -> Box<dyn State> {
         assert!(self.can_proceed());
         let incoming_bcast = self.incoming_msgs.keys().cloned().map(|k| (k,None)).collect();
         let incoming_p2p = self.incoming_msgs.keys().cloned().map(|k| (k,None)).collect();
@@ -96,21 +88,19 @@ impl<ID: 'static> State<ID> for R1<ID>
 }
 
 #[derive(Debug)]
-pub struct R2<ID> {
-    my_id: ID,
-    state: R2State<ID>,
+pub struct R2 {
+    my_id: String,
+    state: R2State,
     output_bcast: R2Bcast,
-    output_p2p: HashMap<ID, R2P2p>, // TODO use &ID instead of ID?
-    incoming_bcast: HashMap<ID, Option<R2Bcast>>, // TODO use &ID instead of ID?
+    output_p2p: HashMap<String, R2P2p>, // TODO use &ID instead of ID?
+    incoming_bcast: HashMap<String, Option<R2Bcast>>, // TODO use &ID instead of ID?
     num_incoming_bcast: usize, // TODO refactor incoming, num_incoming into a separate data structure
-    incoming_p2p: HashMap<ID, Option<R2P2p>>,
+    incoming_p2p: HashMap<String, Option<R2P2p>>,
     num_incoming_p2p: usize,
 }
 
-impl<ID: 'static> State<ID> for R2<ID>
-    where ID: Eq + Hash + Ord + Clone + Debug
-{
-    fn add_message_in(&mut self, from: &ID, msg: &Vec<u8>) {
+impl State for R2 {
+    fn add_message_in(&mut self, from: &str, msg: &Vec<u8>) {
         // msg can be either R2Bcast or R2P2p
         // TODO lots of refactoring needed
         if let Ok(bcast) = bincode::deserialize(msg) {
@@ -142,7 +132,7 @@ impl<ID: 'static> State<ID> for R2<ID>
         (self.num_incoming_p2p >= self.incoming_p2p.len())
     }
 
-    fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<ID, Vec<u8>>) {
+    fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<String, Vec<u8>>) {
         let bcast = bincode::serialize(&self.output_bcast).unwrap(); // panic: serialization failure
         let p2p = self.output_p2p.iter().map(|(k,v)|
             (
@@ -155,9 +145,9 @@ impl<ID: 'static> State<ID> for R2<ID>
         )
     }
 
-    fn get_id(&self) -> &ID {&self.my_id}
+    fn get_id(&self) -> &str {&self.my_id}
 
-    fn next(self: Box<Self>) -> Box<dyn State<ID>> {
+    fn next(self: Box<Self>) -> Box<dyn State> {
         assert!(self.can_proceed());
         let incoming = self.incoming_bcast.keys().cloned().map(|k| (k,None)).collect();
         let inputs = R3Input{
@@ -184,19 +174,17 @@ impl<ID: 'static> State<ID> for R2<ID>
 }
 
 #[derive(Debug)]
-pub struct R3<ID> {
-    my_id: ID,
+pub struct R3 {
+    my_id: String,
     state: R3State,
     output: R3Bcast,
-    incoming: HashMap<ID, Option<R3Bcast>>,
+    incoming: HashMap<String, Option<R3Bcast>>,
     num_incoming: usize,
 }
 
 // TODO refactor repeated code from R1, R2
-impl<ID: 'static> State<ID> for R3<ID>
-    where ID: Eq + Hash + Ord + Clone + Debug
-{
-    fn add_message_in(&mut self, from: &ID, msg: &Vec<u8>) {
+impl State for R3 {
+    fn add_message_in(&mut self, from: &str, msg: &Vec<u8>) {
         let stored = self.incoming.get_mut(from).unwrap(); // panic: unexpected party id
         if stored.is_some() {
             panic!("repeated message from party id {:?}", from);
@@ -209,7 +197,7 @@ impl<ID: 'static> State<ID> for R3<ID>
 
     fn can_proceed(&self) -> bool {self.num_incoming >= self.incoming.len()}
 
-    fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<ID, Vec<u8>>) {
+    fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<String, Vec<u8>>) {
         let bcast = bincode::serialize(&self.output).unwrap(); // panic: serialization failure
         (
             Some(bcast),
@@ -217,9 +205,9 @@ impl<ID: 'static> State<ID> for R3<ID>
         )
     }
 
-    fn get_id(&self) -> &ID {&self.my_id}
+    fn get_id(&self) -> &str {&self.my_id}
 
-    fn next(self: Box<Self>) -> Box<dyn State<ID>> {
+    fn next(self: Box<Self>) -> Box<dyn State> {
         assert!(self.can_proceed());
         let inputs = R4Input{
             other_r3_bcasts: self.incoming.into_iter().map(|(k,v)| (k,v.unwrap()) ).collect(),
@@ -235,16 +223,16 @@ impl<ID: 'static> State<ID> for R3<ID>
 }
 
 // TODO what to do with the result?
-pub struct R4<ID>{
-    my_id: ID,
+pub struct R4{
+    my_id: String,
     state: R4State,
 }
-impl<ID: 'static> State<ID> for R4<ID> {
-    fn add_message_in(&mut self, _from: &ID, _msg: &Vec<u8>) {}
+impl State for R4 {
+    fn add_message_in(&mut self, _from: &str, _msg: &Vec<u8>) {}
     fn can_proceed(&self) -> bool {false}
-    fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<ID, Vec<u8>>) {(None, HashMap::new())}
-    fn get_id(&self) -> &ID {&self.my_id}
-    fn next(self: Box<Self>) -> Box<dyn State<ID>> {self}
+    fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<String, Vec<u8>>) {(None, HashMap::new())}
+    fn get_id(&self) -> &str {&self.my_id}
+    fn next(self: Box<Self>) -> Box<dyn State> {self}
     fn done(&self) -> bool {true}
 }
 

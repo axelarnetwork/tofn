@@ -1,7 +1,3 @@
-use std::{
-    fmt::Debug,
-    hash::Hash,
-};
 use curv::{
     cryptographic_primitives::{
         proofs::sigma_dlog::{DLogProof, ProveDLog},
@@ -15,13 +11,11 @@ use curv::{
 };
 use super::{R2State, R3Input, R3State, R3Bcast};
 
-pub fn execute<ID>(state: R2State<ID>, msg: R3Input<ID>) -> (R3State, R3Bcast)
-    where ID: Eq + Hash + Ord + Clone + Debug
-{
+pub fn execute(state: R2State, msg: R3Input) -> (R3State, R3Bcast) {
     // assert!(!msg.other_r2_msgs.contains_key(&msg.my_uid));
     assert_eq!(
-        msg.other_r2_msgs.keys().collect::<Vec<&ID>>().sort_unstable(),
-        state.others.keys().collect::<Vec<&ID>>().sort_unstable()
+        msg.other_r2_msgs.keys().collect::<Vec<&String>>().sort_unstable(),
+        state.others.keys().collect::<Vec<&String>>().sort_unstable()
     );
 
     // println!("party {}: p2p msgs I received: {:#?}", state.my_vss_index, msg.other_r2_msgs.iter().map(|(id,(_,p))| (id,p)).collect::<HashMap<&ID, &KeygenR2MsgOutP2p>>() );

@@ -60,18 +60,16 @@ pub struct R1State {
 // round 2
 
 #[derive(Debug)]
-pub struct R2Input<ID>
-    // where ID: Eq + Hash + Ord // TODO how best to avoid repeating this where clause?
-{
+pub struct R2Input{
     pub threshold: usize,
-    pub other_r1_bcasts: HashMap<ID, R1Bcast>,
-    pub my_uid: ID,
+    pub other_r1_bcasts: HashMap<String, R1Bcast>,
+    pub my_uid: String,
 }
 #[derive(Debug)]
-pub struct R2Output<ID>
+pub struct R2Output
 {
     pub broadcast: R2Bcast,
-    pub p2p: HashMap<ID, R2P2p>,
+    pub p2p: HashMap<String, R2P2p>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct R2Bcast {
@@ -86,22 +84,22 @@ pub struct R2P2p {
 }
 
 #[derive(Debug)]
-pub struct R2State<ID> {
+pub struct R2State {
     // u: FE,
     y: GE, // TODO redundant
     dk: DecryptionKey,
     my_share_of_u: FE,
     my_vss_index: usize,
     // others: HashMap<ID, (R1Bcast, usize)>, // (msg, share_index)
-    others: HashMap<ID, R1Bcast>,
+    others: HashMap<String, R1Bcast>,
     threshold: usize,
 }
 
 // round 3
 
 #[derive(Debug)]
-pub struct R3Input<ID> {
-    pub other_r2_msgs: HashMap<ID, (R2Bcast, R2P2p)>,
+pub struct R3Input {
+    pub other_r2_msgs: HashMap<String, (R2Bcast, R2P2p)>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -118,8 +116,8 @@ pub struct R3State {
 // round 4
 
 #[derive(Debug)]
-pub struct R4Input<ID> {
-    pub other_r3_bcasts: HashMap<ID, R3Bcast>,
+pub struct R4Input {
+    pub other_r3_bcasts: HashMap<String, R3Bcast>,
 }
 
 #[derive(Debug)]

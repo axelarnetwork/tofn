@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    hash::Hash,
-};
+use std::collections::HashMap;
 use curv::{
     cryptographic_primitives::{
         secret_sharing::feldman_vss::{VerifiableSS},
@@ -9,9 +6,7 @@ use curv::{
 };
 use super::{R1State, R2Input, R2Output, R2State, R2Bcast, R2P2p};
 
-pub fn execute<ID>(state: R1State, msg: R2Input<ID>) -> (R2State<ID>, R2Output<ID>)
-    where ID: Eq + Hash + Ord + Clone
-{
+pub fn execute(state: R1State, msg: R2Input) -> (R2State, R2Output) {
     let share_count = msg.other_r1_bcasts.len() + 1;
 
     assert!(msg.threshold < share_count);
@@ -30,11 +25,12 @@ pub fn execute<ID>(state: R1State, msg: R2Input<ID>) -> (R2State<ID>, R2Output<I
     );
 
     // ensure a deterministic distribution of unique shares among parties
-    let mut sorted_ids : Vec<&ID> = msg.other_r1_bcasts.keys().collect();
+    // TODO too much cloning
+    let mut sorted_ids : Vec<&String> = msg.other_r1_bcasts.keys().collect();
     sorted_ids.push(&msg.my_uid);
     sorted_ids.sort_unstable();
 
-    let mut p2p_msg = HashMap::<ID,_>::with_capacity(msg.other_r1_bcasts.len());
+    let mut p2p_msg = HashMap::<String,_>::with_capacity(msg.other_r1_bcasts.len());
     // let mut others = HashMap::<ID,_>::with_capacity(msg.other_r1_bcasts.len());
     let (mut my_share_of_u, mut my_vss_index) = (None,None);
     for i in 0..sorted_ids.len() {
