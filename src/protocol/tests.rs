@@ -1,9 +1,6 @@
 use super::*;
-use std::fmt::Debug;
 
-pub fn execute_protocol_vec<ID>(parties: &mut Vec<Protocol<ID>>)
-    where ID: Eq + Clone + Debug
-{
+pub fn execute_protocol_vec(parties: &mut Vec<Protocol>) {
 
     while !all_done(parties) {
 
@@ -12,7 +9,7 @@ pub fn execute_protocol_vec<ID>(parties: &mut Vec<Protocol<ID>>)
         // that's why we use Vec instead of HashMap :(
         for i in 0..parties.len() {
             let (bcast, p2ps) = parties[i].get_messages_out();
-            let sender_id = parties[i].get_id().clone(); // clone to satisfy the borrow checker
+            let sender_id = parties[i].get_id().to_string(); // clone to satisfy the borrow checker
 
             // deliver bcast message to all other parties
             if let Some(bcast) = bcast {
@@ -64,9 +61,7 @@ pub fn execute_protocol_vec<ID>(parties: &mut Vec<Protocol<ID>>)
 //     }
 // }
 
-fn all_done<ID>(parties: &Vec<Protocol<ID>>) -> bool
-    where ID: Debug
-{
+fn all_done(parties: &Vec<Protocol>) -> bool {
     // panic if there's disagreement
     let done = parties[0].done();
     let parties = parties.iter().next();

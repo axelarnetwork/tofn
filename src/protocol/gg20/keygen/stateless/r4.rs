@@ -1,7 +1,3 @@
-use std::{
-    fmt::Debug,
-    hash::Hash,
-};
 use curv::{
     cryptographic_primitives::{
         proofs::sigma_dlog::{DLogProof, ProveDLog},
@@ -9,9 +5,7 @@ use curv::{
 };
 use super::{R3State, R4Input, R4State};
 
-pub fn execute<ID>(state: R3State, msg: R4Input<ID>) -> R4State
-    where ID: Eq + Hash + Ord + Clone + Debug
-{
+pub fn execute(state: R3State, msg: R4Input) -> R4State {
     // TODO:
     // assert!(!msg.other_r2_msgs.contains_key(&msg.my_uid));
     // assert_eq!(

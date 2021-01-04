@@ -1,5 +1,4 @@
 use super::*;
-use std::{hash::Hash};
 use curv::{
     // FE, // rustc does not warn of unused imports for FE
     cryptographic_primitives::{
@@ -10,22 +9,10 @@ use curv::{
 use super::super::tests::{SHARE_COUNT, THRESHOLD};
 
 #[test]
-fn stateless_keygen_usize_ids() {
-    // party ids: 0,...,n 
-    stateless_keygen::<usize>((0..SHARE_COUNT).collect(), THRESHOLD);
-}
-
-#[test]
-fn stateless_keygen_string_ids() {
-    // party ids: "0",...,"n" 
-    stateless_keygen::<String>((0..SHARE_COUNT).map(|i| i.to_string()).collect(), THRESHOLD);
-}
-
-fn stateless_keygen<ID>(ids: Vec<ID>, threshold: usize)
-    where ID: Eq + Hash + Ord + Clone + Debug
-{
+fn keygen() {
+    let ids : Vec<String> = (0..SHARE_COUNT).map(|i| i.to_string()).collect();
     let share_count = ids.len();
-    assert!(threshold < share_count);
+    assert!(THRESHOLD < share_count);
 
     // execute round 1 all parties and store their outputs
     let mut all_r1_bcasts = HashMap::with_capacity(share_count);
@@ -51,9 +38,9 @@ fn stateless_keygen<ID>(ids: Vec<ID>, threshold: usize)
         let input = R2Input {
             my_uid: id.clone(),
             other_r1_bcasts,
-            threshold,
+            threshold: THRESHOLD,
         };
-        let (state, msg) = r2::execute::<ID>(my_r1_state, input);
+        let (state, msg) = r2::execute(my_r1_state, input);
         all_r2_states.insert(id, state);
         all_r2_bcasts.insert(id.clone(), msg.broadcast);
         all_r2_p2ps.insert(id, msg.p2p);
@@ -85,7 +72,7 @@ fn stateless_keygen<ID>(ids: Vec<ID>, threshold: usize)
     let mut all_r3_bcasts = HashMap::with_capacity(share_count);
     for (id, input) in all_r3_inputs {
         let my_r2_state = all_r2_states.remove(id).unwrap();
-        let (state,msg) = r3::execute::<ID>(my_r2_state, input);
+        let (state,msg) = r3::execute(my_r2_state, input);
         all_r3_states.insert(id, state);
         all_r3_bcasts.insert(id.clone(), msg);
     }
@@ -100,7 +87,7 @@ fn stateless_keygen<ID>(ids: Vec<ID>, threshold: usize)
         let input = R4Input {
             other_r3_bcasts,
         };
-        let result = r4::execute::<ID>(my_r3_state, input);
+        let result = r4::execute(my_r3_state, input);
         all_r4_states.insert(id, result);
     }
     let all_r4_states = all_r4_states; // make read-only
@@ -120,13 +107,13 @@ fn stateless_keygen<ID>(ids: Vec<ID>, threshold: usize)
     let test_vss_scheme = VerifiableSS{ // cruft: needed for curv library
         parameters: ShamirSecretSharing{
             share_count,
-            threshold,
+            threshold: THRESHOLD,
         },
         commitments: Vec::new(),
     };
     let secret_key_reconstructed = test_vss_scheme.reconstruct(
-        &all_vss_indices[0..=threshold],
-        &all_secret_shares[0..=threshold]
+        &all_vss_indices[0..=THRESHOLD],
+        &all_secret_shares[0..=THRESHOLD]
     );
 
     assert_eq!(secret_key_reconstructed, secret_key_sum_u);

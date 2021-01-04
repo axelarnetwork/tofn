@@ -7,23 +7,21 @@ use crate::protocol::{
 };
 
 #[allow(dead_code)]
-struct HappyParty<'a, ID> {
-    me: protocol::Protocol<ID>,
+struct HappyParty<'a> {
+    me: protocol::Protocol,
     transport: &'a dyn Deliverer,
 }
 
 // TODO replace args with a protobuf grpc keygeninfo struct
 #[allow(dead_code)]
-pub fn new_party<'a, ID: 'static>(party_ids: &'a Vec<ID>, my_party_id_index: usize, threshold: usize, transport: &'a dyn Deliverer ) -> impl Party<ID> + 'a
-    where ID: Eq + Hash + Ord + Clone + Debug
-{
+pub fn new_party<'a>(party_ids: &'a Vec<String>, my_party_id_index: usize, threshold: usize, transport: &'a dyn Deliverer ) -> impl Party + 'a {
     HappyParty::<'a>{
         me: new_protocol(party_ids, my_party_id_index, threshold),
         transport,
     }
 }
 
-impl<'a, ID> Party<ID> for HappyParty<'a, ID> {
+impl<'a> Party for HappyParty<'a> {
     fn execute() {}
-	fn msg_in(_from: &ID, _msg: &Vec<u8>) {}
+	fn msg_in(_from: &str, _msg: &Vec<u8>) {}
 }
