@@ -98,7 +98,7 @@ impl State for R1 {
         Box::new(R2 {
             my_id: self.my_uid,
             state,
-            output_bcast: output.broadcast,
+            output_bcast: output.bcast,
             output_p2p: output.p2p,
             incoming_bcast,
             num_incoming_bcast: 0,
@@ -271,7 +271,7 @@ impl State for R3 {
 // TODO what to do with the result?
 pub struct R4 {
     my_id: String,
-    state: R4State,
+    state: FinalOutput,
 }
 impl State for R4 {
     fn add_message_in(&mut self, _from: &str, _msg: &[u8]) {}

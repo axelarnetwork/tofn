@@ -3,9 +3,9 @@ use curv::{
         proofs::sigma_dlog::{DLogProof, ProveDLog},
     },
 };
-use super::{R3State, R4Input, R4State};
+use super::{R3State, R4Input, FinalOutput};
 
-pub fn execute(state: R3State, msg: R4Input) -> R4State {
+pub fn execute(state: R3State, input: R4Input) -> FinalOutput {
     // TODO:
     // assert!(!msg.other_r2_msgs.contains_key(&msg.my_uid));
     // assert_eq!(
@@ -14,13 +14,14 @@ pub fn execute(state: R3State, msg: R4Input) -> R4State {
     // );
 
     // verify other parties' proofs
-    for other_r3_bcast in msg.other_r3_bcasts.values() {
+    for other_r3_bcast in input.other_r3_bcasts.values() {
         DLogProof::verify(&other_r3_bcast.dlog_proof).unwrap(); // panic on error for now
     }
 
-    R4State{
-        my_vss_index: state.my_vss_index,
-        public_key: state.public_key,
-        my_secret_key_share: state.my_secret_key_share,
+    FinalOutput{
+        my_share_index: state.my_r2_state.my_share_index,
+        ecdsa_public_key: state.ecdsa_public_key,
+        my_ecdsa_secret_key_share: state.my_ecdsa_secret_key_share,
+        // my_r3_state: state,
     }
 }

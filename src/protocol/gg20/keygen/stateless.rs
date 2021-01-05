@@ -37,67 +37,66 @@ use super::super::zkp::Zkp;
 
 // round 1
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-// #[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct R1Bcast {
     commit: BigInt,
-    ek: EncryptionKey,
-    zkp: Zkp,
+    ek: EncryptionKey, // homomorphic encryption (Paillier)
+    zkp: Zkp, // TODO need a better name
     correct_key_proof: NICorrectKeyProof,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub struct R1State {
-    // secrets
-    u: FE,
-    dk: DecryptionKey,
-    // decommit - to be released later
-    reveal: BigInt,
-    y: GE,
-
-    msg_out: R1Bcast,
+    my_ecdsa_secret_summand: FE, // final ecdsa secret key is the sum over all parties
+    my_ecdsa_public_summand: GE, // final ecdsa public key is the sum over all parties
+    my_dk: DecryptionKey, // homomorphic decryption (Paillier)
+    my_reveal: BigInt, // decommit---to be released later
+    my_output: R1Bcast,
 }
 
 // round 2
 
-#[derive(Debug)]
-pub struct R2Input{
+#[derive(Debug, Clone)]
+pub struct R2Input {
     pub threshold: usize,
     pub other_r1_bcasts: HashMap<String, R1Bcast>,
     pub my_uid: String,
 }
-#[derive(Debug)]
-pub struct R2Output
-{
-    pub broadcast: R2Bcast,
+#[derive(Debug, Clone)]
+pub struct R2Output {
+    pub bcast: R2Bcast,
     pub p2p: HashMap<String, R2P2p>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct R2Bcast {
-    pub y: GE, // TODO redundant: equals my_vss_commitments[0]
-    pub my_reveal: BigInt,
-    pub my_vss_commitments: Vec<GE>,
-    // pub my_vss_scheme: VerifiableSS,
+    pub reveal: BigInt,
+    pub secret_share_commitments: Vec<GE>,
 }
+
+impl R2Bcast { // helper getters
+    pub fn get_ecdsa_public_summand(&self) -> GE { self.secret_share_commitments[0] }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct R2P2p {
-    pub secret_share: FE,
+    pub ecdsa_secret_summand_share: FE, // threshold share of my_ecdsa_secret_summand
 }
 
 #[derive(Debug)]
 pub struct R2State {
-    // u: FE,
-    y: GE, // TODO redundant
-    dk: DecryptionKey,
-    my_share_of_u: FE,
-    my_vss_index: usize,
-    // others: HashMap<ID, (R1Bcast, usize)>, // (msg, share_index)
-    others: HashMap<String, R1Bcast>,
-    threshold: usize,
+    my_share_of_my_ecdsa_secret_summand: FE,
+    my_share_index: usize,
+    my_r1_state: R1State,
+    input: R2Input,
+    my_output: R2Output,
+}
+
+impl R2State { // helper getters
+    fn get_ecdsa_public_summand(&self) -> GE { self.my_output.bcast.get_ecdsa_public_summand() }
 }
 
 // round 3
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct R3Input {
     pub other_r2_msgs: HashMap<String, (R2Bcast, R2P2p)>,
 }
@@ -108,9 +107,12 @@ pub struct R3Bcast {
 }
 #[derive(Debug)]
 pub struct R3State {
-    my_vss_index: usize,
-    public_key: GE,
-    my_secret_key_share: FE,
+    // my_vss_index: usize, // delete me
+    ecdsa_public_key: GE, // the final pub key
+    my_ecdsa_secret_key_share: FE, // my final secret key share
+    my_r2_state: R2State,
+    input: R3Input,
+    my_output: R3Bcast,
 }
 
 // round 4
@@ -120,11 +122,12 @@ pub struct R4Input {
     pub other_r3_bcasts: HashMap<String, R3Bcast>,
 }
 
-#[derive(Debug)]
-pub struct R4State {
-    my_vss_index: usize,
-    public_key: GE,
-    my_secret_key_share: FE,
+// FinalOutput discards unneeded intermediate info from the protocol
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FinalOutput {
+    ecdsa_public_key: GE,
+    my_share_index: usize,
+    my_ecdsa_secret_key_share: FE,
 }
 
 #[cfg(test)]
