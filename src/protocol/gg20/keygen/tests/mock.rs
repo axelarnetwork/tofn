@@ -14,8 +14,8 @@ struct HappyParty<'a> {
 
 // TODO replace args with a protobuf grpc keygeninfo struct
 #[allow(dead_code)]
-pub fn new_party<'a>(party_ids: &'a Vec<String>, my_party_id_index: usize, threshold: usize, transport: &'a dyn Deliverer ) -> impl Party + 'a {
-    HappyParty::<'a>{
+pub fn new_party<'a>(party_ids: &[String], my_party_id_index: usize, threshold: usize, transport: &'a dyn Deliverer ) -> impl Party + 'a {
+    HappyParty{
         me: new_protocol(party_ids, my_party_id_index, threshold),
         transport,
     }
@@ -23,5 +23,5 @@ pub fn new_party<'a>(party_ids: &'a Vec<String>, my_party_id_index: usize, thres
 
 impl<'a> Party for HappyParty<'a> {
     fn execute() {}
-	fn msg_in(_from: &str, _msg: &Vec<u8>) {}
+	fn msg_in(_from: &str, _msg: &[u8]) {}
 }

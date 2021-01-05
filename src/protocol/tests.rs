@@ -1,18 +1,21 @@
 use super::*;
 
 pub fn execute_protocol_vec(parties: &mut Vec<Protocol>) {
+    #[allow(clippy::needless_range_loop)] // see explanation below
 
     while !all_done(parties) {
 
+        // #[allow(clippy::needless_range_loop)]
         // need to iterate over indices 0..n instead of parties.iter()
         // because otherwise the borrow checker complains
-        // that's why we use Vec instead of HashMap :(
+        // TODO a better way? https://ryhl.io/blog/temporary-shared-mutation/
         for i in 0..parties.len() {
             let (bcast, p2ps) = parties[i].get_messages_out();
             let sender_id = parties[i].get_id().to_string(); // clone to satisfy the borrow checker
 
             // deliver bcast message to all other parties
             if let Some(bcast) = bcast {
+                // #[allow(clippy::needless_range_loop)]
                 for j in 0..parties.len() {
                     if j==i {continue} // don't broadcast to myself
                     parties[j].add_message_in(&sender_id, &bcast);
@@ -61,10 +64,10 @@ pub fn execute_protocol_vec(parties: &mut Vec<Protocol>) {
 //     }
 // }
 
-fn all_done(parties: &Vec<Protocol>) -> bool {
+fn all_done(parties: &[Protocol]) -> bool {
     // panic if there's disagreement
     let done = parties[0].done();
-    let parties = parties.iter().next();
+    let parties = parties.iter().skip(1);
     for p in parties {
         if p.done() != done {
             panic!("party {:?} done? [{}], party 0 done? [{}]", p.get_id(), p.done(), done);

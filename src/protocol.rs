@@ -15,7 +15,7 @@ impl Protocol {
             self.state = Some(s.next())
         }
     }
-    pub fn add_message_in(&mut self, from: &str, msg: &Vec<u8>) {
+    pub fn add_message_in(&mut self, from: &str, msg: &[u8]) {
         self.state.as_mut().unwrap().add_message_in(from, msg)
     }
     pub fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<String, Vec<u8>>) {
@@ -34,7 +34,7 @@ impl Protocol {
 
 pub trait State {
     // type ID;
-    fn add_message_in(&mut self, from: &str, msg: &Vec<u8>); // either bcast or p2p
+    fn add_message_in(&mut self, from: &str, msg: &[u8]); // either bcast or p2p
     fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<String, Vec<u8>>); // (bcast, p2p)
     fn get_id(&self) -> &str;
     fn can_proceed(&self) -> bool;
