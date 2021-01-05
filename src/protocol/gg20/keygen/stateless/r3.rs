@@ -13,9 +13,11 @@ use super::{R2State, R3Input, R3State, R3Bcast};
 
 pub fn execute(state: R2State, msg: R3Input) -> (R3State, R3Bcast) {
     // assert!(!msg.other_r2_msgs.contains_key(&msg.my_uid));
-    assert_eq!(
-        msg.other_r2_msgs.keys().collect::<Vec<&String>>().sort_unstable(),
-        state.others.keys().collect::<Vec<&String>>().sort_unstable()
+    
+    assert!( eq_lists(
+        &msg.other_r2_msgs.keys().collect::<Vec<&String>>(),
+        &state.others.keys().collect::<Vec<&String>>()
+        )
     );
 
     // println!("party {}: p2p msgs I received: {:#?}", state.my_vss_index, msg.other_r2_msgs.iter().map(|(id,(_,p))| (id,p)).collect::<HashMap<&ID, &KeygenR2MsgOutP2p>>() );
@@ -62,4 +64,16 @@ pub fn execute(state: R2State, msg: R3Input) -> (R3State, R3Bcast) {
             dlog_proof,
         },
     )
+}
+
+// TODO generic helper---where to put it?
+fn eq_lists<T>(a: &[T], b: &[T]) -> bool
+    where T: PartialEq + Ord,
+{
+    let mut a: Vec<_> = a.iter().collect();
+    let mut b: Vec<_> = b.iter().collect();
+    a.sort();
+    b.sort();
+
+    a == b
 }
