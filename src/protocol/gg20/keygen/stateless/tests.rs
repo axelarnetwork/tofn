@@ -25,7 +25,7 @@ fn keygen() {
     let all_r1_bcasts = all_r1_bcasts; // make read-only
 
     // save each u for later tests
-    let all_u_secrets : Vec<FE> = all_r1_states.values().map(|v| v.u).collect();
+    let all_u_secrets : Vec<FE> = all_r1_states.values().map(|v| v.my_ecdsa_secret_summand).collect();
 
     // execute round 2 all parties and store their outputs
     let mut all_r2_states = HashMap::with_capacity(share_count);
@@ -42,7 +42,7 @@ fn keygen() {
         };
         let (state, msg) = r2::execute(my_r1_state, input);
         all_r2_states.insert(id, state);
-        all_r2_bcasts.insert(id.clone(), msg.broadcast);
+        all_r2_bcasts.insert(id.clone(), msg.bcast);
         all_r2_p2ps.insert(id, msg.p2p);
     }
     let all_r2_bcasts = all_r2_bcasts; // make read-only
@@ -101,8 +101,8 @@ fn keygen() {
     let mut all_vss_indices = Vec::<usize>::with_capacity(share_count);
     let mut all_secret_shares = Vec::<FE>::with_capacity(share_count);
     for state in all_r4_states.values() {
-        all_vss_indices.push(state.my_vss_index - 1); // careful! curv library adds 1 to indices
-        all_secret_shares.push(state.my_secret_key_share);
+        all_vss_indices.push(state.my_share_index - 1); // careful! curv library adds 1 to indices
+        all_secret_shares.push(state.my_ecdsa_secret_key_share);
     }
     let test_vss_scheme = VerifiableSS{ // cruft: needed for curv library
         parameters: ShamirSecretSharing{
@@ -121,6 +121,6 @@ fn keygen() {
     // test: verify that the reconstructed secret key yields the public key everyone deduced
     for state in all_r4_states.values() {
         let test_pubkey = GE::generator() * secret_key_reconstructed;
-        assert_eq!(test_pubkey, state.public_key);
+        assert_eq!(test_pubkey, state.ecdsa_public_key);
     }
 }
