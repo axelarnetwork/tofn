@@ -1,66 +1,63 @@
 //! Stateful keygen happy path
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    iter::FromIterator,
+};
 
 mod stateless;
 
-use crate::protocol::{Protocol, State};
+use crate::{
+    protocol::{Protocol, State},
+    fillmap::FillMap,
+};
 use stateless::*;
 
 pub fn new_protocol(
-    party_ids: &[String],
-    my_party_id_index: usize,
+    ids: &[String],
+    my_id_index: usize,
     threshold: usize,
 ) -> Protocol {
-    // prepare a map of expected incoming messages from other parties
-    // each message is `None` until we receive it later
-    let incoming_msgs = party_ids
+    let (my_state, my_output) = r1::start();
+
+    // prepare a FillMap of expected incoming messages from other parties
+    let incoming_bcasts = FillMap::from_iter(
+        ids
         .iter()
         .enumerate()
-        .filter(|(index, _)| *index != my_party_id_index) // don't include myself
-        .map(|(_, id)| (id.clone(), None)) // initialize to None
-        .collect();
-
-    let (state, output) = r1::start();
+        .filter(|(i, _)| *i != my_id_index)  // don't include myself
+        .map(|(_,k)| k)
+        .cloned()
+    );
     Protocol {
         state: Some(Box::new(R1 {
-            state,
-            output,
-            incoming_msgs,
+            my_state,
+            my_output,
+            my_id: ids[my_id_index].clone(),
             threshold,
-            my_uid: party_ids[my_party_id_index].clone(),
-            num_incoming_msgs: 0,
+            incoming_bcasts,
         })),
     }
 }
 
 #[derive(Debug)]
 pub struct R1 {
-    state: R1State,
-    output: R1Bcast,
-    incoming_msgs: HashMap<String, Option<R1Bcast>>,
+    my_state: R1State,
+    my_output: R1Bcast,
+    my_id: String,
     threshold: usize,
-    my_uid: String,
-    num_incoming_msgs: usize,
+    incoming_bcasts: FillMap<String, R1Bcast>,
 }
 
 impl State for R1 {
     fn add_message_in(&mut self, from: &str, msg: &[u8]) {
-        let stored = self.incoming_msgs.get_mut(from).unwrap(); // panic: unexpected party id
-        if stored.is_some() {
-            panic!("repeated message from party id {:?}", from);
-        }
         let msg: R1Bcast = bincode::deserialize(msg).unwrap(); // panic: deserialization failure
-        *stored = Some(msg);
-        self.num_incoming_msgs += 1;
-        assert!(self.num_incoming_msgs <= self.incoming_msgs.len());
+        self.incoming_bcasts.insert(from.to_string(), msg).unwrap(); // panic: FillMap error
     }
 
-    fn can_proceed(&self) -> bool {
-        self.num_incoming_msgs >= self.incoming_msgs.len()
-    }
+    fn can_proceed(&self) -> bool { self.incoming_bcasts.is_full() }
 
     fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<String, Vec<u8>>) {
-        let bcast = bincode::serialize(&self.output).unwrap(); // panic: serialization failure
+        let bcast = bincode::serialize(&self.my_output).unwrap(); // panic: serialization failure
         (
             Some(bcast),
             HashMap::new(), // no p2p msgs this round
@@ -68,35 +65,30 @@ impl State for R1 {
     }
 
     fn get_id(&self) -> &str {
-        &self.my_uid
+        &self.my_id
     }
 
     fn next(self: Box<Self>) -> Box<dyn State> {
         assert!(self.can_proceed());
-        let incoming_bcast = self
-            .incoming_msgs
+        let other_r1_bcasts = self.incoming_bcasts.into_hashmap();
+        let incoming_bcast = other_r1_bcasts
             .keys()
             .cloned()
             .map(|k| (k, None))
             .collect();
-        let incoming_p2p = self
-            .incoming_msgs
+        let incoming_p2p = other_r1_bcasts
             .keys()
             .cloned()
             .map(|k| (k, None))
             .collect();
         let inputs = R2Input {
-            other_r1_bcasts: self
-                .incoming_msgs
-                .into_iter()
-                .map(|(k, v)| (k, v.unwrap()))
-                .collect(),
+            other_r1_bcasts,
             threshold: self.threshold,
-            my_uid: self.my_uid.clone(),
+            my_uid: self.my_id.clone(),
         };
-        let (state, output) = r2::execute(self.state, inputs);
+        let (state, output) = r2::execute(self.my_state, inputs);
         Box::new(R2 {
-            my_id: self.my_uid,
+            my_id: self.my_id,
             state,
             output_bcast: output.bcast,
             output_p2p: output.p2p,
@@ -275,21 +267,11 @@ pub struct R4 {
 }
 impl State for R4 {
     fn add_message_in(&mut self, _from: &str, _msg: &[u8]) {}
-    fn can_proceed(&self) -> bool {
-        false
-    }
-    fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<String, Vec<u8>>) {
-        (None, HashMap::new())
-    }
-    fn get_id(&self) -> &str {
-        &self.my_id
-    }
-    fn next(self: Box<Self>) -> Box<dyn State> {
-        self
-    }
-    fn done(&self) -> bool {
-        true
-    }
+    fn can_proceed(&self) -> bool { false }
+    fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<String, Vec<u8>>) { (None, HashMap::new()) }
+    fn get_id(&self) -> &str { &self.my_id }
+    fn next(self: Box<Self>) -> Box<dyn State> { self }
+    fn done(&self) -> bool { true }
 }
 
 #[cfg(test)]
