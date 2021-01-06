@@ -1,18 +1,25 @@
 //! A fillable HashMap
-use std::{cmp::Eq, collections::HashMap, fmt, hash::Hash, iter::FromIterator};
+use std::{
+    cmp::Eq,
+    collections::HashMap,
+    fmt::{self, Debug, Display},
+    hash::Hash,
+    iter::FromIterator
+};
 
+#[derive(Debug, Clone)]
 pub struct FillMap<K,V> {
     map: HashMap<K,Option<V>>,
     len: usize,
 }
-
-type Result<T,K> = std::result::Result<T, FillMapError<K>>;
 
 #[derive(Debug)]
 pub enum FillMapError<K> {
     KeyNotExists(K),
     ValueAlreadySet(K),
 }
+
+type Result<T,K> = std::result::Result<T, FillMapError<K>>;
 
 impl<K,V> FromIterator<K> for FillMap<K,V>
 where
@@ -28,7 +35,7 @@ where
 
 impl<K,V> FillMap<K,V>
 where
-    K: Hash + Eq
+    K: Hash + Eq + Clone
 {
     pub fn insert(&mut self, k: K, v: V) -> Result<(),K> {
         let stored = self.map.get_mut(&k);
@@ -45,7 +52,7 @@ where
     }
     pub fn into_hashmap(self) -> HashMap<K,V> {
         self.map.into_iter()
-            .filter( |(_,v)| v.is_some() )
+            .filter( |(_,v)| v.is_some() ) // remove unset entries
             .map( |(k,v)| (k,v.unwrap()) )
             .collect()
     }
@@ -54,8 +61,8 @@ where
     pub fn is_full(&self) -> bool { self.len == self.map.len() }
 }
 
-impl<K: fmt::Debug> std::error::Error for FillMapError<K> {}
-impl<K: fmt::Debug> fmt::Display for FillMapError<K> {
+impl<K: Debug> std::error::Error for FillMapError<K> {}
+impl<K: Debug> Display for FillMapError<K> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
           FillMapError::KeyNotExists(k) => write!(f, "key {:?} does not exist", k),
