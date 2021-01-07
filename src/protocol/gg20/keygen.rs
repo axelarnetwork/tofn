@@ -1,4 +1,5 @@
 //! Stateful keygen happy path
+//! TODO It's confusing to have R1,... structs that hold R1State,... data
 use std::{
     collections::HashMap,
     iter::FromIterator,
@@ -23,9 +24,9 @@ pub fn new_protocol(
     let incoming_bcasts = FillMap::from_iter(
         ids
         .iter()
-        .enumerate()
+        .enumerate() // s -> (i,s)
         .filter(|(i, _)| *i != my_id_index)  // don't include myself
-        .map(|(_,k)| k)
+        .map(|(_,s)| s) // (i,s) -> s
         .cloned()
     );
     Protocol {
@@ -64,9 +65,7 @@ impl State for R1 {
         )
     }
 
-    fn get_id(&self) -> &str {
-        &self.my_id
-    }
+    fn get_id(&self) -> &str { &self.my_id }
 
     fn next(self: Box<Self>) -> Box<dyn State> {
         assert!(self.can_proceed());
@@ -99,9 +98,7 @@ impl State for R1 {
         })
     }
 
-    fn done(&self) -> bool {
-        false
-    }
+    fn done(&self) -> bool { false }
 }
 
 #[derive(Debug)]
