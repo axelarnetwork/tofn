@@ -3,7 +3,7 @@
 use super::super::*;
 use crate::protocol::{
     self,
-    tests::mock::{Party, Deliverer}
+    tests::mock::{Deliverer, Party},
 };
 
 #[allow(dead_code)]
@@ -14,8 +14,13 @@ struct HappyParty<'a, R> {
 
 // TODO replace args with a protobuf grpc keygeninfo struct
 #[allow(dead_code)]
-pub fn new_party<'a>(party_ids: &[String], my_party_id_index: usize, threshold: usize, transport: &'a dyn Deliverer ) -> impl Party + 'a {
-    HappyParty{
+pub fn new_party<'a>(
+    party_ids: &[String],
+    my_party_id_index: usize,
+    threshold: usize,
+    transport: &'a dyn Deliverer,
+) -> impl Party + 'a {
+    HappyParty {
         me: new_protocol(party_ids, my_party_id_index, threshold),
         transport,
     }
@@ -23,5 +28,5 @@ pub fn new_party<'a>(party_ids: &[String], my_party_id_index: usize, threshold: 
 
 impl<'a, R> Party for HappyParty<'a, R> {
     fn execute() {}
-	fn msg_in(_from: &str, _msg: &[u8]) {}
+    fn msg_in(_from: &str, _msg: &[u8]) {}
 }

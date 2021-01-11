@@ -1,9 +1,5 @@
-use curv::{
-    cryptographic_primitives::{
-        proofs::sigma_dlog::{DLogProof, ProveDLog},
-    },
-};
-use super::{R3State, R4Input, FinalOutput};
+use super::{FinalOutput, R3State, R4Input};
+use curv::cryptographic_primitives::proofs::sigma_dlog::{DLogProof, ProveDLog};
 
 pub fn execute(state: R3State, input: R4Input) -> FinalOutput {
     // TODO:
@@ -18,7 +14,7 @@ pub fn execute(state: R3State, input: R4Input) -> FinalOutput {
         DLogProof::verify(&other_r3_bcast.dlog_proof).unwrap(); // panic on error for now
     }
 
-    FinalOutput{
+    FinalOutput {
         my_share_index: state.my_r2_state.my_share_index,
         ecdsa_public_key: state.ecdsa_public_key,
         my_ecdsa_secret_key_share: state.my_ecdsa_secret_key_share,

@@ -1,15 +1,15 @@
 //! Helpers for zero-knowledge range proofs
-//! 
+//!
 //! A quick-and-dirty wrapper to clean up zkp code from https://github.com/ZenGo-X/multi-party-ecdsa
-//! 
+//!
 //! TODO clean up: lots of repeated data
 //! TODO look into the implementation here: https://github.com/ing-bank/threshold-signatures/blob/master/src/algorithms/zkp.rs
-use serde::{Deserialize, Serialize};
 use curv::{
+    arithmetic::traits::{Modulo, Samplable},
     BigInt,
-    arithmetic::traits::{Samplable, Modulo},
 };
 use paillier::{DecryptionKey, EncryptionKey, KeyGeneration, Paillier};
+use serde::{Deserialize, Serialize};
 use zk_paillier::zkproofs::{CompositeDLogProof, DLogStatement};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -22,22 +22,21 @@ pub struct Zkp {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ZkpPublic {
     n_tilde: BigInt,
-    h1 : BigInt,
-    h2 : BigInt,
+    h1: BigInt,
+    h2: BigInt,
 }
 
 impl Zkp {
     pub fn new_unsafe() -> Self {
-        Self::from_keypair( Paillier::keypair().keys() )
+        Self::from_keypair(Paillier::keypair().keys())
     }
 
     #[allow(dead_code)] // TODO use this in production
     pub fn new() -> Self {
-        Self::from_keypair( Paillier::keypair_safe_primes().keys() )
+        Self::from_keypair(Paillier::keypair_safe_primes().keys())
     }
 
     pub fn from_keypair((ek_tilde, dk_tilde): (EncryptionKey, DecryptionKey)) -> Self {
-
         // TODO zeroize these secrets after use
         let one = BigInt::one();
         let phi = (&dk_tilde.p - &one) * (&dk_tilde.q - &one);
