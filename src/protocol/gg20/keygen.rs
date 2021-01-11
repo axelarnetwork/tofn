@@ -1,9 +1,6 @@
 //! Stateful keygen happy path
 //! TODO It's confusing to have R1,... structs that hold R1State,... data
-use std::{
-    collections::HashMap,
-    iter::FromIterator,
-};
+use std::collections::HashMap;
 
 mod stateless;
 
@@ -21,14 +18,14 @@ pub fn new_protocol(
     let (my_state, my_output) = r1::start();
 
     // prepare a FillMap for expected incoming messages from other parties
-    let incoming_bcasts = FillMap::from_iter(
+    let incoming_bcasts = 
         ids
         .iter()
         .enumerate() // s -> (i,s)
         .filter(|(i, _)| *i != my_id_index)  // don't include myself
         .map(|(_,s)| s) // (i,s) -> s
         .cloned()
-    );
+        .collect();
     Protocol {
         state: Some(Box::new(R1 {
             my_state,
