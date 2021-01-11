@@ -4,7 +4,7 @@
 
 pub trait Party {
     fn execute();
-	fn msg_in(from: &str, msg: &[u8]);
+    fn msg_in(from: &str, msg: &[u8]);
 }
 
 pub trait Deliverer {

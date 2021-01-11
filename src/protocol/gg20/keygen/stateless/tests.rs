@@ -1,10 +1,8 @@
 use super::*;
 use curv::{
     // FE, // rustc does not warn of unused imports for FE
-    cryptographic_primitives::{
-        secret_sharing::feldman_vss::{VerifiableSS, ShamirSecretSharing},
-    },
-    elliptic::curves::traits::{ECScalar, ECPoint},
+    cryptographic_primitives::secret_sharing::feldman_vss::{ShamirSecretSharing, VerifiableSS},
+    elliptic::curves::traits::{ECPoint, ECScalar},
 };
 
 pub struct TestCase {
@@ -13,17 +11,29 @@ pub struct TestCase {
 }
 
 pub const TEST_CASES: [TestCase; 4] = [
-    TestCase{ share_count: 5, threshold: 0},
-    TestCase{ share_count: 5, threshold: 1},
-    TestCase{ share_count: 5, threshold: 3},
-    TestCase{ share_count: 5, threshold: 4},
+    TestCase {
+        share_count: 5,
+        threshold: 0,
+    },
+    TestCase {
+        share_count: 5,
+        threshold: 1,
+    },
+    TestCase {
+        share_count: 5,
+        threshold: 3,
+    },
+    TestCase {
+        share_count: 5,
+        threshold: 4,
+    },
     // TestCase{ share_count: 5, threshold: 5},
 ];
 
 #[test]
 fn keygen() {
     for test_case in &TEST_CASES {
-        let ids : Vec<String> = (0..test_case.share_count).map(|i| i.to_string()).collect();
+        let ids: Vec<String> = (0..test_case.share_count).map(|i| i.to_string()).collect();
         execute_keygen(&ids, test_case.threshold);
     }
 }
@@ -44,7 +54,10 @@ fn execute_keygen(ids: &[String], threshold: usize) {
     let all_r1_bcasts = all_r1_bcasts; // make read-only
 
     // save each u for later tests
-    let all_u_secrets : Vec<FE> = all_r1_states.values().map(|v| v.my_ecdsa_secret_summand).collect();
+    let all_u_secrets: Vec<FE> = all_r1_states
+        .values()
+        .map(|v| v.my_ecdsa_secret_summand)
+        .collect();
 
     // execute round 2 all parties and store their outputs
     let mut all_r2_states = HashMap::with_capacity(share_count);
@@ -68,30 +81,38 @@ fn execute_keygen(ids: &[String], threshold: usize) {
     let all_r2_p2ps = all_r2_p2ps; // make read-only
 
     // route p2p msgs and build round 3 inputs
-    let all_r3_inputs = ids.iter().map(|id| {
-        let mut other_r2_bcasts = all_r2_bcasts.clone();
-        other_r2_bcasts.remove(id).unwrap();
-        (
-            id,
-            R3Input {
-                other_r2_msgs: all_r2_p2ps.iter()
-                .filter(|(k,_)| **k != id)
-                .map(|(k,v)| {
-                    (
-                        (*k).clone(),
-                        ( other_r2_bcasts.remove(*k).unwrap(), v.get(id).unwrap().clone() )
-                    )
-                }).collect::<HashMap<_,_>>()
-            }
-        )
-    }).collect::<HashMap<_,_>>();
+    let all_r3_inputs = ids
+        .iter()
+        .map(|id| {
+            let mut other_r2_bcasts = all_r2_bcasts.clone();
+            other_r2_bcasts.remove(id).unwrap();
+            (
+                id,
+                R3Input {
+                    other_r2_msgs: all_r2_p2ps
+                        .iter()
+                        .filter(|(k, _)| **k != id)
+                        .map(|(k, v)| {
+                            (
+                                (*k).clone(),
+                                (
+                                    other_r2_bcasts.remove(*k).unwrap(),
+                                    v.get(id).unwrap().clone(),
+                                ),
+                            )
+                        })
+                        .collect::<HashMap<_, _>>(),
+                },
+            )
+        })
+        .collect::<HashMap<_, _>>();
 
     // execute round 3 all parties and store their outputs
     let mut all_r3_states = HashMap::with_capacity(share_count);
     let mut all_r3_bcasts = HashMap::with_capacity(share_count);
     for (id, input) in all_r3_inputs {
         let my_r2_state = all_r2_states.remove(id).unwrap();
-        let (state,msg) = r3::execute(my_r2_state, input);
+        let (state, msg) = r3::execute(my_r2_state, input);
         all_r3_states.insert(id, state);
         all_r3_bcasts.insert(id.clone(), msg);
     }
@@ -103,9 +124,7 @@ fn execute_keygen(ids: &[String], threshold: usize) {
         let mut other_r3_bcasts = all_r3_bcasts.clone();
         other_r3_bcasts.remove(id).unwrap();
         let my_r3_state = all_r3_states.remove(id).unwrap();
-        let input = R4Input {
-            other_r3_bcasts,
-        };
+        let input = R4Input { other_r3_bcasts };
         let result = r4::execute(my_r3_state, input);
         all_r4_states.insert(id, result);
     }
@@ -114,8 +133,7 @@ fn execute_keygen(ids: &[String], threshold: usize) {
     // test: reconstruct the secret key in two ways:
     // 1. from all the u secrets of round 1
     // 2. from the first t+1 shares
-    let secret_key_sum_u = all_u_secrets.iter()
-        .fold(FE::zero(), |acc, x| acc + x);
+    let secret_key_sum_u = all_u_secrets.iter().fold(FE::zero(), |acc, x| acc + x);
 
     let mut all_vss_indices = Vec::<usize>::with_capacity(share_count);
     let mut all_secret_shares = Vec::<FE>::with_capacity(share_count);
@@ -123,8 +141,9 @@ fn execute_keygen(ids: &[String], threshold: usize) {
         all_vss_indices.push(state.my_share_index - 1); // careful! curv library adds 1 to indices
         all_secret_shares.push(state.my_ecdsa_secret_key_share);
     }
-    let test_vss_scheme = VerifiableSS{ // cruft: needed for curv library
-        parameters: ShamirSecretSharing{
+    let test_vss_scheme = VerifiableSS {
+        // cruft: needed for curv library
+        parameters: ShamirSecretSharing {
             share_count,
             threshold,
         },
@@ -132,7 +151,7 @@ fn execute_keygen(ids: &[String], threshold: usize) {
     };
     let secret_key_reconstructed = test_vss_scheme.reconstruct(
         &all_vss_indices[0..=threshold],
-        &all_secret_shares[0..=threshold]
+        &all_secret_shares[0..=threshold],
     );
 
     assert_eq!(secret_key_reconstructed, secret_key_sum_u);

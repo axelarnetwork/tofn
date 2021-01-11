@@ -43,7 +43,9 @@ pub trait State {
     fn can_proceed(&self) -> bool;
     fn next(self: Box<Self>) -> Box<dyn State<Result = Self::Result> + Send>;
     fn done(&self) -> bool;
-    fn get_result(&self) -> Option<Self::Result> { None }
+    fn get_result(&self) -> Option<Self::Result> {
+        None
+    }
 }
 
 #[cfg(test)]

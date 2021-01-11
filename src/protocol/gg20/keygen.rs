@@ -5,25 +5,20 @@ use std::collections::HashMap;
 mod stateless;
 
 use crate::{
-    protocol::{Protocol, State},
     fillmap::FillMap,
+    protocol::{Protocol, State},
 };
 use stateless::*;
 
-pub fn new_protocol(
-    ids: &[String],
-    my_id_index: usize,
-    threshold: usize,
-) -> Protocol<FinalOutput> {
+pub fn new_protocol(ids: &[String], my_id_index: usize, threshold: usize) -> Protocol<FinalOutput> {
     let (my_state, my_output) = r1::start();
 
     // prepare a FillMap for expected incoming messages from other parties
-    let incoming_bcasts = 
-        ids
+    let incoming_bcasts = ids
         .iter()
         .enumerate() // s -> (i,s)
-        .filter(|(i, _)| *i != my_id_index)  // don't include myself
-        .map(|(_,s)| s) // (i,s) -> s
+        .filter(|(i, _)| *i != my_id_index) // don't include myself
+        .map(|(_, s)| s) // (i,s) -> s
         .cloned()
         .collect();
     Protocol {
@@ -65,16 +60,8 @@ impl State for R1 {
     fn next(self: Box<Self>) -> Box<dyn State<Result = Self::Result> + Send> {
         assert!(self.can_proceed());
         let other_r1_bcasts = self.incoming_bcasts.into_hashmap();
-        let incoming_bcast = other_r1_bcasts
-            .keys()
-            .cloned()
-            .map(|k| (k, None))
-            .collect();
-        let incoming_p2p = other_r1_bcasts
-            .keys()
-            .cloned()
-            .map(|k| (k, None))
-            .collect();
+        let incoming_bcast = other_r1_bcasts.keys().cloned().map(|k| (k, None)).collect();
+        let incoming_p2p = other_r1_bcasts.keys().cloned().map(|k| (k, None)).collect();
         let inputs = R2Input {
             other_r1_bcasts,
             threshold: self.threshold,
@@ -93,9 +80,15 @@ impl State for R1 {
         })
     }
 
-    fn can_proceed(&self) -> bool { self.incoming_bcasts.is_full() }
-    fn get_id(&self) -> &str { &self.my_id }
-    fn done(&self) -> bool { false }
+    fn can_proceed(&self) -> bool {
+        self.incoming_bcasts.is_full()
+    }
+    fn get_id(&self) -> &str {
+        &self.my_id
+    }
+    fn done(&self) -> bool {
+        false
+    }
 }
 
 #[derive(Debug)]
@@ -187,8 +180,12 @@ impl State for R2 {
         })
     }
 
-    fn get_id(&self) -> &str { &self.my_id }
-    fn done(&self) -> bool { false }
+    fn get_id(&self) -> &str {
+        &self.my_id
+    }
+    fn done(&self) -> bool {
+        false
+    }
 }
 
 #[derive(Debug)]
@@ -239,9 +236,15 @@ impl State for R3 {
         })
     }
 
-    fn can_proceed(&self) -> bool { self.num_incoming >= self.incoming.len() }
-    fn get_id(&self) -> &str { &self.my_id }
-    fn done(&self) -> bool { false }
+    fn can_proceed(&self) -> bool {
+        self.num_incoming >= self.incoming.len()
+    }
+    fn get_id(&self) -> &str {
+        &self.my_id
+    }
+    fn done(&self) -> bool {
+        false
+    }
 }
 
 pub struct R4 {
@@ -251,12 +254,24 @@ pub struct R4 {
 impl State for R4 {
     type Result = FinalOutput;
     fn add_message_in(&mut self, _from: &str, _msg: &[u8]) {}
-    fn can_proceed(&self) -> bool { false }
-    fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<String, Vec<u8>>) { (None, HashMap::new()) }
-    fn get_id(&self) -> &str { &self.my_id }
-    fn next(self: Box<Self>) -> Box<dyn State<Result = Self::Result> + Send> { self }
-    fn done(&self) -> bool { true }
-    fn get_result(&self) -> Option<Self::Result> { Some(self.state.clone()) }
+    fn can_proceed(&self) -> bool {
+        false
+    }
+    fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<String, Vec<u8>>) {
+        (None, HashMap::new())
+    }
+    fn get_id(&self) -> &str {
+        &self.my_id
+    }
+    fn next(self: Box<Self>) -> Box<dyn State<Result = Self::Result> + Send> {
+        self
+    }
+    fn done(&self) -> bool {
+        true
+    }
+    fn get_result(&self) -> Option<Self::Result> {
+        Some(self.state.clone())
+    }
 }
 
 #[cfg(test)]

@@ -1,15 +1,14 @@
 //! Helpers for verifiable secret sharing
-//! 
+//!
 //! A quick-and-dirty wrapper to clean up vss code from https://github.com/ZenGo-X/curv/blob/master/src/cryptographic_primitives/secret_sharing/feldman_vss.rs
-//! 
+//!
 //! TODO clean up
 use curv::{
-    BigInt, FE, GE,
-    elliptic::curves::traits::{ECScalar, ECPoint},
+    cryptographic_primitives::secret_sharing::feldman_vss::VerifiableSS,
+    elliptic::curves::traits::{ECPoint, ECScalar},
+    BigInt,
     ErrorSS::{self, VerifyShareError},
-    cryptographic_primitives::{
-        secret_sharing::feldman_vss::{VerifiableSS},
-    },
+    FE, GE,
 };
 
 // wrap VerifiableSS::share to strip out the cruft
@@ -27,7 +26,11 @@ pub fn validate_share(commitments: &[GE], secret_share: &FE, index: usize) -> Re
     validate_share_public(commitments, &ss_point, index)
 }
 
-pub fn validate_share_public(commitments: &[GE], ss_point: &GE, index: usize) -> Result<(), ErrorSS> {
+pub fn validate_share_public(
+    commitments: &[GE],
+    ss_point: &GE,
+    index: usize,
+) -> Result<(), ErrorSS> {
     let comm_to_point = get_point_commitment(commitments, index);
     if *ss_point == comm_to_point {
         Ok(())

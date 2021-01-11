@@ -3,23 +3,13 @@ pub mod r2;
 pub mod r3;
 pub mod r4;
 
-
-use std::{
-    fmt::Debug,
-    collections::HashMap,
-};
+use curv::{cryptographic_primitives::proofs::sigma_dlog::DLogProof, BigInt, FE, GE};
+use paillier::{DecryptionKey, EncryptionKey};
 use serde::{Deserialize, Serialize};
-use curv::{
-    BigInt, FE, GE,
-    cryptographic_primitives::{
-        proofs::sigma_dlog::{DLogProof},
-    },
-};
-use paillier::{EncryptionKey, DecryptionKey};
+use std::{collections::HashMap, fmt::Debug};
 use zk_paillier::zkproofs::NICorrectKeyProof;
 
 use super::super::zkp::Zkp;
-
 
 // TODO explain: why not use Vec and let party ids be implicit 0..vec.len?
 // Because each party would have awkward book keeping, and the user of these stateless functions would need to put messages in sorted order
@@ -41,15 +31,15 @@ use super::super::zkp::Zkp;
 pub struct R1Bcast {
     commit: BigInt,
     ek: EncryptionKey, // homomorphic encryption (Paillier)
-    zkp: Zkp, // TODO need a better name
+    zkp: Zkp,          // TODO need a better name
     correct_key_proof: NICorrectKeyProof,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub struct R1State {
     my_ecdsa_secret_summand: FE, // final ecdsa secret key is the sum over all parties
     my_ecdsa_public_summand: GE, // final ecdsa public key is the sum over all parties
-    my_dk: DecryptionKey, // homomorphic decryption (Paillier)
-    my_reveal: BigInt, // decommit---to be released later
+    my_dk: DecryptionKey,        // homomorphic decryption (Paillier)
+    my_reveal: BigInt,           // decommit---to be released later
     my_output: R1Bcast,
 }
 
@@ -72,8 +62,11 @@ pub struct R2Bcast {
     pub secret_share_commitments: Vec<GE>,
 }
 
-impl R2Bcast { // helper getters
-    pub fn get_ecdsa_public_summand(&self) -> GE { self.secret_share_commitments[0] }
+impl R2Bcast {
+    // helper getters
+    pub fn get_ecdsa_public_summand(&self) -> GE {
+        self.secret_share_commitments[0]
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -90,8 +83,11 @@ pub struct R2State {
     my_output: R2Output,
 }
 
-impl R2State { // helper getters
-    fn get_ecdsa_public_summand(&self) -> GE { self.my_output.bcast.get_ecdsa_public_summand() }
+impl R2State {
+    // helper getters
+    fn get_ecdsa_public_summand(&self) -> GE {
+        self.my_output.bcast.get_ecdsa_public_summand()
+    }
 }
 
 // round 3
@@ -108,7 +104,7 @@ pub struct R3Bcast {
 #[derive(Debug)]
 pub struct R3State {
     // my_vss_index: usize, // delete me
-    ecdsa_public_key: GE, // the final pub key
+    ecdsa_public_key: GE,          // the final pub key
     my_ecdsa_secret_key_share: FE, // my final secret key share
     my_r2_state: R2State,
     input: R3Input,
