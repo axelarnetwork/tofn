@@ -1,5 +1,8 @@
 use super::*;
 
+pub const TEST_CASES: [(usize, usize); 4] // (share_count, threshold)
+    = [(5, 0), (5, 1), (5, 3), (5, 4)];
+
 pub fn execute_protocol_vec<R>(parties: &mut Vec<Protocol<R>>) {
     #[allow(clippy::needless_range_loop)] // see explanation below
     while !all_done(parties) {
