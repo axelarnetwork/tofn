@@ -17,10 +17,10 @@ pub fn new_protocol(
     ids: &[String],
     my_id_index: usize,
     threshold: usize,
-) -> Protocol {
+) -> Protocol<FinalOutput> {
     let (my_state, my_output) = r1::start();
 
-    // prepare a FillMap of expected incoming messages from other parties
+    // prepare a FillMap for expected incoming messages from other parties
     let incoming_bcasts = FillMap::from_iter(
         ids
         .iter()
@@ -50,12 +50,12 @@ pub struct R1 {
 }
 
 impl State for R1 {
+    type Result = FinalOutput;
+
     fn add_message_in(&mut self, from: &str, msg: &[u8]) {
         let msg: R1Bcast = bincode::deserialize(msg).unwrap(); // panic: deserialization failure
         self.incoming_bcasts.insert(from.to_string(), msg).unwrap(); // panic: FillMap error
     }
-
-    fn can_proceed(&self) -> bool { self.incoming_bcasts.is_full() }
 
     fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<String, Vec<u8>>) {
         let bcast = bincode::serialize(&self.my_output).unwrap(); // panic: serialization failure
@@ -65,9 +65,7 @@ impl State for R1 {
         )
     }
 
-    fn get_id(&self) -> &str { &self.my_id }
-
-    fn next(self: Box<Self>) -> Box<dyn State> {
+    fn next(self: Box<Self>) -> Box<dyn State<Result = Self::Result> + Send> {
         assert!(self.can_proceed());
         let other_r1_bcasts = self.incoming_bcasts.into_hashmap();
         let incoming_bcast = other_r1_bcasts
@@ -98,6 +96,8 @@ impl State for R1 {
         })
     }
 
+    fn can_proceed(&self) -> bool { self.incoming_bcasts.is_full() }
+    fn get_id(&self) -> &str { &self.my_id }
     fn done(&self) -> bool { false }
 }
 
@@ -114,6 +114,7 @@ pub struct R2 {
 }
 
 impl State for R2 {
+    type Result = FinalOutput;
     fn add_message_in(&mut self, from: &str, msg: &[u8]) {
         // msg can be either R2Bcast or R2P2p
         // TODO lots of refactoring needed
@@ -160,11 +161,7 @@ impl State for R2 {
         (Some(bcast), p2p)
     }
 
-    fn get_id(&self) -> &str {
-        &self.my_id
-    }
-
-    fn next(self: Box<Self>) -> Box<dyn State> {
+    fn next(self: Box<Self>) -> Box<dyn State<Result = Self::Result> + Send> {
         assert!(self.can_proceed());
         let incoming = self
             .incoming_bcast
@@ -193,9 +190,8 @@ impl State for R2 {
         })
     }
 
-    fn done(&self) -> bool {
-        false
-    }
+    fn get_id(&self) -> &str { &self.my_id }
+    fn done(&self) -> bool { false }
 }
 
 #[derive(Debug)]
@@ -209,6 +205,8 @@ pub struct R3 {
 
 // TODO refactor repeated code from R1, R2
 impl State for R3 {
+    type Result = FinalOutput;
+
     fn add_message_in(&mut self, from: &str, msg: &[u8]) {
         let stored = self.incoming.get_mut(from).unwrap(); // panic: unexpected party id
         if stored.is_some() {
@@ -220,10 +218,6 @@ impl State for R3 {
         assert!(self.num_incoming <= self.incoming.len());
     }
 
-    fn can_proceed(&self) -> bool {
-        self.num_incoming >= self.incoming.len()
-    }
-
     fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<String, Vec<u8>>) {
         let bcast = bincode::serialize(&self.output).unwrap(); // panic: serialization failure
         (
@@ -232,11 +226,7 @@ impl State for R3 {
         )
     }
 
-    fn get_id(&self) -> &str {
-        &self.my_id
-    }
-
-    fn next(self: Box<Self>) -> Box<dyn State> {
+    fn next(self: Box<Self>) -> Box<dyn State<Result = Self::Result> + Send> {
         assert!(self.can_proceed());
         let inputs = R4Input {
             other_r3_bcasts: self
@@ -252,23 +242,24 @@ impl State for R3 {
         })
     }
 
-    fn done(&self) -> bool {
-        false
-    }
+    fn can_proceed(&self) -> bool { self.num_incoming >= self.incoming.len() }
+    fn get_id(&self) -> &str { &self.my_id }
+    fn done(&self) -> bool { false }
 }
 
-// TODO what to do with the result?
 pub struct R4 {
     my_id: String,
     state: FinalOutput,
 }
 impl State for R4 {
+    type Result = FinalOutput;
     fn add_message_in(&mut self, _from: &str, _msg: &[u8]) {}
     fn can_proceed(&self) -> bool { false }
     fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<String, Vec<u8>>) { (None, HashMap::new()) }
     fn get_id(&self) -> &str { &self.my_id }
-    fn next(self: Box<Self>) -> Box<dyn State> { self }
+    fn next(self: Box<Self>) -> Box<dyn State<Result = Self::Result> + Send> { self }
     fn done(&self) -> bool { true }
+    fn get_result(&self) -> Option<Self::Result> { Some(self.state.clone()) }
 }
 
 #[cfg(test)]

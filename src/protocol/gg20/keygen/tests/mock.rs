@@ -7,8 +7,8 @@ use crate::protocol::{
 };
 
 #[allow(dead_code)]
-struct HappyParty<'a> {
-    me: protocol::Protocol,
+struct HappyParty<'a, R> {
+    me: protocol::Protocol<R>,
     transport: &'a dyn Deliverer,
 }
 
@@ -21,7 +21,7 @@ pub fn new_party<'a>(party_ids: &[String], my_party_id_index: usize, threshold: 
     }
 }
 
-impl<'a> Party for HappyParty<'a> {
+impl<'a, R> Party for HappyParty<'a, R> {
     fn execute() {}
 	fn msg_in(_from: &str, _msg: &[u8]) {}
 }
