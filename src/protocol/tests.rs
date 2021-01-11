@@ -1,6 +1,6 @@
 use super::*;
 
-pub fn execute_protocol_vec(parties: &mut Vec<Protocol>) {
+pub fn execute_protocol_vec<R>(parties: &mut Vec<Protocol<R>>) {
     #[allow(clippy::needless_range_loop)] // see explanation below
 
     while !all_done(parties) {
@@ -64,7 +64,7 @@ pub fn execute_protocol_vec(parties: &mut Vec<Protocol>) {
 //     }
 // }
 
-fn all_done(parties: &[Protocol]) -> bool {
+fn all_done<R>(parties: &[Protocol<R>]) -> bool {
     // panic if there's disagreement
     let done = parties[0].done();
     let parties = parties.iter().skip(1);

@@ -10,7 +10,7 @@ pub const THRESHOLD: usize = 3;
 #[test]
 fn keygen() {
     let ids : Vec<String> = (0..SHARE_COUNT).map(|i| i.to_string()).collect();
-    let mut protocols_vec: Vec<Protocol> = ids.iter().enumerate()
+    let mut protocols_vec: Vec<Protocol<FinalOutput>> = ids.iter().enumerate()
         .map(|(i,_)| new_protocol(&ids, i, THRESHOLD)).collect();
     execute_protocol_vec(&mut protocols_vec);
 
