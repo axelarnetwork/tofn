@@ -4,7 +4,7 @@ use super::{R1State, R2Input, R2Output, R2State, R2Bcast, R2P2p, super::super::v
 pub fn execute(state: R1State, input: R2Input) -> (R2State, R2Output) {
     let share_count = input.other_r1_bcasts.len() + 1;
 
-    assert!(input.threshold < share_count);
+    // assert!(input.threshold < share_count);
     assert!(!input.other_r1_bcasts.contains_key(&input.my_uid));
 
     // verify other parties' proofs
