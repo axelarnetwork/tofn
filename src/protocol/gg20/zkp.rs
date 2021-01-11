@@ -42,7 +42,7 @@ impl Zkp {
         let one = BigInt::one();
         let phi = (&dk_tilde.p - &one) * (&dk_tilde.q - &one);
         let h1 = BigInt::sample_below(&phi);
-        let s = BigInt::from(2).pow(256 as u32);
+        let s = BigInt::from(2).pow(256_u32);
         let xhi = BigInt::sample_below(&s);
         let h2 = BigInt::mod_pow(&h1, &(-&xhi), &ek_tilde.n);
 
