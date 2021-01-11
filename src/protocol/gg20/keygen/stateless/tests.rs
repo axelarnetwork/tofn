@@ -1,40 +1,16 @@
 use super::*;
+use crate::protocol::tests::TEST_CASES;
 use curv::{
     // FE, // rustc does not warn of unused imports for FE
     cryptographic_primitives::secret_sharing::feldman_vss::{ShamirSecretSharing, VerifiableSS},
     elliptic::curves::traits::{ECPoint, ECScalar},
 };
 
-pub struct TestCase {
-    pub share_count: usize,
-    pub threshold: usize,
-}
-
-pub const TEST_CASES: [TestCase; 4] = [
-    TestCase {
-        share_count: 5,
-        threshold: 0,
-    },
-    TestCase {
-        share_count: 5,
-        threshold: 1,
-    },
-    TestCase {
-        share_count: 5,
-        threshold: 3,
-    },
-    TestCase {
-        share_count: 5,
-        threshold: 4,
-    },
-    // TestCase{ share_count: 5, threshold: 5},
-];
-
 #[test]
 fn keygen() {
     for test_case in &TEST_CASES {
-        let ids: Vec<String> = (0..test_case.share_count).map(|i| i.to_string()).collect();
-        execute_keygen(&ids, test_case.threshold);
+        let ids: Vec<String> = (0..test_case.0).map(|i| i.to_string()).collect();
+        execute_keygen(&ids, test_case.1);
     }
 }
 
