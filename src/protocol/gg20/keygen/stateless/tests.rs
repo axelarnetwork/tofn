@@ -6,13 +6,32 @@ use curv::{
     },
     elliptic::curves::traits::{ECScalar, ECPoint},
 };
-use super::super::tests::{SHARE_COUNT, THRESHOLD};
+
+pub struct TestCase {
+    pub share_count: usize,
+    pub threshold: usize,
+}
+
+pub const TEST_CASES: [TestCase; 4] = [
+    TestCase{ share_count: 5, threshold: 0},
+    TestCase{ share_count: 5, threshold: 1},
+    TestCase{ share_count: 5, threshold: 3},
+    TestCase{ share_count: 5, threshold: 4},
+    // TestCase{ share_count: 5, threshold: 5},
+];
 
 #[test]
 fn keygen() {
-    let ids : Vec<String> = (0..SHARE_COUNT).map(|i| i.to_string()).collect();
+    for test_case in &TEST_CASES {
+        let ids : Vec<String> = (0..test_case.share_count).map(|i| i.to_string()).collect();
+        execute_keygen(&ids, test_case.threshold);
+    }
+}
+
+fn execute_keygen(ids: &[String], threshold: usize) {
+    // let ids : Vec<String> = (0..SHARE_COUNT).map(|i| i.to_string()).collect();
     let share_count = ids.len();
-    assert!(THRESHOLD < share_count);
+    // assert!(THRESHOLD < share_count);
 
     // execute round 1 all parties and store their outputs
     let mut all_r1_bcasts = HashMap::with_capacity(share_count);
@@ -38,7 +57,7 @@ fn keygen() {
         let input = R2Input {
             my_uid: id.clone(),
             other_r1_bcasts,
-            threshold: THRESHOLD,
+            threshold,
         };
         let (state, msg) = r2::execute(my_r1_state, input);
         all_r2_states.insert(id, state);
@@ -107,13 +126,13 @@ fn keygen() {
     let test_vss_scheme = VerifiableSS{ // cruft: needed for curv library
         parameters: ShamirSecretSharing{
             share_count,
-            threshold: THRESHOLD,
+            threshold,
         },
         commitments: Vec::new(),
     };
     let secret_key_reconstructed = test_vss_scheme.reconstruct(
-        &all_vss_indices[0..=THRESHOLD],
-        &all_secret_shares[0..=THRESHOLD]
+        &all_vss_indices[0..=threshold],
+        &all_secret_shares[0..=threshold]
     );
 
     assert_eq!(secret_key_reconstructed, secret_key_sum_u);

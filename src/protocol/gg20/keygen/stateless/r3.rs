@@ -1,7 +1,6 @@
 use curv::{
     cryptographic_primitives::{
         proofs::sigma_dlog::{DLogProof, ProveDLog},
-        // secret_sharing::feldman_vss::{VerifiableSS, ShamirSecretSharing},
         commitments::{
             hash_commitment::HashCommitment,
             traits::Commitment
