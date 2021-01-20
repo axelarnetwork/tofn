@@ -1,4 +1,4 @@
-# Thrush -- Threshold cryptography library
+# tofn -- A threshold cryptography library
 
 A threshold cryptography library in Rust.  Implements the [GG20](https://eprint.iacr.org/2020/540.pdf) protocol.  Work in progress.
 
