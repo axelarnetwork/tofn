@@ -1,5 +1,5 @@
 [package]
-name = "thrush"
+name = "tofn"
 version = "0.1.0"
 authors = ["Gus Gutoski <gus@axelar.network>"]
 edition = "2018"
