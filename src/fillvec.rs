@@ -14,12 +14,9 @@ pub enum FillVecError {
 type Result<T> = std::result::Result<T, FillVecError>;
 
 impl<T> FillVec<T> {
-    pub fn new_vec_none(capacity: usize) -> Vec<Option<T>> {
-        (0..capacity).map(|_| None).collect() // can't use vec![None; capacity]
-    }
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
-            vec: Self::new_vec_none(capacity),
+            vec: new_vec_none(capacity),
             some_count: 0,
         }
     }
@@ -38,6 +35,10 @@ impl<T> FillVec<T> {
     pub fn some_count(&self) -> usize {
         self.some_count
     }
+}
+
+pub fn new_vec_none<T>(capacity: usize) -> Vec<Option<T>> {
+    (0..capacity).map(|_| None).collect() // can't use vec![None; capacity] https://users.rust-lang.org/t/how-to-initialize-vec-option-t-with-none/30580/2
 }
 
 impl std::error::Error for FillVecError {}

@@ -6,7 +6,7 @@ pub mod r4;
 use curv::{cryptographic_primitives::proofs::sigma_dlog::DLogProof, BigInt, FE, GE};
 use paillier::{DecryptionKey, EncryptionKey};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fmt::Debug};
+use std::fmt::Debug;
 use zk_paillier::zkproofs::NICorrectKeyProof;
 
 use super::super::zkp::Zkp;
@@ -36,38 +36,30 @@ pub struct R1Bcast {
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub struct R1State {
+    share_count: usize,
+    threshold: usize,
+    my_index: usize,
     my_ecdsa_secret_summand: FE, // final ecdsa secret key is the sum over all parties
     my_ecdsa_public_summand: GE, // final ecdsa public key is the sum over all parties
     my_dk: DecryptionKey,        // homomorphic decryption (Paillier)
+    my_commit: BigInt,           // for convenience: a copy of R1Bcast.commit
     my_reveal: BigInt,           // decommit---to be released later
-    my_output: R1Bcast,
 }
 
 // round 2
 
-#[derive(Debug, Clone)]
-pub struct R2Input {
-    pub threshold: usize,
-    pub other_r1_bcasts: HashMap<String, R1Bcast>,
-    pub my_uid: String,
-}
-#[derive(Debug, Clone)]
-pub struct R2Output {
-    pub bcast: R2Bcast,
-    pub p2p: HashMap<String, R2P2p>,
-}
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct R2Bcast {
     pub reveal: BigInt,
     pub secret_share_commitments: Vec<GE>,
 }
 
-impl R2Bcast {
-    // helper getters
-    pub fn get_ecdsa_public_summand(&self) -> GE {
-        self.secret_share_commitments[0]
-    }
-}
+// impl R2Bcast {
+//     // helper getters
+//     pub fn get_ecdsa_public_summand(&self) -> GE {
+//         self.secret_share_commitments[0]
+//     }
+// }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct R2P2p {
@@ -76,26 +68,21 @@ pub struct R2P2p {
 
 #[derive(Debug)]
 pub struct R2State {
+    share_count: usize,
+    // threshold: usize,
+    my_index: usize,
     my_share_of_my_ecdsa_secret_summand: FE,
     my_share_index: usize,
-    my_r1_state: R1State,
-    input: R2Input,
-    my_output: R2Output,
-}
-
-impl R2State {
-    // helper getters
-    fn get_ecdsa_public_summand(&self) -> GE {
-        self.my_output.bcast.get_ecdsa_public_summand()
-    }
+    my_ecdsa_public_summand: GE, // used only to compute the final ecdsa_public_key
+    all_commits: Vec<BigInt>,
 }
 
 // round 3
 
-#[derive(Debug, Clone)]
-pub struct R3Input {
-    pub other_r2_msgs: HashMap<String, (R2Bcast, R2P2p)>,
-}
+// #[derive(Debug, Clone)]
+// pub struct R3Input {
+//     pub other_r2_msgs: HashMap<String, (R2Bcast, R2P2p)>,
+// }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct R3Bcast {
@@ -103,20 +90,23 @@ pub struct R3Bcast {
 }
 #[derive(Debug)]
 pub struct R3State {
-    // my_vss_index: usize, // delete me
-    ecdsa_public_key: GE,          // the final pub key
+    share_count: usize,
+    // threshold: usize,
+    my_index: usize,
+    my_share_index: usize,
+    ecdsa_public_key: GE, // the final pub key
     my_ecdsa_secret_key_share: FE, // my final secret key share
-    my_r2_state: R2State,
-    input: R3Input,
-    my_output: R3Bcast,
+                          // my_r2_state: R2State,
+                          // input: R3Input,
+                          // my_output: R3Bcast,
 }
 
 // round 4
 
-#[derive(Debug)]
-pub struct R4Input {
-    pub other_r3_bcasts: HashMap<String, R3Bcast>,
-}
+// #[derive(Debug)]
+// pub struct R4Input {
+//     pub other_r3_bcasts: HashMap<String, R3Bcast>,
+// }
 
 // FinalOutput discards unneeded intermediate info from the protocol
 #[derive(Debug, Clone, Serialize, Deserialize)]

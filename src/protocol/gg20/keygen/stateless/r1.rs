@@ -7,7 +7,7 @@ use curv::{
 use paillier::{KeyGeneration, Paillier};
 use zk_paillier::zkproofs::NICorrectKeyProof;
 
-pub fn start() -> (R1State, R1Bcast) {
+pub fn start(share_count: usize, threshold: usize, my_index: usize) -> (R1State, R1Bcast) {
     let my_ecdsa_secret_summand = FE::new_random();
     let my_ecdsa_public_summand = GE::generator() * my_ecdsa_secret_summand;
 
@@ -17,21 +17,24 @@ pub fn start() -> (R1State, R1Bcast) {
 
     let correct_key_proof = NICorrectKeyProof::proof(&my_dk);
     let zkp = Zkp::new_unsafe();
-    let (commit, my_reveal) =
+    let (my_commit, my_reveal) =
         HashCommitment::create_commitment(&my_ecdsa_public_summand.bytes_compressed_to_big_int());
     let my_bcast = R1Bcast {
-        commit,
+        commit: my_commit.clone(),
         ek,
         zkp,
         correct_key_proof,
     };
     (
         R1State {
+            share_count,
+            threshold,
+            my_index,
             my_ecdsa_secret_summand,
             my_dk,
+            my_commit,
             my_reveal,
             my_ecdsa_public_summand,
-            my_output: my_bcast.clone(),
         },
         my_bcast,
     )
