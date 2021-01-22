@@ -2,7 +2,7 @@
 //! TODO It's confusing to have R1,... structs that hold R1State,... data
 use std::collections::HashMap;
 
-mod stateless;
+pub mod stateless; // TODO make private
 
 use crate::{
     fillmap::FillMap,
