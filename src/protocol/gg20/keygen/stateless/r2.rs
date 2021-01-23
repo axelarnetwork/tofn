@@ -8,28 +8,37 @@ pub fn execute(
 
     // verify other parties' proofs and build commits list
     let mut all_commits = Vec::with_capacity(state.share_count);
-    for i in 0..state.share_count {
+    for (i, bcast) in in_bcasts.iter().enumerate() {
         if i == state.my_index {
             all_commits.push(state.my_commit.clone());
             continue; // don't verify my own proof
         }
-        let input = in_bcasts[i].clone().expect(&format!(
-            "party {} says: missing input for party {}",
-            state.my_index, i
-        ));
-        input.correct_key_proof.verify(&input.ek).expect(&format!(
-            "party {} says: key proof failed to verify for party {}",
-            state.my_index, i
-        ));
-        input
+        let bcast = bcast.clone().unwrap_or_else(|| {
+            panic!(
+                "party {} says: missing input for party {}",
+                state.my_index, i
+            )
+        });
+        bcast
+            .correct_key_proof
+            .verify(&bcast.ek)
+            .unwrap_or_else(|_| {
+                panic!(
+                    "party {} says: key proof failed to verify for party {}",
+                    state.my_index, i
+                )
+            });
+        bcast
             .zkp
             .dlog_proof
-            .verify(&input.zkp.dlog_statement)
-            .expect(&format!(
-                "party {} says: dlog proof failed to verify for party {}",
-                state.my_index, i
-            ));
-        all_commits.push(input.commit);
+            .verify(&bcast.zkp.dlog_statement)
+            .unwrap_or_else(|_| {
+                panic!(
+                    "party {} says: dlog proof failed to verify for party {}",
+                    state.my_index, i
+                )
+            });
+        all_commits.push(bcast.commit);
     }
     assert_eq!(all_commits.len(), state.share_count);
 

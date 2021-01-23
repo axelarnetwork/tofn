@@ -22,14 +22,18 @@ pub fn execute(
         if i == state.my_index {
             continue;
         }
-        let bcast = in_bcasts[i].clone().expect(&format!(
-            "party {} says: missing bcast input for party {}",
-            state.my_index, i
-        ));
-        let p2p = in_p2ps[i].clone().expect(&format!(
-            "party {} says: missing p2p input for party {}",
-            state.my_index, i
-        ));
+        let bcast = in_bcasts[i].clone().unwrap_or_else(|| {
+            panic!(
+                "party {} says: missing bcast input for party {}",
+                state.my_index, i
+            )
+        });
+        let p2p = in_p2ps[i].clone().unwrap_or_else(|| {
+            panic!(
+                "party {} says: missing p2p input for party {}",
+                state.my_index, i
+            )
+        });
         let ecdsa_public_summand = &bcast.secret_share_commitments[0];
         let com = HashCommitment::create_commitment_with_user_defined_randomness(
             &ecdsa_public_summand.bytes_compressed_to_big_int(),
