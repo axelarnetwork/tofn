@@ -1,7 +1,7 @@
 use super::{FinalOutput, R3Bcast, R3State};
 use curv::cryptographic_primitives::proofs::sigma_dlog::{DLogProof, ProveDLog};
 
-pub fn execute(state: R3State, in_bcasts: &[Option<R3Bcast>]) -> FinalOutput {
+pub fn execute(state: &R3State, in_bcasts: &[Option<R3Bcast>]) -> FinalOutput {
     assert_eq!(in_bcasts.len(), state.share_count);
     // verify other parties' proofs
     for (i, bcast) in in_bcasts.iter().enumerate() {

@@ -1,5 +1,3 @@
-use std::result;
-
 pub type MsgBytes = Vec<u8>;
 pub type Result = std::result::Result<(), Box<dyn std::error::Error>>; // TODO custom error type
 

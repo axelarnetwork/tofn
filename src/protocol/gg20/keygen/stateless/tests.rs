@@ -57,7 +57,7 @@ fn execute_keygen(share_count: usize, threshold: usize) {
     let mut all_r3_states = Vec::with_capacity(share_count);
     let mut all_r3_bcasts = Vec::with_capacity(share_count);
     for (i, r2_state) in all_r2_states.into_iter().enumerate() {
-        let (state, bcast) = r3::execute(r2_state, &all_r2_bcasts, &all_r2_p2ps_delivered[i]);
+        let (state, bcast) = r3::execute(&r2_state, &all_r2_bcasts, &all_r2_p2ps_delivered[i]);
         all_r3_states.push(state);
         all_r3_bcasts.push(Some(bcast));
     }
@@ -66,7 +66,7 @@ fn execute_keygen(share_count: usize, threshold: usize) {
     // execute round 4 all parties and store their outputs
     let mut all_r4_states = Vec::with_capacity(share_count);
     for r3_state in all_r3_states {
-        let result = r4::execute(r3_state, &all_r3_bcasts);
+        let result = r4::execute(&r3_state, &all_r3_bcasts);
         all_r4_states.push(result);
     }
     let all_r4_states = all_r4_states; // make read-only

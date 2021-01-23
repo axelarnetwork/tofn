@@ -1,5 +1,5 @@
 use crate::{
-    fillvec::{new_vec_none, FillVec},
+    fillvec::FillVec,
     protocol::gg20::keygen::stateless::*,
     protocol2::{MsgBytes, Protocol2, Result},
 };
@@ -78,8 +78,9 @@ impl KeygenProtocol {
 
 impl Protocol2 for KeygenProtocol {
     fn next(&mut self) -> Result {
-        // TODO return early if can_proceed() == false?
-
+        if !self.can_proceed() {
+            return Err(From::from("can't prceed yet"));
+        }
         self.state = match &self.state {
             New => {
                 let (r1state, out_r1bcast_deserialized) =
@@ -92,16 +93,6 @@ impl Protocol2 for KeygenProtocol {
                 let (r2state, out_r2bcast_deserialized, out_r2p2ps_deserialized) =
                     r2::execute(state, self.in_r1bcasts.vec_ref());
                 self.out_r2bcast = Some(bincode::serialize(&out_r2bcast_deserialized)?);
-
-                // serialize the messages in out_r2p2ps_deserialized, returning any error
-                // can't do this with iterators https://stackoverflow.com/questions/26368288/how-do-i-stop-iteration-and-return-an-error-when-iteratormap-returns-a-result
-                // if we were willing to panic on error then we could do this:
-                // self.out_r2p2ps = Some(
-                //     out_r2p2ps
-                //         .iter()
-                //         .map(|opt| opt.as_ref().map(|msg| bincode::serialize(msg).unwrap()))
-                //         .collect(),
-                // );
                 let mut out_r2p2ps = Vec::with_capacity(self.share_count);
                 for opt in out_r2p2ps_deserialized {
                     if let Some(p2p) = opt {
@@ -114,6 +105,18 @@ impl Protocol2 for KeygenProtocol {
                 R2(r2state)
             }
 
+            R2(state) => {
+                let (r3state, out_r3bcast_deserialized) =
+                    r3::execute(state, self.in_r2bcasts.vec_ref(), self.in_r2p2ps.vec_ref());
+                self.out_r3bcast = Some(bincode::serialize(&out_r3bcast_deserialized)?);
+                R3(r3state)
+            }
+
+            R3(state) => {
+                let final_output = r4::execute(state, self.in_r3bcasts.vec_ref());
+                self.final_output = Some(bincode::serialize(&final_output)?);
+                Done
+            }
             _ => todo!(),
         };
         Ok(())
@@ -121,6 +124,7 @@ impl Protocol2 for KeygenProtocol {
 
     fn set_msg_in(&mut self, msg: &[u8]) -> Result {
         // TODO match self.state
+        // TODO refactor repeated code
         let msg_meta: MsgMeta = bincode::deserialize(msg)?;
         match msg_meta.msg_type {
             MsgTypes::R1Bcast => self
@@ -163,7 +167,9 @@ impl Protocol2 for KeygenProtocol {
         match self.state {
             New => true,
             R1(_) => self.is_full(&self.in_r1bcasts),
-            _ => todo!(),
+            R2(_) => self.is_full(&self.in_r2bcasts) && self.is_full(&self.in_r2p2ps),
+            R3(_) => self.is_full(&self.in_r3bcasts),
+            Done => false,
         }
     }
 
@@ -177,9 +183,9 @@ impl Protocol2 for KeygenProtocol {
 }
 
 // convenience wrapper to deserialize and insert into fillvec
-fn add_to_fillvec<'a, T: Deserialize<'a>>(v: &mut FillVec<T>, m: &'a MsgMeta) -> Result {
-    Ok(v.insert(m.from, bincode::deserialize::<'a, _>(&m.payload)?)?)
-}
+// fn add_to_fillvec<'a, T: Deserialize<'a>>(v: &mut FillVec<T>, m: &'a MsgMeta) -> Result {
+//     Ok(v.insert(m.from, bincode::deserialize::<'a, _>(&m.payload)?)?)
+// }
 
 // #[cfg(test)]
 // mod tests;

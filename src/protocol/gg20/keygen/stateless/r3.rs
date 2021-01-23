@@ -8,7 +8,7 @@ use curv::{
 };
 
 pub fn execute(
-    state: R2State,
+    state: &R2State,
     in_bcasts: &[Option<R2Bcast>],
     in_p2ps: &[Option<R2P2p>],
 ) -> (R3State, R3Bcast) {
