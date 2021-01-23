@@ -29,7 +29,7 @@ struct MsgMeta {
     from: usize,
     payload: MsgBytes,
 }
-pub struct KeygenProtocol {
+pub struct Keygen {
     state: State,
 
     // protocol-wide data
@@ -51,7 +51,7 @@ pub struct KeygenProtocol {
     in_r3bcasts: FillVec<R3Bcast>,
 }
 
-impl KeygenProtocol {
+impl Keygen {
     pub fn new(share_count: usize, threshold: usize, my_index: usize) -> Self {
         Self {
             state: New,
@@ -76,7 +76,7 @@ impl KeygenProtocol {
     }
 }
 
-impl Protocol for KeygenProtocol {
+impl Protocol for Keygen {
     fn next(&mut self) -> Result {
         if !self.can_proceed() {
             return Err(From::from("can't prceed yet"));
