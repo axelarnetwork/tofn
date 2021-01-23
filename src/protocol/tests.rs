@@ -3,8 +3,8 @@ use super::*;
 pub const TEST_CASES: [(usize, usize); 4] // (share_count, threshold)
     = [(5, 0), (5, 1), (5, 3), (5, 4)];
 
-pub fn execute_protocol_vec(parties: &mut [&mut dyn Protocol2]) {
-    // #[allow(clippy::needless_range_loop)] // see explanation below
+pub fn execute_protocol_vec(parties: &mut [&mut dyn Protocol]) {
+    #[allow(clippy::needless_range_loop)] // see explanation below
     while !all_done(parties) {
         // #[allow(clippy::needless_range_loop)]
         // need to iterate over indices 0..n instead of parties.iter()
@@ -37,7 +37,7 @@ pub fn execute_protocol_vec(parties: &mut [&mut dyn Protocol2]) {
     }
 }
 
-fn all_done(parties: &[&mut dyn Protocol2]) -> bool {
+fn all_done(parties: &[&mut dyn Protocol]) -> bool {
     // panic if there's disagreement
     let done = parties[0].done();
     let parties = parties.iter().skip(1);

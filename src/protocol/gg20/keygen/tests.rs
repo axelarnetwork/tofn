@@ -8,9 +8,9 @@ fn keygen() {
         let mut keygen_protocols: Vec<KeygenProtocol> = (0..share_count)
             .map(|i| KeygenProtocol::new(share_count, threshold, i))
             .collect();
-        let mut protocols: Vec<&mut dyn Protocol2> = keygen_protocols
+        let mut protocols: Vec<&mut dyn Protocol> = keygen_protocols
             .iter_mut()
-            .map(|p| p as &mut dyn Protocol2)
+            .map(|p| p as &mut dyn Protocol)
             .collect();
         execute_protocol_vec(&mut protocols);
     }

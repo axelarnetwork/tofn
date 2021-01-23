@@ -1,6 +1,6 @@
 use crate::{
     fillvec::FillVec,
-    protocol::{MsgBytes, Protocol2, Result},
+    protocol::{MsgBytes, Protocol, Result},
 };
 use serde::{Deserialize, Serialize};
 
@@ -76,7 +76,7 @@ impl KeygenProtocol {
     }
 }
 
-impl Protocol2 for KeygenProtocol {
+impl Protocol for KeygenProtocol {
     fn next(&mut self) -> Result {
         if !self.can_proceed() {
             return Err(From::from("can't prceed yet"));
@@ -197,11 +197,6 @@ impl Protocol2 for KeygenProtocol {
         &self.final_output
     }
 }
-
-// convenience wrapper to deserialize and insert into fillvec
-// fn add_to_fillvec<'a, T: Deserialize<'a>>(v: &mut FillVec<T>, m: &'a MsgMeta) -> Result {
-//     Ok(v.insert(m.from, bincode::deserialize::<'a, _>(&m.payload)?)?)
-// }
 
 #[cfg(test)]
 mod tests;
