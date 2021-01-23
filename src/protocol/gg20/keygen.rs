@@ -17,7 +17,7 @@ enum State {
 use State::*;
 
 #[derive(Serialize, Deserialize)]
-enum MsgTypes {
+enum MsgType {
     R1Bcast,
     R2Bcast,
     R2P2p,
@@ -25,7 +25,7 @@ enum MsgTypes {
 }
 #[derive(Serialize, Deserialize)]
 struct MsgMeta {
-    msg_type: MsgTypes,
+    msg_type: MsgType,
     from: usize,
     payload: MsgBytes,
 }
@@ -71,7 +71,7 @@ impl KeygenProtocol {
     }
     fn is_full<T>(&self, v: &FillVec<T>) -> bool {
         // have we received a message from all other parties?
-        (v.is_none(self.my_index) && v.some_count() >= self.share_count)
+        (v.is_none(self.my_index) && v.some_count() >= self.share_count - 1)
             || v.some_count() >= self.share_count
     }
 }
@@ -85,18 +85,30 @@ impl Protocol2 for KeygenProtocol {
             New => {
                 let (r1state, out_r1bcast_deserialized) =
                     r1::start(self.share_count, self.threshold, self.my_index);
-                self.out_r1bcast = Some(bincode::serialize(&out_r1bcast_deserialized)?);
+                self.out_r1bcast = Some(bincode::serialize(&MsgMeta {
+                    msg_type: MsgType::R1Bcast,
+                    from: self.my_index,
+                    payload: bincode::serialize(&out_r1bcast_deserialized)?,
+                })?);
                 R1(r1state)
             }
 
             R1(state) => {
                 let (r2state, out_r2bcast_deserialized, out_r2p2ps_deserialized) =
                     r2::execute(state, self.in_r1bcasts.vec_ref());
-                self.out_r2bcast = Some(bincode::serialize(&out_r2bcast_deserialized)?);
+                self.out_r2bcast = Some(bincode::serialize(&MsgMeta {
+                    msg_type: MsgType::R2Bcast,
+                    from: self.my_index,
+                    payload: bincode::serialize(&out_r2bcast_deserialized)?,
+                })?);
                 let mut out_r2p2ps = Vec::with_capacity(self.share_count);
                 for opt in out_r2p2ps_deserialized {
                     if let Some(p2p) = opt {
-                        out_r2p2ps.push(Some(bincode::serialize(&p2p)?));
+                        out_r2p2ps.push(Some(bincode::serialize(&MsgMeta {
+                            msg_type: MsgType::R2P2p,
+                            from: self.my_index,
+                            payload: bincode::serialize(&p2p)?,
+                        })?));
                     } else {
                         out_r2p2ps.push(None);
                     }
@@ -108,7 +120,11 @@ impl Protocol2 for KeygenProtocol {
             R2(state) => {
                 let (r3state, out_r3bcast_deserialized) =
                     r3::execute(state, self.in_r2bcasts.vec_ref(), self.in_r2p2ps.vec_ref());
-                self.out_r3bcast = Some(bincode::serialize(&out_r3bcast_deserialized)?);
+                self.out_r3bcast = Some(bincode::serialize(&MsgMeta {
+                    msg_type: MsgType::R3Bcast,
+                    from: self.my_index,
+                    payload: bincode::serialize(&out_r3bcast_deserialized)?,
+                })?);
                 R3(r3state)
             }
 
@@ -127,16 +143,16 @@ impl Protocol2 for KeygenProtocol {
         // TODO refactor repeated code
         let msg_meta: MsgMeta = bincode::deserialize(msg)?;
         match msg_meta.msg_type {
-            MsgTypes::R1Bcast => self
+            MsgType::R1Bcast => self
                 .in_r1bcasts
                 .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
-            MsgTypes::R2Bcast => self
+            MsgType::R2Bcast => self
                 .in_r2bcasts
                 .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
-            MsgTypes::R2P2p => self
+            MsgType::R2P2p => self
                 .in_r2p2ps
                 .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
-            MsgTypes::R3Bcast => self
+            MsgType::R3Bcast => self
                 .in_r3bcasts
                 .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
         };
