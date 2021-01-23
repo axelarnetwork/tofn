@@ -37,7 +37,7 @@ fn execute_keygen(share_count: usize, threshold: usize) {
     let mut all_r2_bcasts = Vec::with_capacity(share_count);
     let mut all_r2_p2ps = Vec::with_capacity(share_count);
     for r1_state in all_r1_states {
-        let (state, bcast, p2ps) = r2::execute(r1_state, &all_r1_bcasts);
+        let (state, bcast, p2ps) = r2::execute(&r1_state, &all_r1_bcasts);
         all_r2_states.push(state);
         all_r2_bcasts.push(Some(bcast));
         all_r2_p2ps.push(p2ps);

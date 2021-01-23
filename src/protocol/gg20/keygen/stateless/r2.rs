@@ -1,7 +1,7 @@
 use super::{super::super::vss, R1Bcast, R1State, R2Bcast, R2P2p, R2State};
 
 pub fn execute(
-    state: R1State,
+    state: &R1State,
     in_bcasts: &[Option<R1Bcast>],
 ) -> (R2State, R2Bcast, Vec<Option<R2P2p>>) {
     assert_eq!(in_bcasts.len(), state.share_count);
@@ -74,7 +74,7 @@ pub fn execute(
     assert_eq!(out_p2p.len(), state.share_count);
 
     let out_bcast = R2Bcast {
-        reveal: state.my_reveal,
+        reveal: state.my_reveal.clone(),
         secret_share_commitments,
     };
     (

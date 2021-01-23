@@ -29,11 +29,14 @@ impl<T> FillVec<T> {
         self.some_count += 1;
         Ok(())
     }
-    pub fn into_vec(self) -> Vec<Option<T>> {
-        self.vec
+    pub fn vec_ref(&self) -> &Vec<Option<T>> {
+        &self.vec
     }
     pub fn some_count(&self) -> usize {
         self.some_count
+    }
+    pub fn is_none(&self, index: usize) -> bool {
+        matches!(self.vec[index], None)
     }
 }
 

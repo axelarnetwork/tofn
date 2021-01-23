@@ -1,7 +1,7 @@
 use crate::{
     fillvec::{new_vec_none, FillVec},
     protocol::gg20::keygen::stateless::*,
-    protocol2::{MsgBytes, Protocol2},
+    protocol2::{MsgBytes, Protocol2, Result},
 };
 use serde::{Deserialize, Serialize};
 
@@ -41,14 +41,14 @@ pub struct KeygenProtocol {
     // initialized to `None`, filled as the protocol progresses
     out_r1bcast: Option<MsgBytes>,
     out_r2bcast: Option<MsgBytes>,
-    out_r2p2p: Vec<Option<MsgBytes>>,
+    out_r2p2ps: Option<Vec<Option<MsgBytes>>>,
     out_r3bcast: Option<MsgBytes>,
     final_output: Option<MsgBytes>, // TODO why serialize result?
 
-    in_r1bcast: FillVec<R1Bcast>,
-    in_r2bcast: FillVec<R2Bcast>,
-    in_r2p2p: FillVec<R2P2p>,
-    in_r3bcast: FillVec<R3Bcast>,
+    in_r1bcasts: FillVec<R1Bcast>,
+    in_r2bcasts: FillVec<R2Bcast>,
+    in_r2p2ps: FillVec<R2P2p>,
+    in_r3bcasts: FillVec<R3Bcast>,
 }
 
 impl KeygenProtocol {
@@ -60,67 +60,126 @@ impl KeygenProtocol {
             my_index,
             out_r1bcast: None,
             out_r2bcast: None,
-            out_r2p2p: new_vec_none(share_count),
+            out_r2p2ps: None,
             out_r3bcast: None,
             final_output: None,
-            in_r1bcast: FillVec::with_capacity(share_count),
-            in_r2bcast: FillVec::with_capacity(share_count),
-            in_r2p2p: FillVec::with_capacity(share_count),
-            in_r3bcast: FillVec::with_capacity(share_count),
+            in_r1bcasts: FillVec::with_capacity(share_count),
+            in_r2bcasts: FillVec::with_capacity(share_count),
+            in_r2p2ps: FillVec::with_capacity(share_count),
+            in_r3bcasts: FillVec::with_capacity(share_count),
         }
+    }
+    fn is_full<T>(&self, v: &FillVec<T>) -> bool {
+        // have we received a message from all other parties?
+        (v.is_none(self.my_index) && v.some_count() >= self.share_count)
+            || v.some_count() >= self.share_count
     }
 }
 
 impl Protocol2 for KeygenProtocol {
-    fn next(&mut self) {
+    fn next(&mut self) -> Result {
         // TODO return early if can_proceed() == false?
-        self.state = match self.state {
+
+        self.state = match &self.state {
             New => {
-                let (r1state, out_r1bcast) =
+                let (r1state, out_r1bcast_deserialized) =
                     r1::start(self.share_count, self.threshold, self.my_index);
-                self.out_r1bcast = Some(
-                    bincode::serialize(&out_r1bcast).expect("failure to serialize out_r1bcast"),
-                );
+                self.out_r1bcast = Some(bincode::serialize(&out_r1bcast_deserialized)?);
                 R1(r1state)
             }
+
+            R1(state) => {
+                let (r2state, out_r2bcast_deserialized, out_r2p2ps_deserialized) =
+                    r2::execute(state, self.in_r1bcasts.vec_ref());
+                self.out_r2bcast = Some(bincode::serialize(&out_r2bcast_deserialized)?);
+
+                // serialize the messages in out_r2p2ps_deserialized, returning any error
+                // can't do this with iterators https://stackoverflow.com/questions/26368288/how-do-i-stop-iteration-and-return-an-error-when-iteratormap-returns-a-result
+                // if we were willing to panic on error then we could do this:
+                // self.out_r2p2ps = Some(
+                //     out_r2p2ps
+                //         .iter()
+                //         .map(|opt| opt.as_ref().map(|msg| bincode::serialize(msg).unwrap()))
+                //         .collect(),
+                // );
+                let mut out_r2p2ps = Vec::with_capacity(self.share_count);
+                for opt in out_r2p2ps_deserialized {
+                    if let Some(p2p) = opt {
+                        out_r2p2ps.push(Some(bincode::serialize(&p2p)?));
+                    } else {
+                        out_r2p2ps.push(None);
+                    }
+                }
+                self.out_r2p2ps = Some(out_r2p2ps);
+                R2(r2state)
+            }
+
             _ => todo!(),
-        }
+        };
+        Ok(())
     }
 
-    fn set_msg_in(&mut self, msg: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
-        // TODO match self.state?
+    fn set_msg_in(&mut self, msg: &[u8]) -> Result {
+        // TODO match self.state
         let msg_meta: MsgMeta = bincode::deserialize(msg)?;
         match msg_meta.msg_type {
             MsgTypes::R1Bcast => self
-                .in_r1bcast
+                .in_r1bcasts
                 .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
-            MsgTypes::R2Bcast => {}
-            MsgTypes::R2P2p => {}
-            MsgTypes::R3Bcast => {}
+            MsgTypes::R2Bcast => self
+                .in_r2bcasts
+                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
+            MsgTypes::R2P2p => self
+                .in_r2p2ps
+                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
+            MsgTypes::R3Bcast => self
+                .in_r3bcasts
+                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
+        };
+        Ok(())
+    }
+
+    fn get_bcast_out(&self) -> &Option<MsgBytes> {
+        match self.state {
+            New => &None,
+            R1(_) => &self.out_r1bcast,
+            R2(_) => &self.out_r2bcast,
+            R3(_) => &self.out_r3bcast,
+            Done => &None,
         }
-        todo!()
     }
 
-    fn get_bcast_out(&self) -> Option<MsgBytes> {
-        todo!()
-    }
-
-    fn get_p2p_out(&self) -> Vec<Option<MsgBytes>> {
-        todo!()
+    fn get_p2p_out(&self) -> &Option<Vec<Option<MsgBytes>>> {
+        match self.state {
+            New => &None,
+            R1(_) => &None,
+            R2(_) => &self.out_r2p2ps,
+            R3(_) => &None,
+            Done => &None,
+        }
     }
 
     fn can_proceed(&self) -> bool {
         match self.state {
             New => true,
+            R1(_) => self.is_full(&self.in_r1bcasts),
             _ => todo!(),
         }
     }
 
     fn done(&self) -> bool {
-        todo!()
+        matches!(self.state, Done)
     }
 
-    fn get_result(&self) -> Option<MsgBytes> {
-        todo!()
+    fn get_result(&self) -> &Option<MsgBytes> {
+        &self.final_output
     }
 }
+
+// convenience wrapper to deserialize and insert into fillvec
+fn add_to_fillvec<'a, T: Deserialize<'a>>(v: &mut FillVec<T>, m: &'a MsgMeta) -> Result {
+    Ok(v.insert(m.from, bincode::deserialize::<'a, _>(&m.payload)?)?)
+}
+
+// #[cfg(test)]
+// mod tests;

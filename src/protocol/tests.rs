@@ -86,6 +86,3 @@ fn all_done<R>(parties: &[Protocol<R>]) -> bool {
     }
     done
 }
-
-#[cfg(test)]
-pub mod mock; // abandoned
