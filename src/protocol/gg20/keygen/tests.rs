@@ -3,15 +3,15 @@ use crate::protocol::tests::{execute_protocol_vec, TEST_CASES};
 
 #[test]
 fn keygen() {
-    for test_case in &TEST_CASES {
-        let ids: Vec<String> = (0..test_case.0).map(|i| i.to_string()).collect();
-        let mut protocols_vec: Vec<Protocol<FinalOutput>> = ids
-            .iter()
-            .enumerate()
-            .map(|(i, _)| new_protocol(&ids, i, test_case.1))
+    for &(share_count, threshold) in TEST_CASES.iter() {
+        // keep it on the stack: avoid use of Box<dyn Protocol> https://doc.rust-lang.org/book/ch17-02-trait-objects.html
+        let mut keygen_protocols: Vec<KeygenProtocol> = (0..share_count)
+            .map(|i| KeygenProtocol::new(share_count, threshold, i))
             .collect();
-        execute_protocol_vec(&mut protocols_vec);
+        let mut protocols: Vec<&mut dyn Protocol2> = keygen_protocols
+            .iter_mut()
+            .map(|p| p as &mut dyn Protocol2)
+            .collect();
+        execute_protocol_vec(&mut protocols);
     }
 }
-
-pub mod mock; // abandoned

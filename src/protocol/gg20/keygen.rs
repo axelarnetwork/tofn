@@ -1,11 +1,11 @@
 use crate::{
     fillvec::FillVec,
-    protocol::gg20::keygen::stateless::*,
-    protocol2::{MsgBytes, Protocol2, Result},
+    protocol::{MsgBytes, Protocol2, Result},
 };
 use serde::{Deserialize, Serialize};
 
 mod stateless;
+use stateless::*;
 
 enum State {
     New,
@@ -187,5 +187,5 @@ impl Protocol2 for KeygenProtocol {
 //     Ok(v.insert(m.from, bincode::deserialize::<'a, _>(&m.payload)?)?)
 // }
 
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod tests;
