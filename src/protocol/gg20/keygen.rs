@@ -133,7 +133,7 @@ impl Protocol for Keygen {
                 self.final_output = Some(bincode::serialize(&final_output)?);
                 Done
             }
-            _ => todo!(),
+            Done => return Err(From::from("already done")),
         };
         Ok(())
     }
