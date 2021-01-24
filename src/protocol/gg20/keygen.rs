@@ -78,7 +78,7 @@ impl Keygen {
 
 impl Protocol for Keygen {
     fn next(&mut self) -> Result {
-        if !self.can_proceed() {
+        if self.expecting_more_msgs_this_round() {
             return Err(From::from("can't prceed yet"));
         }
         self.state = match &self.state {
@@ -179,12 +179,12 @@ impl Protocol for Keygen {
         }
     }
 
-    fn can_proceed(&self) -> bool {
+    fn expecting_more_msgs_this_round(&self) -> bool {
         match self.state {
-            New => true,
-            R1(_) => self.is_full(&self.in_r1bcasts),
-            R2(_) => self.is_full(&self.in_r2bcasts) && self.is_full(&self.in_r2p2ps),
-            R3(_) => self.is_full(&self.in_r3bcasts),
+            New => false,
+            R1(_) => !self.is_full(&self.in_r1bcasts),
+            R2(_) => !self.is_full(&self.in_r2bcasts) || !self.is_full(&self.in_r2p2ps),
+            R3(_) => !self.is_full(&self.in_r3bcasts),
             Done => false,
         }
     }

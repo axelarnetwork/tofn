@@ -6,7 +6,7 @@ pub trait Protocol {
     fn set_msg_in(&mut self, msg: &[u8]) -> Result;
     fn get_bcast_out(&self) -> &Option<MsgBytes>;
     fn get_p2p_out(&self) -> &Option<Vec<Option<MsgBytes>>>;
-    fn can_proceed(&self) -> bool;
+    fn expecting_more_msgs_this_round(&self) -> bool;
     fn done(&self) -> bool;
     fn get_result(&self) -> &Option<MsgBytes>; // TODO why serialize result? return generic R instead?
 }

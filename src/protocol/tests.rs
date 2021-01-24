@@ -10,7 +10,7 @@ pub fn execute_protocol_vec(parties: &mut [&mut dyn Protocol]) {
         // need to iterate over indices 0..n instead of parties.iter()
         // to satisfy the borrow checker
         for i in 0..parties.len() {
-            assert!(parties[i].can_proceed());
+            assert!(!parties[i].expecting_more_msgs_this_round());
             parties[i].next().unwrap();
 
             // deliver bcast message to all other parties
