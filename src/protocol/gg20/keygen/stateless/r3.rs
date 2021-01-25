@@ -15,7 +15,7 @@ pub fn execute(
     assert_eq!(in_bcasts.len(), state.share_count);
     assert_eq!(in_p2ps.len(), state.share_count);
 
-    let mut public_key = state.my_ecdsa_public_summand;
+    let mut ecdsa_public_key = state.my_ecdsa_public_summand;
     let mut my_secret_key_share = state.my_share_of_my_ecdsa_secret_summand;
 
     for i in 0..state.share_count {
@@ -47,7 +47,7 @@ pub fn execute(
         )
         .is_ok());
 
-        public_key = public_key + ecdsa_public_summand;
+        ecdsa_public_key = ecdsa_public_key + ecdsa_public_summand;
         my_secret_key_share = my_secret_key_share + p2p.ecdsa_secret_summand_share;
     }
 
@@ -59,7 +59,7 @@ pub fn execute(
             share_count: state.share_count,
             my_index: state.my_index,
             my_share_index: state.my_share_index,
-            ecdsa_public_key: public_key,
+            ecdsa_public_key: ecdsa_public_key.get_element(),
             my_ecdsa_secret_key_share: my_secret_key_share,
             // my_r2_state: state,
             // in_bcasts,

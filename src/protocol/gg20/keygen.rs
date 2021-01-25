@@ -43,7 +43,7 @@ pub struct Keygen {
     out_r2bcast: Option<MsgBytes>,
     out_r2p2ps: Option<Vec<Option<MsgBytes>>>,
     out_r3bcast: Option<MsgBytes>,
-    final_output: Option<MsgBytes>, // TODO why serialize result?
+    final_output: Option<FinalOutput>,
 
     in_r1bcasts: FillVec<R1Bcast>,
     in_r2bcasts: FillVec<R2Bcast>,
@@ -68,6 +68,9 @@ impl Keygen {
             in_r2p2ps: FillVec::with_capacity(share_count),
             in_r3bcasts: FillVec::with_capacity(share_count),
         }
+    }
+    pub fn get_result(&self) -> Option<&FinalOutput> {
+        self.final_output.as_ref()
     }
     fn is_full<T>(&self, v: &FillVec<T>) -> bool {
         // have we received a message from all other parties?
@@ -129,8 +132,7 @@ impl Protocol for Keygen {
             }
 
             R3(state) => {
-                let final_output = r4::execute(state, self.in_r3bcasts.vec_ref());
-                self.final_output = Some(bincode::serialize(&final_output)?);
+                self.final_output = Some(r4::execute(state, self.in_r3bcasts.vec_ref()));
                 Done
             }
             Done => return Err(From::from("already done")),
@@ -191,10 +193,6 @@ impl Protocol for Keygen {
 
     fn done(&self) -> bool {
         matches!(self.state, Done)
-    }
-
-    fn get_result(&self) -> &Option<MsgBytes> {
-        &self.final_output
     }
 }
 

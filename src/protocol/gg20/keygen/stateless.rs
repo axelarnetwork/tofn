@@ -3,7 +3,7 @@ pub mod r2;
 pub mod r3;
 pub mod r4;
 
-use curv::{cryptographic_primitives::proofs::sigma_dlog::DLogProof, BigInt, FE, GE};
+use curv::{cryptographic_primitives::proofs::sigma_dlog::DLogProof, BigInt, FE, GE, PK};
 use paillier::{DecryptionKey, EncryptionKey};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -94,7 +94,7 @@ pub struct R3State {
     // threshold: usize,
     my_index: usize,
     my_share_index: usize,
-    ecdsa_public_key: GE, // the final pub key
+    ecdsa_public_key: PK, // the final pub key
     my_ecdsa_secret_key_share: FE, // my final secret key share
                           // my_r2_state: R2State,
                           // input: R3Input,
@@ -111,9 +111,15 @@ pub struct R3State {
 // FinalOutput discards unneeded intermediate info from the protocol
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FinalOutput {
-    ecdsa_public_key: GE,
+    ecdsa_public_key: PK,
     my_share_index: usize,
     my_ecdsa_secret_key_share: FE,
+}
+
+impl FinalOutput {
+    pub fn get_ecdsa_public_key(&self) -> &PK {
+        &self.ecdsa_public_key
+    }
 }
 
 #[cfg(test)]

@@ -4,11 +4,10 @@ pub type Result = std::result::Result<(), Box<dyn std::error::Error>>; // TODO c
 pub trait Protocol {
     fn next_round(&mut self) -> Result;
     fn set_msg_in(&mut self, msg: &[u8]) -> Result;
-    fn get_bcast_out(&self) -> &Option<MsgBytes>;
-    fn get_p2p_out(&self) -> &Option<Vec<Option<MsgBytes>>>;
+    fn get_bcast_out(&self) -> &Option<MsgBytes>; // TODO Option<&MsgBytes> instead
+    fn get_p2p_out(&self) -> &Option<Vec<Option<MsgBytes>>>; // TODO Option<&Vec<Option<MsgBytes>>> instead
     fn expecting_more_msgs_this_round(&self) -> bool;
     fn done(&self) -> bool;
-    fn get_result(&self) -> &Option<MsgBytes>; // TODO why serialize result? return generic R instead?
 }
 
 pub mod gg20;
