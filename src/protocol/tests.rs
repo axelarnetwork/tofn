@@ -11,7 +11,7 @@ pub fn execute_protocol_vec(parties: &mut [&mut dyn Protocol]) {
         // to satisfy the borrow checker
         for i in 0..parties.len() {
             assert!(!parties[i].expecting_more_msgs_this_round());
-            parties[i].next().unwrap();
+            parties[i].next_round().unwrap();
 
             // deliver bcast message to all other parties
             if let Some(bcast) = parties[i].get_bcast_out() {

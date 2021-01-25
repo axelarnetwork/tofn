@@ -77,7 +77,7 @@ impl Keygen {
 }
 
 impl Protocol for Keygen {
-    fn next(&mut self) -> Result {
+    fn next_round(&mut self) -> Result {
         if self.expecting_more_msgs_this_round() {
             return Err(From::from("can't prceed yet"));
         }
