@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 mod stateless;
 use stateless::*;
 
+#[allow(clippy::large_enum_variant)]
 enum State {
     New,
     R1(R1State),
