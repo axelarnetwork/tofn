@@ -80,7 +80,7 @@ pub fn execute(
     (
         R2State {
             share_count: state.share_count,
-            // threshold: state.threshold,
+            threshold: state.threshold,
             my_index: state.my_index,
             my_share_of_my_ecdsa_secret_summand,
             my_share_index,

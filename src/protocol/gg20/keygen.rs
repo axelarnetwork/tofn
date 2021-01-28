@@ -6,6 +6,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 
 mod stateless;
+pub use stateless::SecretKeyShare;
 use stateless::*;
 
 #[allow(clippy::large_enum_variant)]
@@ -45,7 +46,7 @@ pub struct Keygen {
     out_r2bcast: Option<MsgBytes>,
     out_r2p2ps: Option<Vec<Option<MsgBytes>>>,
     out_r3bcast: Option<MsgBytes>,
-    final_output: Option<FinalOutput>,
+    final_output: Option<SecretKeyShare>,
 
     in_r1bcasts: FillVec<R1Bcast>,
     in_r2bcasts: FillVec<R2Bcast>,
@@ -72,7 +73,7 @@ impl Keygen {
             in_r3bcasts: FillVec::with_capacity(share_count),
         }
     }
-    pub fn get_result(&self) -> Option<&FinalOutput> {
+    pub fn get_result(&self) -> Option<&SecretKeyShare> {
         self.final_output.as_ref()
     }
     fn is_full<T>(&self, v: &FillVec<T>) -> bool {

@@ -69,7 +69,7 @@ pub struct R2P2p {
 #[derive(Debug)]
 pub struct R2State {
     share_count: usize,
-    // threshold: usize,
+    threshold: usize,
     my_index: usize,
     my_share_of_my_ecdsa_secret_summand: FE,
     my_share_index: usize,
@@ -91,7 +91,7 @@ pub struct R3Bcast {
 #[derive(Debug)]
 pub struct R3State {
     share_count: usize,
-    // threshold: usize,
+    threshold: usize,
     my_index: usize,
     my_share_index: usize,
     ecdsa_public_key: PK, // the final pub key
@@ -110,17 +110,19 @@ pub struct R3State {
 
 // FinalOutput discards unneeded intermediate info from the protocol
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FinalOutput {
-    ecdsa_public_key: PK,
-    my_share_index: usize,
-    my_ecdsa_secret_key_share: FE,
+pub struct SecretKeyShare {
+    pub share_count: usize,
+    pub threshold: usize,
+    pub my_share_index: usize,
+    pub my_ecdsa_secret_key_share: FE,
+    pub ecdsa_public_key: PK,
 }
 
-impl FinalOutput {
-    pub fn get_ecdsa_public_key(&self) -> &PK {
-        &self.ecdsa_public_key
-    }
-}
+// impl SecretKeyShare {
+//     pub fn get_ecdsa_public_key(&self) -> &PK {
+//         &self.ecdsa_public_key
+//     }
+// }
 
 #[cfg(test)]
 mod tests;

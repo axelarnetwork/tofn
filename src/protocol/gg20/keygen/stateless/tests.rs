@@ -102,8 +102,13 @@ fn execute_keygen(share_count: usize, threshold: usize) {
     assert_eq!(secret_key_reconstructed, secret_key_sum_u);
 
     // test: verify that the reconstructed secret key yields the public key everyone deduced
-    for state in all_r4_states {
+    for state in all_r4_states.iter() {
         let test_pubkey = GE::generator() * secret_key_reconstructed;
         assert_eq!(test_pubkey.get_element(), state.ecdsa_public_key);
+    }
+
+    // print each key share
+    for key_share in all_r4_states.iter() {
+        println!("{:?}", key_share);
     }
 }

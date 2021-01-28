@@ -57,6 +57,7 @@ pub fn execute(
     (
         R3State {
             share_count: state.share_count,
+            threshold: state.threshold,
             my_index: state.my_index,
             my_share_index: state.my_share_index,
             ecdsa_public_key: ecdsa_public_key.get_element(),
