@@ -24,7 +24,7 @@ pub fn execute(state: &R3State, in_bcasts: &[Option<R3Bcast>]) -> SecretKeyShare
     SecretKeyShare {
         share_count: state.share_count,
         threshold: state.threshold,
-        my_share_index: state.my_share_index,
+        my_index: state.my_index,
         ecdsa_public_key: state.ecdsa_public_key,
         my_ecdsa_secret_key_share: state.my_ecdsa_secret_key_share,
     }

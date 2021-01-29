@@ -83,7 +83,7 @@ fn execute_keygen(share_count: usize, threshold: usize) {
     let mut all_vss_indices = Vec::<usize>::with_capacity(share_count);
     let mut all_secret_shares = Vec::<FE>::with_capacity(share_count);
     for state in &all_r4_states {
-        all_vss_indices.push(state.my_share_index - 1); // careful! curv library adds 1 to indices
+        all_vss_indices.push(state.my_index);
         all_secret_shares.push(state.my_ecdsa_secret_key_share);
     }
     let test_vss_scheme = VerifiableSS {

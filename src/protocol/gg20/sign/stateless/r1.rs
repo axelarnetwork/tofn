@@ -11,7 +11,7 @@ pub fn start(key: &SecretKeyShare, participant_indices: &[usize]) -> (R1State, R
 
     // create
     let lagrangian_coefficient =
-        vss::lagrangian_coefficient(key.share_count, key.my_share_index, participant_indices);
+        vss::lagrangian_coefficient(key.share_count, key.my_index, participant_indices);
     let my_secret_key_summand = lagrangian_coefficient * key.my_ecdsa_secret_key_share; // w_i
     let my_secret_blind_summand = FE::new_random(); // gamma_i
     let my_public_blind_summand = GE::generator() * my_secret_blind_summand; // g_gamma_i

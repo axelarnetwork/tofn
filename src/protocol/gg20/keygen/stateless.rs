@@ -72,7 +72,6 @@ pub struct R2State {
     threshold: usize,
     my_index: usize,
     my_share_of_my_ecdsa_secret_summand: FE,
-    my_share_index: usize,
     my_ecdsa_public_summand: GE, // used only to compute the final ecdsa_public_key
     all_commits: Vec<BigInt>,
 }
@@ -93,7 +92,6 @@ pub struct R3State {
     share_count: usize,
     threshold: usize,
     my_index: usize,
-    my_share_index: usize,
     ecdsa_public_key: PK, // the final pub key
     my_ecdsa_secret_key_share: FE, // my final secret key share
                           // my_r2_state: R2State,
@@ -113,7 +111,7 @@ pub struct R3State {
 pub struct SecretKeyShare {
     pub share_count: usize,
     pub threshold: usize,
-    pub my_share_index: usize,
+    pub my_index: usize,
     pub my_ecdsa_secret_key_share: FE,
     pub ecdsa_public_key: PK,
 }

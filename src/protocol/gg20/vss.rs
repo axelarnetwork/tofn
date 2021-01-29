@@ -40,7 +40,7 @@ pub fn validate_share_public(
 }
 
 pub fn get_point_commitment(commitments: &[GE], index: usize) -> GE {
-    let index_fe: FE = ECScalar::from(&BigInt::from(index as u32));
+    let index_fe: FE = ECScalar::from(&BigInt::from(index as u32 + 1)); // vss indices start at 1
     let mut comm_iterator = commitments.iter().rev();
     let head = comm_iterator.next().unwrap();
     let tail = comm_iterator;

@@ -43,7 +43,7 @@ pub fn execute(
         assert!(vss::validate_share(
             &bcast.secret_share_commitments,
             &p2p.ecdsa_secret_summand_share,
-            state.my_share_index
+            state.my_index
         )
         .is_ok());
 
@@ -59,12 +59,8 @@ pub fn execute(
             share_count: state.share_count,
             threshold: state.threshold,
             my_index: state.my_index,
-            my_share_index: state.my_share_index,
             ecdsa_public_key: ecdsa_public_key.get_element(),
             my_ecdsa_secret_key_share: my_secret_key_share,
-            // my_r2_state: state,
-            // in_bcasts,
-            // my_output: my_bcast.clone(),
         },
         my_bcast,
     )

@@ -68,7 +68,6 @@ pub fn execute(
         .take()
         .unwrap()
         .ecdsa_secret_summand_share;
-    let my_share_index = state.my_index + 1; // TODO watch out! maybe I should select my own indices...
 
     // TODO sign and encrypt each p2p_msg
     assert_eq!(out_p2p.len(), state.share_count);
@@ -83,7 +82,6 @@ pub fn execute(
             threshold: state.threshold,
             my_index: state.my_index,
             my_share_of_my_ecdsa_secret_summand,
-            my_share_index,
             my_ecdsa_public_summand: state.my_ecdsa_public_summand,
             all_commits,
         },
