@@ -1,4 +1,4 @@
-use super::{super::super::vss, R2State, R3Bcast, R3Input, R3State};
+use super::{super::super::vss, R2Bcast, R2P2p, R2State, R3Bcast, R3State};
 use curv::{
     cryptographic_primitives::{
         commitments::{hash_commitment::HashCommitment, traits::Commitment},
@@ -7,26 +7,39 @@ use curv::{
     elliptic::curves::traits::ECPoint,
 };
 
-pub fn execute(state: R2State, input: R3Input) -> (R3State, R3Bcast) {
-    // assert!(!msg.other_r2_msgs.contains_key(&msg.my_uid));
+pub fn execute(
+    state: &R2State,
+    in_bcasts: &[Option<R2Bcast>],
+    in_p2ps: &[Option<R2P2p>],
+) -> (R3State, R3Bcast) {
+    assert_eq!(in_bcasts.len(), state.share_count);
+    assert_eq!(in_p2ps.len(), state.share_count);
 
-    assert!(eq_lists(
-        &input.other_r2_msgs.keys().collect::<Vec<&String>>(),
-        &state.input.other_r1_bcasts.keys().collect::<Vec<&String>>()
-    ));
-
-    let mut public_key = state.get_ecdsa_public_summand();
+    let mut ecdsa_public_key = state.my_ecdsa_public_summand;
     let mut my_secret_key_share = state.my_share_of_my_ecdsa_secret_summand;
 
-    for (id, (bcast, p2p)) in &input.other_r2_msgs {
-        let other_r1_bcast = state.input.other_r1_bcasts.get(id).unwrap();
+    for i in 0..state.share_count {
+        if i == state.my_index {
+            continue;
+        }
+        let bcast = in_bcasts[i].clone().unwrap_or_else(|| {
+            panic!(
+                "party {} says: missing bcast input for party {}",
+                state.my_index, i
+            )
+        });
+        let p2p = in_p2ps[i].clone().unwrap_or_else(|| {
+            panic!(
+                "party {} says: missing p2p input for party {}",
+                state.my_index, i
+            )
+        });
+        let ecdsa_public_summand = &bcast.secret_share_commitments[0];
         let com = HashCommitment::create_commitment_with_user_defined_randomness(
-            &bcast
-                .get_ecdsa_public_summand()
-                .bytes_compressed_to_big_int(),
+            &ecdsa_public_summand.bytes_compressed_to_big_int(),
             &bcast.reveal,
         );
-        assert!(other_r1_bcast.commit == com);
+        assert!(state.all_commits[i] == com);
         assert!(vss::validate_share(
             &bcast.secret_share_commitments,
             &p2p.ecdsa_secret_summand_share,
@@ -34,7 +47,7 @@ pub fn execute(state: R2State, input: R3Input) -> (R3State, R3Bcast) {
         )
         .is_ok());
 
-        public_key = public_key + bcast.get_ecdsa_public_summand();
+        ecdsa_public_key = ecdsa_public_key + ecdsa_public_summand;
         my_secret_key_share = my_secret_key_share + p2p.ecdsa_secret_summand_share;
     }
 
@@ -43,26 +56,15 @@ pub fn execute(state: R2State, input: R3Input) -> (R3State, R3Bcast) {
     };
     (
         R3State {
-            // my_vss_index: state.my_share_index,
-            ecdsa_public_key: public_key,
+            share_count: state.share_count,
+            my_index: state.my_index,
+            my_share_index: state.my_share_index,
+            ecdsa_public_key: ecdsa_public_key.get_element(),
             my_ecdsa_secret_key_share: my_secret_key_share,
-            my_r2_state: state,
-            input,
-            my_output: my_bcast.clone(),
+            // my_r2_state: state,
+            // in_bcasts,
+            // my_output: my_bcast.clone(),
         },
         my_bcast,
     )
-}
-
-// TODO generic helper---where to put it?
-fn eq_lists<T>(a: &[T], b: &[T]) -> bool
-where
-    T: PartialEq + Ord,
-{
-    let mut a: Vec<_> = a.iter().collect();
-    let mut b: Vec<_> = b.iter().collect();
-    a.sort();
-    b.sort();
-
-    a == b
 }

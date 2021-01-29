@@ -1,276 +1,201 @@
-//! Stateful keygen happy path
-//! TODO It's confusing to have R1,... structs that hold R1State,... data
-use std::collections::HashMap;
+use crate::{
+    fillvec::FillVec,
+    protocol::gg20::validate_params,
+    protocol::{MsgBytes, Protocol, Result},
+};
+use serde::{Deserialize, Serialize};
 
 mod stateless;
-
-use crate::{
-    fillmap::FillMap,
-    protocol::{Protocol, State},
-};
 use stateless::*;
 
-pub fn new_protocol(ids: &[String], my_id_index: usize, threshold: usize) -> Protocol<FinalOutput> {
-    let (my_state, my_output) = r1::start();
-
-    // prepare a FillMap for expected incoming messages from other parties
-    let incoming_bcasts = ids
-        .iter()
-        .enumerate() // s -> (i,s)
-        .filter(|(i, _)| *i != my_id_index) // don't include myself
-        .map(|(_, s)| s) // (i,s) -> s
-        .cloned()
-        .collect();
-    Protocol {
-        state: Some(Box::new(R1 {
-            my_state,
-            my_output,
-            my_id: ids[my_id_index].clone(),
-            threshold,
-            incoming_bcasts,
-        })),
-    }
+#[allow(clippy::large_enum_variant)]
+enum State {
+    New,
+    R1(R1State),
+    R2(R2State),
+    R3(R3State),
+    Done,
 }
+use State::*;
 
-#[derive(Debug)]
-pub struct R1 {
-    my_state: R1State,
-    my_output: R1Bcast,
-    my_id: String,
+#[derive(Serialize, Deserialize)]
+enum MsgType {
+    R1Bcast,
+    R2Bcast,
+    R2P2p,
+    R3Bcast,
+}
+#[derive(Serialize, Deserialize)]
+struct MsgMeta {
+    msg_type: MsgType,
+    from: usize,
+    payload: MsgBytes,
+}
+pub struct Keygen {
+    state: State,
+
+    // protocol-wide data
+    share_count: usize,
     threshold: usize,
-    incoming_bcasts: FillMap<String, R1Bcast>,
+    my_index: usize,
+
+    // outgoing/incoming messages
+    // initialized to `None`, filled as the protocol progresses
+    out_r1bcast: Option<MsgBytes>,
+    out_r2bcast: Option<MsgBytes>,
+    out_r2p2ps: Option<Vec<Option<MsgBytes>>>,
+    out_r3bcast: Option<MsgBytes>,
+    final_output: Option<FinalOutput>,
+
+    in_r1bcasts: FillVec<R1Bcast>,
+    in_r2bcasts: FillVec<R2Bcast>,
+    in_r2p2ps: FillVec<R2P2p>,
+    in_r3bcasts: FillVec<R3Bcast>,
 }
 
-impl State for R1 {
-    type Result = FinalOutput;
-
-    fn add_message_in(&mut self, from: &str, msg: &[u8]) {
-        let msg: R1Bcast = bincode::deserialize(msg).unwrap(); // panic: deserialization failure
-        self.incoming_bcasts.insert(from.to_string(), msg).unwrap(); // panic: FillMap error
+impl Keygen {
+    pub fn new(share_count: usize, threshold: usize, my_index: usize) -> Self {
+        validate_params(share_count, threshold, my_index).unwrap();
+        Self {
+            state: New,
+            share_count,
+            threshold,
+            my_index,
+            out_r1bcast: None,
+            out_r2bcast: None,
+            out_r2p2ps: None,
+            out_r3bcast: None,
+            final_output: None,
+            in_r1bcasts: FillVec::with_capacity(share_count),
+            in_r2bcasts: FillVec::with_capacity(share_count),
+            in_r2p2ps: FillVec::with_capacity(share_count),
+            in_r3bcasts: FillVec::with_capacity(share_count),
+        }
     }
-
-    fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<String, Vec<u8>>) {
-        let bcast = bincode::serialize(&self.my_output).unwrap(); // panic: serialization failure
-        (
-            Some(bcast),
-            HashMap::new(), // no p2p msgs this round
-        )
+    pub fn get_result(&self) -> Option<&FinalOutput> {
+        self.final_output.as_ref()
     }
-
-    fn next(self: Box<Self>) -> Box<dyn State<Result = Self::Result> + Send> {
-        assert!(self.can_proceed());
-        let other_r1_bcasts = self.incoming_bcasts.into_hashmap();
-        let incoming_bcast = other_r1_bcasts.keys().cloned().map(|k| (k, None)).collect();
-        let incoming_p2p = other_r1_bcasts.keys().cloned().map(|k| (k, None)).collect();
-        let inputs = R2Input {
-            other_r1_bcasts,
-            threshold: self.threshold,
-            my_uid: self.my_id.clone(),
-        };
-        let (state, output) = r2::execute(self.my_state, inputs);
-        Box::new(R2 {
-            my_id: self.my_id,
-            state,
-            output_bcast: output.bcast,
-            output_p2p: output.p2p,
-            incoming_bcast,
-            num_incoming_bcast: 0,
-            incoming_p2p,
-            num_incoming_p2p: 0,
-        })
-    }
-
-    fn can_proceed(&self) -> bool {
-        self.incoming_bcasts.is_full()
-    }
-    fn get_id(&self) -> &str {
-        &self.my_id
-    }
-    fn done(&self) -> bool {
-        false
+    fn is_full<T>(&self, v: &FillVec<T>) -> bool {
+        // have we received a message from all other parties?
+        (v.is_none(self.my_index) && v.some_count() >= self.share_count - 1)
+            || v.some_count() >= self.share_count
     }
 }
 
-#[derive(Debug)]
-pub struct R2 {
-    my_id: String,
-    state: R2State,
-    output_bcast: R2Bcast,
-    output_p2p: HashMap<String, R2P2p>, // TODO use &ID instead of ID?
-    incoming_bcast: HashMap<String, Option<R2Bcast>>, // TODO use &ID instead of ID?
-    num_incoming_bcast: usize, // TODO refactor incoming, num_incoming into a separate data structure
-    incoming_p2p: HashMap<String, Option<R2P2p>>,
-    num_incoming_p2p: usize,
-}
-
-impl State for R2 {
-    type Result = FinalOutput;
-    fn add_message_in(&mut self, from: &str, msg: &[u8]) {
-        // msg can be either R2Bcast or R2P2p
-        // TODO lots of refactoring needed
-        if let Ok(bcast) = bincode::deserialize(msg) {
-            let stored = self.incoming_bcast.get_mut(from).unwrap(); // panic: unexpected party id
-            if stored.is_some() {
-                panic!("repeated bcast message from party id {:?}", from);
+impl Protocol for Keygen {
+    fn next_round(&mut self) -> Result {
+        if self.expecting_more_msgs_this_round() {
+            return Err(From::from("can't prceed yet"));
+        }
+        self.state = match &self.state {
+            New => {
+                let (r1state, out_r1bcast_deserialized) =
+                    r1::start(self.share_count, self.threshold, self.my_index);
+                self.out_r1bcast = Some(bincode::serialize(&MsgMeta {
+                    msg_type: MsgType::R1Bcast,
+                    from: self.my_index,
+                    payload: bincode::serialize(&out_r1bcast_deserialized)?,
+                })?);
+                R1(r1state)
             }
-            *stored = Some(bcast);
-            self.num_incoming_bcast += 1;
-            assert!(self.num_incoming_bcast <= self.incoming_bcast.len());
-            return;
-        }
-        if let Ok(p2p) = bincode::deserialize(msg) {
-            let stored = self.incoming_p2p.get_mut(from).unwrap(); // panic: unexpected party id
-            if stored.is_some() {
-                panic!("repeated p2p message from party id {:?}", from);
+
+            R1(state) => {
+                let (r2state, out_r2bcast_deserialized, out_r2p2ps_deserialized) =
+                    r2::execute(state, self.in_r1bcasts.vec_ref());
+                self.out_r2bcast = Some(bincode::serialize(&MsgMeta {
+                    msg_type: MsgType::R2Bcast,
+                    from: self.my_index,
+                    payload: bincode::serialize(&out_r2bcast_deserialized)?,
+                })?);
+                let mut out_r2p2ps = Vec::with_capacity(self.share_count);
+                for opt in out_r2p2ps_deserialized {
+                    if let Some(p2p) = opt {
+                        out_r2p2ps.push(Some(bincode::serialize(&MsgMeta {
+                            msg_type: MsgType::R2P2p,
+                            from: self.my_index,
+                            payload: bincode::serialize(&p2p)?,
+                        })?));
+                    } else {
+                        out_r2p2ps.push(None);
+                    }
+                }
+                self.out_r2p2ps = Some(out_r2p2ps);
+                R2(r2state)
             }
-            *stored = Some(p2p);
-            self.num_incoming_p2p += 1;
-            assert!(self.num_incoming_p2p <= self.incoming_p2p.len());
-            return;
-        }
-        panic!("deserialization failure");
-    }
 
-    fn can_proceed(&self) -> bool {
-        (self.num_incoming_bcast >= self.incoming_bcast.len())
-            && (self.num_incoming_p2p >= self.incoming_p2p.len())
-    }
+            R2(state) => {
+                let (r3state, out_r3bcast_deserialized) =
+                    r3::execute(state, self.in_r2bcasts.vec_ref(), self.in_r2p2ps.vec_ref());
+                self.out_r3bcast = Some(bincode::serialize(&MsgMeta {
+                    msg_type: MsgType::R3Bcast,
+                    from: self.my_index,
+                    payload: bincode::serialize(&out_r3bcast_deserialized)?,
+                })?);
+                R3(r3state)
+            }
 
-    fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<String, Vec<u8>>) {
-        let bcast = bincode::serialize(&self.output_bcast).unwrap(); // panic: serialization failure
-        let p2p = self
-            .output_p2p
-            .iter()
-            .map(|(k, v)| {
-                (
-                    k.clone(),                      // TODO use &ID instead of ID?
-                    bincode::serialize(v).unwrap(), // panic: serialization failure
-                )
-            })
-            .collect();
-        (Some(bcast), p2p)
-    }
-
-    fn next(self: Box<Self>) -> Box<dyn State<Result = Self::Result> + Send> {
-        assert!(self.can_proceed());
-        let incoming = self
-            .incoming_bcast
-            .keys()
-            .cloned()
-            .map(|k| (k, None))
-            .collect();
-        let inputs = R3Input {
-            other_r2_msgs: self
-                .incoming_bcast
-                .iter()
-                .map(|(k, v)| {
-                    // TODO lots of cloning here
-                    let p2p = self.incoming_p2p.get(k).unwrap().clone().unwrap();
-                    (k.clone(), (v.clone().unwrap(), p2p))
-                })
-                .collect(),
+            R3(state) => {
+                self.final_output = Some(r4::execute(state, self.in_r3bcasts.vec_ref()));
+                Done
+            }
+            Done => return Err(From::from("already done")),
         };
-        let (state, output) = r3::execute(self.state, inputs);
-        Box::new(R3 {
-            my_id: self.my_id,
-            state,
-            output,
-            incoming,
-            num_incoming: 0,
-        })
+        Ok(())
     }
 
-    fn get_id(&self) -> &str {
-        &self.my_id
-    }
-    fn done(&self) -> bool {
-        false
-    }
-}
-
-#[derive(Debug)]
-pub struct R3 {
-    my_id: String,
-    state: R3State,
-    output: R3Bcast,
-    incoming: HashMap<String, Option<R3Bcast>>,
-    num_incoming: usize,
-}
-
-// TODO refactor repeated code from R1, R2
-impl State for R3 {
-    type Result = FinalOutput;
-
-    fn add_message_in(&mut self, from: &str, msg: &[u8]) {
-        let stored = self.incoming.get_mut(from).unwrap(); // panic: unexpected party id
-        if stored.is_some() {
-            panic!("repeated message from party id {:?}", from);
-        }
-        let msg: R3Bcast = bincode::deserialize(msg).unwrap(); // panic: deserialization failure
-        *stored = Some(msg);
-        self.num_incoming += 1;
-        assert!(self.num_incoming <= self.incoming.len());
-    }
-
-    fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<String, Vec<u8>>) {
-        let bcast = bincode::serialize(&self.output).unwrap(); // panic: serialization failure
-        (
-            Some(bcast),
-            HashMap::new(), // no p2p msgs this round
-        )
-    }
-
-    fn next(self: Box<Self>) -> Box<dyn State<Result = Self::Result> + Send> {
-        assert!(self.can_proceed());
-        let inputs = R4Input {
-            other_r3_bcasts: self
-                .incoming
-                .into_iter()
-                .map(|(k, v)| (k, v.unwrap()))
-                .collect(),
+    fn set_msg_in(&mut self, msg: &[u8]) -> Result {
+        // TODO match self.state
+        // TODO refactor repeated code
+        let msg_meta: MsgMeta = bincode::deserialize(msg)?;
+        match msg_meta.msg_type {
+            MsgType::R1Bcast => self
+                .in_r1bcasts
+                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
+            MsgType::R2Bcast => self
+                .in_r2bcasts
+                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
+            MsgType::R2P2p => self
+                .in_r2p2ps
+                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
+            MsgType::R3Bcast => self
+                .in_r3bcasts
+                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
         };
-        let state = r4::execute(self.state, inputs);
-        Box::new(R4 {
-            my_id: self.my_id,
-            state,
-        })
+        Ok(())
     }
 
-    fn can_proceed(&self) -> bool {
-        self.num_incoming >= self.incoming.len()
+    fn get_bcast_out(&self) -> &Option<MsgBytes> {
+        match self.state {
+            New => &None,
+            R1(_) => &self.out_r1bcast,
+            R2(_) => &self.out_r2bcast,
+            R3(_) => &self.out_r3bcast,
+            Done => &None,
+        }
     }
-    fn get_id(&self) -> &str {
-        &self.my_id
-    }
-    fn done(&self) -> bool {
-        false
-    }
-}
 
-pub struct R4 {
-    my_id: String,
-    state: FinalOutput,
-}
-impl State for R4 {
-    type Result = FinalOutput;
-    fn add_message_in(&mut self, _from: &str, _msg: &[u8]) {}
-    fn can_proceed(&self) -> bool {
-        false
+    fn get_p2p_out(&self) -> &Option<Vec<Option<MsgBytes>>> {
+        match self.state {
+            New => &None,
+            R1(_) => &None,
+            R2(_) => &self.out_r2p2ps,
+            R3(_) => &None,
+            Done => &None,
+        }
     }
-    fn get_messages_out(&self) -> (Option<Vec<u8>>, HashMap<String, Vec<u8>>) {
-        (None, HashMap::new())
+
+    fn expecting_more_msgs_this_round(&self) -> bool {
+        match self.state {
+            New => false,
+            R1(_) => !self.is_full(&self.in_r1bcasts),
+            R2(_) => !self.is_full(&self.in_r2bcasts) || !self.is_full(&self.in_r2p2ps),
+            R3(_) => !self.is_full(&self.in_r3bcasts),
+            Done => false,
+        }
     }
-    fn get_id(&self) -> &str {
-        &self.my_id
-    }
-    fn next(self: Box<Self>) -> Box<dyn State<Result = Self::Result> + Send> {
-        self
-    }
+
     fn done(&self) -> bool {
-        true
-    }
-    fn get_result(&self) -> Option<Self::Result> {
-        Some(self.state.clone())
+        matches!(self.state, Done)
     }
 }
 

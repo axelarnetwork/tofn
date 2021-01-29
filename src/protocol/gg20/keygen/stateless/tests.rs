@@ -1,5 +1,5 @@
 use super::*;
-use crate::protocol::tests::TEST_CASES;
+use crate::protocol::tests::{TEST_CASES, TEST_CASES_INVALID};
 use curv::{
     // FE, // rustc does not warn of unused imports for FE
     cryptographic_primitives::secret_sharing::feldman_vss::{ShamirSecretSharing, VerifiableSS},
@@ -8,101 +8,70 @@ use curv::{
 
 #[test]
 fn keygen() {
-    for test_case in &TEST_CASES {
-        let ids: Vec<String> = (0..test_case.0).map(|i| i.to_string()).collect();
-        execute_keygen(&ids, test_case.1);
+    for &(share_count, threshold) in &TEST_CASES {
+        execute_keygen(share_count, threshold);
+    }
+
+    // silence terminal output from catch_unwind https://stackoverflow.com/questions/35559267/suppress-panic-output-in-rust-when-using-paniccatch-unwind/35559417#35559417
+    std::panic::set_hook(Box::new(|_| {}));
+    for &(share_count, threshold) in &TEST_CASES_INVALID {
+        assert!(std::panic::catch_unwind(|| execute_keygen(share_count, threshold)).is_err());
     }
 }
 
-fn execute_keygen(ids: &[String], threshold: usize) {
-    // let ids : Vec<String> = (0..SHARE_COUNT).map(|i| i.to_string()).collect();
-    let share_count = ids.len();
-    // assert!(THRESHOLD < share_count);
-
+fn execute_keygen(share_count: usize, threshold: usize) {
     // execute round 1 all parties and store their outputs
-    let mut all_r1_bcasts = HashMap::with_capacity(share_count);
-    let mut all_r1_states = HashMap::with_capacity(share_count);
-    for id in ids.iter() {
-        let (state, msg) = r1::start();
-        all_r1_bcasts.insert(id.clone(), msg);
-        all_r1_states.insert(id, state);
+    let mut all_r1_bcasts = Vec::with_capacity(share_count);
+    let mut all_r1_states = Vec::with_capacity(share_count);
+    for i in 0..share_count {
+        let (state, bcast) = r1::start(share_count, threshold, i);
+        all_r1_states.push(state);
+        all_r1_bcasts.push(Some(bcast));
     }
     let all_r1_bcasts = all_r1_bcasts; // make read-only
 
     // save each u for later tests
     let all_u_secrets: Vec<FE> = all_r1_states
-        .values()
+        .iter()
         .map(|v| v.my_ecdsa_secret_summand)
         .collect();
 
     // execute round 2 all parties and store their outputs
-    let mut all_r2_states = HashMap::with_capacity(share_count);
-    let mut all_r2_bcasts = HashMap::with_capacity(share_count);
-    let mut all_r2_p2ps = HashMap::with_capacity(share_count);
-    for id in ids.iter() {
-        let mut other_r1_bcasts = all_r1_bcasts.clone();
-        other_r1_bcasts.remove(id).unwrap();
-        let my_r1_state = all_r1_states.remove(id).unwrap();
-        let input = R2Input {
-            my_uid: id.clone(),
-            other_r1_bcasts,
-            threshold,
-        };
-        let (state, msg) = r2::execute(my_r1_state, input);
-        all_r2_states.insert(id, state);
-        all_r2_bcasts.insert(id.clone(), msg.bcast);
-        all_r2_p2ps.insert(id, msg.p2p);
+    let mut all_r2_states = Vec::with_capacity(share_count);
+    let mut all_r2_bcasts = Vec::with_capacity(share_count);
+    let mut all_r2_p2ps = Vec::with_capacity(share_count);
+    for r1_state in all_r1_states {
+        let (state, bcast, p2ps) = r2::execute(&r1_state, &all_r1_bcasts);
+        all_r2_states.push(state);
+        all_r2_bcasts.push(Some(bcast));
+        all_r2_p2ps.push(p2ps);
     }
     let all_r2_bcasts = all_r2_bcasts; // make read-only
     let all_r2_p2ps = all_r2_p2ps; // make read-only
 
-    // route p2p msgs and build round 3 inputs
-    let all_r3_inputs = ids
-        .iter()
-        .map(|id| {
-            let mut other_r2_bcasts = all_r2_bcasts.clone();
-            other_r2_bcasts.remove(id).unwrap();
-            (
-                id,
-                R3Input {
-                    other_r2_msgs: all_r2_p2ps
-                        .iter()
-                        .filter(|(k, _)| **k != id)
-                        .map(|(k, v)| {
-                            (
-                                (*k).clone(),
-                                (
-                                    other_r2_bcasts.remove(*k).unwrap(),
-                                    v.get(id).unwrap().clone(),
-                                ),
-                            )
-                        })
-                        .collect::<HashMap<_, _>>(),
-                },
-            )
-        })
-        .collect::<HashMap<_, _>>();
+    // route p2p msgs for round 3
+    let mut all_r2_p2ps_delivered = vec![Vec::with_capacity(share_count); share_count];
+    for r2_p2ps in all_r2_p2ps {
+        for (j, r2_p2p) in r2_p2ps.into_iter().enumerate() {
+            all_r2_p2ps_delivered[j].push(r2_p2p);
+        }
+    }
 
     // execute round 3 all parties and store their outputs
-    let mut all_r3_states = HashMap::with_capacity(share_count);
-    let mut all_r3_bcasts = HashMap::with_capacity(share_count);
-    for (id, input) in all_r3_inputs {
-        let my_r2_state = all_r2_states.remove(id).unwrap();
-        let (state, msg) = r3::execute(my_r2_state, input);
-        all_r3_states.insert(id, state);
-        all_r3_bcasts.insert(id.clone(), msg);
+    let mut all_r3_states = Vec::with_capacity(share_count);
+    let mut all_r3_bcasts = Vec::with_capacity(share_count);
+    for (i, r2_state) in all_r2_states.into_iter().enumerate() {
+        let (state, bcast) = r3::execute(&r2_state, &all_r2_bcasts, &all_r2_p2ps_delivered[i]);
+        all_r3_states.push(state);
+        all_r3_bcasts.push(Some(bcast));
     }
     let all_r3_bcasts = all_r3_bcasts; // make read-only
 
     // execute round 4 all parties and store their outputs
-    let mut all_r4_states = HashMap::with_capacity(share_count);
-    for id in ids.iter() {
-        let mut other_r3_bcasts = all_r3_bcasts.clone();
-        other_r3_bcasts.remove(id).unwrap();
-        let my_r3_state = all_r3_states.remove(id).unwrap();
-        let input = R4Input { other_r3_bcasts };
-        let result = r4::execute(my_r3_state, input);
-        all_r4_states.insert(id, result);
+    let mut all_r4_states = Vec::with_capacity(share_count);
+    for r3_state in all_r3_states {
+        let result = r4::execute(&r3_state, &all_r3_bcasts);
+        all_r4_states.push(result);
     }
     let all_r4_states = all_r4_states; // make read-only
 
@@ -113,7 +82,7 @@ fn execute_keygen(ids: &[String], threshold: usize) {
 
     let mut all_vss_indices = Vec::<usize>::with_capacity(share_count);
     let mut all_secret_shares = Vec::<FE>::with_capacity(share_count);
-    for state in all_r4_states.values() {
+    for state in &all_r4_states {
         all_vss_indices.push(state.my_share_index - 1); // careful! curv library adds 1 to indices
         all_secret_shares.push(state.my_ecdsa_secret_key_share);
     }
@@ -133,8 +102,8 @@ fn execute_keygen(ids: &[String], threshold: usize) {
     assert_eq!(secret_key_reconstructed, secret_key_sum_u);
 
     // test: verify that the reconstructed secret key yields the public key everyone deduced
-    for state in all_r4_states.values() {
+    for state in all_r4_states {
         let test_pubkey = GE::generator() * secret_key_reconstructed;
-        assert_eq!(test_pubkey, state.ecdsa_public_key);
+        assert_eq!(test_pubkey.get_element(), state.ecdsa_public_key);
     }
 }
