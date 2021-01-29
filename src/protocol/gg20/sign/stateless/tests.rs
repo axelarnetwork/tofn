@@ -1,29 +1,89 @@
 use super::*;
+use crate::protocol::gg20::keygen::{self, SecretKeyShare};
 use curv::{
     // FE, // rustc does not warn of unused imports for FE
+    arithmetic::traits::Converter,
     cryptographic_primitives::secret_sharing::feldman_vss::{ShamirSecretSharing, VerifiableSS},
     elliptic::curves::traits::{ECPoint, ECScalar},
 };
 
-pub const TEST_CASE: [(usize, usize); 4] // (share_count, threshold)
-    = [(5, 0), (5, 1), (5, 3), (5, 4)];
-
 #[test]
 fn sign() {
-    // for test_case in &TEST_CASES {
-    //     execute_sign(test_case.0, test_case.1);
-    // }
+    // the following test data was produced by src/protocol/gg20/keygen/stateles/tests.rs:
+    // ```
+    // share_count: 5, threshold: 2
+    // ecdsa_public_key: [2, 69, 215, 78, 124, 124, 215, 81, 82, 117, 116, 164, 251, 27, 52, 58, 33, 252, 210, 150, 20, 113, 38, 151, 220, 56, 94, 204, 156, 112, 71, 68, 192]
+    // my_index: 0, my_ecdsa_secret_key_share: Secp256k1Scalar { purpose: "add", fe: SecretKey(2a2f9322f44c274c8f6f147f765556813177da42304601aca50513758358aed5) }
+    // my_index: 1, my_ecdsa_secret_key_share: Secp256k1Scalar { purpose: "add", fe: SecretKey(fdeef8474731d8cb150761977dc01fef622b88eb6bc218c80904c93b98547e5f) }
+    // my_index: 2, my_ecdsa_secret_key_share: Secp256k1Scalar { purpose: "add", fe: SecretKey(e3422f5aa45b0fb7975ae4455f122a299404208e0c08fd7ec7084f13e1e61c2f) }
+    // my_index: 3, my_ecdsa_secret_key_share: Secp256k1Scalar { purpose: "add", fe: SecretKey(da29385d0bc7cc1216699c891a4b752e81b07e10c063500c9ee2038b3043c986) }
+    // my_index: 4, my_ecdsa_secret_key_share: Secp256k1Scalar { purpose: "add", fe: SecretKey(e2a4134e7d780dda92338a62af6c00fe2b30a17388d110719091e6a1836d8664) }
+    // ```
+    let (share_count, threshold) = (5, 2);
+    let ecdsa_public_key = PK::from_slice(&[
+        2, 69, 215, 78, 124, 124, 215, 81, 82, 117, 116, 164, 251, 27, 52, 58, 33, 252, 210, 150,
+        20, 113, 38, 151, 220, 56, 94, 204, 156, 112, 71, 68, 192,
+    ])
+    .unwrap();
+    let key_shares = vec![
+        SecretKeyShare {
+            share_count,
+            threshold,
+            my_index: 0,
+            my_ecdsa_secret_key_share: ECScalar::from(&BigInt::from_hex(
+                "2a2f9322f44c274c8f6f147f765556813177da42304601aca50513758358aed5",
+            )),
+            ecdsa_public_key,
+        },
+        SecretKeyShare {
+            share_count,
+            threshold,
+            my_index: 1,
+            my_ecdsa_secret_key_share: ECScalar::from(&BigInt::from_hex(
+                "fdeef8474731d8cb150761977dc01fef622b88eb6bc218c80904c93b98547e5f",
+            )),
+            ecdsa_public_key,
+        },
+        SecretKeyShare {
+            share_count,
+            threshold,
+            my_index: 2,
+            my_ecdsa_secret_key_share: ECScalar::from(&BigInt::from_hex(
+                "e3422f5aa45b0fb7975ae4455f122a299404208e0c08fd7ec7084f13e1e61c2f",
+            )),
+            ecdsa_public_key,
+        },
+        SecretKeyShare {
+            share_count,
+            threshold,
+            my_index: 3,
+            my_ecdsa_secret_key_share: ECScalar::from(&BigInt::from_hex(
+                "da29385d0bc7cc1216699c891a4b752e81b07e10c063500c9ee2038b3043c986",
+            )),
+            ecdsa_public_key,
+        },
+        SecretKeyShare {
+            share_count,
+            threshold,
+            my_index: 4,
+            my_ecdsa_secret_key_share: ECScalar::from(&BigInt::from_hex(
+                "e2a4134e7d780dda92338a62af6c00fe2b30a17388d110719091e6a1836d8664",
+            )),
+            ecdsa_public_key,
+        },
+    ];
+    let participant_indices = vec![1, 2, 4];
+    execute_sign(&key_shares, &participant_indices);
 }
 
-fn execute_sign(share_count: usize, threshold: usize) {
-    assert!(threshold < share_count);
-    todo!();
+fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize]) {
+    let share_count = key_shares[0].share_count;
 
     // execute round 1 all parties and store their outputs
     let mut all_r1_bcasts = Vec::with_capacity(share_count);
     let mut all_r1_states = Vec::with_capacity(share_count);
-    for i in 0..share_count {
-        let (state, bcast) = r1::start(share_count, threshold, i);
+    for key_share in key_shares {
+        let (state, bcast) = r1::start(key_share, participant_indices);
         all_r1_states.push(state);
         all_r1_bcasts.push(Some(bcast));
     }

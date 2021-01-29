@@ -11,14 +11,8 @@ use zk_paillier::zkproofs::NICorrectKeyProof;
 
 use super::super::zkp::Zkp;
 
-// TODO explain: why not use Vec and let party ids be implicit 0..vec.len?
-// Because each party would have awkward book keeping, and the user of these stateless functions would need to put messages in sorted order
-// So instead we use HashMap and let IDs be generic
-// We need ID to be Ord because we need a way to map each ID to a unique ECScalar for evaluation in VSS polynomials
-// The easiest way to do that is to sort all the IDs and assign scalars 1..n to the sorted list
-// It would be nice if each party's VSS scalar were independent of other party's IDs
-// One way to achieve this is to hash each ID into a ECScalar
-// but that requires IDs to be hashable and it requires a hash-to-ECScalar implementation
+// TODO curv types FE, GE add a bunch of cruft on top of secp256k1 types SK=SecretKey, PK=PublicKey
+// prefer SK, PK to FE, GE where possible
 
 // TODO 2020/540 calls for the Paillier zk proofs only at the end in round 4
 // By contrast, most implementations do it much earlier

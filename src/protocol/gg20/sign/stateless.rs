@@ -20,5 +20,5 @@ pub struct R1State {
     my_reveal: BigInt, // decommit---to be released later
 }
 
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod tests;
