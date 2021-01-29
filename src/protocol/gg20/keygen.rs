@@ -1,5 +1,6 @@
 use crate::{
     fillvec::FillVec,
+    protocol::gg20::validate_params,
     protocol::{MsgBytes, Protocol, Result},
 };
 use serde::{Deserialize, Serialize};
@@ -54,6 +55,7 @@ pub struct Keygen {
 
 impl Keygen {
     pub fn new(share_count: usize, threshold: usize, my_index: usize) -> Self {
+        validate_params(share_count, threshold, my_index).unwrap();
         Self {
             state: New,
             share_count,

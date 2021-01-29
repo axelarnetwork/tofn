@@ -1,5 +1,5 @@
 use super::*;
-use crate::protocol::tests::TEST_CASES;
+use crate::protocol::tests::{TEST_CASES, TEST_CASES_INVALID};
 use curv::{
     // FE, // rustc does not warn of unused imports for FE
     cryptographic_primitives::secret_sharing::feldman_vss::{ShamirSecretSharing, VerifiableSS},
@@ -8,14 +8,18 @@ use curv::{
 
 #[test]
 fn keygen() {
-    for test_case in &TEST_CASES {
-        execute_keygen(test_case.0, test_case.1);
+    for &(share_count, threshold) in &TEST_CASES {
+        execute_keygen(share_count, threshold);
+    }
+
+    // silence terminal output from catch_unwind https://stackoverflow.com/questions/35559267/suppress-panic-output-in-rust-when-using-paniccatch-unwind/35559417#35559417
+    std::panic::set_hook(Box::new(|_| {}));
+    for &(share_count, threshold) in &TEST_CASES_INVALID {
+        assert!(std::panic::catch_unwind(|| execute_keygen(share_count, threshold)).is_err());
     }
 }
 
 fn execute_keygen(share_count: usize, threshold: usize) {
-    assert!(threshold < share_count);
-
     // execute round 1 all parties and store their outputs
     let mut all_r1_bcasts = Vec::with_capacity(share_count);
     let mut all_r1_states = Vec::with_capacity(share_count);

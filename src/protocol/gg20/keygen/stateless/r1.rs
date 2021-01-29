@@ -1,4 +1,5 @@
 use super::{super::super::zkp::Zkp, R1Bcast, R1State};
+use crate::protocol::gg20::validate_params;
 use curv::{
     cryptographic_primitives::commitments::{hash_commitment::HashCommitment, traits::Commitment},
     elliptic::curves::traits::{ECPoint, ECScalar},
@@ -8,6 +9,7 @@ use paillier::{KeyGeneration, Paillier};
 use zk_paillier::zkproofs::NICorrectKeyProof;
 
 pub fn start(share_count: usize, threshold: usize, my_index: usize) -> (R1State, R1Bcast) {
+    validate_params(share_count, threshold, my_index).unwrap();
     let my_ecdsa_secret_summand = FE::new_random();
     let my_ecdsa_public_summand = GE::generator() * my_ecdsa_secret_summand;
 
