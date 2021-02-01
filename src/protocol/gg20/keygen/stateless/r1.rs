@@ -15,7 +15,7 @@ pub fn start(share_count: usize, threshold: usize, my_index: usize) -> (R1State,
 
     // TODO use safe primes in production
     // let (ek, dk) = Paillier::keypair_safe_primes().keys();
-    let (ek, my_dk) = Paillier::keypair().keys();
+    let (my_ek, my_dk) = Paillier::keypair().keys();
 
     let correct_key_proof = NICorrectKeyProof::proof(&my_dk);
     let zkp = Zkp::new_unsafe();
@@ -23,7 +23,7 @@ pub fn start(share_count: usize, threshold: usize, my_index: usize) -> (R1State,
         HashCommitment::create_commitment(&my_ecdsa_public_summand.bytes_compressed_to_big_int());
     let my_bcast = R1Bcast {
         commit: my_commit.clone(),
-        ek,
+        ek: my_ek.clone(),
         zkp,
         correct_key_proof,
     };
@@ -34,6 +34,7 @@ pub fn start(share_count: usize, threshold: usize, my_index: usize) -> (R1State,
             my_index,
             my_ecdsa_secret_summand,
             my_dk,
+            my_ek,
             my_commit,
             my_reveal,
             my_ecdsa_public_summand,

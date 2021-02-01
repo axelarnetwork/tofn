@@ -59,6 +59,8 @@ pub fn execute(
             share_count: state.share_count,
             threshold: state.threshold,
             my_index: state.my_index,
+            my_ek: state.my_ek.clone(),
+            my_dk: state.my_dk.clone(),
             ecdsa_public_key: ecdsa_public_key.get_element(),
             my_ecdsa_secret_key_share: my_secret_key_share,
         },

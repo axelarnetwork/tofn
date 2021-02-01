@@ -19,6 +19,9 @@ use super::super::zkp::Zkp;
 // I presume 2020/540 suggest to do it later to avoid unneccessary work in the event of a fault
 // Perhaps we should do that
 
+// TODO lots of cloning from RXState to R(X+1)State
+// Shall we abandon the stateless-first pattern?
+
 // round 1
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -36,6 +39,7 @@ pub struct R1State {
     my_ecdsa_secret_summand: FE, // final ecdsa secret key is the sum over all parties
     my_ecdsa_public_summand: GE, // final ecdsa public key is the sum over all parties
     my_dk: DecryptionKey,        // homomorphic decryption (Paillier)
+    my_ek: EncryptionKey,        // homomorphic encryption (Paillier)
     my_commit: BigInt,           // for convenience: a copy of R1Bcast.commit
     my_reveal: BigInt,           // decommit---to be released later
 }
@@ -65,6 +69,8 @@ pub struct R2State {
     share_count: usize,
     threshold: usize,
     my_index: usize,
+    my_dk: DecryptionKey,
+    my_ek: EncryptionKey,
     my_share_of_my_ecdsa_secret_summand: FE,
     my_ecdsa_public_summand: GE, // used only to compute the final ecdsa_public_key
     all_commits: Vec<BigInt>,
@@ -86,11 +92,10 @@ pub struct R3State {
     share_count: usize,
     threshold: usize,
     my_index: usize,
-    ecdsa_public_key: PK, // the final pub key
+    my_dk: DecryptionKey,
+    my_ek: EncryptionKey,
+    ecdsa_public_key: PK,          // the final pub key
     my_ecdsa_secret_key_share: FE, // my final secret key share
-                          // my_r2_state: R2State,
-                          // input: R3Input,
-                          // my_output: R3Bcast,
 }
 
 // round 4
@@ -106,6 +111,8 @@ pub struct SecretKeyShare {
     pub share_count: usize,
     pub threshold: usize,
     pub my_index: usize,
+    pub my_dk: DecryptionKey,
+    pub my_ek: EncryptionKey,
     pub my_ecdsa_secret_key_share: FE,
     pub ecdsa_public_key: PK,
 }

@@ -81,6 +81,8 @@ pub fn execute(
             share_count: state.share_count,
             threshold: state.threshold,
             my_index: state.my_index,
+            my_dk: state.my_dk.clone(),
+            my_ek: state.my_ek.clone(),
             my_share_of_my_ecdsa_secret_summand,
             my_ecdsa_public_summand: state.my_ecdsa_public_summand,
             all_commits,
