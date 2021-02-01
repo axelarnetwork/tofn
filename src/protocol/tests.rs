@@ -1,7 +1,8 @@
 use super::*;
 
-pub const TEST_CASES: [(usize, usize); 5] // (share_count, threshold)
-    = [(5, 0), (5, 1), (5, 3), (5, 4), (20,10)];
+// pub const TEST_CASES: [(usize, usize); 5] // (share_count, threshold)
+//     = [(5, 0), (5, 1), (5, 3), (5, 4), (20,10)];
+pub static TEST_CASES: [(usize, usize); 1] = [(4, 2)];
 
 pub const TEST_CASES_INVALID: [(usize, usize); 3] // (share_count, threshold)
     = [(5, 5), (5, 6), (2, 4)];
