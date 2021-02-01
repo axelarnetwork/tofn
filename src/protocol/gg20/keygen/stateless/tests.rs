@@ -19,7 +19,7 @@ fn keygen() {
     }
 }
 
-fn execute_keygen(share_count: usize, threshold: usize) {
+pub fn execute_keygen(share_count: usize, threshold: usize) -> Vec<SecretKeyShare> {
     // execute round 1 all parties and store their outputs
     let mut all_r1_bcasts = Vec::with_capacity(share_count);
     let mut all_r1_states = Vec::with_capacity(share_count);
@@ -123,4 +123,6 @@ fn execute_keygen(share_count: usize, threshold: usize) {
             key_share.my_index, key_share.my_ecdsa_secret_key_share
         );
     }
+
+    all_r4_states
 }

@@ -5,7 +5,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
-mod stateless;
+pub mod stateless; // TODO not pub
 pub use stateless::SecretKeyShare;
 use stateless::*;
 

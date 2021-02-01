@@ -124,4 +124,4 @@ pub struct SecretKeyShare {
 // }
 
 #[cfg(test)]
-mod tests;
+pub mod tests; // TODO not pub
