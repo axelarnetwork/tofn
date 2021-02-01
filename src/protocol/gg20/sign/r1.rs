@@ -1,4 +1,3 @@
-use super::keygen::SecretKeyShare;
 use serde::{Deserialize, Serialize};
 
 use crate::protocol::gg20::vss;
@@ -10,38 +9,18 @@ use curv::{
 };
 use paillier::{EncryptWithChosenRandomness, Paillier, Randomness, RawPlaintext};
 
-enum State {
-    New,
-    R1,
-    R2,
-    R3,
-    Done,
-}
-use State::*;
-
-pub struct Sign {
-    state: State,
-
-    // init data
-    my_secret_key_share: SecretKeyShare,
-    participant_indices: Vec<usize>,
-    // outgoing/incoming messages
-    // initialized to `None`, filled as the protocol progresses
-    // p2p Vecs have length participant_indices.len()
-    // out_r1bcast: Option<MsgBytes>,
-    // out_r1p2ps: Option<Vec<Option<MsgBytes>>>,
-}
+use super::{Sign, Status};
 
 // round 1
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct R1Bcast {
+pub struct Bcast {
     my_commit: BigInt,
 }
-pub struct R1P2p {
+pub struct P2p {
     my_encrypted_ecdsa_nonce_summand: BigInt,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
-pub struct R1State {
+pub struct State {
     // key: SecretKeyShare,
     my_secret_key_summand: FE,
     my_ecdsa_nonce_summand: FE,
@@ -51,19 +30,10 @@ pub struct R1State {
 }
 
 impl Sign {
-    pub fn new(my_secret_key_share: &SecretKeyShare, participant_indices: &[usize]) -> Self {
-        // TODO check participant_indices for length and duplicates
-        // validate_params(share_count, threshold, my_index).unwrap();
-        Self {
-            state: New,
-            my_secret_key_share: my_secret_key_share.clone(),
-            participant_indices: participant_indices.to_vec(),
-        }
-    }
-
     // immutable &self: do not modify existing self state, only add more
     // TODO should we just mutate self directly instead?
-    pub fn r1(&self) -> (R1State, R1Bcast, Vec<Option<R1P2p>>) {
+    pub(super) fn r1(&self) -> (State, Bcast, Vec<Option<P2p>>) {
+        assert!(matches!(self.status, Status::New));
         let lagrangian_coefficient = vss::lagrangian_coefficient(
             self.my_secret_key_share.share_count,
             self.my_secret_key_share.my_index,
@@ -101,19 +71,19 @@ impl Sign {
                     .as_ref()
                     .unwrap(),
             );
-            out_p2p.push(Some(R1P2p {
+            out_p2p.push(Some(P2p {
                 my_encrypted_ecdsa_nonce_summand: my_encrypted_ecdsa_nonce_summand.into(), // use into() to avoid lifetime ugliness with RawCiphertext
             }));
         }
 
         (
-            R1State {
+            State {
                 my_secret_key_summand,
                 my_ecdsa_nonce_summand,
                 my_reveal,
                 my_encrypted_ecdsa_nonce_summand_randomnesses,
             },
-            R1Bcast {
+            Bcast {
                 my_commit,
                 // TODO broadcast GE::generator() * self.my_secret_key_share.my_ecdsa_secret_key_share ? https://github.com/ZenGo-X/multi-party-ecdsa/blob/master/examples/gg20_sign_client.rs#L138
             },
@@ -121,6 +91,3 @@ impl Sign {
         )
     }
 }
-
-#[cfg(test)]
-mod tests;
