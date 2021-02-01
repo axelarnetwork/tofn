@@ -7,6 +7,7 @@ use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     BigInt, FE, GE,
 };
+use multi_party_ecdsa::utilities::mta;
 use paillier::{EncryptWithChosenRandomness, Paillier, Randomness, RawPlaintext};
 
 use super::{Sign, Status};
@@ -17,7 +18,7 @@ pub struct Bcast {
     my_commit: BigInt,
 }
 pub struct P2p {
-    my_encrypted_ecdsa_nonce_summand: BigInt,
+    my_encrypted_ecdsa_nonce_summand: mta::MessageA,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub struct State {
@@ -26,7 +27,7 @@ pub struct State {
     my_ecdsa_nonce_summand: FE,
     // my_commit: BigInt, // for convenience: a copy of R1Bcast.commit
     my_reveal: BigInt, // decommit---to be released later
-    my_encrypted_ecdsa_nonce_summand_randomnesses: Vec<Option<Randomness>>, // TODO do we need to store this?
+    my_encrypted_ecdsa_nonce_summand_randomnesses: Vec<Option<BigInt>>, // TODO do we need to store this?
 }
 
 impl Sign {
@@ -48,8 +49,11 @@ impl Sign {
             &my_public_blind_summand.bytes_compressed_to_big_int(),
         );
 
-        // MtA protocol for my_ecdsa_nonce_summand * my_secret_blind_summand
-        // TODO refactor?
+        // initiate MtA protocols for
+        // 1. my_ecdsa_nonce_summand (me) * my_secret_blind_summand (other)
+        // 2. my_ecdsa_nonce_summand (me) * my_secret_key_summand (other)
+        // both MtAs use my_ecdsa_nonce_summand, so I use the same message for both
+        // we must encrypt my_ecdsa_nonce_summand separately for each other party using fresh randomness
         let mut out_p2p = Vec::with_capacity(self.participant_indices.len());
         let mut my_encrypted_ecdsa_nonce_summand_randomnesses =
             Vec::with_capacity(self.participant_indices.len()); // TODO do we need to store encryption randomness?
@@ -59,20 +63,14 @@ impl Sign {
                 out_p2p.push(None);
                 continue;
             }
-            my_encrypted_ecdsa_nonce_summand_randomnesses.push(Some(Randomness::from(
-                BigInt::sample_below(&self.my_secret_key_share.my_ek.n),
-            )));
-            let my_encrypted_ecdsa_nonce_summand = Paillier::encrypt_with_chosen_randomness(
-                &self.my_secret_key_share.my_ek,
-                RawPlaintext::from(my_ecdsa_nonce_summand.to_big_int()),
-                my_encrypted_ecdsa_nonce_summand_randomnesses
-                    .last()
-                    .unwrap()
-                    .as_ref()
-                    .unwrap(),
-            );
+
+            let (my_encrypted_ecdsa_nonce_summand, my_encrypted_ecdsa_nonce_summand_randomness) =
+                mta::MessageA::a(&my_ecdsa_nonce_summand, &self.my_secret_key_share.my_ek);
+
+            my_encrypted_ecdsa_nonce_summand_randomnesses
+                .push(Some(my_encrypted_ecdsa_nonce_summand_randomness));
             out_p2p.push(Some(P2p {
-                my_encrypted_ecdsa_nonce_summand: my_encrypted_ecdsa_nonce_summand.into(), // use into() to avoid lifetime ugliness with RawCiphertext
+                my_encrypted_ecdsa_nonce_summand,
             }));
         }
 

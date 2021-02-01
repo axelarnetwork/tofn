@@ -10,7 +10,7 @@ crate-type = ["lib"]
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 bincode = "1.2.1"
-# multi-party-ecdsa = { git = "https://github.com/ZenGo-X/multi-party-ecdsa.git" }
+multi-party-ecdsa = { git = "https://github.com/ZenGo-X/multi-party-ecdsa", tag = "v0.4.3" } # for utilities::mta
 
 # baggage from multi-party-ecdsa
 curv = { git = "https://github.com/KZen-networks/curv", tag = "v0.2.6", features = ["ec_secp256k1"] }
