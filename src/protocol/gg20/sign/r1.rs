@@ -15,7 +15,7 @@ use super::{Sign, Status};
 // round 1
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bcast {
-    commit: BigInt,
+    pub commit: BigInt,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct P2p {
@@ -24,11 +24,12 @@ pub struct P2p {
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub struct State {
     // key: SecretKeyShare,
-    pub my_secret_key_summand: FE,
-    pub my_secret_blind_summand: FE,
-    pub my_ecdsa_nonce_summand: FE,
+    pub(super) my_secret_key_summand: FE,
+    pub(super) my_secret_blind_summand: FE,
+    pub(super) my_public_blind_summand: GE,
+    pub(super) my_reveal: BigInt,
+    pub(super) my_ecdsa_nonce_summand: FE,
     // my_commit: BigInt, // for convenience: a copy of R1Bcast.commit
-    pub my_reveal: BigInt,
     // pub my_encrypted_ecdsa_nonce_summand_randomnesses: Vec<Option<BigInt>>, // TODO do we need to store this?
 }
 
@@ -82,8 +83,9 @@ impl Sign {
             State {
                 my_secret_key_summand,
                 my_secret_blind_summand,
-                my_ecdsa_nonce_summand,
+                my_public_blind_summand,
                 my_reveal,
+                my_ecdsa_nonce_summand,
                 // my_encrypted_ecdsa_nonce_summand_randomnesses,
             },
             Bcast {
