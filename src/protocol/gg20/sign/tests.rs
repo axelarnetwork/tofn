@@ -67,6 +67,20 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize]) {
         participant.in_r2p2ps = r2_p2ps;
     }
 
+    // execute round 3 all participants and store their outputs
+    let mut all_r3_bcasts = FillVec::with_capacity(participants.len());
+    for (i, participant) in participants.iter_mut().enumerate() {
+        let (state, bcast) = participant.r3();
+        participant.r3state = Some(state);
+        participant.status = Status::R3;
+        all_r3_bcasts.insert(i, bcast).unwrap();
+    }
+
+    // deliver round 3 msgs
+    for participant in participants.iter_mut() {
+        participant.in_r3bcasts = all_r3_bcasts.clone();
+    }
+
     // // save each u for later tests
     // let all_u_secrets: Vec<FE> = all_r1_states
     //     .iter()

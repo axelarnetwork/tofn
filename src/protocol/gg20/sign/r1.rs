@@ -15,11 +15,11 @@ use super::{Sign, Status};
 // round 1
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bcast {
-    my_commit: BigInt,
+    commit: BigInt,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct P2p {
-    pub my_encrypted_ecdsa_nonce_summand: mta::MessageA,
+    pub encrypted_ecdsa_nonce_summand: mta::MessageA,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub struct State {
@@ -28,8 +28,8 @@ pub struct State {
     pub my_secret_blind_summand: FE,
     pub my_ecdsa_nonce_summand: FE,
     // my_commit: BigInt, // for convenience: a copy of R1Bcast.commit
-    pub my_reveal: BigInt, // decommit---to be released later
-    pub my_encrypted_ecdsa_nonce_summand_randomnesses: Vec<Option<BigInt>>, // TODO do we need to store this?
+    pub my_reveal: BigInt,
+    // pub my_encrypted_ecdsa_nonce_summand_randomnesses: Vec<Option<BigInt>>, // TODO do we need to store this?
 }
 
 impl Sign {
@@ -47,7 +47,7 @@ impl Sign {
         let my_secret_blind_summand = FE::new_random(); // gamma_i
         let my_public_blind_summand = GE::generator() * my_secret_blind_summand; // g_gamma_i
         let my_ecdsa_nonce_summand = FE::new_random(); // k_i
-        let (my_commit, my_reveal) = HashCommitment::create_commitment(
+        let (commit, my_reveal) = HashCommitment::create_commitment(
             &my_public_blind_summand.bytes_compressed_to_big_int(),
         );
 
@@ -58,23 +58,23 @@ impl Sign {
         // we must encrypt my_ecdsa_nonce_summand separately for each other party using fresh randomness
 
         // TODO these variable names are getting ridiculous
-        let mut out_p2p = Vec::with_capacity(self.participant_indices.len());
-        let mut my_encrypted_ecdsa_nonce_summand_randomnesses =
-            Vec::with_capacity(self.participant_indices.len()); // TODO do we need to store encryption randomness?
+        let mut out_p2ps = Vec::with_capacity(self.participant_indices.len());
+        // let mut my_encrypted_ecdsa_nonce_summand_randomnesses =
+        //     Vec::with_capacity(self.participant_indices.len()); // TODO do we need to store encryption randomness?
         for participant_index in self.participant_indices.iter() {
             if *participant_index == self.my_secret_key_share.my_index {
-                my_encrypted_ecdsa_nonce_summand_randomnesses.push(None);
-                out_p2p.push(None);
+                // my_encrypted_ecdsa_nonce_summand_randomnesses.push(None);
+                out_p2ps.push(None);
                 continue;
             }
 
-            let (my_encrypted_ecdsa_nonce_summand, my_encrypted_ecdsa_nonce_summand_randomness) =
+            let (encrypted_ecdsa_nonce_summand, my_encrypted_ecdsa_nonce_summand_randomness) =
                 mta::MessageA::a(&my_ecdsa_nonce_summand, &self.my_secret_key_share.my_ek);
 
-            my_encrypted_ecdsa_nonce_summand_randomnesses
-                .push(Some(my_encrypted_ecdsa_nonce_summand_randomness));
-            out_p2p.push(Some(P2p {
-                my_encrypted_ecdsa_nonce_summand,
+            // my_encrypted_ecdsa_nonce_summand_randomnesses
+            //     .push(Some(my_encrypted_ecdsa_nonce_summand_randomness));
+            out_p2ps.push(Some(P2p {
+                encrypted_ecdsa_nonce_summand,
             }));
         }
 
@@ -84,13 +84,13 @@ impl Sign {
                 my_secret_blind_summand,
                 my_ecdsa_nonce_summand,
                 my_reveal,
-                my_encrypted_ecdsa_nonce_summand_randomnesses,
+                // my_encrypted_ecdsa_nonce_summand_randomnesses,
             },
             Bcast {
-                my_commit,
+                commit,
                 // TODO broadcast GE::generator() * self.my_secret_key_share.my_ecdsa_secret_key_share ? https://github.com/ZenGo-X/multi-party-ecdsa/blob/master/examples/gg20_sign_client.rs#L138
             },
-            out_p2p,
+            out_p2ps,
         )
     }
 }
