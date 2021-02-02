@@ -15,7 +15,9 @@ pub struct Bcast {
     pub T: GE,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
-pub struct State {}
+pub struct State {
+    pub(super) my_nonce_x_blind_summand: FE,
+}
 
 impl Sign {
     pub(super) fn r3(&self) -> (State, Bcast) {
@@ -105,7 +107,9 @@ impl Sign {
         // TODO compute zk proof and send it
 
         (
-            State {},
+            State {
+                my_nonce_x_blind_summand,
+            },
             Bcast {
                 nonce_x_blind_summand: my_nonce_x_blind_summand,
                 T,
