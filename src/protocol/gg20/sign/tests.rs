@@ -81,6 +81,20 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize]) {
         participant.in_r3bcasts = all_r3_bcasts.clone();
     }
 
+    // execute round 4 all participants and store their outputs
+    let mut all_r4_bcasts = FillVec::with_capacity(participants.len());
+    for (i, participant) in participants.iter_mut().enumerate() {
+        let (state, bcast) = participant.r4();
+        participant.r4state = Some(state);
+        participant.status = Status::R4;
+        all_r4_bcasts.insert(i, bcast).unwrap();
+    }
+
+    // deliver round 4 msgs
+    for participant in participants.iter_mut() {
+        participant.in_r4bcasts = all_r4_bcasts.clone();
+    }
+
     // // save each u for later tests
     // let all_u_secrets: Vec<FE> = all_r1_states
     //     .iter()

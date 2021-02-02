@@ -7,7 +7,7 @@ use curv::{
 use multi_party_ecdsa::utilities::mta;
 use serde::{Deserialize, Serialize};
 
-// round 2
+// round 3
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bcast {

@@ -15,12 +15,15 @@ enum Status {
     R1,
     R2,
     R3,
+    R4,
+    R5,
     Done,
 }
 
 mod r1;
 mod r2;
 mod r3;
+mod r4;
 
 pub struct Sign {
     status: Status,
@@ -31,6 +34,7 @@ pub struct Sign {
     r1state: Option<r1::State>,
     r2state: Option<r2::State>,
     r3state: Option<r3::State>,
+    r4state: Option<r4::State>,
 
     // outgoing/incoming messages
     // initialized to `None`, filled as the protocol progresses
@@ -39,6 +43,7 @@ pub struct Sign {
     in_r1p2ps: FillVec<r1::P2p>,
     in_r2p2ps: FillVec<r2::P2p>,
     in_r3bcasts: FillVec<r3::Bcast>,
+    in_r4bcasts: FillVec<r4::Bcast>,
     // out_r1bcast: Option<MsgBytes>,
     // out_r1p2ps: Option<Vec<Option<MsgBytes>>>,
 }
@@ -54,10 +59,12 @@ impl Sign {
             r1state: None,
             r2state: None,
             r3state: None,
+            r4state: None,
             in_r1bcasts: FillVec::with_capacity(participant_indices.len()),
             in_r1p2ps: FillVec::with_capacity(participant_indices.len()),
             in_r2p2ps: FillVec::with_capacity(participant_indices.len()),
             in_r3bcasts: FillVec::with_capacity(participant_indices.len()),
+            in_r4bcasts: FillVec::with_capacity(participant_indices.len()),
         }
     }
 }
