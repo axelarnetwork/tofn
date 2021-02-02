@@ -74,6 +74,7 @@ pub struct R2State {
     my_share_of_my_ecdsa_secret_summand: FE,
     my_ecdsa_public_summand: GE, // used only to compute the final ecdsa_public_key
     all_commits: Vec<BigInt>,
+    all_eks: Vec<EncryptionKey>,
 }
 
 // round 3
@@ -96,6 +97,7 @@ pub struct R3State {
     my_ek: EncryptionKey,
     ecdsa_public_key: PK,          // the final pub key
     my_ecdsa_secret_key_share: FE, // my final secret key share
+    all_eks: Vec<EncryptionKey>,
 }
 
 // round 4
@@ -115,6 +117,7 @@ pub struct SecretKeyShare {
     pub my_ek: EncryptionKey,
     pub my_ecdsa_secret_key_share: FE,
     pub ecdsa_public_key: PK,
+    pub all_eks: Vec<EncryptionKey>,
 }
 
 // impl SecretKeyShare {

@@ -29,5 +29,6 @@ pub fn execute(state: &R3State, in_bcasts: &[Option<R3Bcast>]) -> SecretKeyShare
         my_ek: state.my_ek.clone(),
         ecdsa_public_key: state.ecdsa_public_key,
         my_ecdsa_secret_key_share: state.my_ecdsa_secret_key_share,
+        all_eks: state.all_eks.clone(),
     }
 }

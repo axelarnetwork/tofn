@@ -8,9 +8,11 @@ pub fn execute(
 
     // verify other parties' proofs and build commits list
     let mut all_commits = Vec::with_capacity(state.share_count);
+    let mut all_eks = Vec::with_capacity(state.share_count);
     for (i, bcast) in in_bcasts.iter().enumerate() {
         if i == state.my_index {
             all_commits.push(state.my_commit.clone());
+            all_eks.push(state.my_ek.clone());
             continue; // don't verify my own proof
         }
         let bcast = bcast.clone().unwrap_or_else(|| {
@@ -39,8 +41,10 @@ pub fn execute(
                 )
             });
         all_commits.push(bcast.commit);
+        all_eks.push(bcast.ek);
     }
     assert_eq!(all_commits.len(), state.share_count);
+    assert_eq!(all_eks.len(), state.share_count);
 
     let (secret_share_commitments, ecdsa_secret_summand_shares) = vss::share(
         state.threshold,
@@ -86,6 +90,7 @@ pub fn execute(
             my_share_of_my_ecdsa_secret_summand,
             my_ecdsa_public_summand: state.my_ecdsa_public_summand,
             all_commits,
+            all_eks,
         },
         out_bcast,
         out_p2p,
