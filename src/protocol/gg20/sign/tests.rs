@@ -30,6 +30,7 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize]) {
     for (i, participant) in participants.iter_mut().enumerate() {
         let (state, bcast, p2ps) = participant.r1();
         participant.r1state = Some(state);
+        participant.status = Status::R1;
         all_r1_bcasts.insert(i, bcast).unwrap();
 
         // route p2p msgs
@@ -44,6 +45,26 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize]) {
     for (participant, r1_p2ps) in participants.iter_mut().zip(all_r1_p2ps.into_iter()) {
         participant.in_r1p2ps = r1_p2ps;
         participant.in_r1bcasts = all_r1_bcasts.clone();
+    }
+
+    // execute round 2 all participants and store their outputs
+    let mut all_r2_p2ps = vec![FillVec::with_capacity(participants.len()); participants.len()];
+    for (i, participant) in participants.iter_mut().enumerate() {
+        let (state, p2ps) = participant.r2();
+        participant.r2state = Some(state);
+        participant.status = Status::R2;
+
+        // route p2p msgs
+        for (j, p2p) in p2ps.into_iter().enumerate() {
+            if let Some(p2p) = p2p {
+                all_r2_p2ps[j].insert(i, p2p).unwrap();
+            }
+        }
+    }
+
+    // deliver round 2 msgs
+    for (participant, r2_p2ps) in participants.iter_mut().zip(all_r2_p2ps.into_iter()) {
+        participant.in_r2p2ps = r2_p2ps;
     }
 
     // // save each u for later tests

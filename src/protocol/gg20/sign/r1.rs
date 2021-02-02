@@ -19,16 +19,17 @@ pub struct Bcast {
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct P2p {
-    my_encrypted_ecdsa_nonce_summand: mta::MessageA,
+    pub my_encrypted_ecdsa_nonce_summand: mta::MessageA,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub struct State {
     // key: SecretKeyShare,
-    my_secret_key_summand: FE,
-    my_ecdsa_nonce_summand: FE,
+    pub my_secret_key_summand: FE,
+    pub my_secret_blind_summand: FE,
+    pub my_ecdsa_nonce_summand: FE,
     // my_commit: BigInt, // for convenience: a copy of R1Bcast.commit
-    my_reveal: BigInt, // decommit---to be released later
-    my_encrypted_ecdsa_nonce_summand_randomnesses: Vec<Option<BigInt>>, // TODO do we need to store this?
+    pub my_reveal: BigInt, // decommit---to be released later
+    pub my_encrypted_ecdsa_nonce_summand_randomnesses: Vec<Option<BigInt>>, // TODO do we need to store this?
 }
 
 impl Sign {
@@ -55,6 +56,8 @@ impl Sign {
         // 2. my_ecdsa_nonce_summand (me) * my_secret_key_summand (other)
         // both MtAs use my_ecdsa_nonce_summand, so I use the same message for both
         // we must encrypt my_ecdsa_nonce_summand separately for each other party using fresh randomness
+
+        // TODO these variable names are getting ridiculous
         let mut out_p2p = Vec::with_capacity(self.participant_indices.len());
         let mut my_encrypted_ecdsa_nonce_summand_randomnesses =
             Vec::with_capacity(self.participant_indices.len()); // TODO do we need to store encryption randomness?
@@ -78,6 +81,7 @@ impl Sign {
         (
             State {
                 my_secret_key_summand,
+                my_secret_blind_summand,
                 my_ecdsa_nonce_summand,
                 my_reveal,
                 my_encrypted_ecdsa_nonce_summand_randomnesses,
