@@ -1,7 +1,7 @@
 use super::keygen::SecretKeyShare;
 use serde::{Deserialize, Serialize};
 
-use crate::protocol::gg20::vss;
+use crate::fillvec::FillVec;
 use curv::{
     arithmetic::traits::Samplable,
     cryptographic_primitives::commitments::{hash_commitment::HashCommitment, traits::Commitment},
@@ -24,12 +24,16 @@ mod r2;
 pub struct Sign {
     status: Status,
 
-    // init data
+    // state data
     my_secret_key_share: SecretKeyShare,
     participant_indices: Vec<usize>,
+    r1state: Option<r1::State>,
+
     // outgoing/incoming messages
     // initialized to `None`, filled as the protocol progresses
     // p2p Vecs have length participant_indices.len()
+    in_r1bcasts: FillVec<r1::Bcast>,
+    in_r1p2ps: FillVec<r1::P2p>,
     // out_r1bcast: Option<MsgBytes>,
     // out_r1p2ps: Option<Vec<Option<MsgBytes>>>,
 }
@@ -42,6 +46,9 @@ impl Sign {
             status: Status::New,
             my_secret_key_share: my_secret_key_share.clone(),
             participant_indices: participant_indices.to_vec(),
+            r1state: None,
+            in_r1bcasts: FillVec::with_capacity(participant_indices.len()),
+            in_r1p2ps: FillVec::with_capacity(participant_indices.len()),
         }
     }
 }

@@ -17,6 +17,7 @@ use super::{Sign, Status};
 pub struct Bcast {
     my_commit: BigInt,
 }
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct P2p {
     my_encrypted_ecdsa_nonce_summand: mta::MessageA,
 }
