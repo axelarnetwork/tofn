@@ -15,6 +15,7 @@ pub struct Bcast {
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub(super) struct State {
     pub(super) ecdsa_randomizer: GE,
+    pub(super) my_ecdsa_randomizer_x_nonce_summand: GE,
 }
 
 impl Sign {
@@ -23,9 +24,9 @@ impl Sign {
         let r1state = self.r1state.as_ref().unwrap();
         let r4state = self.r4state.as_ref().unwrap();
 
-        // compute R as per phase 4 of 2020/540
+        // compute R (aka ecdsa_randomizer) as per phase 4 of 2020/540
         // first verify all commits and compute sum of all reveals
-        let mut public_blind = self.r1state.as_ref().unwrap().my_public_blind_summand;
+        let mut public_blind = r1state.my_public_blind_summand;
         for (i, in_r4bcast) in self.in_r4bcasts.vec_ref().iter().enumerate() {
             if i == self.my_participant_index {
                 continue;
@@ -38,19 +39,22 @@ impl Sign {
                 &in_r4bcast.reveal,
             );
             // TODO panic
-            assert!(self.in_r1bcasts.vec_ref()[i].as_ref().unwrap().commit == com);
+            assert_eq!(self.in_r1bcasts.vec_ref()[i].as_ref().unwrap().commit, com);
 
             public_blind = public_blind + in_r4bcast.public_blind_summand;
         }
         let ecdsa_randomizer = public_blind * r4state.nonce_x_blind_inv;
-        let ecdsa_randomizer_x_nonce_summand = ecdsa_randomizer * r1state.my_ecdsa_nonce_summand;
+        let my_ecdsa_randomizer_x_nonce_summand = ecdsa_randomizer * r1state.my_ecdsa_nonce_summand;
 
         // TODO zk proof from phase 5 of 2020/540
 
         (
-            State { ecdsa_randomizer },
+            State {
+                ecdsa_randomizer,
+                my_ecdsa_randomizer_x_nonce_summand,
+            },
             Bcast {
-                ecdsa_randomizer_x_nonce_summand,
+                ecdsa_randomizer_x_nonce_summand: my_ecdsa_randomizer_x_nonce_summand,
             },
         )
     }

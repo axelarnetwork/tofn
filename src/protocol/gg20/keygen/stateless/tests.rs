@@ -109,20 +109,20 @@ pub fn execute_keygen(share_count: usize, threshold: usize) -> Vec<SecretKeyShar
 
     // print each key share
     // output may be copied into src/gg20/sign/stateless/tests.rs
-    println!(
-        "share_count: {}, threshold: {}",
-        all_r4_states[0].share_count, all_r4_states[0].threshold
-    );
-    println!(
-        "ecdsa_public_key: {:?}",
-        all_r4_states[0].ecdsa_public_key.serialize()
-    );
-    for key_share in all_r4_states.iter() {
-        println!(
-            "my_index: {}, my_ecdsa_secret_key_share: {:?}",
-            key_share.my_index, key_share.my_ecdsa_secret_key_share
-        );
-    }
+    // println!(
+    //     "share_count: {}, threshold: {}",
+    //     all_r4_states[0].share_count, all_r4_states[0].threshold
+    // );
+    // println!(
+    //     "ecdsa_public_key: {:?}",
+    //     all_r4_states[0].ecdsa_public_key.serialize()
+    // );
+    // for key_share in all_r4_states.iter() {
+    //     println!(
+    //         "my_index: {}, my_ecdsa_secret_key_share: {:?}",
+    //         key_share.my_index, key_share.my_ecdsa_secret_key_share
+    //     );
+    // }
 
     all_r4_states
 }

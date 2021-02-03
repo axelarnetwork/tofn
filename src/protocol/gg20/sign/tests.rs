@@ -24,6 +24,16 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize]) {
         .map(|i| Sign::new(&key_shares[*i], participant_indices))
         .collect();
 
+    // TEST: indices are correct
+    for p in participants.iter() {
+        assert_eq!(
+            participant_indices[p.my_participant_index],
+            p.my_secret_key_share.my_index
+        );
+    }
+
+    let one: FE = ECScalar::from(&BigInt::from(1));
+
     // execute round 1 all participants and store their outputs
     let mut all_r1_bcasts = FillVec::with_capacity(participants.len());
     let mut all_r1_p2ps = vec![FillVec::with_capacity(participants.len()); participants.len()];
@@ -46,6 +56,14 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize]) {
         participant.in_r1p2ps = r1_p2ps;
         participant.in_r1bcasts = all_r1_bcasts.clone();
     }
+
+    // TEST: secret key shares yield the pubkey
+    let ecdsa_secret_key = participants
+        .iter()
+        .map(|p| p.r1state.as_ref().unwrap().my_secret_key_summand)
+        .fold(FE::zero(), |acc, x| acc + x);
+    let test_pubkey = GE::generator() * ecdsa_secret_key;
+    assert_eq!(test_pubkey.get_element(), key_shares[0].ecdsa_public_key);
 
     // execute round 2 all participants and store their outputs
     let mut all_r2_p2ps = vec![FillVec::with_capacity(participants.len()); participants.len()];
@@ -81,6 +99,26 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize]) {
         participant.in_r3bcasts = all_r3_bcasts.clone();
     }
 
+    // TEST: MtA for nonce_x_blind (delta_i), nonce_x_keyshare (sigma_i)
+    let nonce = participants
+        .iter()
+        .map(|p| p.r1state.as_ref().unwrap().my_ecdsa_nonce_summand)
+        .fold(FE::zero(), |acc, x| acc + x);
+    let blind = participants
+        .iter()
+        .map(|p| p.r1state.as_ref().unwrap().my_secret_blind_summand)
+        .fold(FE::zero(), |acc, x| acc + x);
+    let nonce_x_blind = participants
+        .iter()
+        .map(|p| p.r3state.as_ref().unwrap().my_nonce_x_blind_summand)
+        .fold(FE::zero(), |acc, x| acc + x);
+    assert_eq!(nonce_x_blind, nonce * blind);
+    let nonce_x_keyshare = participants
+        .iter()
+        .map(|p| p.r3state.as_ref().unwrap().my_nonce_x_keyshare_summand)
+        .fold(FE::zero(), |acc, x| acc + x);
+    assert_eq!(nonce_x_keyshare, nonce * ecdsa_secret_key);
+
     // execute round 4 all participants and store their outputs
     let mut all_r4_bcasts = FillVec::with_capacity(participants.len());
     for (i, participant) in participants.iter_mut().enumerate() {
@@ -93,6 +131,14 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize]) {
     // deliver round 4 msgs
     for participant in participants.iter_mut() {
         participant.in_r4bcasts = all_r4_bcasts.clone();
+    }
+
+    // TEST: everyone correctly computed nonce_x_blind (delta = k*gamma)
+    for nonce_x_blind_inv in participants
+        .iter()
+        .map(|p| p.r4state.as_ref().unwrap().nonce_x_blind_inv)
+    {
+        assert_eq!(nonce_x_blind_inv * nonce_x_blind, one);
     }
 
     // execute round 5 all participants and store their outputs
@@ -109,80 +155,17 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize]) {
         participant.in_r5bcasts = all_r5_bcasts.clone();
     }
 
-    // // save each u for later tests
-    // let all_u_secrets: Vec<FE> = all_r1_states
-    //     .iter()
-    //     .map(|v| v.my_ecdsa_secret_summand)
-    //     .collect();
+    // execute round 6 all participants and store their outputs
+    let mut all_r6_bcasts = FillVec::with_capacity(participants.len());
+    for (i, participant) in participants.iter_mut().enumerate() {
+        let (state, bcast) = participant.r6();
+        participant.r6state = Some(state);
+        participant.status = Status::R6;
+        all_r6_bcasts.insert(i, bcast).unwrap();
+    }
 
-    // // execute round 2 all parties and store their outputs
-    // let mut all_r2_states = Vec::with_capacity(share_count);
-    // let mut all_r2_bcasts = Vec::with_capacity(share_count);
-    // let mut all_r2_p2ps = Vec::with_capacity(share_count);
-    // for r1_state in all_r1_states {
-    //     let (state, bcast, p2ps) = r2::execute(&r1_state, &all_r1_bcasts);
-    //     all_r2_states.push(state);
-    //     all_r2_bcasts.push(Some(bcast));
-    //     all_r2_p2ps.push(p2ps);
-    // }
-    // let all_r2_bcasts = all_r2_bcasts; // make read-only
-    // let all_r2_p2ps = all_r2_p2ps; // make read-only
-
-    // // route p2p msgs for round 3
-    // let mut all_r2_p2ps_delivered = vec![Vec::with_capacity(share_count); share_count];
-    // for r2_p2ps in all_r2_p2ps {
-    //     for (j, r2_p2p) in r2_p2ps.into_iter().enumerate() {
-    //         all_r2_p2ps_delivered[j].push(r2_p2p);
-    //     }
-    // }
-
-    // // execute round 3 all parties and store their outputs
-    // let mut all_r3_states = Vec::with_capacity(share_count);
-    // let mut all_r3_bcasts = Vec::with_capacity(share_count);
-    // for (i, r2_state) in all_r2_states.into_iter().enumerate() {
-    //     let (state, bcast) = r3::execute(&r2_state, &all_r2_bcasts, &all_r2_p2ps_delivered[i]);
-    //     all_r3_states.push(state);
-    //     all_r3_bcasts.push(Some(bcast));
-    // }
-    // let all_r3_bcasts = all_r3_bcasts; // make read-only
-
-    // // execute round 4 all parties and store their outputs
-    // let mut all_r4_states = Vec::with_capacity(share_count);
-    // for r3_state in all_r3_states {
-    //     let result = r4::execute(&r3_state, &all_r3_bcasts);
-    //     all_r4_states.push(result);
-    // }
-    // let all_r4_states = all_r4_states; // make read-only
-
-    // // test: reconstruct the secret key in two ways:
-    // // 1. from all the u secrets of round 1
-    // // 2. from the first t+1 shares
-    // let secret_key_sum_u = all_u_secrets.iter().fold(FE::zero(), |acc, x| acc + x);
-
-    // let mut all_vss_indices = Vec::<usize>::with_capacity(share_count);
-    // let mut all_secret_shares = Vec::<FE>::with_capacity(share_count);
-    // for state in &all_r4_states {
-    //     all_vss_indices.push(state.my_share_index - 1); // careful! curv library adds 1 to indices
-    //     all_secret_shares.push(state.my_ecdsa_secret_key_share);
-    // }
-    // let test_vss_scheme = VerifiableSS {
-    //     // cruft: needed for curv library
-    //     parameters: ShamirSecretSharing {
-    //         share_count,
-    //         threshold,
-    //     },
-    //     commitments: Vec::new(),
-    // };
-    // let secret_key_reconstructed = test_vss_scheme.reconstruct(
-    //     &all_vss_indices[0..=threshold],
-    //     &all_secret_shares[0..=threshold],
-    // );
-
-    // assert_eq!(secret_key_reconstructed, secret_key_sum_u);
-
-    // // test: verify that the reconstructed secret key yields the public key everyone deduced
-    // for state in all_r4_states {
-    //     let test_pubkey = GE::generator() * secret_key_reconstructed;
-    //     assert_eq!(test_pubkey.get_element(), state.ecdsa_public_key);
-    // }
+    // deliver round 6 msgs
+    for participant in participants.iter_mut() {
+        participant.in_r6bcasts = all_r6_bcasts.clone();
+    }
 }

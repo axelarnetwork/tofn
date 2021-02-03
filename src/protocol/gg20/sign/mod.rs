@@ -17,6 +17,7 @@ enum Status {
     R3,
     R4,
     R5,
+    R6,
     Done,
 }
 
@@ -25,6 +26,7 @@ mod r2;
 mod r3;
 mod r4;
 mod r5;
+mod r6;
 
 pub struct Sign {
     status: Status,
@@ -38,6 +40,7 @@ pub struct Sign {
     r3state: Option<r3::State>,
     r4state: Option<r4::State>,
     r5state: Option<r5::State>,
+    r6state: Option<r6::State>,
 
     // outgoing/incoming messages
     // initialized to `None`, filled as the protocol progresses
@@ -48,6 +51,7 @@ pub struct Sign {
     in_r3bcasts: FillVec<r3::Bcast>,
     in_r4bcasts: FillVec<r4::Bcast>,
     in_r5bcasts: FillVec<r5::Bcast>,
+    in_r6bcasts: FillVec<r6::Bcast>,
     // out_r1bcast: Option<MsgBytes>,
     // out_r1p2ps: Option<Vec<Option<MsgBytes>>>,
 }
@@ -57,9 +61,9 @@ impl Sign {
         // TODO check participant_indices for length and duplicates
         // validate_params(share_count, threshold, my_index).unwrap();
         let participant_indices = participant_indices.to_vec();
-        let my_participant_index = *participant_indices
+        let my_participant_index = participant_indices
             .iter()
-            .find(|&&i| i == my_secret_key_share.my_index)
+            .position(|&i| i == my_secret_key_share.my_index)
             .unwrap();
         Self {
             status: Status::New,
@@ -70,12 +74,14 @@ impl Sign {
             r3state: None,
             r4state: None,
             r5state: None,
+            r6state: None,
             in_r1bcasts: FillVec::with_capacity(participant_indices.len()),
             in_r1p2ps: FillVec::with_capacity(participant_indices.len()),
             in_r2p2ps: FillVec::with_capacity(participant_indices.len()),
             in_r3bcasts: FillVec::with_capacity(participant_indices.len()),
             in_r4bcasts: FillVec::with_capacity(participant_indices.len()),
             in_r5bcasts: FillVec::with_capacity(participant_indices.len()),
+            in_r6bcasts: FillVec::with_capacity(participant_indices.len()),
             participant_indices,
         }
     }

@@ -17,6 +17,7 @@ pub struct Bcast {
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub struct State {
     pub(super) my_nonce_x_blind_summand: FE,
+    pub(super) my_nonce_x_keyshare_summand: FE,
 }
 
 impl Sign {
@@ -109,6 +110,7 @@ impl Sign {
         (
             State {
                 my_nonce_x_blind_summand,
+                my_nonce_x_keyshare_summand,
             },
             Bcast {
                 nonce_x_blind_summand: my_nonce_x_blind_summand,
