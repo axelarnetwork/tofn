@@ -9,11 +9,11 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bcast {
-    ecdsa_public_key_check: GE,
+    pub ecdsa_public_key_check: GE,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub(super) struct State {
-    my_ecdsa_public_key_check: GE,
+    pub(super) my_ecdsa_public_key_check: GE,
 }
 
 impl Sign {

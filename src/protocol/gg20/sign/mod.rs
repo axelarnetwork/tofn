@@ -18,6 +18,7 @@ enum Status {
     R4,
     R5,
     R6,
+    R7,
     Done,
 }
 
@@ -27,6 +28,7 @@ mod r3;
 mod r4;
 mod r5;
 mod r6;
+mod r7;
 
 pub struct Sign {
     status: Status,
@@ -41,6 +43,7 @@ pub struct Sign {
     r4state: Option<r4::State>,
     r5state: Option<r5::State>,
     r6state: Option<r6::State>,
+    r7state: Option<r7::State>,
 
     // outgoing/incoming messages
     // initialized to `None`, filled as the protocol progresses
@@ -52,6 +55,7 @@ pub struct Sign {
     in_r4bcasts: FillVec<r4::Bcast>,
     in_r5bcasts: FillVec<r5::Bcast>,
     in_r6bcasts: FillVec<r6::Bcast>,
+    in_r7bcasts: FillVec<r7::Bcast>,
     // out_r1bcast: Option<MsgBytes>,
     // out_r1p2ps: Option<Vec<Option<MsgBytes>>>,
 }
@@ -75,6 +79,7 @@ impl Sign {
             r4state: None,
             r5state: None,
             r6state: None,
+            r7state: None,
             in_r1bcasts: FillVec::with_capacity(participant_indices.len()),
             in_r1p2ps: FillVec::with_capacity(participant_indices.len()),
             in_r2p2ps: FillVec::with_capacity(participant_indices.len()),
@@ -82,6 +87,7 @@ impl Sign {
             in_r4bcasts: FillVec::with_capacity(participant_indices.len()),
             in_r5bcasts: FillVec::with_capacity(participant_indices.len()),
             in_r6bcasts: FillVec::with_capacity(participant_indices.len()),
+            in_r7bcasts: FillVec::with_capacity(participant_indices.len()),
             participant_indices,
         }
     }

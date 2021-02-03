@@ -168,4 +168,18 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize]) {
     for participant in participants.iter_mut() {
         participant.in_r6bcasts = all_r6_bcasts.clone();
     }
+
+    // execute round 7 all participants and store their outputs
+    let mut all_r7_bcasts = FillVec::with_capacity(participants.len());
+    for (i, participant) in participants.iter_mut().enumerate() {
+        let (state, bcast) = participant.r7();
+        participant.r7state = Some(state);
+        participant.status = Status::R7;
+        all_r7_bcasts.insert(i, bcast).unwrap();
+    }
+
+    // deliver round 6 msgs
+    for participant in participants.iter_mut() {
+        participant.in_r7bcasts = all_r7_bcasts.clone();
+    }
 }
