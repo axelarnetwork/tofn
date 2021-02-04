@@ -37,8 +37,8 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], ms
     let one: FE = ECScalar::from(&BigInt::from(1));
 
     // execute round 1 all participants and store their outputs
-    let mut all_r1_bcasts = FillVec::with_capacity(participants.len());
-    let mut all_r1_p2ps = vec![FillVec::with_capacity(participants.len()); participants.len()];
+    let mut all_r1_bcasts = FillVec::with_len(participants.len());
+    let mut all_r1_p2ps = vec![FillVec::with_len(participants.len()); participants.len()];
     for (i, participant) in participants.iter_mut().enumerate() {
         let (state, bcast, p2ps) = participant.r1();
         participant.r1state = Some(state);
@@ -70,7 +70,7 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], ms
     }
 
     // execute round 2 all participants and store their outputs
-    let mut all_r2_p2ps = vec![FillVec::with_capacity(participants.len()); participants.len()];
+    let mut all_r2_p2ps = vec![FillVec::with_len(participants.len()); participants.len()];
     for (i, participant) in participants.iter_mut().enumerate() {
         let (state, p2ps) = participant.r2();
         participant.r2state = Some(state);
@@ -90,7 +90,7 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], ms
     }
 
     // execute round 3 all participants and store their outputs
-    let mut all_r3_bcasts = FillVec::with_capacity(participants.len());
+    let mut all_r3_bcasts = FillVec::with_len(participants.len());
     for (i, participant) in participants.iter_mut().enumerate() {
         let (state, bcast) = participant.r3();
         participant.r3state = Some(state);
@@ -124,7 +124,7 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], ms
     assert_eq!(nonce_x_secret_key, nonce * ecdsa_secret_key);
 
     // execute round 4 all participants and store their outputs
-    let mut all_r4_bcasts = FillVec::with_capacity(participants.len());
+    let mut all_r4_bcasts = FillVec::with_len(participants.len());
     for (i, participant) in participants.iter_mut().enumerate() {
         let (state, bcast) = participant.r4();
         participant.r4state = Some(state);
@@ -146,7 +146,7 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], ms
     }
 
     // execute round 5 all participants and store their outputs
-    let mut all_r5_bcasts = FillVec::with_capacity(participants.len());
+    let mut all_r5_bcasts = FillVec::with_len(participants.len());
     for (i, participant) in participants.iter_mut().enumerate() {
         let (state, bcast) = participant.r5();
         participant.r5state = Some(state);
@@ -169,7 +169,7 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], ms
     }
 
     // execute round 6 all participants and store their outputs
-    let mut all_r6_bcasts = FillVec::with_capacity(participants.len());
+    let mut all_r6_bcasts = FillVec::with_len(participants.len());
     for (i, participant) in participants.iter_mut().enumerate() {
         let (state, bcast) = participant.r6();
         participant.r6state = Some(state);
@@ -183,7 +183,7 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], ms
     }
 
     // execute round 7 all participants and store their outputs
-    let mut all_r7_bcasts = FillVec::with_capacity(participants.len());
+    let mut all_r7_bcasts = FillVec::with_len(participants.len());
     for (i, participant) in participants.iter_mut().enumerate() {
         let (state, bcast) = participant.r7();
         participant.r7state = Some(state);
@@ -197,7 +197,7 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], ms
     }
 
     // execute round 8 all participants and store their outputs
-    let mut all_sigs = FillVec::with_capacity(participants.len());
+    let mut all_sigs = FillVec::with_len(participants.len());
     for (i, participant) in participants.iter_mut().enumerate() {
         let sig = participant.r8();
         participant.status = Status::Done;

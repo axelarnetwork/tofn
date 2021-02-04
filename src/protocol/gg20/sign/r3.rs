@@ -30,9 +30,8 @@ impl Sign {
         // complete the MtA protocols:
         // 1. my_ecdsa_nonce_summand * my_secret_blind_summand
         // 2. my_ecdsa_nonce_summand * my_secret_key_summand
-        let mut my_mta_blind_summands_lhs = FillVec::with_capacity(self.participant_indices.len());
-        let mut my_mta_keyshare_summands_lhs =
-            FillVec::with_capacity(self.participant_indices.len());
+        let mut my_mta_blind_summands_lhs = FillVec::with_len(self.participant_indices.len());
+        let mut my_mta_keyshare_summands_lhs = FillVec::with_len(self.participant_indices.len());
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
             if *participant_index == self.my_secret_key_share.my_index {
                 continue;

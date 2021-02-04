@@ -67,19 +67,14 @@ impl Keygen {
             out_r2p2ps: None,
             out_r3bcast: None,
             final_output: None,
-            in_r1bcasts: FillVec::with_capacity(share_count),
-            in_r2bcasts: FillVec::with_capacity(share_count),
-            in_r2p2ps: FillVec::with_capacity(share_count),
-            in_r3bcasts: FillVec::with_capacity(share_count),
+            in_r1bcasts: FillVec::with_len(share_count),
+            in_r2bcasts: FillVec::with_len(share_count),
+            in_r2p2ps: FillVec::with_len(share_count),
+            in_r3bcasts: FillVec::with_len(share_count),
         }
     }
     pub fn get_result(&self) -> Option<&SecretKeyShare> {
         self.final_output.as_ref()
-    }
-    fn is_full<T>(&self, v: &FillVec<T>) -> bool {
-        // have we received a message from all other parties?
-        (v.is_none(self.my_index) && v.some_count() >= self.share_count - 1)
-            || v.some_count() >= self.share_count
     }
 }
 
@@ -186,11 +181,12 @@ impl Protocol for Keygen {
     }
 
     fn expecting_more_msgs_this_round(&self) -> bool {
+        let i = self.my_index;
         match self.state {
             New => false,
-            R1(_) => !self.is_full(&self.in_r1bcasts),
-            R2(_) => !self.is_full(&self.in_r2bcasts) || !self.is_full(&self.in_r2p2ps),
-            R3(_) => !self.is_full(&self.in_r3bcasts),
+            R1(_) => !self.in_r1bcasts.is_full_except(i),
+            R2(_) => !self.in_r2bcasts.is_full_except(i) || !self.in_r2p2ps.is_full_except(i),
+            R3(_) => !self.in_r3bcasts.is_full_except(i),
             Done => false,
         }
     }

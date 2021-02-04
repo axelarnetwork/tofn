@@ -1,14 +1,11 @@
 use super::keygen::SecretKeyShare;
 use serde::{Deserialize, Serialize};
 
-use crate::fillvec::FillVec;
+use crate::{fillvec::FillVec, protocol::MsgBytes};
 use curv::{
-    arithmetic::traits::Samplable,
-    cryptographic_primitives::commitments::{hash_commitment::HashCommitment, traits::Commitment},
     elliptic::curves::traits::{ECPoint, ECScalar},
-    BigInt, FE, GE, PK,
+    FE, GE,
 };
-use paillier::{EncryptWithChosenRandomness, Paillier, Randomness, RawPlaintext};
 
 // TODO isn't there a library for this?
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,9 +58,7 @@ pub struct Sign {
     r6state: Option<r6::State>,
     r7state: Option<r7::State>,
 
-    // outgoing/incoming messages
-    // initialized to `None`, filled as the protocol progresses
-    // p2p Vecs have length participant_indices.len()
+    // incoming messages
     in_r1bcasts: FillVec<r1::Bcast>,
     in_r1p2ps: FillVec<r1::P2p>,
     in_r2p2ps: FillVec<r2::P2p>,
@@ -72,8 +67,14 @@ pub struct Sign {
     in_r5bcasts: FillVec<r5::Bcast>,
     in_r6bcasts: FillVec<r6::Bcast>,
     in_r7bcasts: FillVec<r7::Bcast>,
-    // out_r1bcast: Option<MsgBytes>,
-    // out_r1p2ps: Option<Vec<Option<MsgBytes>>>,
+
+    // outgoing messages
+    // initialized to `None`, filled as the protocol progresses
+    // p2p Vecs have length participant_indices.len()
+    out_r1bcast: Option<MsgBytes>,
+    out_r1p2ps: Option<Vec<Option<MsgBytes>>>,
+    out_r2p2ps: Option<Vec<Option<MsgBytes>>>,
+    final_output: Option<EcdsaSig>,
 }
 
 impl Sign {
@@ -84,14 +85,16 @@ impl Sign {
     ) -> Self {
         // TODO check participant_indices for length and duplicates
         // validate_params(share_count, threshold, my_index).unwrap();
+        let participant_count = participant_indices.len();
         let participant_indices = participant_indices.to_vec();
         let my_participant_index = participant_indices
             .iter()
             .position(|&i| i == my_secret_key_share.my_index)
-            .unwrap();
+            .unwrap(); // TODO panic
         Self {
             status: Status::New,
             my_secret_key_share: my_secret_key_share.clone(),
+            participant_indices,
             my_participant_index,
             msg_to_sign,
             r1state: None,
@@ -101,15 +104,18 @@ impl Sign {
             r5state: None,
             r6state: None,
             r7state: None,
-            in_r1bcasts: FillVec::with_capacity(participant_indices.len()),
-            in_r1p2ps: FillVec::with_capacity(participant_indices.len()),
-            in_r2p2ps: FillVec::with_capacity(participant_indices.len()),
-            in_r3bcasts: FillVec::with_capacity(participant_indices.len()),
-            in_r4bcasts: FillVec::with_capacity(participant_indices.len()),
-            in_r5bcasts: FillVec::with_capacity(participant_indices.len()),
-            in_r6bcasts: FillVec::with_capacity(participant_indices.len()),
-            in_r7bcasts: FillVec::with_capacity(participant_indices.len()),
-            participant_indices,
+            in_r1bcasts: FillVec::with_len(participant_count),
+            in_r1p2ps: FillVec::with_len(participant_count),
+            in_r2p2ps: FillVec::with_len(participant_count),
+            in_r3bcasts: FillVec::with_len(participant_count),
+            in_r4bcasts: FillVec::with_len(participant_count),
+            in_r5bcasts: FillVec::with_len(participant_count),
+            in_r6bcasts: FillVec::with_len(participant_count),
+            in_r7bcasts: FillVec::with_len(participant_count),
+            out_r1bcast: None,
+            out_r1p2ps: None,
+            out_r2p2ps: None,
+            final_output: None,
         }
     }
 }

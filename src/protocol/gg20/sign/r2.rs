@@ -27,10 +27,9 @@ impl Sign {
         // both MtAs use my_ecdsa_nonce_summand, so I use the same message for both
 
         // TODO these variable names are getting ridiculous
-        let mut out_p2ps = FillVec::with_capacity(self.participant_indices.len());
-        let mut my_mta_blind_summands_rhs = FillVec::with_capacity(self.participant_indices.len());
-        let mut my_mta_keyshare_summands_rhs =
-            FillVec::with_capacity(self.participant_indices.len());
+        let mut out_p2ps = FillVec::with_len(self.participant_indices.len());
+        let mut my_mta_blind_summands_rhs = FillVec::with_len(self.participant_indices.len());
+        let mut my_mta_keyshare_summands_rhs = FillVec::with_len(self.participant_indices.len());
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
             if *participant_index == self.my_secret_key_share.my_index {
                 continue;
