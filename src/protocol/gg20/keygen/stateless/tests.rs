@@ -104,7 +104,7 @@ pub fn execute_keygen(share_count: usize, threshold: usize) -> Vec<SecretKeyShar
     // test: verify that the reconstructed secret key yields the public key everyone deduced
     for state in all_r4_states.iter() {
         let test_pubkey = GE::generator() * secret_key_reconstructed;
-        assert_eq!(test_pubkey.get_element(), state.ecdsa_public_key);
+        assert_eq!(test_pubkey, state.ecdsa_public_key);
     }
 
     // print each key share

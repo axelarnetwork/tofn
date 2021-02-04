@@ -6,12 +6,23 @@ use curv::{
     arithmetic::traits::Samplable,
     cryptographic_primitives::commitments::{hash_commitment::HashCommitment, traits::Commitment},
     elliptic::curves::traits::{ECPoint, ECScalar},
-    BigInt, FE, GE,
+    BigInt, FE, GE, PK,
 };
 use paillier::{EncryptWithChosenRandomness, Paillier, Randomness, RawPlaintext};
 
+// TODO isn't there a library for this?
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Signature {}
+pub struct EcdsaSig {
+    pub r: FE,
+    pub s: FE,
+}
+impl EcdsaSig {
+    pub fn verify(&self, pubkey: &GE, msg: &FE) -> bool {
+        let s_inv = self.s.invert();
+        let randomizer = GE::generator() * (*msg * s_inv) + *pubkey * (self.r * s_inv);
+        self.r == ECScalar::from(&randomizer.x_coor().unwrap().mod_floor(&FE::q()))
+    }
+}
 
 enum Status {
     New,

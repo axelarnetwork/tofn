@@ -64,8 +64,10 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], ms
         .iter()
         .map(|p| p.r1state.as_ref().unwrap().my_secret_key_summand)
         .fold(FE::zero(), |acc, x| acc + x);
-    let test_pubkey = GE::generator() * ecdsa_secret_key;
-    assert_eq!(test_pubkey.get_element(), key_shares[0].ecdsa_public_key);
+    let ecdsa_public_key = GE::generator() * ecdsa_secret_key;
+    for key_share in key_shares.iter() {
+        assert_eq!(ecdsa_public_key, key_share.ecdsa_public_key);
+    }
 
     // execute round 2 all participants and store their outputs
     let mut all_r2_p2ps = vec![FillVec::with_capacity(participants.len()); participants.len()];
@@ -157,6 +159,15 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], ms
         participant.in_r5bcasts = all_r5_bcasts.clone();
     }
 
+    // TEST: everyone correctly computed ecdsa_randomizer (R)
+    let randomizer = GE::generator() * nonce.invert();
+    for ecdsa_randomizer in participants
+        .iter()
+        .map(|p| p.r5state.as_ref().unwrap().ecdsa_randomizer)
+    {
+        assert_eq!(ecdsa_randomizer, randomizer);
+    }
+
     // execute round 6 all participants and store their outputs
     let mut all_r6_bcasts = FillVec::with_capacity(participants.len());
     for (i, participant) in participants.iter_mut().enumerate() {
@@ -184,4 +195,23 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], ms
     for participant in participants.iter_mut() {
         participant.in_r7bcasts = all_r7_bcasts.clone();
     }
+
+    // execute round 8 all participants and store their outputs
+    let mut all_sigs = FillVec::with_capacity(participants.len());
+    for (i, participant) in participants.iter_mut().enumerate() {
+        let sig = participant.r8();
+        participant.status = Status::Done;
+        all_sigs.insert(i, sig).unwrap();
+    }
+
+    // TEST: everyone correctly computed the signature
+    let r: FE = ECScalar::from(&randomizer.x_coor().unwrap().mod_floor(&FE::q()));
+    let s = nonce * (msg_to_sign + ecdsa_secret_key * r);
+    for sig in all_sigs.vec_ref().iter().map(|opt| opt.as_ref().unwrap()) {
+        assert_eq!(sig.r, r);
+        assert_eq!(sig.s, s);
+    }
+
+    let sig = EcdsaSig { r, s };
+    assert!(sig.verify(&ecdsa_public_key, &msg_to_sign));
 }

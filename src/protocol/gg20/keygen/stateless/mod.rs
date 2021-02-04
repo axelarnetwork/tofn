@@ -95,7 +95,7 @@ pub struct R3State {
     my_index: usize,
     my_dk: DecryptionKey,
     my_ek: EncryptionKey,
-    ecdsa_public_key: PK,          // the final pub key
+    ecdsa_public_key: GE,          // the final pub key
     my_ecdsa_secret_key_share: FE, // my final secret key share
     all_eks: Vec<EncryptionKey>,
 }
@@ -116,7 +116,7 @@ pub struct SecretKeyShare {
     pub my_dk: DecryptionKey,
     pub my_ek: EncryptionKey,
     pub my_ecdsa_secret_key_share: FE,
-    pub ecdsa_public_key: PK,
+    pub ecdsa_public_key: GE,
     pub all_eks: Vec<EncryptionKey>,
 }
 

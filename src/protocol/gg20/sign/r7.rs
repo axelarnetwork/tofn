@@ -9,11 +9,12 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bcast {
-    ecdsa_sig_summand: FE,
+    pub ecdsa_sig_summand: FE,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub(super) struct State {
-    my_ecdsa_sig_summand: FE,
+    pub(super) r: FE,
+    pub(super) my_ecdsa_sig_summand: FE,
 }
 
 impl Sign {
@@ -30,10 +31,7 @@ impl Sign {
             let in_r6bcast = in_r6bcast.as_ref().unwrap();
             ecdsa_public_key = ecdsa_public_key + in_r6bcast.ecdsa_public_key_check;
         }
-        assert_eq!(
-            ecdsa_public_key.get_element(),
-            self.my_secret_key_share.ecdsa_public_key
-        ); // TODO panic
+        assert_eq!(ecdsa_public_key, self.my_secret_key_share.ecdsa_public_key); // TODO panic
 
         // compute our sig share s_i (aka my_ecdsa_sig_summand) as per phase 7 of 2020/540
         let r1state = self.r1state.as_ref().unwrap();
@@ -51,6 +49,7 @@ impl Sign {
 
         (
             State {
+                r,
                 my_ecdsa_sig_summand,
             },
             Bcast {

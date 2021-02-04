@@ -61,7 +61,7 @@ pub fn execute(
             my_index: state.my_index,
             my_ek: state.my_ek.clone(),
             my_dk: state.my_dk.clone(),
-            ecdsa_public_key: ecdsa_public_key.get_element(),
+            ecdsa_public_key,
             my_ecdsa_secret_key_share: my_secret_key_share,
             all_eks: state.all_eks.clone(),
         },
