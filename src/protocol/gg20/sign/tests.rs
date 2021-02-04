@@ -8,6 +8,7 @@ use curv::{
     arithmetic::traits::Converter,
     cryptographic_primitives::secret_sharing::feldman_vss::{ShamirSecretSharing, VerifiableSS},
     elliptic::curves::traits::{ECPoint, ECScalar},
+    BigInt,
 };
 use keygen::stateless::tests::execute_keygen;
 
@@ -15,13 +16,14 @@ use keygen::stateless::tests::execute_keygen;
 fn sign() {
     let key_shares = execute_keygen(5, 2);
     let participant_indices = vec![1, 2, 4];
-    execute_sign(&key_shares, &participant_indices);
+    let msg_to_sign: FE = ECScalar::from(&BigInt::from(42));
+    execute_sign(&key_shares, &participant_indices, msg_to_sign);
 }
 
-fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize]) {
+fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], msg_to_sign: FE) {
     let mut participants: Vec<Sign> = participant_indices
         .iter()
-        .map(|i| Sign::new(&key_shares[*i], participant_indices))
+        .map(|i| Sign::new(&key_shares[*i], participant_indices, msg_to_sign))
         .collect();
 
     // TEST: indices are correct
@@ -99,7 +101,7 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize]) {
         participant.in_r3bcasts = all_r3_bcasts.clone();
     }
 
-    // TEST: MtA for nonce_x_blind (delta_i), nonce_x_keyshare (sigma_i)
+    // TEST: MtA for nonce_x_blind (delta_i), nonce_x_secret_key (sigma_i)
     let nonce = participants
         .iter()
         .map(|p| p.r1state.as_ref().unwrap().my_ecdsa_nonce_summand)
@@ -113,11 +115,11 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize]) {
         .map(|p| p.r3state.as_ref().unwrap().my_nonce_x_blind_summand)
         .fold(FE::zero(), |acc, x| acc + x);
     assert_eq!(nonce_x_blind, nonce * blind);
-    let nonce_x_keyshare = participants
+    let nonce_x_secret_key = participants
         .iter()
         .map(|p| p.r3state.as_ref().unwrap().my_nonce_x_keyshare_summand)
         .fold(FE::zero(), |acc, x| acc + x);
-    assert_eq!(nonce_x_keyshare, nonce * ecdsa_secret_key);
+    assert_eq!(nonce_x_secret_key, nonce * ecdsa_secret_key);
 
     // execute round 4 all participants and store their outputs
     let mut all_r4_bcasts = FillVec::with_capacity(participants.len());
@@ -178,7 +180,7 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize]) {
         all_r7_bcasts.insert(i, bcast).unwrap();
     }
 
-    // deliver round 6 msgs
+    // deliver round 7 msgs
     for participant in participants.iter_mut() {
         participant.in_r7bcasts = all_r7_bcasts.clone();
     }

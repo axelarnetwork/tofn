@@ -10,6 +10,9 @@ use curv::{
 };
 use paillier::{EncryptWithChosenRandomness, Paillier, Randomness, RawPlaintext};
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Signature {}
+
 enum Status {
     New,
     R1,
@@ -29,6 +32,7 @@ mod r4;
 mod r5;
 mod r6;
 mod r7;
+mod r8;
 
 pub struct Sign {
     status: Status,
@@ -36,6 +40,7 @@ pub struct Sign {
     // state data
     my_secret_key_share: SecretKeyShare,
     participant_indices: Vec<usize>,
+    msg_to_sign: FE,             // not used until round 7
     my_participant_index: usize, // participant_indices[my_participant_index] == my_secret_key_share.my_index
     r1state: Option<r1::State>,
     r2state: Option<r2::State>,
@@ -61,7 +66,11 @@ pub struct Sign {
 }
 
 impl Sign {
-    pub fn new(my_secret_key_share: &SecretKeyShare, participant_indices: &[usize]) -> Self {
+    pub fn new(
+        my_secret_key_share: &SecretKeyShare,
+        participant_indices: &[usize],
+        msg_to_sign: FE,
+    ) -> Self {
         // TODO check participant_indices for length and duplicates
         // validate_params(share_count, threshold, my_index).unwrap();
         let participant_indices = participant_indices.to_vec();
@@ -73,6 +82,7 @@ impl Sign {
             status: Status::New,
             my_secret_key_share: my_secret_key_share.clone(),
             my_participant_index,
+            msg_to_sign,
             r1state: None,
             r2state: None,
             r3state: None,
