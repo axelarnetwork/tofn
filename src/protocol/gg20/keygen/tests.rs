@@ -1,5 +1,13 @@
 use super::*;
-use crate::protocol::tests::{execute_protocol_vec, TEST_CASES, TEST_CASES_INVALID};
+use crate::protocol::tests::execute_protocol_vec;
+
+// pub const TEST_CASES: [(usize, usize); 5] // (share_count, threshold)
+//     = [(5, 0), (5, 1), (5, 3), (5, 4), (20,10)];
+pub const TEST_CASES: [(usize, usize); 1] // (share_count, threshold)
+    = [(5, 3)];
+
+pub const TEST_CASES_INVALID: [(usize, usize); 3] // (share_count, threshold)
+    = [(5, 5), (5, 6), (2, 4)];
 
 #[test]
 fn keygen() {

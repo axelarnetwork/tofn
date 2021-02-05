@@ -1,7 +1,8 @@
 use super::*;
 use crate::protocol::{
     gg20::keygen::{self, SecretKeyShare},
-    tests,
+    tests::{self, execute_protocol_vec},
+    Protocol,
 };
 use curv::{
     // FE, // rustc does not warn of unused imports for FE
@@ -12,12 +13,21 @@ use curv::{
 };
 use keygen::stateless::tests::execute_keygen;
 
+lazy_static::lazy_static! {
+    static ref MSG_TO_SIGN: FE = ECScalar::from(&BigInt::from(42));
+    static ref TEST_CASES: Vec<(usize, usize, Vec<usize>)> = vec![(5, 2, vec![1, 2, 4]),]; // (share_count, threshold, participant_indices)
+}
+
+// pub const TEST_CASES_INVALID: [(usize, usize); 3] // (share_count, threshold)
+//     = [(5, 5), (5, 6), (2, 4)];
+
 #[test]
 fn sign() {
-    let key_shares = execute_keygen(5, 2);
-    let participant_indices = vec![1, 2, 4];
     let msg_to_sign: FE = ECScalar::from(&BigInt::from(42));
-    execute_sign(&key_shares, &participant_indices, msg_to_sign);
+    for (share_count, threshold, participant_indices) in TEST_CASES.iter() {
+        let key_shares = execute_keygen(*share_count, *threshold);
+        execute_sign(&key_shares, participant_indices, msg_to_sign);
+    }
 }
 
 fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], msg_to_sign: FE) {
@@ -218,9 +228,18 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], ms
 
 #[test]
 fn sign_protocol() {
-    let key_shares = execute_keygen(5, 2);
-    let participant_indices = vec![1, 2, 4];
-    let msg_to_sign: FE = ECScalar::from(&BigInt::from(42));
+    for (share_count, threshold, participant_indices) in TEST_CASES.iter() {
+        let key_shares = execute_keygen(*share_count, *threshold);
 
-    // let mut sign_protocols: Vec<Sign> = participant_indices.iter().map(|i| Sign::new(my_secret_key_share, participant_indices, msg_to_sign))
+        // keep it on the stack: avoid use of Box<dyn Protocol> https://doc.rust-lang.org/book/ch17-02-trait-objects.html
+        let mut participants: Vec<Sign> = participant_indices
+            .iter()
+            .map(|i| Sign::new(&key_shares[*i], &participant_indices, *MSG_TO_SIGN))
+            .collect();
+        let mut protocols: Vec<&mut dyn Protocol> = participants
+            .iter_mut()
+            .map(|p| p as &mut dyn Protocol)
+            .collect();
+        execute_protocol_vec(&mut protocols);
+    }
 }

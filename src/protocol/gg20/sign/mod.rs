@@ -76,6 +76,11 @@ pub struct Sign {
     out_r1bcast: Option<MsgBytes>,
     out_r1p2ps: Option<Vec<Option<MsgBytes>>>,
     out_r2p2ps: Option<Vec<Option<MsgBytes>>>,
+    out_r3bcast: Option<MsgBytes>,
+    out_r4bcast: Option<MsgBytes>,
+    out_r5bcast: Option<MsgBytes>,
+    out_r6bcast: Option<MsgBytes>,
+    out_r7bcast: Option<MsgBytes>,
     final_output: Option<EcdsaSig>,
 }
 
@@ -117,6 +122,11 @@ impl Sign {
             out_r1bcast: None,
             out_r1p2ps: None,
             out_r2p2ps: None,
+            out_r3bcast: None,
+            out_r4bcast: None,
+            out_r5bcast: None,
+            out_r6bcast: None,
+            out_r7bcast: None,
             final_output: None,
         }
     }

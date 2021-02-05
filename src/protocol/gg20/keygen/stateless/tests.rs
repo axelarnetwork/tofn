@@ -1,5 +1,6 @@
+use crate::protocol::gg20::keygen::tests::{TEST_CASES, TEST_CASES_INVALID};
+
 use super::*;
-use crate::protocol::tests::{TEST_CASES, TEST_CASES_INVALID};
 use curv::{
     // FE, // rustc does not warn of unused imports for FE
     cryptographic_primitives::secret_sharing::feldman_vss::{ShamirSecretSharing, VerifiableSS},
