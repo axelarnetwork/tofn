@@ -1,7 +1,6 @@
 use crate::{
     fillvec::FillVec,
-    protocol::gg20::validate_params,
-    protocol::{MsgBytes, Protocol, Result},
+    protocol::{MsgBytes, Protocol, ProtocolResult},
 };
 use serde::{Deserialize, Serialize};
 
@@ -55,9 +54,9 @@ pub struct Keygen {
 }
 
 impl Keygen {
-    pub fn new(share_count: usize, threshold: usize, my_index: usize) -> Self {
-        validate_params(share_count, threshold, my_index).unwrap();
-        Self {
+    pub fn new(share_count: usize, threshold: usize, my_index: usize) -> Result<Self, ParamsError> {
+        validate_params(share_count, threshold, my_index)?;
+        Ok(Self {
             state: New,
             share_count,
             threshold,
@@ -71,7 +70,7 @@ impl Keygen {
             in_r2bcasts: FillVec::with_len(share_count),
             in_r2p2ps: FillVec::with_len(share_count),
             in_r3bcasts: FillVec::with_len(share_count),
-        }
+        })
     }
     pub fn get_result(&self) -> Option<&SecretKeyShare> {
         self.final_output.as_ref()
@@ -79,7 +78,7 @@ impl Keygen {
 }
 
 impl Protocol for Keygen {
-    fn next_round(&mut self) -> Result {
+    fn next_round(&mut self) -> ProtocolResult {
         if self.expecting_more_msgs_this_round() {
             return Err(From::from("can't prceed yet"));
         }
@@ -139,7 +138,7 @@ impl Protocol for Keygen {
         Ok(())
     }
 
-    fn set_msg_in(&mut self, msg: &[u8]) -> Result {
+    fn set_msg_in(&mut self, msg: &[u8]) -> ProtocolResult {
         // TODO match self.state
         // TODO refactor repeated code
         let msg_meta: MsgMeta = bincode::deserialize(msg)?;
@@ -193,6 +192,43 @@ impl Protocol for Keygen {
 
     fn done(&self) -> bool {
         matches!(self.state, Done)
+    }
+}
+
+// validate_params helper with custom error type
+// TODO enforce a maximum share_count?
+pub fn validate_params(
+    share_count: usize,
+    threshold: usize,
+    index: usize,
+) -> Result<(), ParamsError> {
+    if threshold >= share_count {
+        return Err(ParamsError::InvalidThreshold(share_count, threshold));
+    }
+    if index >= share_count {
+        return Err(ParamsError::InvalidThreshold(share_count, index));
+    }
+    Ok(())
+}
+#[derive(Debug)]
+pub enum ParamsError {
+    InvalidThreshold(usize, usize), // (share_count, threshold)
+    InvalidIndex(usize, usize),     // (share_count, index)
+}
+
+impl std::error::Error for ParamsError {}
+impl std::fmt::Display for ParamsError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            ParamsError::InvalidThreshold(share_count, threshold) => write!(
+                f,
+                "invalid threshold {} for share_count {}",
+                threshold, share_count
+            ),
+            ParamsError::InvalidIndex(share_count, index) => {
+                write!(f, "invalid index {} for share_count {}", index, share_count)
+            }
+        }
     }
 }
 

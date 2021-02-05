@@ -89,16 +89,11 @@ impl Sign {
         my_secret_key_share: &SecretKeyShare,
         participant_indices: &[usize],
         msg_to_sign: FE,
-    ) -> Self {
-        // TODO check participant_indices for length and duplicates
-        // validate_params(share_count, threshold, my_index).unwrap();
+    ) -> Result<Self, ParamsError> {
+        let (participant_indices, my_participant_index) =
+            validate_params(my_secret_key_share, participant_indices)?;
         let participant_count = participant_indices.len();
-        let participant_indices = participant_indices.to_vec();
-        let my_participant_index = participant_indices
-            .iter()
-            .position(|&i| i == my_secret_key_share.my_index)
-            .unwrap(); // TODO panic
-        Self {
+        Ok(Self {
             status: Status::New,
             my_secret_key_share: my_secret_key_share.clone(),
             participant_indices,
@@ -128,6 +123,90 @@ impl Sign {
             out_r6bcast: None,
             out_r7bcast: None,
             final_output: None,
+        })
+    }
+}
+
+/// validate_params helper with custom error type
+/// Assume `secret_key_share` is valid and check `participant_indices` against it.
+/// Returns sorted `participant_indices` and my participant index in that list.
+pub fn validate_params(
+    secret_key_share: &SecretKeyShare,
+    participant_indices: &[usize],
+) -> Result<(Vec<usize>, usize), ParamsError> {
+    // participant count must be exactly threshold + 1
+    let t_plus_1 = secret_key_share.threshold + 1;
+    if participant_indices.len() != t_plus_1 {
+        return Err(ParamsError::InvalidParticipantCount(
+            t_plus_1,
+            participant_indices.len(),
+        ));
+    }
+
+    // check for duplicate party ids
+    let old_len = participant_indices.len();
+    let mut participant_indices = participant_indices.to_vec();
+    participant_indices.sort_unstable();
+    participant_indices.dedup();
+    if participant_indices.len() != old_len {
+        return Err(ParamsError::DuplicateIndices(
+            old_len - participant_indices.len(),
+        ));
+    }
+
+    // check that indices are within range
+    // participant_indices is now sorted and has len > 0, so we need only check the final index
+    let max_index = *participant_indices.last().unwrap();
+    if max_index >= secret_key_share.share_count {
+        return Err(ParamsError::InvalidParticipantIndex(
+            secret_key_share.share_count - 1,
+            max_index,
+        ));
+    }
+
+    // check that my index is in the list
+    let my_participant_index = participant_indices
+        .iter()
+        .position(|&i| i == secret_key_share.my_index);
+    if my_participant_index.is_none() {
+        return Err(ParamsError::ImNotAParticipant(secret_key_share.my_index));
+    }
+
+    Ok((participant_indices, my_participant_index.unwrap()))
+}
+
+#[derive(Debug)]
+pub enum ParamsError {
+    DuplicateIndices(usize),               // dup_count
+    InvalidParticipantCount(usize, usize), // (expect, actual)
+    InvalidParticipantIndex(usize, usize), // (max, invalid_index)
+    ImNotAParticipant(usize),              // my_index
+}
+
+impl std::error::Error for ParamsError {}
+impl std::fmt::Display for ParamsError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            ParamsError::DuplicateIndices(dup_count) => {
+                write!(f, "{} duplicate participant indices detected", dup_count)
+            }
+            ParamsError::InvalidParticipantCount(expect, actual) => {
+                write!(
+                    f,
+                    "invalid participant count: expect: {}, actual: {}",
+                    expect, actual
+                )
+            }
+            ParamsError::InvalidParticipantIndex(max, invalid_index) => {
+                write!(
+                    f,
+                    "invalid participant index: max: {}, found: {}",
+                    max, invalid_index
+                )
+            }
+            ParamsError::ImNotAParticipant(my_index) => {
+                write!(f, "my_index {} not found in participant_indices", my_index)
+            }
         }
     }
 }

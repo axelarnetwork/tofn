@@ -19,5 +19,3 @@ zk-paillier = { git = "https://github.com/KZen-networks/zk-paillier", tag = "v0.
 
 [dev-dependencies]
 lazy_static = "1.4"
-# serde_json = "1.0"
-# rand = "0.7"

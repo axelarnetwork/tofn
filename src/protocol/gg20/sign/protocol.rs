@@ -1,7 +1,7 @@
 use super::{Sign, Status::*};
 use crate::{
     fillvec::FillVec,
-    protocol::{MsgBytes, Protocol, Result},
+    protocol::{MsgBytes, Protocol, ProtocolResult},
 };
 use serde::{Deserialize, Serialize};
 
@@ -26,7 +26,7 @@ struct MsgMeta {
 }
 
 impl Protocol for Sign {
-    fn next_round(&mut self) -> Result {
+    fn next_round(&mut self) -> ProtocolResult {
         if self.expecting_more_msgs_this_round() {
             return Err(From::from("can't prceed yet"));
         }
@@ -134,7 +134,7 @@ impl Protocol for Sign {
         Ok(())
     }
 
-    fn set_msg_in(&mut self, msg: &[u8]) -> Result {
+    fn set_msg_in(&mut self, msg: &[u8]) -> ProtocolResult {
         // TODO match self.status
         // TODO refactor repeated code
         let msg_meta: MsgMeta = bincode::deserialize(msg)?;

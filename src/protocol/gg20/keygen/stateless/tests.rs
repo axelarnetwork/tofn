@@ -9,13 +9,14 @@ use curv::{
 
 #[test]
 fn keygen() {
-    for &(share_count, threshold) in &TEST_CASES {
+    for &(share_count, threshold) in TEST_CASES.iter() {
         execute_keygen(share_count, threshold);
     }
 
+    // TODO refactor so there's no need to catch panics
     // silence terminal output from catch_unwind https://stackoverflow.com/questions/35559267/suppress-panic-output-in-rust-when-using-paniccatch-unwind/35559417#35559417
     std::panic::set_hook(Box::new(|_| {}));
-    for &(share_count, threshold) in &TEST_CASES_INVALID {
+    for &(share_count, threshold) in TEST_CASES_INVALID.iter() {
         assert!(std::panic::catch_unwind(|| execute_keygen(share_count, threshold)).is_err());
     }
 }

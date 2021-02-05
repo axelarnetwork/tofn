@@ -1,13 +1,10 @@
 use super::*;
 use crate::protocol::{
     gg20::keygen::{self, SecretKeyShare},
-    tests::{self, execute_protocol_vec},
+    tests::execute_protocol_vec,
     Protocol,
 };
 use curv::{
-    // FE, // rustc does not warn of unused imports for FE
-    arithmetic::traits::Converter,
-    cryptographic_primitives::secret_sharing::feldman_vss::{ShamirSecretSharing, VerifiableSS},
     elliptic::curves::traits::{ECPoint, ECScalar},
     BigInt,
 };
@@ -16,10 +13,8 @@ use keygen::stateless::tests::execute_keygen;
 lazy_static::lazy_static! {
     static ref MSG_TO_SIGN: FE = ECScalar::from(&BigInt::from(42));
     static ref TEST_CASES: Vec<(usize, usize, Vec<usize>)> = vec![(5, 2, vec![1, 2, 4]),]; // (share_count, threshold, participant_indices)
+    // TODO add TEST_CASES_INVALID
 }
-
-// pub const TEST_CASES_INVALID: [(usize, usize); 3] // (share_count, threshold)
-//     = [(5, 5), (5, 6), (2, 4)];
 
 #[test]
 fn sign() {
@@ -33,13 +28,13 @@ fn sign() {
 fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], msg_to_sign: FE) {
     let mut participants: Vec<Sign> = participant_indices
         .iter()
-        .map(|i| Sign::new(&key_shares[*i], participant_indices, msg_to_sign))
+        .map(|i| Sign::new(&key_shares[*i], participant_indices, msg_to_sign).unwrap())
         .collect();
 
     // TEST: indices are correct
     for p in participants.iter() {
         assert_eq!(
-            participant_indices[p.my_participant_index],
+            p.participant_indices[p.my_participant_index],
             p.my_secret_key_share.my_index
         );
     }
@@ -234,7 +229,7 @@ fn sign_protocol() {
         // keep it on the stack: avoid use of Box<dyn Protocol> https://doc.rust-lang.org/book/ch17-02-trait-objects.html
         let mut participants: Vec<Sign> = participant_indices
             .iter()
-            .map(|i| Sign::new(&key_shares[*i], &participant_indices, *MSG_TO_SIGN))
+            .map(|i| Sign::new(&key_shares[*i], &participant_indices, *MSG_TO_SIGN).unwrap())
             .collect();
         let mut protocols: Vec<&mut dyn Protocol> = participants
             .iter_mut()
