@@ -215,3 +215,12 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], ms
     let sig = EcdsaSig { r, s };
     assert!(sig.verify(&ecdsa_public_key, &msg_to_sign));
 }
+
+#[test]
+fn sign_protocol() {
+    let key_shares = execute_keygen(5, 2);
+    let participant_indices = vec![1, 2, 4];
+    let msg_to_sign: FE = ECScalar::from(&BigInt::from(42));
+
+    // let mut sign_protocols: Vec<Sign> = participant_indices.iter().map(|i| Sign::new(my_secret_key_share, participant_indices, msg_to_sign))
+}

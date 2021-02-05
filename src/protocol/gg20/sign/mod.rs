@@ -21,6 +21,8 @@ impl EcdsaSig {
     }
 }
 
+mod protocol;
+
 enum Status {
     New,
     R1,
