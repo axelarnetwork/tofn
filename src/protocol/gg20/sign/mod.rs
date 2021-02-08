@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{fillvec::FillVec, protocol::MsgBytes};
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
-    FE, GE,
+    BigInt, FE, GE,
 };
 
 // TODO isn't there a library for this?
@@ -88,11 +88,12 @@ impl Sign {
     pub fn new(
         my_secret_key_share: &SecretKeyShare,
         participant_indices: &[usize],
-        msg_to_sign: FE,
+        msg_to_sign: &[u8],
     ) -> Result<Self, ParamsError> {
         let (participant_indices, my_participant_index) =
             validate_params(my_secret_key_share, participant_indices)?;
         let participant_count = participant_indices.len();
+        let msg_to_sign: FE = ECScalar::from(&BigInt::from(msg_to_sign));
         Ok(Self {
             status: Status::New,
             my_secret_key_share: my_secret_key_share.clone(),

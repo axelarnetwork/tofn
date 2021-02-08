@@ -11,21 +11,20 @@ use curv::{
 use keygen::stateless::tests::execute_keygen;
 
 lazy_static::lazy_static! {
-    static ref MSG_TO_SIGN: FE = ECScalar::from(&BigInt::from(42));
+    static ref MSG_TO_SIGN: Vec<u8> = vec![42];
     static ref TEST_CASES: Vec<(usize, usize, Vec<usize>)> = vec![(5, 2, vec![1, 2, 4]),]; // (share_count, threshold, participant_indices)
     // TODO add TEST_CASES_INVALID
 }
 
 #[test]
 fn sign() {
-    let msg_to_sign: FE = ECScalar::from(&BigInt::from(42));
     for (share_count, threshold, participant_indices) in TEST_CASES.iter() {
         let key_shares = execute_keygen(*share_count, *threshold);
-        execute_sign(&key_shares, participant_indices, msg_to_sign);
+        execute_sign(&key_shares, participant_indices, &MSG_TO_SIGN);
     }
 }
 
-fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], msg_to_sign: FE) {
+fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], msg_to_sign: &[u8]) {
     let mut participants: Vec<Sign> = participant_indices
         .iter()
         .map(|i| Sign::new(&key_shares[*i], participant_indices, msg_to_sign).unwrap())
@@ -210,6 +209,7 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], ms
     }
 
     // TEST: everyone correctly computed the signature
+    let msg_to_sign = ECScalar::from(&BigInt::from(msg_to_sign));
     let r: FE = ECScalar::from(&randomizer.x_coor().unwrap().mod_floor(&FE::q()));
     let s = nonce * (msg_to_sign + ecdsa_secret_key * r);
     for sig in all_sigs.vec_ref().iter().map(|opt| opt.as_ref().unwrap()) {
@@ -229,7 +229,7 @@ fn sign_protocol() {
         // keep it on the stack: avoid use of Box<dyn Protocol> https://doc.rust-lang.org/book/ch17-02-trait-objects.html
         let mut participants: Vec<Sign> = participant_indices
             .iter()
-            .map(|i| Sign::new(&key_shares[*i], &participant_indices, *MSG_TO_SIGN).unwrap())
+            .map(|i| Sign::new(&key_shares[*i], &participant_indices, &MSG_TO_SIGN).unwrap())
             .collect();
         let mut protocols: Vec<&mut dyn Protocol> = participants
             .iter_mut()

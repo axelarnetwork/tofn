@@ -1,5 +1,5 @@
 pub type MsgBytes = Vec<u8>;
-pub type ProtocolResult = std::result::Result<(), Box<dyn std::error::Error>>; // TODO custom error type
+pub type ProtocolResult = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>; // TODO custom error type
 
 pub trait Protocol {
     fn next_round(&mut self) -> ProtocolResult;

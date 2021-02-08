@@ -5,6 +5,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 
 pub mod stateless; // TODO not pub
+pub use curv::elliptic::curves::traits::{ECPoint, ECScalar};
 pub use stateless::SecretKeyShare;
 use stateless::*;
 
