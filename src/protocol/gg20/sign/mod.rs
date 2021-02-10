@@ -126,6 +126,9 @@ impl Sign {
             final_output: None,
         })
     }
+    pub fn get_result(&self) -> Option<&EcdsaSig> {
+        self.final_output.as_ref()
+    }
 }
 
 /// validate_params helper with custom error type
