@@ -138,9 +138,8 @@ pub fn validate_params(
     secret_key_share: &SecretKeyShare,
     participant_indices: &[usize],
 ) -> Result<(Vec<usize>, usize), ParamsError> {
-    // participant count must be exactly threshold + 1
     let t_plus_1 = secret_key_share.threshold + 1;
-    if participant_indices.len() != t_plus_1 {
+    if participant_indices.len() < t_plus_1 {
         return Err(ParamsError::InvalidParticipantCount(
             t_plus_1,
             participant_indices.len(),

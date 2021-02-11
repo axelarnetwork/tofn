@@ -12,7 +12,10 @@ use keygen::stateless::tests::execute_keygen;
 
 lazy_static::lazy_static! {
     static ref MSG_TO_SIGN: Vec<u8> = vec![42];
-    static ref TEST_CASES: Vec<(usize, usize, Vec<usize>)> = vec![(5, 2, vec![1, 2, 4]),]; // (share_count, threshold, participant_indices)
+    static ref TEST_CASES: Vec<(usize, usize, Vec<usize>)> = vec![ // (share_count, threshold, participant_indices)
+        (5, 2, vec![1,2,4]),
+        (5, 2, vec![0,1,2,3,4]),
+    ];
     // TODO add TEST_CASES_INVALID
 }
 
