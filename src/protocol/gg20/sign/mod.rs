@@ -90,14 +90,13 @@ impl Sign {
         participant_indices: &[usize],
         msg_to_sign: &[u8],
     ) -> Result<Self, ParamsError> {
-        let (participant_indices, my_participant_index) =
-            validate_params(my_secret_key_share, participant_indices)?;
+        let my_participant_index = validate_params(my_secret_key_share, participant_indices)?;
         let participant_count = participant_indices.len();
         let msg_to_sign: FE = ECScalar::from(&BigInt::from(msg_to_sign));
         Ok(Self {
             status: Status::New,
             my_secret_key_share: my_secret_key_share.clone(),
-            participant_indices,
+            participant_indices: participant_indices.to_vec(),
             my_participant_index,
             msg_to_sign,
             r1state: None,
@@ -133,37 +132,17 @@ impl Sign {
 
 /// validate_params helper with custom error type
 /// Assume `secret_key_share` is valid and check `participant_indices` against it.
-/// Returns sorted `participant_indices` and my participant index in that list.
+/// Returns my index in participant_indices.
 pub fn validate_params(
     secret_key_share: &SecretKeyShare,
     participant_indices: &[usize],
-) -> Result<(Vec<usize>, usize), ParamsError> {
+) -> Result<usize, ParamsError> {
+    // number of participants must be at least threshold + 1
     let t_plus_1 = secret_key_share.threshold + 1;
     if participant_indices.len() < t_plus_1 {
         return Err(ParamsError::InvalidParticipantCount(
             t_plus_1,
             participant_indices.len(),
-        ));
-    }
-
-    // check for duplicate party ids
-    let old_len = participant_indices.len();
-    let mut participant_indices = participant_indices.to_vec();
-    participant_indices.sort_unstable();
-    participant_indices.dedup();
-    if participant_indices.len() != old_len {
-        return Err(ParamsError::DuplicateIndices(
-            old_len - participant_indices.len(),
-        ));
-    }
-
-    // check that indices are within range
-    // participant_indices is now sorted and has len > 0, so we need only check the final index
-    let max_index = *participant_indices.last().unwrap();
-    if max_index >= secret_key_share.share_count {
-        return Err(ParamsError::InvalidParticipantIndex(
-            secret_key_share.share_count - 1,
-            max_index,
         ));
     }
 
@@ -175,7 +154,27 @@ pub fn validate_params(
         return Err(ParamsError::ImNotAParticipant(secret_key_share.my_index));
     }
 
-    Ok((participant_indices, my_participant_index.unwrap()))
+    // check for duplicate party ids
+    let mut participant_indices_dedup = participant_indices.to_vec();
+    participant_indices_dedup.sort_unstable();
+    participant_indices_dedup.dedup();
+    if participant_indices_dedup.len() != participant_indices.len() {
+        return Err(ParamsError::DuplicateIndices(
+            participant_indices.len() - participant_indices_dedup.len(),
+        ));
+    }
+
+    // check that indices are within range
+    // participant_indices_dedup is now sorted and has len > 0, so we need only check the final index
+    let max_index = *participant_indices_dedup.last().unwrap();
+    if max_index >= secret_key_share.share_count {
+        return Err(ParamsError::InvalidParticipantIndex(
+            secret_key_share.share_count - 1,
+            max_index,
+        ));
+    }
+
+    Ok(my_participant_index.unwrap())
 }
 
 #[derive(Debug)]
