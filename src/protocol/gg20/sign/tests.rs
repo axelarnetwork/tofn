@@ -17,6 +17,7 @@ lazy_static::lazy_static! {
         // (5, 2, vec![4,1,2]),
         // (5, 2, vec![0,1,2,3]),
         (5, 2, vec![4,2,3,1,0]),
+        (1,0,vec![0]),
     ];
     // TODO add TEST_CASES_INVALID
 }
