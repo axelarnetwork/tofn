@@ -215,3 +215,6 @@ impl std::fmt::Display for ParamsError {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod k256;

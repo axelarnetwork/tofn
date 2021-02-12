@@ -19,3 +19,4 @@ zk-paillier = { git = "https://github.com/KZen-networks/zk-paillier", tag = "v0.
 
 [dev-dependencies]
 lazy_static = "1.4"
+k256 = { version = "0", features = ["ecdsa"] }
