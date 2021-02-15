@@ -8,6 +8,7 @@ use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     BigInt,
 };
+use k256::{ecdsa::Signature, FieldBytes};
 use keygen::stateless::tests::execute_keygen;
 
 lazy_static::lazy_static! {
@@ -217,10 +218,18 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], ms
     // TEST: everyone correctly computed the signature
     let msg_to_sign = ECScalar::from(&BigInt::from(msg_to_sign));
     let r: FE = ECScalar::from(&randomizer.x_coor().unwrap().mod_floor(&FE::q()));
-    let s = nonce * (msg_to_sign + ecdsa_secret_key * r);
-    for sig in all_sigs.vec_ref().iter().map(|opt| opt.as_ref().unwrap()) {
-        assert_eq!(sig.r, r);
-        assert_eq!(sig.s, s);
+    let s: FE = nonce * (msg_to_sign + ecdsa_secret_key * r);
+    for sig in all_sigs
+        .vec_ref()
+        .iter()
+        .map(|opt| Signature::from_asn1(opt.as_ref().unwrap().as_bytes()).unwrap())
+    {
+        let (sig_r, sig_s) = (sig.r(), sig.s());
+        let (sig_r, sig_s): (FieldBytes, FieldBytes) = (From::from(sig_r), From::from(sig_s));
+        let (sig_r, sig_s) = (sig_r.as_slice(), sig_s.as_slice());
+        let (sig_r, sig_s): (BigInt, BigInt) = (BigInt::from(sig_r), BigInt::from(sig_s));
+        assert_eq!(sig_r, r.to_big_int());
+        assert_eq!(sig_s, s.to_big_int());
     }
 
     let sig = EcdsaSig { r, s };

@@ -13,8 +13,10 @@ use curv::{
 // };
 use k256::{
     ecdsa::{
+        // recoverable::Signature,
         signature::{DigestSigner, RandomizedDigestSigner, Signer},
-        Signature, SigningKey,
+        Signature,
+        SigningKey,
     },
     FieldBytes, SecretKey,
 };
@@ -42,6 +44,9 @@ fn k256() -> Result<(), Box<(dyn std::error::Error + Send + Sync + 'static)>> {
     let (r, s): (&[u8], &[u8]) = (&r, &s);
     let (r, s): (FieldBytes, FieldBytes) = (*FieldBytes::from_slice(r), *FieldBytes::from_slice(s));
     let ksig = Signature::from_scalars(r, s)?;
+    let der_sig = ksig.to_asn1();
+    let der_bytes = der_sig.as_bytes();
+    println!("serialized sig: {:?}", der_bytes);
     let (r, s) = (ksig.r(), ksig.s());
     let (r, s): (FieldBytes, FieldBytes) = (From::from(r), From::from(s));
     let (r, s) = (r.as_slice(), s.as_slice());

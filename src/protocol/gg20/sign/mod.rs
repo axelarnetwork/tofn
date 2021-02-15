@@ -6,8 +6,9 @@ use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     BigInt, FE, GE,
 };
+use k256::ecdsa::Asn1Signature;
 
-// TODO isn't there a library for this?
+// TODO isn't there a library for this? Yes. It's called k256.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EcdsaSig {
     pub r: FE,
@@ -81,7 +82,7 @@ pub struct Sign {
     out_r5bcast: Option<MsgBytes>,
     out_r6bcast: Option<MsgBytes>,
     out_r7bcast: Option<MsgBytes>,
-    final_output: Option<EcdsaSig>,
+    final_output: Option<Asn1Signature>,
 }
 
 impl Sign {
@@ -125,7 +126,7 @@ impl Sign {
             final_output: None,
         })
     }
-    pub fn get_result(&self) -> Option<&EcdsaSig> {
+    pub fn get_result(&self) -> Option<&Asn1Signature> {
         self.final_output.as_ref()
     }
 }
@@ -217,4 +218,4 @@ impl std::fmt::Display for ParamsError {
 mod tests;
 
 #[cfg(test)]
-mod k256;
+mod k256_tests;
