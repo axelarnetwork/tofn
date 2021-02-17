@@ -9,6 +9,21 @@ pub use curv::elliptic::curves::traits::{ECPoint, ECScalar};
 pub use stateless::SecretKeyShare;
 use stateless::*;
 
+enum Status {
+    New,
+    R1,
+    R2,
+    R3,
+    Done,
+}
+
+mod protocol;
+mod r1;
+// mod r2;
+// mod r3;
+// mod r4;
+
+// OLD
 #[allow(clippy::large_enum_variant)]
 enum State {
     New,
@@ -33,12 +48,22 @@ struct MsgMeta {
     payload: MsgBytes,
 }
 pub struct Keygen {
-    state: State,
+    status: Status,
+    state: State, // OLD
 
-    // protocol-wide data
+    // state data
     share_count: usize,
     threshold: usize,
     my_index: usize,
+    r1state: Option<r1::State>,
+    // r2state: Option<r2::State>,
+    // r3state: Option<r3::State>,
+
+    // incoming messages
+    in_r1bcasts: FillVec<R1Bcast>,
+    in_r2bcasts: FillVec<R2Bcast>,
+    in_r2p2ps: FillVec<R2P2p>,
+    in_r3bcasts: FillVec<R3Bcast>,
 
     // outgoing/incoming messages
     // initialized to `None`, filled as the protocol progresses
@@ -47,152 +72,33 @@ pub struct Keygen {
     out_r2p2ps: Option<Vec<Option<MsgBytes>>>,
     out_r3bcast: Option<MsgBytes>,
     final_output: Option<SecretKeyShare>,
-
-    in_r1bcasts: FillVec<R1Bcast>,
-    in_r2bcasts: FillVec<R2Bcast>,
-    in_r2p2ps: FillVec<R2P2p>,
-    in_r3bcasts: FillVec<R3Bcast>,
 }
 
 impl Keygen {
     pub fn new(share_count: usize, threshold: usize, my_index: usize) -> Result<Self, ParamsError> {
         validate_params(share_count, threshold, my_index)?;
         Ok(Self {
+            status: Status::New,
             state: New,
             share_count,
             threshold,
             my_index,
+            r1state: None,
+            // r2state: None,
+            // r3state: None,
+            in_r1bcasts: FillVec::with_len(share_count),
+            in_r2bcasts: FillVec::with_len(share_count),
+            in_r2p2ps: FillVec::with_len(share_count),
+            in_r3bcasts: FillVec::with_len(share_count),
             out_r1bcast: None,
             out_r2bcast: None,
             out_r2p2ps: None,
             out_r3bcast: None,
             final_output: None,
-            in_r1bcasts: FillVec::with_len(share_count),
-            in_r2bcasts: FillVec::with_len(share_count),
-            in_r2p2ps: FillVec::with_len(share_count),
-            in_r3bcasts: FillVec::with_len(share_count),
         })
     }
     pub fn get_result(&self) -> Option<&SecretKeyShare> {
         self.final_output.as_ref()
-    }
-}
-
-impl Protocol for Keygen {
-    fn next_round(&mut self) -> ProtocolResult {
-        if self.expecting_more_msgs_this_round() {
-            return Err(From::from("can't prceed yet"));
-        }
-        self.state = match &self.state {
-            New => {
-                let (r1state, out_r1bcast_deserialized) =
-                    r1::start(self.share_count, self.threshold, self.my_index);
-                self.out_r1bcast = Some(bincode::serialize(&MsgMeta {
-                    msg_type: MsgType::R1Bcast,
-                    from: self.my_index,
-                    payload: bincode::serialize(&out_r1bcast_deserialized)?,
-                })?);
-                R1(r1state)
-            }
-
-            R1(state) => {
-                let (r2state, out_r2bcast_deserialized, out_r2p2ps_deserialized) =
-                    r2::execute(state, self.in_r1bcasts.vec_ref());
-                self.out_r2bcast = Some(bincode::serialize(&MsgMeta {
-                    msg_type: MsgType::R2Bcast,
-                    from: self.my_index,
-                    payload: bincode::serialize(&out_r2bcast_deserialized)?,
-                })?);
-                let mut out_r2p2ps = Vec::with_capacity(self.share_count);
-                for opt in out_r2p2ps_deserialized {
-                    if let Some(p2p) = opt {
-                        out_r2p2ps.push(Some(bincode::serialize(&MsgMeta {
-                            msg_type: MsgType::R2P2p,
-                            from: self.my_index,
-                            payload: bincode::serialize(&p2p)?,
-                        })?));
-                    } else {
-                        out_r2p2ps.push(None);
-                    }
-                }
-                self.out_r2p2ps = Some(out_r2p2ps);
-                R2(r2state)
-            }
-
-            R2(state) => {
-                let (r3state, out_r3bcast_deserialized) =
-                    r3::execute(state, self.in_r2bcasts.vec_ref(), self.in_r2p2ps.vec_ref());
-                self.out_r3bcast = Some(bincode::serialize(&MsgMeta {
-                    msg_type: MsgType::R3Bcast,
-                    from: self.my_index,
-                    payload: bincode::serialize(&out_r3bcast_deserialized)?,
-                })?);
-                R3(r3state)
-            }
-
-            R3(state) => {
-                self.final_output = Some(r4::execute(state, self.in_r3bcasts.vec_ref()));
-                Done
-            }
-            Done => return Err(From::from("already done")),
-        };
-        Ok(())
-    }
-
-    fn set_msg_in(&mut self, msg: &[u8]) -> ProtocolResult {
-        // TODO match self.state
-        // TODO refactor repeated code
-        let msg_meta: MsgMeta = bincode::deserialize(msg)?;
-        match msg_meta.msg_type {
-            MsgType::R1Bcast => self
-                .in_r1bcasts
-                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
-            MsgType::R2Bcast => self
-                .in_r2bcasts
-                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
-            MsgType::R2P2p => self
-                .in_r2p2ps
-                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
-            MsgType::R3Bcast => self
-                .in_r3bcasts
-                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
-        };
-        Ok(())
-    }
-
-    fn get_bcast_out(&self) -> &Option<MsgBytes> {
-        match self.state {
-            New => &None,
-            R1(_) => &self.out_r1bcast,
-            R2(_) => &self.out_r2bcast,
-            R3(_) => &self.out_r3bcast,
-            Done => &None,
-        }
-    }
-
-    fn get_p2p_out(&self) -> &Option<Vec<Option<MsgBytes>>> {
-        match self.state {
-            New => &None,
-            R1(_) => &None,
-            R2(_) => &self.out_r2p2ps,
-            R3(_) => &None,
-            Done => &None,
-        }
-    }
-
-    fn expecting_more_msgs_this_round(&self) -> bool {
-        let i = self.my_index;
-        match self.state {
-            New => false,
-            R1(_) => !self.in_r1bcasts.is_full_except(i),
-            R2(_) => !self.in_r2bcasts.is_full_except(i) || !self.in_r2p2ps.is_full_except(i),
-            R3(_) => !self.in_r3bcasts.is_full_except(i),
-            Done => false,
-        }
-    }
-
-    fn done(&self) -> bool {
-        matches!(self.state, Done)
     }
 }
 

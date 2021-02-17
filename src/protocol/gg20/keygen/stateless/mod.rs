@@ -33,15 +33,15 @@ pub struct R1Bcast {
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub struct R1State {
-    share_count: usize,
-    threshold: usize,
-    my_index: usize,
-    my_ecdsa_secret_summand: FE, // final ecdsa secret key is the sum over all parties
-    my_ecdsa_public_summand: GE, // final ecdsa public key is the sum over all parties
-    my_dk: DecryptionKey,        // homomorphic decryption (Paillier)
-    my_ek: EncryptionKey,        // homomorphic encryption (Paillier)
-    my_commit: BigInt,           // for convenience: a copy of R1Bcast.commit
-    my_reveal: BigInt,           // decommit---to be released later
+    pub share_count: usize,
+    pub threshold: usize,
+    pub my_index: usize,
+    pub my_ecdsa_secret_summand: FE, // final ecdsa secret key is the sum over all parties
+    pub my_ecdsa_public_summand: GE, // final ecdsa public key is the sum over all parties
+    pub my_dk: DecryptionKey,        // homomorphic decryption (Paillier)
+    pub my_ek: EncryptionKey,        // homomorphic encryption (Paillier)
+    pub my_commit: BigInt,           // for convenience: a copy of R1Bcast.commit
+    pub my_reveal: BigInt,           // decommit---to be released later
 }
 
 // round 2
