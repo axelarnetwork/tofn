@@ -66,15 +66,15 @@ pub struct R2P2p {
 
 #[derive(Debug)]
 pub struct R2State {
-    share_count: usize,
-    threshold: usize,
-    my_index: usize,
-    my_dk: DecryptionKey,
-    my_ek: EncryptionKey,
-    my_share_of_my_ecdsa_secret_summand: FE,
-    my_ecdsa_public_summand: GE, // used only to compute the final ecdsa_public_key
-    all_commits: Vec<BigInt>,
-    all_eks: Vec<EncryptionKey>,
+    pub share_count: usize,
+    pub threshold: usize,
+    pub my_index: usize,
+    pub my_dk: DecryptionKey,
+    pub my_ek: EncryptionKey,
+    pub my_share_of_my_ecdsa_secret_summand: FE,
+    pub my_ecdsa_public_summand: GE, // used only to compute the final ecdsa_public_key
+    pub all_commits: Vec<BigInt>,
+    pub all_eks: Vec<EncryptionKey>,
 }
 
 // round 3

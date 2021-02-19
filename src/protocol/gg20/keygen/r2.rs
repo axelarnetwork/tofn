@@ -1,98 +1,109 @@
-use super::{super::super::vss, R1Bcast, R1State, R2Bcast, R2P2p, R2State};
+use curv::{BigInt, FE, GE};
+use paillier::EncryptionKey;
+use serde::{Deserialize, Serialize};
 
-pub fn execute(
-    state: &R1State,
-    in_bcasts: &[Option<R1Bcast>],
-) -> (R2State, R2Bcast, Vec<Option<R2P2p>>) {
-    assert_eq!(in_bcasts.len(), state.share_count);
+use super::{Keygen, Status};
+use crate::protocol::gg20::vss;
 
-    // verify other parties' proofs and build commits list
-    let mut all_commits = Vec::with_capacity(state.share_count);
-    let mut all_eks = Vec::with_capacity(state.share_count);
-    for (i, bcast) in in_bcasts.iter().enumerate() {
-        if i == state.my_index {
-            all_commits.push(state.my_commit.clone());
-            all_eks.push(state.my_ek.clone());
-            continue; // don't verify my own proof
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Bcast {
+    pub reveal: BigInt,
+    pub secret_share_commitments: Vec<GE>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct P2p {
+    pub ecdsa_secret_summand_share: FE, // threshold share of my_ecdsa_secret_summand
+}
+
+#[derive(Debug)] // do not derive Clone, Serialize, Deserialize
+pub struct State {
+    pub(super) my_share_of_my_ecdsa_secret_summand: FE,
+    pub(super) all_commits: Vec<BigInt>,
+    pub(super) all_eks: Vec<EncryptionKey>,
+}
+
+impl Keygen {
+    pub(super) fn r2(&self) -> (State, Bcast, Vec<Option<P2p>>) {
+        assert!(matches!(self.status, Status::R1));
+        let r1state = self.r1state.as_ref().unwrap();
+
+        // verify other parties' proofs and build commits list
+        let mut all_commits = Vec::with_capacity(self.share_count);
+        let mut all_eks = Vec::with_capacity(self.share_count);
+        for (i, bcast) in self.in_r1bcasts.vec_ref().iter().enumerate() {
+            if i == self.my_index {
+                all_commits.push(r1state.my_commit.clone());
+                all_eks.push(r1state.my_ek.clone());
+                continue; // don't verify my own proof
+            }
+            let bcast = bcast.clone().unwrap_or_else(|| {
+                panic!(
+                    "party {} says: missing input for party {}",
+                    self.my_index, i
+                )
+            });
+            bcast
+                .correct_key_proof
+                .verify(&bcast.ek)
+                .unwrap_or_else(|_| {
+                    panic!(
+                        "party {} says: key proof failed to verify for party {}",
+                        self.my_index, i
+                    )
+                });
+            bcast
+                .zkp
+                .dlog_proof
+                .verify(&bcast.zkp.dlog_statement)
+                .unwrap_or_else(|_| {
+                    panic!(
+                        "party {} says: dlog proof failed to verify for party {}",
+                        self.my_index, i
+                    )
+                });
+            all_commits.push(bcast.commit);
+            all_eks.push(bcast.ek);
         }
-        let bcast = bcast.clone().unwrap_or_else(|| {
-            panic!(
-                "party {} says: missing input for party {}",
-                state.my_index, i
-            )
-        });
-        bcast
-            .correct_key_proof
-            .verify(&bcast.ek)
-            .unwrap_or_else(|_| {
-                panic!(
-                    "party {} says: key proof failed to verify for party {}",
-                    state.my_index, i
-                )
-            });
-        bcast
-            .zkp
-            .dlog_proof
-            .verify(&bcast.zkp.dlog_statement)
-            .unwrap_or_else(|_| {
-                panic!(
-                    "party {} says: dlog proof failed to verify for party {}",
-                    state.my_index, i
-                )
-            });
-        all_commits.push(bcast.commit);
-        all_eks.push(bcast.ek);
-    }
-    assert_eq!(all_commits.len(), state.share_count);
-    assert_eq!(all_eks.len(), state.share_count);
+        assert_eq!(all_commits.len(), self.share_count);
+        assert_eq!(all_eks.len(), self.share_count);
 
-    let (secret_share_commitments, ecdsa_secret_summand_shares) = vss::share(
-        state.threshold,
-        state.share_count,
-        &state.my_ecdsa_secret_summand,
-    );
-    assert_eq!(secret_share_commitments[0], state.my_ecdsa_public_summand);
+        let (secret_share_commitments, ecdsa_secret_summand_shares) = vss::share(
+            self.threshold,
+            self.share_count,
+            &r1state.my_ecdsa_secret_summand,
+        );
+        assert_eq!(secret_share_commitments[0], r1state.my_ecdsa_public_summand);
 
-    // Assign a unique, deterministic share index to each party
-    // To this end, each party is assigned its index in the vec of sorted ids
-    // let mut sorted_ids: Vec<&String> = input.in_r1bcast.keys().collect();
-    // sorted_ids.push(&input.my_index);
-    // sorted_ids.sort_unstable();
-
-    // prepare outgoing p2p messages: secret shares of my_ecdsa_secret_summand
-    let mut out_p2p: Vec<Option<R2P2p>> = ecdsa_secret_summand_shares
-        .into_iter()
-        .map(|x| {
-            Some(R2P2p {
-                ecdsa_secret_summand_share: x,
+        // prepare outgoing p2p messages: secret shares of my_ecdsa_secret_summand
+        let mut out_p2p: Vec<Option<P2p>> = ecdsa_secret_summand_shares
+            .into_iter()
+            .map(|x| {
+                Some(P2p {
+                    ecdsa_secret_summand_share: x,
+                })
             })
-        })
-        .collect();
-    let my_share_of_my_ecdsa_secret_summand = out_p2p[state.my_index]
-        .take()
-        .unwrap()
-        .ecdsa_secret_summand_share;
+            .collect();
+        let my_share_of_my_ecdsa_secret_summand = out_p2p[self.my_index]
+            .take()
+            .unwrap()
+            .ecdsa_secret_summand_share;
 
-    // TODO sign and encrypt each p2p_msg
-    assert_eq!(out_p2p.len(), state.share_count);
+        // TODO sign and encrypt each p2p_msg
+        assert_eq!(out_p2p.len(), self.share_count);
 
-    let out_bcast = R2Bcast {
-        reveal: state.my_reveal.clone(),
-        secret_share_commitments,
-    };
-    (
-        R2State {
-            share_count: state.share_count,
-            threshold: state.threshold,
-            my_index: state.my_index,
-            my_dk: state.my_dk.clone(),
-            my_ek: state.my_ek.clone(),
-            my_share_of_my_ecdsa_secret_summand,
-            my_ecdsa_public_summand: state.my_ecdsa_public_summand,
-            all_commits,
-            all_eks,
-        },
-        out_bcast,
-        out_p2p,
-    )
+        let out_bcast = Bcast {
+            reveal: r1state.my_reveal.clone(),
+            secret_share_commitments,
+        };
+        (
+            State {
+                my_share_of_my_ecdsa_secret_summand,
+                all_commits,
+                all_eks,
+            },
+            out_bcast,
+            out_p2p,
+        )
+    }
 }

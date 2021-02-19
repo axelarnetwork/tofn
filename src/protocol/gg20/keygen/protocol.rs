@@ -1,7 +1,8 @@
 use super::{
-    stateless::{r1, r2, r3, r4, R1State},
+    stateless::{r1, r2, r3, r4, R1State, R2State},
     Keygen,
     State::*,
+    Status,
 };
 use crate::{
     fillvec::FillVec,
@@ -41,6 +42,7 @@ impl Protocol for Keygen {
                 self.r1state = Some(state);
 
                 // TODO transitory
+                self.status = Status::R1;
                 R1(R1State {
                     share_count: self.share_count,
                     threshold: self.threshold,
@@ -48,22 +50,21 @@ impl Protocol for Keygen {
                     my_ecdsa_secret_summand: self.r1state.as_ref().unwrap().my_ecdsa_secret_summand,
                     my_ecdsa_public_summand: self.r1state.as_ref().unwrap().my_ecdsa_public_summand,
                     my_dk: self.r1state.as_ref().unwrap().my_dk.clone(),
-                    my_ek: bcast.ek,
+                    my_ek: self.r1state.as_ref().unwrap().my_ek.clone(),
                     my_commit: bcast.commit,
                     my_reveal: self.r1state.as_ref().unwrap().my_reveal.clone(),
                 })
             }
 
             R1(state) => {
-                let (r2state, out_r2bcast_deserialized, out_r2p2ps_deserialized) =
-                    r2::execute(state, self.in_r1bcasts.vec_ref());
+                let (state, bcast, p2ps) = self.r2();
                 self.out_r2bcast = Some(bincode::serialize(&MsgMeta {
                     msg_type: MsgType::R2Bcast,
                     from: self.my_index,
-                    payload: bincode::serialize(&out_r2bcast_deserialized)?,
+                    payload: bincode::serialize(&bcast)?,
                 })?);
                 let mut out_r2p2ps = Vec::with_capacity(self.share_count);
-                for opt in out_r2p2ps_deserialized {
+                for opt in p2ps {
                     if let Some(p2p) = opt {
                         out_r2p2ps.push(Some(bincode::serialize(&MsgMeta {
                             msg_type: MsgType::R2P2p,
@@ -75,7 +76,25 @@ impl Protocol for Keygen {
                     }
                 }
                 self.out_r2p2ps = Some(out_r2p2ps);
-                R2(r2state)
+                self.r2state = Some(state);
+
+                // TODO transitory
+                self.status = Status::R2;
+                R2(R2State {
+                    share_count: self.share_count,
+                    threshold: self.threshold,
+                    my_index: self.my_index,
+                    my_dk: self.r1state.as_ref().as_ref().unwrap().my_dk.clone(),
+                    my_ek: self.r1state.as_ref().as_ref().unwrap().my_ek.clone(),
+                    my_share_of_my_ecdsa_secret_summand: self
+                        .r2state
+                        .as_ref()
+                        .unwrap()
+                        .my_share_of_my_ecdsa_secret_summand,
+                    my_ecdsa_public_summand: self.r1state.as_ref().unwrap().my_ecdsa_public_summand,
+                    all_commits: self.r2state.as_ref().unwrap().all_commits.clone(),
+                    all_eks: self.r2state.as_ref().unwrap().all_eks.clone(),
+                })
             }
 
             R2(state) => {
