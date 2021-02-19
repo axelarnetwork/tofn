@@ -2,11 +2,25 @@ use crate::{
     fillvec::FillVec,
     protocol::{MsgBytes, Protocol, ProtocolResult},
 };
+use curv::{FE, GE};
+use paillier::{DecryptionKey, EncryptionKey};
 use serde::{Deserialize, Serialize};
+
+// final output of keygen
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SecretKeyShare {
+    pub share_count: usize,
+    pub threshold: usize,
+    pub my_index: usize,
+    pub my_dk: DecryptionKey,
+    pub my_ek: EncryptionKey,
+    pub my_ecdsa_secret_key_share: FE,
+    pub ecdsa_public_key: GE,
+    pub all_eks: Vec<EncryptionKey>,
+}
 
 pub mod stateless; // TODO not pub
 pub use curv::elliptic::curves::traits::{ECPoint, ECScalar};
-pub use stateless::SecretKeyShare;
 use stateless::*;
 
 enum Status {
@@ -21,7 +35,7 @@ mod protocol;
 mod r1;
 mod r2;
 mod r3;
-// mod r4;
+mod r4;
 
 // OLD
 #[allow(clippy::large_enum_variant)]
@@ -63,7 +77,7 @@ pub struct Keygen {
     in_r1bcasts: FillVec<r1::Bcast>,
     in_r2bcasts: FillVec<r2::Bcast>,
     in_r2p2ps: FillVec<r2::P2p>,
-    in_r3bcasts: FillVec<R3Bcast>,
+    in_r3bcasts: FillVec<r3::Bcast>,
 
     // outgoing/incoming messages
     // initialized to `None`, filled as the protocol progresses

@@ -125,7 +125,10 @@ impl Protocol for Keygen {
             }
 
             R3(state) => {
-                self.final_output = Some(r4::execute(state, self.in_r3bcasts.vec_ref()));
+                self.final_output = Some(self.r4());
+
+                // TODO transitory
+                self.status = Status::Done;
                 Done
             }
             Done => return Err(From::from("already done")),

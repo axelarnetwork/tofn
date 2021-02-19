@@ -11,7 +11,7 @@ use curv::{
 use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Bcast {
-    dlog_proof: DLogProof,
+    pub dlog_proof: DLogProof,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub struct State {
