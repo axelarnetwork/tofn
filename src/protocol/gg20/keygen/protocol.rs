@@ -1,5 +1,5 @@
 use super::{
-    stateless::{r1, r2, r3, r4, R1State, R2State},
+    stateless::{r1, r2, r3, r4, R1State, R2State, R3State},
     Keygen,
     State::*,
     Status,
@@ -98,14 +98,30 @@ impl Protocol for Keygen {
             }
 
             R2(state) => {
-                let (r3state, out_r3bcast_deserialized) =
-                    r3::execute(state, self.in_r2bcasts.vec_ref(), self.in_r2p2ps.vec_ref());
+                let (state, bcast) = self.r3();
                 self.out_r3bcast = Some(bincode::serialize(&MsgMeta {
                     msg_type: MsgType::R3Bcast,
                     from: self.my_index,
-                    payload: bincode::serialize(&out_r3bcast_deserialized)?,
+                    payload: bincode::serialize(&bcast)?,
                 })?);
-                R3(r3state)
+                self.r3state = Some(state);
+
+                // TODO transitory
+                self.status = Status::R3;
+                R3(R3State {
+                    share_count: self.share_count,
+                    threshold: self.threshold,
+                    my_index: self.my_index,
+                    my_dk: self.r1state.as_ref().as_ref().unwrap().my_dk.clone(),
+                    my_ek: self.r1state.as_ref().as_ref().unwrap().my_ek.clone(),
+                    ecdsa_public_key: self.r3state.as_ref().unwrap().ecdsa_public_key,
+                    my_ecdsa_secret_key_share: self
+                        .r3state
+                        .as_ref()
+                        .unwrap()
+                        .my_ecdsa_secret_key_share,
+                    all_eks: self.r2state.as_ref().unwrap().all_eks.clone(),
+                })
             }
 
             R3(state) => {

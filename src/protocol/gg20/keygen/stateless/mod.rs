@@ -90,14 +90,14 @@ pub struct R3Bcast {
 }
 #[derive(Debug)]
 pub struct R3State {
-    share_count: usize,
-    threshold: usize,
-    my_index: usize,
-    my_dk: DecryptionKey,
-    my_ek: EncryptionKey,
-    ecdsa_public_key: GE,          // the final pub key
-    my_ecdsa_secret_key_share: FE, // my final secret key share
-    all_eks: Vec<EncryptionKey>,
+    pub share_count: usize,
+    pub threshold: usize,
+    pub my_index: usize,
+    pub my_dk: DecryptionKey,
+    pub my_ek: EncryptionKey,
+    pub ecdsa_public_key: GE,          // the final pub key
+    pub my_ecdsa_secret_key_share: FE, // my final secret key share
+    pub all_eks: Vec<EncryptionKey>,
 }
 
 // round 4

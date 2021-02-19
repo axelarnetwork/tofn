@@ -20,7 +20,7 @@ enum Status {
 mod protocol;
 mod r1;
 mod r2;
-// mod r3;
+mod r3;
 // mod r4;
 
 // OLD
@@ -57,12 +57,12 @@ pub struct Keygen {
     my_index: usize,
     r1state: Option<r1::State>,
     r2state: Option<r2::State>,
-    // r3state: Option<r3::State>,
+    r3state: Option<r3::State>,
 
     // incoming messages
     in_r1bcasts: FillVec<r1::Bcast>,
-    in_r2bcasts: FillVec<R2Bcast>,
-    in_r2p2ps: FillVec<R2P2p>,
+    in_r2bcasts: FillVec<r2::Bcast>,
+    in_r2p2ps: FillVec<r2::P2p>,
     in_r3bcasts: FillVec<R3Bcast>,
 
     // outgoing/incoming messages
@@ -85,7 +85,7 @@ impl Keygen {
             my_index,
             r1state: None,
             r2state: None,
-            // r3state: None,
+            r3state: None,
             in_r1bcasts: FillVec::with_len(share_count),
             in_r2bcasts: FillVec::with_len(share_count),
             in_r2p2ps: FillVec::with_len(share_count),
