@@ -9,7 +9,7 @@ use curv::{
     BigInt,
 };
 use k256::{ecdsa::Signature, FieldBytes};
-use keygen::stateless::tests::execute_keygen;
+use keygen::tests::execute_keygen;
 
 lazy_static::lazy_static! {
     static ref MSG_TO_SIGN: Vec<u8> = vec![42];

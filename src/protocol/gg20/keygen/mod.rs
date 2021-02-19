@@ -154,4 +154,4 @@ impl std::fmt::Display for ParamsError {
 }
 
 #[cfg(test)]
-mod tests;
+pub(super) mod tests; // pub(super) so that sign module can see tests::execute_keygen
