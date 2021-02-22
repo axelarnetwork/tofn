@@ -19,9 +19,7 @@ pub struct SecretKeyShare {
     pub all_eks: Vec<EncryptionKey>,
 }
 
-pub mod stateless; // TODO not pub
 pub use curv::elliptic::curves::traits::{ECPoint, ECScalar};
-use stateless::*;
 
 enum Status {
     New,

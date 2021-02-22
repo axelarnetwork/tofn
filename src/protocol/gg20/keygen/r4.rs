@@ -1,5 +1,4 @@
-use super::{Keygen, Status};
-use super::{R3Bcast, R3State, SecretKeyShare};
+use super::{Keygen, SecretKeyShare, Status};
 use curv::cryptographic_primitives::proofs::sigma_dlog::{DLogProof, ProveDLog};
 
 impl Keygen {
