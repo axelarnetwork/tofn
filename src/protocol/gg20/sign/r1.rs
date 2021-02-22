@@ -2,13 +2,15 @@ use serde::{Deserialize, Serialize};
 
 use crate::protocol::gg20::vss;
 use curv::{
-    arithmetic::traits::Samplable,
+    // arithmetic::traits::Samplable,
     cryptographic_primitives::commitments::{hash_commitment::HashCommitment, traits::Commitment},
     elliptic::curves::traits::{ECPoint, ECScalar},
-    BigInt, FE, GE,
+    BigInt,
+    FE,
+    GE,
 };
 use multi_party_ecdsa::utilities::mta;
-use paillier::{EncryptWithChosenRandomness, Paillier, Randomness, RawPlaintext};
+// use paillier::{EncryptWithChosenRandomness, Paillier, Randomness, RawPlaintext};
 
 use super::{Sign, Status};
 
@@ -69,7 +71,7 @@ impl Sign {
                 continue;
             }
 
-            let (encrypted_ecdsa_nonce_summand, my_encrypted_ecdsa_nonce_summand_randomness) =
+            let (encrypted_ecdsa_nonce_summand, _my_encrypted_ecdsa_nonce_summand_randomness) =
                 mta::MessageA::a(&my_ecdsa_nonce_summand, &self.my_secret_key_share.my_ek);
 
             // my_encrypted_ecdsa_nonce_summand_randomnesses

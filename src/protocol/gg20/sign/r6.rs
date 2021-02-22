@@ -1,8 +1,5 @@
 use super::{Sign, Status};
-use curv::{
-    elliptic::curves::traits::{ECPoint, ECScalar},
-    FE, GE,
-};
+use curv::{elliptic::curves::traits::ECPoint, GE};
 use serde::{Deserialize, Serialize};
 
 // round 6

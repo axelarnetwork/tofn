@@ -1,7 +1,7 @@
 use super::{Sign, Status};
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
-    FE, GE,
+    FE,
 };
 use serde::{Deserialize, Serialize};
 

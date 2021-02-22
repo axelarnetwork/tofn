@@ -4,7 +4,6 @@ use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     FE, GE,
 };
-use multi_party_ecdsa::utilities::mta;
 use serde::{Deserialize, Serialize};
 
 // round 3
@@ -12,7 +11,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bcast {
     pub nonce_x_blind_summand: FE, // delta_i
-    pub T: GE,
+    pub consistency_claim: GE,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub struct State {
@@ -99,10 +98,11 @@ impl Sign {
         // compute the point T_i = g*sigma_i + h*l_i and zk proof as per phase 3 of 2020/540
         // rememeber:
         // my_public_nonce_x_keyshare_summand -> g_sigma_i
+        // my_consistency_claim -> T_i
         let my_public_nonce_x_keyshare_summand = GE::generator() * my_nonce_x_keyshare_summand;
         let l: FE = ECScalar::new_random();
         let h_l = GE::base_point2() * l;
-        let T = my_public_nonce_x_keyshare_summand + h_l;
+        let my_consistency_claim = my_public_nonce_x_keyshare_summand + h_l;
 
         // TODO compute zk proof and send it
 
@@ -113,7 +113,7 @@ impl Sign {
             },
             Bcast {
                 nonce_x_blind_summand: my_nonce_x_blind_summand,
-                T,
+                consistency_claim: my_consistency_claim,
             },
         )
     }

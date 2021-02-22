@@ -1,13 +1,9 @@
 use super::{EcdsaSig, Sign, Status};
-use curv::{
-    elliptic::curves::traits::{ECPoint, ECScalar},
-    FE, GE,
-};
+use curv::elliptic::curves::traits::ECScalar;
 use k256::{
     ecdsa::{Asn1Signature, Signature},
     FieldBytes,
 };
-use serde::{Deserialize, Serialize};
 
 // round 8
 
@@ -41,8 +37,6 @@ impl Sign {
         let (r, s): (FieldBytes, FieldBytes) =
             (*FieldBytes::from_slice(r), *FieldBytes::from_slice(s));
         let sig = Signature::from_scalars(r, s).unwrap();
-        let sig = sig.to_asn1();
-
-        sig
+        sig.to_asn1()
     }
 }

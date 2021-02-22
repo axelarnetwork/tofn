@@ -1,8 +1,5 @@
 use super::{Sign, Status::*};
-use crate::{
-    fillvec::FillVec,
-    protocol::{MsgBytes, Protocol, ProtocolResult},
-};
+use crate::protocol::{MsgBytes, Protocol, ProtocolResult};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]

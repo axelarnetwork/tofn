@@ -56,7 +56,7 @@ pub fn lagrangian_coefficient(share_count: usize, index: usize, s: &[usize]) -> 
     // add one to indices to get points
     let points: Vec<FE> = (0..share_count)
         .map(|i| {
-            let index_bn = BigInt::from(i as u32 + 1 as u32);
+            let index_bn = BigInt::from(i as u32 + 1);
             ECScalar::from(&index_bn)
         })
         .collect::<Vec<FE>>();

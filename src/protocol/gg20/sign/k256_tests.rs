@@ -11,16 +11,7 @@ use curv::{
 //     },
 //     FieldBytes, PublicKey, SecretKey,
 // };
-use k256::{
-    ecdsa::{
-        // recoverable::Signature,
-        signature::{DigestSigner, RandomizedDigestSigner, Signer},
-        Signature,
-        SigningKey,
-    },
-    FieldBytes, SecretKey,
-};
-// use k256::ecdsa::Signature;
+use k256::{ecdsa::Signature, FieldBytes};
 
 #[test]
 fn k256() -> Result<(), Box<(dyn std::error::Error + Send + Sync + 'static)>> {
@@ -55,10 +46,10 @@ fn k256() -> Result<(), Box<(dyn std::error::Error + Send + Sync + 'static)>> {
     assert_eq!(s, s_old);
 
     // recreate the curv sig using k256
-    let sk = &sk.to_big_int();
-    let sk_old = sk.clone();
-    let sk: Vec<u8> = sk.into();
-    let sk = SigningKey::from_bytes(&sk)?;
+    // let sk = &sk.to_big_int();
+    // let sk_old = sk.clone();
+    // let sk: Vec<u8> = sk.into();
+    // let sk = SigningKey::from_bytes(&sk)?;
     // TODO how to get k256 to use my k nonce?
     // TODO how to get k256 to convert msg bytes into a digest?
     // let sig: Signature = sk.sign_digest_with_rng(rng, digest);
