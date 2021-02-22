@@ -1,13 +1,5 @@
-use super::{
-    stateless::{r1, r2, r3, r4, R1State, R2State, R3State},
-    Keygen,
-    State::*,
-    Status,
-};
-use crate::{
-    fillvec::FillVec,
-    protocol::{MsgBytes, Protocol, ProtocolResult},
-};
+use super::{Keygen, Status::*};
+use crate::protocol::{MsgBytes, Protocol, ProtocolResult};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
@@ -31,7 +23,8 @@ impl Protocol for Keygen {
         if self.expecting_more_msgs_this_round() {
             return Err(From::from("can't prceed yet"));
         }
-        self.state = match &self.state {
+        // TODO refactor repeated code!
+        self.status = match self.status {
             New => {
                 let (state, bcast) = self.r1();
                 self.out_r1bcast = Some(bincode::serialize(&MsgMeta {
@@ -40,23 +33,10 @@ impl Protocol for Keygen {
                     payload: bincode::serialize(&bcast)?,
                 })?);
                 self.r1state = Some(state);
-
-                // TODO transitory
-                self.status = Status::R1;
-                R1(R1State {
-                    share_count: self.share_count,
-                    threshold: self.threshold,
-                    my_index: self.my_index,
-                    my_ecdsa_secret_summand: self.r1state.as_ref().unwrap().my_ecdsa_secret_summand,
-                    my_ecdsa_public_summand: self.r1state.as_ref().unwrap().my_ecdsa_public_summand,
-                    my_dk: self.r1state.as_ref().unwrap().my_dk.clone(),
-                    my_ek: self.r1state.as_ref().unwrap().my_ek.clone(),
-                    my_commit: bcast.commit,
-                    my_reveal: self.r1state.as_ref().unwrap().my_reveal.clone(),
-                })
+                R1
             }
 
-            R1(state) => {
+            R1 => {
                 let (state, bcast, p2ps) = self.r2();
                 self.out_r2bcast = Some(bincode::serialize(&MsgMeta {
                     msg_type: MsgType::R2Bcast,
@@ -77,27 +57,10 @@ impl Protocol for Keygen {
                 }
                 self.out_r2p2ps = Some(out_r2p2ps);
                 self.r2state = Some(state);
-
-                // TODO transitory
-                self.status = Status::R2;
-                R2(R2State {
-                    share_count: self.share_count,
-                    threshold: self.threshold,
-                    my_index: self.my_index,
-                    my_dk: self.r1state.as_ref().as_ref().unwrap().my_dk.clone(),
-                    my_ek: self.r1state.as_ref().as_ref().unwrap().my_ek.clone(),
-                    my_share_of_my_ecdsa_secret_summand: self
-                        .r2state
-                        .as_ref()
-                        .unwrap()
-                        .my_share_of_my_ecdsa_secret_summand,
-                    my_ecdsa_public_summand: self.r1state.as_ref().unwrap().my_ecdsa_public_summand,
-                    all_commits: self.r2state.as_ref().unwrap().all_commits.clone(),
-                    all_eks: self.r2state.as_ref().unwrap().all_eks.clone(),
-                })
+                R2
             }
 
-            R2(state) => {
+            R2 => {
                 let (state, bcast) = self.r3();
                 self.out_r3bcast = Some(bincode::serialize(&MsgMeta {
                     msg_type: MsgType::R3Bcast,
@@ -105,30 +68,11 @@ impl Protocol for Keygen {
                     payload: bincode::serialize(&bcast)?,
                 })?);
                 self.r3state = Some(state);
-
-                // TODO transitory
-                self.status = Status::R3;
-                R3(R3State {
-                    share_count: self.share_count,
-                    threshold: self.threshold,
-                    my_index: self.my_index,
-                    my_dk: self.r1state.as_ref().as_ref().unwrap().my_dk.clone(),
-                    my_ek: self.r1state.as_ref().as_ref().unwrap().my_ek.clone(),
-                    ecdsa_public_key: self.r3state.as_ref().unwrap().ecdsa_public_key,
-                    my_ecdsa_secret_key_share: self
-                        .r3state
-                        .as_ref()
-                        .unwrap()
-                        .my_ecdsa_secret_key_share,
-                    all_eks: self.r2state.as_ref().unwrap().all_eks.clone(),
-                })
+                R3
             }
 
-            R3(state) => {
+            R3 => {
                 self.final_output = Some(self.r4());
-
-                // TODO transitory
-                self.status = Status::Done;
                 Done
             }
             Done => return Err(From::from("already done")),
@@ -158,37 +102,37 @@ impl Protocol for Keygen {
     }
 
     fn get_bcast_out(&self) -> &Option<MsgBytes> {
-        match self.state {
+        match self.status {
             New => &None,
-            R1(_) => &self.out_r1bcast,
-            R2(_) => &self.out_r2bcast,
-            R3(_) => &self.out_r3bcast,
+            R1 => &self.out_r1bcast,
+            R2 => &self.out_r2bcast,
+            R3 => &self.out_r3bcast,
             Done => &None,
         }
     }
 
     fn get_p2p_out(&self) -> &Option<Vec<Option<MsgBytes>>> {
-        match self.state {
+        match self.status {
             New => &None,
-            R1(_) => &None,
-            R2(_) => &self.out_r2p2ps,
-            R3(_) => &None,
+            R1 => &None,
+            R2 => &self.out_r2p2ps,
+            R3 => &None,
             Done => &None,
         }
     }
 
     fn expecting_more_msgs_this_round(&self) -> bool {
         let i = self.my_index;
-        match self.state {
+        match self.status {
             New => false,
-            R1(_) => !self.in_r1bcasts.is_full_except(i),
-            R2(_) => !self.in_r2bcasts.is_full_except(i) || !self.in_r2p2ps.is_full_except(i),
-            R3(_) => !self.in_r3bcasts.is_full_except(i),
+            R1 => !self.in_r1bcasts.is_full_except(i),
+            R2 => !self.in_r2bcasts.is_full_except(i) || !self.in_r2p2ps.is_full_except(i),
+            R3 => !self.in_r3bcasts.is_full_except(i),
             Done => false,
         }
     }
 
     fn done(&self) -> bool {
-        matches!(self.state, Done)
+        matches!(self.status, Done)
     }
 }

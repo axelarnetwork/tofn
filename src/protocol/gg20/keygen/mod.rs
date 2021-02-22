@@ -37,17 +37,6 @@ mod r2;
 mod r3;
 mod r4;
 
-// OLD
-#[allow(clippy::large_enum_variant)]
-enum State {
-    New,
-    R1(R1State),
-    R2(R2State),
-    R3(R3State),
-    Done,
-}
-use State::*;
-
 #[derive(Serialize, Deserialize)]
 enum MsgType {
     R1Bcast,
@@ -63,7 +52,6 @@ struct MsgMeta {
 }
 pub struct Keygen {
     status: Status,
-    state: State, // OLD
 
     // state data
     share_count: usize,
@@ -93,7 +81,6 @@ impl Keygen {
         validate_params(share_count, threshold, my_index)?;
         Ok(Self {
             status: Status::New,
-            state: New,
             share_count,
             threshold,
             my_index,
