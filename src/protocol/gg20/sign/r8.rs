@@ -36,7 +36,10 @@ impl Sign {
         let (r, s): (&[u8], &[u8]) = (&r, &s);
         let (r, s): (FieldBytes, FieldBytes) =
             (*FieldBytes::from_slice(r), *FieldBytes::from_slice(s));
-        let sig = Signature::from_scalars(r, s).unwrap();
+        let mut sig =
+            Signature::from_scalars(r, s).expect("fail to convert signature bytes to asn1");
+        sig.normalize_s()
+            .expect("fail to normalize signature s value");
         sig.to_asn1()
     }
 }

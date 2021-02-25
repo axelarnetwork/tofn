@@ -219,6 +219,16 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], ms
     let msg_to_sign = ECScalar::from(&BigInt::from(msg_to_sign));
     let r: FE = ECScalar::from(&randomizer.x_coor().unwrap().mod_floor(&FE::q()));
     let s: FE = nonce * (msg_to_sign + ecdsa_secret_key * r);
+    let s = {
+        // normalize s
+        let s_bigint = s.to_big_int();
+        let s_neg = FE::q() - &s_bigint;
+        if s_bigint > s_neg {
+            ECScalar::from(&s_neg)
+        } else {
+            s
+        }
+    };
     for sig in all_sigs
         .vec_ref()
         .iter()
