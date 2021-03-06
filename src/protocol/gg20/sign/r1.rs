@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::protocol::gg20::vss;
+use crate::{fillvec::FillVec, protocol::gg20::vss};
 use curv::{
     // arithmetic::traits::Samplable,
     cryptographic_primitives::commitments::{hash_commitment::HashCommitment, traits::Commitment},
@@ -22,10 +22,10 @@ pub struct Bcast {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct P2p {
     pub encrypted_ecdsa_nonce_summand: mta::MessageA,
+    // TODO zk proof
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub struct State {
-    // key: SecretKeyShare,
     pub(super) my_secret_key_summand: FE,
     pub(super) my_secret_blind_summand: FE,
     pub(super) my_public_blind_summand: GE,
@@ -37,7 +37,6 @@ pub struct State {
 
 impl Sign {
     // immutable &self: do not modify existing self state, only add more
-    // TODO should we just mutate self directly instead?
     pub(super) fn r1(&self) -> (State, Bcast, Vec<Option<P2p>>) {
         assert!(matches!(self.status, Status::New));
         let lagrangian_coefficient = vss::lagrangian_coefficient(
@@ -61,24 +60,28 @@ impl Sign {
         // we must encrypt my_ecdsa_nonce_summand separately for each other party using fresh randomness
 
         // TODO these variable names are getting ridiculous
-        let mut out_p2ps = Vec::with_capacity(self.participant_indices.len());
+        let mut out_p2ps = FillVec::with_len(self.participant_indices.len());
+        let my_ek = &self.my_secret_key_share.my_ek;
         // let mut my_encrypted_ecdsa_nonce_summand_randomnesses =
         //     Vec::with_capacity(self.participant_indices.len()); // TODO do we need to store encryption randomness?
-        for participant_index in self.participant_indices.iter() {
+        for (i, participant_index) in self.participant_indices.iter().enumerate() {
             if *participant_index == self.my_secret_key_share.my_index {
-                // my_encrypted_ecdsa_nonce_summand_randomnesses.push(None);
-                out_p2ps.push(None);
                 continue;
             }
 
             let (encrypted_ecdsa_nonce_summand, _my_encrypted_ecdsa_nonce_summand_randomness) =
-                mta::MessageA::a(&my_ecdsa_nonce_summand, &self.my_secret_key_share.my_ek);
+                mta::MessageA::a(&my_ecdsa_nonce_summand, my_ek);
 
             // my_encrypted_ecdsa_nonce_summand_randomnesses
             //     .push(Some(my_encrypted_ecdsa_nonce_summand_randomness));
-            out_p2ps.push(Some(P2p {
-                encrypted_ecdsa_nonce_summand,
-            }));
+            out_p2ps
+                .insert(
+                    i,
+                    P2p {
+                        encrypted_ecdsa_nonce_summand,
+                    },
+                )
+                .unwrap();
         }
 
         (
@@ -94,7 +97,7 @@ impl Sign {
                 commit,
                 // TODO broadcast GE::generator() * self.my_secret_key_share.my_ecdsa_secret_key_share ? https://github.com/ZenGo-X/multi-party-ecdsa/blob/master/examples/gg20_sign_client.rs#L138
             },
-            out_p2ps,
+            out_p2ps.into_vec(),
         )
     }
 }
