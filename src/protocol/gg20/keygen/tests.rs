@@ -6,8 +6,8 @@ use curv::cryptographic_primitives::secret_sharing::feldman_vss::{
 
 lazy_static::lazy_static! {
     pub static ref TEST_CASES: Vec<(usize,usize)> // (share_count, threshold)
-    // = vec![(5,3)];
-    = vec![(5, 0), (5, 1), (5, 3), (5, 4)];
+    = vec![(5,3)];
+    // = vec![(5, 0), (5, 1), (5, 3), (5, 4)];
     pub static ref TEST_CASES_INVALID: Vec<(usize,usize)> = vec![(5, 5), (5, 6), (2, 4)];
 }
 
