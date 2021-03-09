@@ -1,3 +1,4 @@
+use crate::zkp::{RangeProof, RangeStatement, RangeWitness};
 use serde::{Deserialize, Serialize};
 
 use crate::{fillvec::FillVec, protocol::gg20::vss};
@@ -18,11 +19,11 @@ use super::{Sign, Status};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bcast {
     pub commit: BigInt,
+    pub encrypted_ecdsa_nonce_summand: mta::MessageA,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct P2p {
-    pub encrypted_ecdsa_nonce_summand: mta::MessageA,
-    // TODO zk proof
+    pub range_proof: RangeProof,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub struct State {
@@ -57,31 +58,29 @@ impl Sign {
         // 1. my_ecdsa_nonce_summand (me) * my_secret_blind_summand (other)
         // 2. my_ecdsa_nonce_summand (me) * my_secret_key_summand (other)
         // both MtAs use my_ecdsa_nonce_summand, so I use the same message for both
-        // we must encrypt my_ecdsa_nonce_summand separately for each other party using fresh randomness
+        // re-use encrypted_ecdsa_nonce_summand for all other parties
+        let my_ek = &self.my_secret_key_share.my_ek;
+        let (encrypted_ecdsa_nonce_summand, my_encrypted_ecdsa_nonce_summand_randomness) =
+            mta::MessageA::a(&my_ecdsa_nonce_summand, my_ek);
 
         // TODO these variable names are getting ridiculous
         let mut out_p2ps = FillVec::with_len(self.participant_indices.len());
-        let my_ek = &self.my_secret_key_share.my_ek;
-        // let mut my_encrypted_ecdsa_nonce_summand_randomnesses =
-        //     Vec::with_capacity(self.participant_indices.len()); // TODO do we need to store encryption randomness?
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
             if *participant_index == self.my_secret_key_share.my_index {
                 continue;
             }
-
-            let (encrypted_ecdsa_nonce_summand, _my_encrypted_ecdsa_nonce_summand_randomness) =
-                mta::MessageA::a(&my_ecdsa_nonce_summand, my_ek);
-
-            // my_encrypted_ecdsa_nonce_summand_randomnesses
-            //     .push(Some(my_encrypted_ecdsa_nonce_summand_randomness));
-            out_p2ps
-                .insert(
-                    i,
-                    P2p {
-                        encrypted_ecdsa_nonce_summand,
-                    },
-                )
-                .unwrap();
+            let other_zkp = &self.my_secret_key_share.all_zkps[*participant_index];
+            let range_proof = other_zkp.range_proof(
+                &RangeStatement {
+                    ciphertext: &encrypted_ecdsa_nonce_summand.c,
+                    ek: my_ek,
+                },
+                &RangeWitness {
+                    msg: &my_ecdsa_nonce_summand,
+                    randomness: &my_encrypted_ecdsa_nonce_summand_randomness,
+                },
+            );
+            out_p2ps.insert(i, P2p { range_proof }).unwrap();
         }
 
         (
@@ -95,6 +94,7 @@ impl Sign {
             },
             Bcast {
                 commit,
+                encrypted_ecdsa_nonce_summand,
                 // TODO broadcast GE::generator() * self.my_secret_key_share.my_ecdsa_secret_key_share ? https://github.com/ZenGo-X/multi-party-ecdsa/blob/master/examples/gg20_sign_client.rs#L138
             },
             out_p2ps.into_vec(),

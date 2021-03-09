@@ -40,11 +40,14 @@ impl Sign {
             // 2. MessageA arg is passed by value
             let r1state = &self.r1state.as_ref().unwrap();
             let alice_ek = &self.my_secret_key_share.all_eks[*participant_index];
-            let c_a = self.in_r1p2ps.vec_ref()[i]
+            // let c_a = self.in_r1p2ps.vec_ref()[i]
+            let c_a = self.in_r1bcasts.vec_ref()[i]
                 .as_ref()
                 .unwrap()
                 .encrypted_ecdsa_nonce_summand
                 .clone();
+
+            // TODO verify zkp
 
             let (mta_response_blind, my_mta_blind_summand_rhs, _, _) = // (m_b_gamma, beta_gamma)
                 mta::MessageB::b(&r1state.my_secret_blind_summand, alice_ek, c_a.clone());

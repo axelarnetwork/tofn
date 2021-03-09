@@ -170,6 +170,7 @@ pub struct RangeWitness<'a> {
     pub randomness: &'a BigInt, // TODO use Paillier::Ransomness instead?
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RangeProof {
     z: BigInt,
     u: BigInt, // TODO use Paillier::RawCiphertext instead?
