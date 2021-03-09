@@ -1,4 +1,4 @@
-use crate::{fillvec::FillVec, protocol::MsgBytes};
+use crate::{fillvec::FillVec, protocol::MsgBytes, zkp::Zkp};
 use curv::{FE, GE};
 use paillier::{DecryptionKey, EncryptionKey};
 use serde::{Deserialize, Serialize};
@@ -11,6 +11,7 @@ pub struct SecretKeyShare {
     pub my_index: usize,
     pub my_dk: DecryptionKey,
     pub my_ek: EncryptionKey,
+    pub zkp: Zkp,
     pub my_ecdsa_secret_key_share: FE,
     pub ecdsa_public_key: GE,
     pub all_eks: Vec<EncryptionKey>,

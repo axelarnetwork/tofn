@@ -32,6 +32,7 @@ impl Keygen {
             my_index: self.my_index,
             my_dk: r1state.my_dk.clone(),
             my_ek: r1state.my_ek.clone(),
+            zkp: r1state.zkp.clone(),
             ecdsa_public_key: r3state.ecdsa_public_key,
             my_ecdsa_secret_key_share: r3state.my_ecdsa_secret_key_share,
             all_eks: r2state.all_eks.clone(),
