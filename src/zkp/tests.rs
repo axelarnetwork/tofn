@@ -12,9 +12,9 @@ use super::{RangeProof, RangeStatement, RangeWitness, Zkp};
 #[test]
 fn basic_correctness() {
     let (ek, _dk) = Paillier::keypair().keys(); // not using safe primes
-    let msg = FE::new_random();
+    let msg = &FE::new_random();
     let randomness = Randomness::sample(&ek);
-    let ciphertext = Paillier::encrypt_with_chosen_randomness(
+    let ciphertext = &Paillier::encrypt_with_chosen_randomness(
         &ek,
         RawPlaintext::from(msg.to_big_int()),
         &randomness,
@@ -23,10 +23,13 @@ fn basic_correctness() {
     .clone()
     .into_owned();
 
-    let stmt = RangeStatement { ciphertext, ek };
+    let stmt = RangeStatement {
+        ciphertext,
+        ek: &ek,
+    };
     let wit = RangeWitness {
         msg,
-        randomness: randomness.0,
+        randomness: &randomness.0,
     };
     let zkp = Zkp::new_unsafe();
 
@@ -44,7 +47,7 @@ fn basic_correctness() {
     // test: bad witness
     let one: FE = ECScalar::from(&BigInt::from(1));
     let bad_wit = RangeWitness {
-        msg: wit.msg + one,
+        msg: &(*wit.msg + one),
         ..wit
     };
     let bad_proof = zkp.range_proof(&stmt, &bad_wit);

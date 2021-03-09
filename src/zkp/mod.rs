@@ -101,7 +101,7 @@ impl Zkp {
 
         let z = self.public.commit(&wit.msg.to_big_int(), &rho);
         let u =
-            Paillier::encrypt_with_chosen_randomness(&stmt.ek, RawPlaintext::from(&alpha), &beta)
+            Paillier::encrypt_with_chosen_randomness(stmt.ek, RawPlaintext::from(&alpha), &beta)
                 .0
                 .clone()
                 .into_owned(); // TODO wtf clone into_owned why does paillier suck so bad?
@@ -138,7 +138,7 @@ impl Zkp {
                 .neg();
         let u_check = BigInt::mod_mul(
             &Paillier::encrypt_with_chosen_randomness(
-                &stmt.ek,
+                stmt.ek,
                 RawPlaintext::from(&proof.s1),
                 &Randomness::from(&proof.s),
             )
@@ -161,13 +161,13 @@ impl Zkp {
     }
 }
 
-pub struct RangeStatement {
-    pub ciphertext: BigInt,
-    pub ek: EncryptionKey,
+pub struct RangeStatement<'a> {
+    pub ciphertext: &'a BigInt,
+    pub ek: &'a EncryptionKey,
 }
-pub struct RangeWitness {
-    pub msg: FE,
-    pub randomness: BigInt, // TODO use Paillier::Ransomness instead?
+pub struct RangeWitness<'a> {
+    pub msg: &'a FE,
+    pub randomness: &'a BigInt, // TODO use Paillier::Ransomness instead?
 }
 
 pub struct RangeProof {
