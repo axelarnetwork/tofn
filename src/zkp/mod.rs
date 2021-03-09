@@ -4,13 +4,13 @@
 //!
 //! TODO clean up: lots of repeated data
 //! TODO look into the implementation here: https://github.com/ing-bank/threshold-signatures/blob/master/src/algorithms/zkp.rs
-use std::{cmp::Ordering, ops::Neg};
+use std::ops::Neg;
 
 use curv::{
     arithmetic::traits::{Modulo, Samplable},
     cryptographic_primitives::hashing::{hash_sha256::HSha256, traits::Hash},
-    elliptic::curves::traits::{ECPoint, ECScalar},
-    BigInt, FE, GE,
+    elliptic::curves::traits::ECScalar,
+    BigInt, FE,
 };
 use paillier::{
     DecryptionKey, EncryptWithChosenRandomness, EncryptionKey, KeyGeneration, Paillier, Randomness,
@@ -41,12 +41,7 @@ impl ZkpPublic {
     pub fn commit(&self, msg: &BigInt, randomness: &BigInt) -> BigInt {
         let h1_x = BigInt::mod_pow(&self.h1, &msg, &self.n_tilde);
         let h2_r = BigInt::mod_pow(&self.h2, &randomness, &self.n_tilde);
-        let com = BigInt::mod_mul(&h1_x, &h2_r, &self.n_tilde);
-        com
-    }
-
-    pub fn encrypt(&self, msg: &BigInt, randomness: &BigInt) -> BigInt {
-        todo!()
+        BigInt::mod_mul(&h1_x, &h2_r, &self.n_tilde)
     }
 }
 
@@ -99,31 +94,17 @@ impl Zkp {
     // Used by Alice in the first message of MtA
     #[allow(clippy::many_single_char_names)]
     pub fn range_proof(&self, stmt: &RangeStatement, wit: &RangeWitness) -> RangeProof {
-        let one = BigInt::one();
-
         let alpha = BigInt::sample_below(&self.public.q3);
+        let beta = Randomness::sample(&stmt.ek); // TODO sample() may not be coprime to stmt.ek.n; do we care?
         let rho = BigInt::sample_below(&self.public.q_n_tilde);
         let gamma = BigInt::sample_below(&self.public.q3_n_tilde);
 
-        // sample beta coprime to stmt.ek.n
-        // TODO it is cryptographically unlikely that a random integer is not coprime to stmt.ek.n; should we bother checking?  zengo does not bother but binance does
-        // TODO refactor
-        let beta = loop {
-            let sample = BigInt::sample_range(&one, &stmt.ek.n);
-            if sample.gcd(&stmt.ek.n).cmp(&one) == std::cmp::Ordering::Equal {
-                break sample;
-            }
-        };
-
         let z = self.public.commit(&wit.msg.to_big_int(), &rho);
-        let u = Paillier::encrypt_with_chosen_randomness(
-            &stmt.ek,
-            RawPlaintext::from(&alpha),
-            &Randomness::from(&beta),
-        )
-        .0
-        .clone()
-        .into_owned(); // TODO wtf clone into_owned why does paillier suck so bad?
+        let u =
+            Paillier::encrypt_with_chosen_randomness(&stmt.ek, RawPlaintext::from(&alpha), &beta)
+                .0
+                .clone()
+                .into_owned(); // TODO wtf clone into_owned why does paillier suck so bad?
         let w = self.public.commit(&alpha, &gamma);
 
         let e = HSha256::create_hash(&[
@@ -138,7 +119,7 @@ impl Zkp {
 
         let s = BigInt::mod_mul(
             &BigInt::mod_pow(&wit.randomness, &e, &stmt.ek.n),
-            &beta,
+            &beta.0,
             &stmt.ek.n,
         );
         let s1 = &e * wit.msg.to_big_int() + alpha;
@@ -183,12 +164,10 @@ impl Zkp {
 pub struct RangeStatement {
     pub ciphertext: BigInt,
     pub ek: EncryptionKey,
-    // pub Q: GE,
-    // pub G: GE,
 }
 pub struct RangeWitness {
     pub msg: FE,
-    pub randomness: BigInt,
+    pub randomness: BigInt, // TODO use Paillier::Ransomness instead?
 }
 
 pub struct RangeProof {
@@ -199,3 +178,6 @@ pub struct RangeProof {
     s1: BigInt,
     s2: BigInt,
 }
+
+#[cfg(test)]
+mod tests;
