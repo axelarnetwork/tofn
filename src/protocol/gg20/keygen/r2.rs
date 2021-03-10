@@ -3,7 +3,7 @@ use paillier::EncryptionKey;
 use serde::{Deserialize, Serialize};
 
 use super::{Keygen, Status};
-use crate::protocol::gg20::vss;
+use crate::{protocol::gg20::vss, zkp::Zkp};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Bcast {
@@ -21,6 +21,7 @@ pub struct State {
     pub(super) my_share_of_my_ecdsa_secret_summand: FE,
     pub(super) all_commits: Vec<BigInt>,
     pub(super) all_eks: Vec<EncryptionKey>,
+    pub(super) all_zkps: Vec<Zkp>,
 }
 
 impl Keygen {
@@ -31,42 +32,46 @@ impl Keygen {
         // verify other parties' proofs and build commits list
         let mut all_commits = Vec::with_capacity(self.share_count);
         let mut all_eks = Vec::with_capacity(self.share_count);
-        for (i, bcast) in self.in_r1bcasts.vec_ref().iter().enumerate() {
+        let mut all_zkps = Vec::with_capacity(self.share_count);
+        for (i, in_r1bcast) in self.in_r1bcasts.vec_ref().iter().enumerate() {
             if i == self.my_index {
                 all_commits.push(r1state.my_commit.clone());
                 all_eks.push(r1state.my_ek.clone());
+                all_zkps.push(r1state.my_zkp.clone());
                 continue; // don't verify my own proof
             }
-            let bcast = bcast.clone().unwrap_or_else(|| {
+            let in_r1bcast = in_r1bcast.as_ref().unwrap_or_else(|| {
                 panic!(
                     "party {} says: missing input for party {}",
                     self.my_index, i
                 )
             });
-            bcast
+            in_r1bcast
                 .correct_key_proof
-                .verify(&bcast.ek)
+                .verify(&in_r1bcast.ek)
                 .unwrap_or_else(|_| {
                     panic!(
                         "party {} says: key proof failed to verify for party {}",
                         self.my_index, i
                     )
                 });
-            bcast
+            in_r1bcast
                 .zkp
                 .dlog_proof
-                .verify(&bcast.zkp.dlog_statement)
+                .verify(&in_r1bcast.zkp.dlog_statement)
                 .unwrap_or_else(|_| {
                     panic!(
                         "party {} says: dlog proof failed to verify for party {}",
                         self.my_index, i
                     )
                 });
-            all_commits.push(bcast.commit);
-            all_eks.push(bcast.ek);
+            all_commits.push(in_r1bcast.commit.clone());
+            all_eks.push(in_r1bcast.ek.clone());
+            all_zkps.push(in_r1bcast.zkp.clone());
         }
         assert_eq!(all_commits.len(), self.share_count);
         assert_eq!(all_eks.len(), self.share_count);
+        assert_eq!(all_zkps.len(), self.share_count);
 
         let (secret_share_commitments, ecdsa_secret_summand_shares) = vss::share(
             self.threshold,
@@ -101,6 +106,7 @@ impl Keygen {
                 my_share_of_my_ecdsa_secret_summand,
                 all_commits,
                 all_eks,
+                all_zkps,
             },
             out_bcast,
             out_p2p,
