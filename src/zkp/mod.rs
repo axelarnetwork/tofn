@@ -161,6 +161,12 @@ impl Zkp {
     }
 }
 
+impl Default for Zkp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub struct RangeStatement<'a> {
     pub ciphertext: &'a BigInt,
     pub ek: &'a EncryptionKey,

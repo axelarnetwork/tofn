@@ -15,10 +15,10 @@ lazy_static::lazy_static! {
     static ref MSG_TO_SIGN: Vec<u8> = vec![42];
     static ref TEST_CASES: Vec<(usize, usize, Vec<usize>)> = vec![ // (share_count, threshold, participant_indices)
         (5, 2, vec![1,2,4]),
-        // (5, 2, vec![4,1,2]),
-        // (5, 2, vec![0,1,2,3]),
-        // (5, 2, vec![4,2,3,1,0]),
-        // (1,0,vec![0]),
+        (5, 2, vec![4,1,2]),
+        (5, 2, vec![0,1,2,3]),
+        (5, 2, vec![4,2,3,1,0]),
+        (1,0,vec![0]),
     ];
     // TODO add TEST_CASES_INVALID
 }
