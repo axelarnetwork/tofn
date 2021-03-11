@@ -1,6 +1,6 @@
 use super::{Sign, Status};
 use crate::fillvec::FillVec;
-use crate::zkp::RangeStatement;
+use crate::zkp::range_proof::RangeStatement;
 use curv::FE;
 use multi_party_ecdsa::utilities::mta;
 use serde::{Deserialize, Serialize};

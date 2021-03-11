@@ -1,4 +1,4 @@
-use crate::zkp::{RangeProof, RangeStatement, RangeWitness};
+use crate::zkp::range_proof::{RangeProof, RangeStatement, RangeWitness};
 use serde::{Deserialize, Serialize};
 
 use crate::{fillvec::FillVec, protocol::gg20::vss};
