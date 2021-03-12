@@ -4,18 +4,13 @@
 //!
 //! TODO clean up: lots of repeated data
 //! TODO look into the implementation here: https://github.com/ing-bank/threshold-signatures/blob/master/src/algorithms/zkp.rs
-use std::ops::Neg;
 
 use curv::{
     arithmetic::traits::{Modulo, Samplable},
-    cryptographic_primitives::hashing::{hash_sha256::HSha256, traits::Hash},
     elliptic::curves::traits::ECScalar,
     BigInt, FE,
 };
-use paillier::{
-    DecryptionKey, EncryptWithChosenRandomness, EncryptionKey, KeyGeneration, Paillier, Randomness,
-    RawPlaintext,
-};
+use paillier::{DecryptionKey, EncryptionKey, KeyGeneration, Paillier};
 use serde::{Deserialize, Serialize};
 use zk_paillier::zkproofs::{CompositeDLogProof, DLogStatement};
 
@@ -89,6 +84,7 @@ impl Zkp {
     }
 }
 
+pub mod mta_resp_proof;
 pub mod range_proof;
 
 impl Default for Zkp {
