@@ -59,14 +59,29 @@ impl Sign {
                         self.my_secret_key_share.my_index, participant_index, e
                     )
                 });
-            let other_public_key_summand = {
-                let lagrangian_coefficient = vss::lagrangian_coefficient(
+            let other_public_key_summand = self.my_secret_key_share.all_ecdsa_public_key_shares
+                [*participant_index]
+                * vss::lagrangian_coefficient(
                     self.my_secret_key_share.share_count,
                     *participant_index,
                     &self.participant_indices,
                 );
-                // self.my_secret_key_share.
-            };
+            self.my_secret_key_share.my_zkp.verify_mta_proof_wc(
+                &mta::StatementWc {
+                    stmt: mta::Statement {
+                        ciphertext1: &r1state.my_encrypted_ecdsa_nonce_summand,
+                        ciphertext2: &in_p2p.mta_response_keyshare.c,
+                        ek: my_ek,
+                    },
+                    x_g: &other_public_key_summand,
+                },
+                &in_p2p.mta_proof_wc,
+            ).unwrap_or_else(|e| {
+                panic!(
+                    "party {} says: mta respondent proof wc failed to verify for party {} because [{}]",
+                    self.my_secret_key_share.my_index, participant_index, e
+                )
+            });
 
             let (my_mta_blind_summand_lhs, _) = in_p2p
                 .mta_response_blind

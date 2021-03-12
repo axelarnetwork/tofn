@@ -8,17 +8,18 @@ use crate::{protocol::gg20::vss, zkp::Zkp};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Bcast {
     pub reveal: BigInt,
-    pub secret_share_commitments: Vec<GE>,
+    pub secret_summand_share_commitments: Vec<GE>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct P2p {
-    pub ecdsa_secret_summand_share: FE, // threshold share of my_ecdsa_secret_summand
+    pub secret_summand_share: FE, // threshold share of my_ecdsa_secret_summand
 }
 
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub struct State {
     pub(super) my_share_of_my_ecdsa_secret_summand: FE,
+    pub(super) my_secret_summand_share_commitments: Vec<GE>,
     pub(super) all_commits: Vec<BigInt>,
     pub(super) all_eks: Vec<EncryptionKey>,
     pub(super) all_zkps: Vec<Zkp>,
@@ -73,37 +74,39 @@ impl Keygen {
         assert_eq!(all_eks.len(), self.share_count);
         assert_eq!(all_zkps.len(), self.share_count);
 
-        let (secret_share_commitments, ecdsa_secret_summand_shares) = vss::share(
+        let (my_secret_summand_share_commitments, my_secret_summand_shares) = vss::share(
             self.threshold,
             self.share_count,
             &r1state.my_ecdsa_secret_summand,
         );
-        assert_eq!(secret_share_commitments[0], r1state.my_ecdsa_public_summand);
+        assert_eq!(
+            my_secret_summand_share_commitments[0],
+            r1state.my_ecdsa_public_summand
+        );
 
         // prepare outgoing p2p messages: secret shares of my_ecdsa_secret_summand
-        let mut out_p2p: Vec<Option<P2p>> = ecdsa_secret_summand_shares
+        let mut out_p2p: Vec<Option<P2p>> = my_secret_summand_shares
             .into_iter()
             .map(|x| {
                 Some(P2p {
-                    ecdsa_secret_summand_share: x,
+                    secret_summand_share: x,
                 })
             })
             .collect();
-        let my_share_of_my_ecdsa_secret_summand = out_p2p[self.my_index]
-            .take()
-            .unwrap()
-            .ecdsa_secret_summand_share;
+        let my_share_of_my_ecdsa_secret_summand =
+            out_p2p[self.my_index].take().unwrap().secret_summand_share;
 
         // TODO sign and encrypt each p2p_msg
         assert_eq!(out_p2p.len(), self.share_count);
 
         let out_bcast = Bcast {
             reveal: r1state.my_reveal.clone(),
-            secret_share_commitments,
+            secret_summand_share_commitments: my_secret_summand_share_commitments.clone(),
         };
         (
             State {
                 my_share_of_my_ecdsa_secret_summand,
+                my_secret_summand_share_commitments,
                 all_commits,
                 all_eks,
                 all_zkps,

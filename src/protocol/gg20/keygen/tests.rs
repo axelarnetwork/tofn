@@ -131,27 +131,23 @@ pub(in super::super) fn execute_keygen(
     assert_eq!(secret_key_reconstructed, secret_key_sum_u);
 
     // test: verify that the reconstructed secret key yields the public key everyone deduced
-    for state in all_secret_key_shares.iter() {
+    for secret_key_share in all_secret_key_shares.iter() {
         let test_pubkey = GE::generator() * secret_key_reconstructed;
-        assert_eq!(test_pubkey, state.ecdsa_public_key);
+        assert_eq!(test_pubkey, secret_key_share.ecdsa_public_key);
     }
 
-    // print each key share
-    // output may be copied into src/gg20/sign/stateless/tests.rs
-    // println!(
-    //     "share_count: {}, threshold: {}",
-    //     all_r4_states[0].share_count, all_r4_states[0].threshold
-    // );
-    // println!(
-    //     "ecdsa_public_key: {:?}",
-    //     all_r4_states[0].ecdsa_public_key.serialize()
-    // );
-    // for key_share in all_r4_states.iter() {
-    //     println!(
-    //         "my_index: {}, my_ecdsa_secret_key_share: {:?}",
-    //         key_share.my_index, key_share.my_ecdsa_secret_key_share
-    //     );
-    // }
+    // test: everyone computed everyone else's public key share correctly
+    for (i, secret_key_share) in all_secret_key_shares.iter().enumerate() {
+        for (j, other_secret_key_share) in all_secret_key_shares.iter().enumerate() {
+            assert_eq!(
+                secret_key_share.all_ecdsa_public_key_shares[j],
+                GE::generator() * other_secret_key_share.my_ecdsa_secret_key_share,
+                "party {} got party {} key wrong",
+                i,
+                j
+            );
+        }
+    }
 
     all_secret_key_shares
 }

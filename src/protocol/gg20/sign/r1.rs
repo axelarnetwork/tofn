@@ -41,15 +41,13 @@ impl Sign {
     // immutable &self: do not modify existing self state, only add more
     pub(super) fn r1(&self) -> (State, Bcast, Vec<Option<P2p>>) {
         assert!(matches!(self.status, Status::New));
-        let my_secret_key_summand = {
-            // w_i
-            let lagrangian_coefficient = vss::lagrangian_coefficient(
+        let my_secret_key_summand // w_i
+            = self.my_secret_key_share.my_ecdsa_secret_key_share
+            * vss::lagrangian_coefficient( // l_i
                 self.my_secret_key_share.share_count,
                 self.my_secret_key_share.my_index,
                 &self.participant_indices,
-            ); // li
-            lagrangian_coefficient * self.my_secret_key_share.my_ecdsa_secret_key_share
-        };
+            );
         let my_secret_blind_summand = FE::new_random(); // gamma_i
         let my_public_blind_summand = GE::generator() * my_secret_blind_summand; // g_gamma_i
         let my_ecdsa_nonce_summand = FE::new_random(); // k_i

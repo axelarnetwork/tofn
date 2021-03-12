@@ -8,11 +8,13 @@ use curv::{
 use paillier::{EncryptWithChosenRandomness, EncryptionKey, Paillier, Randomness, RawPlaintext};
 use serde::{Deserialize, Serialize};
 
+#[derive(Clone, Debug)]
 pub struct Statement<'a> {
     pub ciphertext1: &'a BigInt,
     pub ciphertext2: &'a BigInt,
     pub ek: &'a EncryptionKey,
 }
+#[derive(Clone, Debug)]
 pub struct Witness<'a> {
     pub x: &'a FE,
     pub msg: &'a BigInt,
@@ -33,6 +35,7 @@ pub struct Proof {
     t2: BigInt,
 }
 
+#[derive(Clone, Debug)]
 pub struct StatementWc<'a> {
     pub stmt: Statement<'a>,
     pub x_g: &'a GE,
