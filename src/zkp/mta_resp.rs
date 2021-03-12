@@ -2,8 +2,8 @@ use crate::zkp::Zkp;
 use curv::{
     arithmetic::traits::{Modulo, Samplable},
     cryptographic_primitives::hashing::{hash_sha256::HSha256, traits::Hash},
-    elliptic::curves::traits::ECScalar,
-    BigInt, FE,
+    elliptic::curves::traits::{ECPoint, ECScalar},
+    BigInt, FE, GE,
 };
 use paillier::{EncryptWithChosenRandomness, EncryptionKey, Paillier, Randomness, RawPlaintext};
 use serde::{Deserialize, Serialize};
@@ -33,14 +33,61 @@ pub struct Proof {
     t2: BigInt,
 }
 
+pub struct StatementWc<'a> {
+    pub stmt: Statement<'a>,
+    pub x_g: &'a GE,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ProofWc {
+    pub proof: Proof,
+    pub u: GE,
+}
+
 impl Zkp {
     // statement (ciphertext1, ciphertext2, ek), witness (x, msg, randomness)
     //   such that ciphertext2 = x *' ciphertext1 +' Enc(ek, msg, randomness) and -q^3 < x < q^3
     //   where *' and +' denote homomorphic operations on ciphertexts
     // notation follows appendix A.3 of https://eprint.iacr.org/2019/114.pdf
     // used by Bob (the "respondent") in MtA protocol
-    #[allow(clippy::many_single_char_names)]
+    // MtA : Multiplicative to Additive
     pub fn mta_resp_proof(&self, stmt: &Statement, wit: &Witness) -> Proof {
+        self.proof(stmt, None, wit).0
+    }
+
+    pub fn verify_mta_resp_proof(
+        &self,
+        stmt: &Statement,
+        proof: &Proof,
+    ) -> Result<(), &'static str> {
+        self.verify(stmt, proof, None)
+    }
+
+    // statement (ciphertext1, ciphertext2, ek, x_g), witness (x, msg, randomness)
+    //   such that ciphertext2 = x *' ciphertext1 +' Enc(ek, msg, randomness) and -q^3 < x < q^3
+    //   and x_g = x * G (this is the additional "check")
+    //   where *' and +' denote homomorphic operations on ciphertexts
+    // notation follows appendix A.2 of https://eprint.iacr.org/2019/114.pdf
+    // used by Bob (the "respondent") in MtAwc protocol
+    // MtAwc : Multiplicative to Additive with check
+    pub fn mta_resp_proof_wc(&self, stmt: &StatementWc, wit: &Witness) -> ProofWc {
+        let (proof, u) = self.proof(&stmt.stmt, Some(stmt.x_g), wit);
+        ProofWc {
+            proof,
+            u: u.unwrap(),
+        }
+    }
+
+    pub fn verify_mta_resp_proof_wc(
+        &self,
+        stmt: &StatementWc,
+        proof: &ProofWc,
+    ) -> Result<(), &'static str> {
+        self.verify(&stmt.stmt, &proof.proof, Some((stmt.x_g, &proof.u)))
+    }
+
+    #[allow(clippy::many_single_char_names)]
+    fn proof(&self, stmt: &Statement, x_g: Option<&GE>, wit: &Witness) -> (Proof, Option<GE>) {
         let alpha = BigInt::sample_below(&self.public.q3);
 
         let sigma = BigInt::sample_below(&self.public.q_n_tilde);
@@ -55,6 +102,12 @@ impl Zkp {
         let z = self.public.commit(&wit.x.to_big_int(), &rho);
         let z_prime = self.public.commit(&alpha, &rho_prime);
         let t = self.public.commit(&wit.msg, &sigma);
+
+        let u = x_g.map::<GE, _>(|_| {
+            let alpha: FE = ECScalar::from(&alpha);
+            let g: GE = ECPoint::generator();
+            g * alpha
+        });
 
         let v = BigInt::mod_mul(
             &Paillier::encrypt_with_chosen_randomness(stmt.ek, RawPlaintext::from(&gamma), &beta).0,
@@ -72,6 +125,7 @@ impl Zkp {
             &z,
             &z_prime,
             &t,
+            &u.map_or(BigInt::zero(), |u| u.bytes_compressed_to_big_int()),
             &v,
             &w,
         ])
@@ -87,24 +141,28 @@ impl Zkp {
         let t1 = &e * wit.msg + gamma;
         let t2 = e * sigma + tau;
 
-        Proof {
-            z,
-            z_prime,
-            t,
-            v,
-            w,
-            s,
-            s1,
-            s2,
-            t1,
-            t2,
-        }
+        (
+            Proof {
+                z,
+                z_prime,
+                t,
+                v,
+                w,
+                s,
+                s1,
+                s2,
+                t1,
+                t2,
+            },
+            u,
+        )
     }
 
-    pub fn verify_mta_resp_proof(
+    fn verify(
         &self,
         stmt: &Statement,
         proof: &Proof,
+        x_g_u: Option<(&GE, &GE)>, // (x_g, u)
     ) -> Result<(), &'static str> {
         if proof.s1 > self.public.q3 || proof.s1 < BigInt::zero() {
             return Err("s1 not in range q^3");
@@ -116,6 +174,7 @@ impl Zkp {
             &proof.z,
             &proof.z_prime,
             &proof.t,
+            &x_g_u.map_or(BigInt::zero(), |(_, u)| u.bytes_compressed_to_big_int()),
             &proof.v,
             &proof.w,
         ])
