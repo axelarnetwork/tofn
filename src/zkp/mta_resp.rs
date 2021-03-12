@@ -122,6 +122,7 @@ impl Zkp {
             // TODO add stmt.ek.gamma to this hash like binance? zengo puts a bunch of other crap in here
             &stmt.ciphertext1,
             &stmt.ciphertext2,
+            &x_g.map_or(BigInt::zero(), |x_g| x_g.bytes_compressed_to_big_int()),
             &z,
             &z_prime,
             &t,
@@ -171,6 +172,7 @@ impl Zkp {
             &stmt.ek.n,
             &stmt.ciphertext1,
             &stmt.ciphertext2,
+            &x_g_u.map_or(BigInt::zero(), |(x_g, _)| x_g.bytes_compressed_to_big_int()),
             &proof.z,
             &proof.z_prime,
             &proof.t,
@@ -179,6 +181,17 @@ impl Zkp {
             &proof.w,
         ])
         .modulus(&FE::q());
+
+        if let Some((x_g, u)) = x_g_u {
+            let g: GE = ECPoint::generator();
+            let s1: FE = ECScalar::from(&proof.s1);
+            let s1_g = g * s1;
+            let e: FE = ECScalar::from(&e);
+            let s1_g_check = x_g * &e + u;
+            if s1_g_check != s1_g {
+                return Err("'wc' check fail");
+            }
+        }
 
         let z_e_z_prime = BigInt::mod_mul(
             &BigInt::mod_pow(&proof.z, &e, &self.public.n_tilde),
@@ -224,15 +237,11 @@ impl Zkp {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        Zkp, {Proof, Statement, Witness},
-    };
+    use super::{Proof, ProofWc, Statement, StatementWc, Witness, Zkp};
     use curv::{
         arithmetic::traits::Samplable,
-        // cryptographic_primitives::hashing::{hash_sha256::HSha256, traits::Hash},
-        elliptic::curves::traits::ECScalar,
-        BigInt,
-        FE,
+        elliptic::curves::traits::{ECPoint, ECScalar},
+        BigInt, FE, GE,
     };
     use paillier::{
         Add, EncryptWithChosenRandomness, KeyGeneration, Mul, Paillier, Randomness, RawCiphertext,
@@ -242,11 +251,16 @@ mod tests {
     #[test]
     fn basic_correctness() {
         // create a (statement, witness) pair:
-        // statement (ciphertext1, ciphertext2, ek), witness (x, msg, randomness)
+        // statement (ciphertext1, ciphertext2, ek, x_g), witness (x, msg, randomness)
         //   such that ciphertext2 = x *' ciphertext1 +' Enc(ek, msg, randomness) and -q^3 < x < q^3
+        //   and x_g = x * G (this is the additional "check")
         let (ek, _dk) = &Paillier::keypair().keys(); // not using safe primes
         let msg = &BigInt::sample_below(&ek.n);
         let x = &FE::new_random();
+        let x_g = &{
+            let g: GE = ECPoint::generator();
+            g * x
+        };
         let randomness = &Randomness::sample(&ek);
         let ciphertext1 = &BigInt::sample_below(&ek.nn);
         let ciphertext2 = &Paillier::add(
@@ -260,12 +274,16 @@ mod tests {
         )
         .0;
 
-        let stmt = Statement {
-            ciphertext1,
-            ciphertext2,
-            ek,
+        let stmt_wc = &StatementWc {
+            stmt: Statement {
+                ciphertext1,
+                ciphertext2,
+                ek,
+            },
+            x_g,
         };
-        let wit = Witness {
+        let stmt = &stmt_wc.stmt;
+        let wit = &Witness {
             msg,
             randomness: &randomness.0,
             x,
@@ -273,23 +291,43 @@ mod tests {
         let zkp = Zkp::new_unsafe();
 
         // test: valid proof
-        let proof = zkp.mta_resp_proof(&stmt, &wit);
-        zkp.verify_mta_resp_proof(&stmt, &proof).unwrap();
+        let proof = zkp.mta_resp_proof(stmt, wit);
+        zkp.verify_mta_resp_proof(stmt, &proof).unwrap();
+
+        // test: valid proof wc (with check)
+        let proof_wc = zkp.mta_resp_proof_wc(stmt_wc, wit);
+        zkp.verify_mta_resp_proof_wc(stmt_wc, &proof_wc).unwrap();
 
         // test: bad proof
         let bad_proof = Proof {
             v: proof.v + BigInt::from(1),
             ..proof
         };
-        zkp.verify_mta_resp_proof(&stmt, &bad_proof).unwrap_err();
+        zkp.verify_mta_resp_proof(stmt, &bad_proof).unwrap_err();
+
+        // test: bad proof wc (with check)
+        let bad_proof_wc = ProofWc {
+            proof: Proof {
+                v: proof_wc.proof.v + BigInt::from(1),
+                ..proof_wc.proof
+            },
+            ..proof_wc
+        };
+        zkp.verify_mta_resp_proof_wc(stmt_wc, &bad_proof_wc)
+            .unwrap_err();
 
         // test: bad witness
-        let bad_wit = Witness {
+        let bad_wit = &Witness {
             msg: &(wit.msg + BigInt::from(1)),
-            ..wit
+            ..*wit
         };
-        let bad_wit_proof = zkp.mta_resp_proof(&stmt, &bad_wit);
+        let bad_wit_proof = zkp.mta_resp_proof(stmt, bad_wit);
         zkp.verify_mta_resp_proof(&stmt, &bad_wit_proof)
+            .unwrap_err();
+
+        // test: bad witness wc (with check)
+        let bad_wit_proof_wc = zkp.mta_resp_proof_wc(stmt_wc, bad_wit);
+        zkp.verify_mta_resp_proof_wc(&stmt_wc, &bad_wit_proof_wc)
             .unwrap_err();
     }
 }
