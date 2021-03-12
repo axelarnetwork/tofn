@@ -101,8 +101,7 @@ impl Zkp {
 
         let u = x_g.map::<GE, _>(|_| {
             let alpha: FE = ECScalar::from(&alpha);
-            let g: GE = ECPoint::generator();
-            g * alpha
+            GE::generator() * alpha
         });
 
         let v = BigInt::mod_mul(
@@ -179,9 +178,8 @@ impl Zkp {
         .modulus(&FE::q());
 
         if let Some((x_g, u)) = x_g_u {
-            let g: GE = ECPoint::generator();
             let s1: FE = ECScalar::from(&proof.s1);
-            let s1_g = g * s1;
+            let s1_g = GE::generator() * s1;
             let e: FE = ECScalar::from(&e);
             let s1_g_check = x_g * &e + u;
             if s1_g_check != s1_g {
@@ -253,10 +251,7 @@ mod tests {
         let (ek, _dk) = &Paillier::keypair().keys(); // not using safe primes
         let msg = &BigInt::sample_below(&ek.n);
         let x = &FE::new_random();
-        let x_g = &{
-            let g: GE = ECPoint::generator();
-            g * x
-        };
+        let x_g = &(GE::generator() * x);
         let randomness = &Randomness::sample(&ek);
         let ciphertext1 = &BigInt::sample_below(&ek.nn);
         let ciphertext2 = &Paillier::add(

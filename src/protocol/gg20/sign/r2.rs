@@ -1,7 +1,7 @@
 use super::{Sign, Status};
 use crate::fillvec::FillVec;
 use crate::zkp::{mta, range};
-use curv::FE;
+use curv::{elliptic::curves::traits::ECPoint, FE, GE};
 use multi_party_ecdsa::utilities::mta as mta_zengo;
 use serde::{Deserialize, Serialize};
 
@@ -12,11 +12,13 @@ pub struct P2p {
     pub mta_response_blind: mta_zengo::MessageB,
     pub mta_proof: mta::Proof,
     pub mta_response_keyshare: mta_zengo::MessageB,
+    pub mta_proof_wc: mta::ProofWc,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub struct State {
     pub(super) my_mta_blind_summands_rhs: Vec<Option<FE>>,
     pub(super) my_mta_keyshare_summands_rhs: Vec<Option<FE>>,
+    // pub(super) my_public_key_summand: GE,
 }
 
 impl Sign {
@@ -29,9 +31,12 @@ impl Sign {
         // both MtAs use my_ecdsa_nonce_summand, so I use the same message for both
 
         let r1state = self.r1state.as_ref().unwrap();
+        let my_public_key_summand = GE::generator() * r1state.my_secret_key_summand;
+
         let mut out_p2ps = FillVec::with_len(self.participant_indices.len());
         let mut my_mta_blind_summands_rhs = FillVec::with_len(self.participant_indices.len());
         let mut my_mta_keyshare_summands_rhs = FillVec::with_len(self.participant_indices.len());
+
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
             if *participant_index == self.my_secret_key_share.my_index {
                 continue;
@@ -41,10 +46,13 @@ impl Sign {
             // 1. unused return values in MessageB::b()
             // 2. MessageA arg is passed by value
             let other_ek = &self.my_secret_key_share.all_eks[*participant_index];
+            let other_zkp = &self.my_secret_key_share.all_zkps[*participant_index];
             let other_encrypted_ecdsa_nonce_summand = &self.in_r1bcasts.vec_ref()[i]
                 .as_ref()
                 .unwrap()
                 .encrypted_ecdsa_nonce_summand;
+
+            // verify zk proof for first message of MtA
             self.my_secret_key_share
                 .my_zkp
                 .verify_range_proof(
@@ -61,11 +69,11 @@ impl Sign {
                     )
                 });
 
+            // MtA for nonce * blind
+            // TODO tidy scoping: don't need randomness, beta_prime after these two statements
             let (mta_response_blind, my_mta_blind_summand_rhs, randomness, beta_prime) = // (m_b_gamma, beta_gamma)
                 mta_zengo::MessageB::b(&r1state.my_secret_blind_summand, other_ek, other_encrypted_ecdsa_nonce_summand.clone());
-
-            let other_zkp = &self.my_secret_key_share.all_zkps[*participant_index];
-            let mta_resp_proof = other_zkp.mta_proof(
+            let mta_proof = other_zkp.mta_proof(
                 &mta::Statement {
                     ciphertext1: &other_encrypted_ecdsa_nonce_summand.c,
                     ciphertext2: &mta_response_blind.c,
@@ -78,9 +86,24 @@ impl Sign {
                 },
             );
 
-            // TODO support MtAwc! https://github.com/axelarnetwork/tofn/issues/7
-            let (mta_response_keyshare, my_mta_keyshare_summand_rhs, _, _) = // (m_b_w, beta_wi)
+            // MtAwc for nonce * keyshare
+            let (mta_response_keyshare, my_mta_keyshare_summand_rhs, randomness_wc, beta_prime_wc) = // (m_b_w, beta_wi)
                 mta_zengo::MessageB::b(&r1state.my_secret_key_summand, other_ek, other_encrypted_ecdsa_nonce_summand.clone());
+            let mta_proof_wc = other_zkp.mta_proof_wc(
+                &mta::StatementWc {
+                    stmt: mta::Statement {
+                        ciphertext1: &other_encrypted_ecdsa_nonce_summand.c,
+                        ciphertext2: &mta_response_keyshare.c,
+                        ek: other_ek,
+                    },
+                    x_g: &my_public_key_summand,
+                },
+                &mta::Witness {
+                    x: &r1state.my_secret_key_summand,
+                    msg: &beta_prime_wc,
+                    randomness: &randomness_wc,
+                },
+            );
 
             // TODO I'm not sending my rhs summands even though zengo does https://github.com/axelarnetwork/tofn/issues/7#issuecomment-771379525
 
@@ -89,8 +112,9 @@ impl Sign {
                     i,
                     P2p {
                         mta_response_blind,
-                        mta_proof: mta_resp_proof,
+                        mta_proof,
                         mta_response_keyshare,
+                        mta_proof_wc,
                     },
                 )
                 .unwrap();
@@ -106,6 +130,7 @@ impl Sign {
             State {
                 my_mta_blind_summands_rhs: my_mta_blind_summands_rhs.into_vec(),
                 my_mta_keyshare_summands_rhs: my_mta_keyshare_summands_rhs.into_vec(),
+                // my_public_key_summand,
             },
             out_p2ps.into_vec(),
         )

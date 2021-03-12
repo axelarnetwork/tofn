@@ -15,8 +15,9 @@ pub struct Bcast {
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub struct State {
-    pub(super) ecdsa_public_key: GE,          // the final pub key
-    pub(super) my_ecdsa_secret_key_share: FE, // my final secret key share
+    pub(super) ecdsa_public_key: GE,               // the final pub key
+    pub(super) my_ecdsa_secret_key_share: FE,      // my final secret key share
+    pub(super) all_ecdsa_public_summands: Vec<GE>, // these sum to ecdsa_public_key
 }
 
 impl Keygen {
@@ -26,10 +27,12 @@ impl Keygen {
         let r2state = self.r2state.as_ref().unwrap();
 
         let mut ecdsa_public_key = r1state.my_ecdsa_public_summand;
-        let mut my_secret_key_share = r2state.my_share_of_my_ecdsa_secret_summand;
+        let mut my_ecdsa_secret_key_share = r2state.my_share_of_my_ecdsa_secret_summand;
+        let mut all_ecdsa_public_summands = Vec::with_capacity(self.share_count);
 
         for i in 0..self.share_count {
             if i == self.my_index {
+                all_ecdsa_public_summands.push(r1state.my_ecdsa_public_summand);
                 continue;
             }
             let bcast = self.in_r2bcasts.vec_ref()[i].clone().unwrap_or_else(|| {
@@ -58,16 +61,18 @@ impl Keygen {
             .is_ok());
 
             ecdsa_public_key = ecdsa_public_key + ecdsa_public_summand;
-            my_secret_key_share = my_secret_key_share + p2p.ecdsa_secret_summand_share;
+            my_ecdsa_secret_key_share = my_ecdsa_secret_key_share + p2p.ecdsa_secret_summand_share;
+            all_ecdsa_public_summands.push(*ecdsa_public_summand);
         }
 
         let my_bcast = Bcast {
-            dlog_proof: DLogProof::prove(&my_secret_key_share),
+            dlog_proof: DLogProof::prove(&my_ecdsa_secret_key_share),
         };
         (
             State {
                 ecdsa_public_key,
-                my_ecdsa_secret_key_share: my_secret_key_share,
+                my_ecdsa_secret_key_share,
+                all_ecdsa_public_summands,
             },
             my_bcast,
         )

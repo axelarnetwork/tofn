@@ -14,6 +14,7 @@ pub struct SecretKeyShare {
     pub my_zkp: Zkp,
     pub my_ecdsa_secret_key_share: FE,
     pub ecdsa_public_key: GE,
+    pub all_ecdsa_public_summands: Vec<GE>, // these sum to ecdsa_public_key
     pub all_eks: Vec<EncryptionKey>,
     pub all_zkps: Vec<Zkp>,
 }

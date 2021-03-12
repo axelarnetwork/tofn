@@ -37,6 +37,7 @@ impl Keygen {
             my_ecdsa_secret_key_share: r3state.my_ecdsa_secret_key_share,
             all_eks: r2state.all_eks.clone(),
             all_zkps: r2state.all_zkps.clone(),
+            all_ecdsa_public_summands: r3state.all_ecdsa_public_summands.clone(),
         }
     }
 }

@@ -1,5 +1,6 @@
 use super::{Sign, Status};
 use crate::fillvec::FillVec;
+use crate::protocol::gg20::vss;
 use crate::zkp::mta;
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
@@ -41,6 +42,7 @@ impl Sign {
             }
             let in_p2p = self.in_r2p2ps.vec_ref()[i].as_ref().unwrap();
 
+            // verify zk proofs from MtA, MtAwc
             self.my_secret_key_share
                 .my_zkp
                 .verify_mta_proof(
@@ -57,6 +59,14 @@ impl Sign {
                         self.my_secret_key_share.my_index, participant_index, e
                     )
                 });
+            let other_public_key_summand = {
+                let lagrangian_coefficient = vss::lagrangian_coefficient(
+                    self.my_secret_key_share.share_count,
+                    *participant_index,
+                    &self.participant_indices,
+                );
+                // self.my_secret_key_share.
+            };
 
             let (my_mta_blind_summand_lhs, _) = in_p2p
                 .mta_response_blind
