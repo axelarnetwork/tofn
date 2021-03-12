@@ -1,5 +1,6 @@
 use super::{Sign, Status};
 use crate::fillvec::FillVec;
+use crate::zkp::mta_resp_proof;
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     FE, GE,
@@ -23,7 +24,10 @@ impl Sign {
     pub(super) fn r3(&self) -> (State, Bcast) {
         assert!(matches!(self.status, Status::R2));
 
-        let my_dk = &self.my_secret_key_share.my_dk;
+        let (my_ek, my_dk) = (
+            &self.my_secret_key_share.my_ek,
+            &self.my_secret_key_share.my_dk,
+        );
         let r1state = self.r1state.as_ref().unwrap();
 
         // complete the MtA protocols:
@@ -35,14 +39,31 @@ impl Sign {
             if *participant_index == self.my_secret_key_share.my_index {
                 continue;
             }
-            let mta = self.in_r2p2ps.vec_ref()[i].as_ref().unwrap();
+            let in_p2p = self.in_r2p2ps.vec_ref()[i].as_ref().unwrap();
 
-            let (my_mta_blind_summand_lhs, _) = mta
+            self.my_secret_key_share
+                .my_zkp
+                .verify_mta_resp_proof(
+                    &mta_resp_proof::Statement {
+                        ciphertext1: &r1state.my_encrypted_ecdsa_nonce_summand,
+                        ciphertext2: &in_p2p.mta_response_blind.c,
+                        ek: my_ek,
+                    },
+                    &in_p2p.mta_resp_proof,
+                )
+                .unwrap_or_else(|e| {
+                    panic!(
+                        "party {} says: mta respondent proof failed to verify for party {} because [{}]",
+                        self.my_secret_key_share.my_index, participant_index, e
+                    )
+                });
+
+            let (my_mta_blind_summand_lhs, _) = in_p2p
                 .mta_response_blind
                 .verify_proofs_get_alpha(my_dk, &r1state.my_ecdsa_nonce_summand)
                 .unwrap(); // TODO panic
 
-            let (my_mta_keyshare_summand_lhs, _) = mta
+            let (my_mta_keyshare_summand_lhs, _) = in_p2p
                 .mta_response_keyshare
                 .verify_proofs_get_alpha(my_dk, &r1state.my_ecdsa_nonce_summand)
                 .unwrap(); // TODO panic

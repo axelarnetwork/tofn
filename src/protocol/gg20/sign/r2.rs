@@ -1,6 +1,6 @@
 use super::{Sign, Status};
 use crate::fillvec::FillVec;
-use crate::zkp::range_proof::RangeStatement;
+use crate::zkp::{mta_resp_proof, range_proof::RangeStatement};
 use curv::FE;
 use multi_party_ecdsa::utilities::mta;
 use serde::{Deserialize, Serialize};
@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct P2p {
     pub mta_response_blind: mta::MessageB,
+    pub mta_resp_proof: mta_resp_proof::Proof,
     pub mta_response_keyshare: mta::MessageB,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
@@ -40,16 +41,15 @@ impl Sign {
             // 1. unused return values in MessageB::b()
             // 2. MessageA arg is passed by value
             let other_ek = &self.my_secret_key_share.all_eks[*participant_index];
-            let c_a = self.in_r1bcasts.vec_ref()[i]
+            let other_encrypted_ecdsa_nonce_summand = &self.in_r1bcasts.vec_ref()[i]
                 .as_ref()
                 .unwrap()
-                .encrypted_ecdsa_nonce_summand
-                .clone();
+                .encrypted_ecdsa_nonce_summand;
             self.my_secret_key_share
                 .my_zkp
                 .verify_range_proof(
                     &RangeStatement {
-                        ciphertext: &c_a.c,
+                        ciphertext: &other_encrypted_ecdsa_nonce_summand.c,
                         ek: other_ek,
                     },
                     &self.in_r1p2ps.vec_ref()[i].as_ref().unwrap().range_proof,
@@ -61,12 +61,26 @@ impl Sign {
                     )
                 });
 
-            let (mta_response_blind, my_mta_blind_summand_rhs, _, _) = // (m_b_gamma, beta_gamma)
-                mta::MessageB::b(&r1state.my_secret_blind_summand, other_ek, c_a.clone());
+            let (mta_response_blind, my_mta_blind_summand_rhs, randomness, beta_prime) = // (m_b_gamma, beta_gamma)
+                mta::MessageB::b(&r1state.my_secret_blind_summand, other_ek, other_encrypted_ecdsa_nonce_summand.clone());
+
+            let other_zkp = &self.my_secret_key_share.all_zkps[*participant_index];
+            let mta_resp_proof = other_zkp.mta_resp_proof(
+                &mta_resp_proof::Statement {
+                    ciphertext1: &other_encrypted_ecdsa_nonce_summand.c,
+                    ciphertext2: &mta_response_blind.c,
+                    ek: other_ek,
+                },
+                &mta_resp_proof::Witness {
+                    x: &r1state.my_secret_blind_summand,
+                    msg: &beta_prime,
+                    randomness: &randomness,
+                },
+            );
 
             // TODO support MtAwc! https://github.com/axelarnetwork/tofn/issues/7
             let (mta_response_keyshare, my_mta_keyshare_summand_rhs, _, _) = // (m_b_w, beta_wi)
-                mta::MessageB::b(&r1state.my_secret_key_summand, other_ek, c_a);
+                mta::MessageB::b(&r1state.my_secret_key_summand, other_ek, other_encrypted_ecdsa_nonce_summand.clone());
 
             // TODO I'm not sending my rhs summands even though zengo does https://github.com/axelarnetwork/tofn/issues/7#issuecomment-771379525
 
@@ -75,6 +89,7 @@ impl Sign {
                     i,
                     P2p {
                         mta_response_blind,
+                        mta_resp_proof,
                         mta_response_keyshare,
                     },
                 )

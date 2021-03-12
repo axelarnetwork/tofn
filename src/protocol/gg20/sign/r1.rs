@@ -34,6 +34,7 @@ pub struct State {
     pub(super) my_ecdsa_nonce_summand: FE,
     // my_commit: BigInt, // for convenience: a copy of R1Bcast.commit
     // pub my_encrypted_ecdsa_nonce_summand_randomnesses: Vec<Option<BigInt>>, // TODO do we need to store this?
+    pub(super) my_encrypted_ecdsa_nonce_summand: BigInt,
 }
 
 impl Sign {
@@ -62,6 +63,7 @@ impl Sign {
         let my_ek = &self.my_secret_key_share.my_ek;
         let (encrypted_ecdsa_nonce_summand, my_encrypted_ecdsa_nonce_summand_randomness) =
             mta::MessageA::a(&my_ecdsa_nonce_summand, my_ek);
+        let my_encrypted_ecdsa_nonce_summand = encrypted_ecdsa_nonce_summand.c.clone();
 
         // TODO these variable names are getting ridiculous
         let mut out_p2ps = FillVec::with_len(self.participant_indices.len());
@@ -72,7 +74,7 @@ impl Sign {
             let other_zkp = &self.my_secret_key_share.all_zkps[*participant_index];
             let range_proof = other_zkp.range_proof(
                 &RangeStatement {
-                    ciphertext: &encrypted_ecdsa_nonce_summand.c,
+                    ciphertext: &my_encrypted_ecdsa_nonce_summand,
                     ek: my_ek,
                 },
                 &RangeWitness {
@@ -90,6 +92,7 @@ impl Sign {
                 my_public_blind_summand,
                 my_reveal,
                 my_ecdsa_nonce_summand,
+                my_encrypted_ecdsa_nonce_summand,
                 // my_encrypted_ecdsa_nonce_summand_randomnesses,
             },
             Bcast {
