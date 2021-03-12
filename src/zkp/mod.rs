@@ -84,7 +84,7 @@ impl Zkp {
     }
 }
 
-pub mod mta_resp;
+pub mod mta;
 pub mod range;
 
 impl Default for Zkp {

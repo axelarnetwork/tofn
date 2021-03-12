@@ -51,15 +51,11 @@ impl Zkp {
     // notation follows appendix A.3 of https://eprint.iacr.org/2019/114.pdf
     // used by Bob (the "respondent") in MtA protocol
     // MtA : Multiplicative to Additive
-    pub fn mta_resp_proof(&self, stmt: &Statement, wit: &Witness) -> Proof {
+    pub fn mta_proof(&self, stmt: &Statement, wit: &Witness) -> Proof {
         self.proof(stmt, None, wit).0
     }
 
-    pub fn verify_mta_resp_proof(
-        &self,
-        stmt: &Statement,
-        proof: &Proof,
-    ) -> Result<(), &'static str> {
+    pub fn verify_mta_proof(&self, stmt: &Statement, proof: &Proof) -> Result<(), &'static str> {
         self.verify(stmt, proof, None)
     }
 
@@ -70,7 +66,7 @@ impl Zkp {
     // notation follows appendix A.2 of https://eprint.iacr.org/2019/114.pdf
     // used by Bob (the "respondent") in MtAwc protocol
     // MtAwc : Multiplicative to Additive with check
-    pub fn mta_resp_proof_wc(&self, stmt: &StatementWc, wit: &Witness) -> ProofWc {
+    pub fn mta_proof_wc(&self, stmt: &StatementWc, wit: &Witness) -> ProofWc {
         let (proof, u) = self.proof(&stmt.stmt, Some(stmt.x_g), wit);
         ProofWc {
             proof,
@@ -78,7 +74,7 @@ impl Zkp {
         }
     }
 
-    pub fn verify_mta_resp_proof_wc(
+    pub fn verify_mta_proof_wc(
         &self,
         stmt: &StatementWc,
         proof: &ProofWc,
@@ -291,19 +287,19 @@ mod tests {
         let zkp = Zkp::new_unsafe();
 
         // test: valid proof
-        let proof = zkp.mta_resp_proof(stmt, wit);
-        zkp.verify_mta_resp_proof(stmt, &proof).unwrap();
+        let proof = zkp.mta_proof(stmt, wit);
+        zkp.verify_mta_proof(stmt, &proof).unwrap();
 
         // test: valid proof wc (with check)
-        let proof_wc = zkp.mta_resp_proof_wc(stmt_wc, wit);
-        zkp.verify_mta_resp_proof_wc(stmt_wc, &proof_wc).unwrap();
+        let proof_wc = zkp.mta_proof_wc(stmt_wc, wit);
+        zkp.verify_mta_proof_wc(stmt_wc, &proof_wc).unwrap();
 
         // test: bad proof
         let bad_proof = Proof {
             v: proof.v + BigInt::from(1),
             ..proof
         };
-        zkp.verify_mta_resp_proof(stmt, &bad_proof).unwrap_err();
+        zkp.verify_mta_proof(stmt, &bad_proof).unwrap_err();
 
         // test: bad proof wc (with check)
         let bad_proof_wc = ProofWc {
@@ -313,21 +309,19 @@ mod tests {
             },
             ..proof_wc
         };
-        zkp.verify_mta_resp_proof_wc(stmt_wc, &bad_proof_wc)
-            .unwrap_err();
+        zkp.verify_mta_proof_wc(stmt_wc, &bad_proof_wc).unwrap_err();
 
         // test: bad witness
         let bad_wit = &Witness {
             msg: &(wit.msg + BigInt::from(1)),
             ..*wit
         };
-        let bad_wit_proof = zkp.mta_resp_proof(stmt, bad_wit);
-        zkp.verify_mta_resp_proof(&stmt, &bad_wit_proof)
-            .unwrap_err();
+        let bad_wit_proof = zkp.mta_proof(stmt, bad_wit);
+        zkp.verify_mta_proof(&stmt, &bad_wit_proof).unwrap_err();
 
         // test: bad witness wc (with check)
-        let bad_wit_proof_wc = zkp.mta_resp_proof_wc(stmt_wc, bad_wit);
-        zkp.verify_mta_resp_proof_wc(&stmt_wc, &bad_wit_proof_wc)
+        let bad_wit_proof_wc = zkp.mta_proof_wc(stmt_wc, bad_wit);
+        zkp.verify_mta_proof_wc(&stmt_wc, &bad_wit_proof_wc)
             .unwrap_err();
     }
 }
