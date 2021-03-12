@@ -1,6 +1,6 @@
 use super::{Sign, Status};
 use crate::fillvec::FillVec;
-use crate::zkp::mta_resp_proof;
+use crate::zkp::mta_resp;
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     FE, GE,
@@ -44,7 +44,7 @@ impl Sign {
             self.my_secret_key_share
                 .my_zkp
                 .verify_mta_resp_proof(
-                    &mta_resp_proof::Statement {
+                    &mta_resp::Statement {
                         ciphertext1: &r1state.my_encrypted_ecdsa_nonce_summand,
                         ciphertext2: &in_p2p.mta_response_blind.c,
                         ek: my_ek,

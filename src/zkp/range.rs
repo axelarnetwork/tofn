@@ -10,17 +10,17 @@ use curv::{
 use paillier::{EncryptWithChosenRandomness, EncryptionKey, Paillier, Randomness, RawPlaintext};
 use serde::{Deserialize, Serialize};
 
-pub struct RangeStatement<'a> {
+pub struct Statement<'a> {
     pub ciphertext: &'a BigInt,
     pub ek: &'a EncryptionKey,
 }
-pub struct RangeWitness<'a> {
+pub struct Witness<'a> {
     pub msg: &'a FE,
     pub randomness: &'a BigInt, // TODO use Paillier::Ransomness instead?
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct RangeProof {
+pub struct Proof {
     z: BigInt,
     u: BigInt, // TODO use Paillier::RawCiphertext instead?
     w: BigInt,
@@ -35,7 +35,7 @@ impl Zkp {
     // See appendix A.1 of https://eprint.iacr.org/2019/114.pdf
     // Used by Alice in the first message of MtA
     #[allow(clippy::many_single_char_names)]
-    pub fn range_proof(&self, stmt: &RangeStatement, wit: &RangeWitness) -> RangeProof {
+    pub fn range_proof(&self, stmt: &Statement, wit: &Witness) -> Proof {
         let alpha = BigInt::sample_below(&self.public.q3);
         let beta = Randomness::sample(&stmt.ek); // TODO sample() may not be coprime to stmt.ek.n; do we care?
         let rho = BigInt::sample_below(&self.public.q_n_tilde);
@@ -67,10 +67,10 @@ impl Zkp {
         let s1 = &e * wit.msg.to_big_int() + alpha;
         let s2 = e * rho + gamma;
 
-        RangeProof { z, u, w, s, s1, s2 }
+        Proof { z, u, w, s, s1, s2 }
     }
 
-    pub fn verify_range_proof(&self, stmt: &RangeStatement, proof: &RangeProof) -> Result<(), ()> {
+    pub fn verify_range_proof(&self, stmt: &Statement, proof: &Proof) -> Result<(), ()> {
         if proof.s1 > self.public.q3 || proof.s1 < BigInt::zero() {
             return Err(());
         }
@@ -106,7 +106,7 @@ impl Zkp {
 #[cfg(test)]
 mod tests {
     use super::{
-        Zkp, {RangeProof, RangeStatement, RangeWitness},
+        Zkp, {Proof, Statement, Witness},
     };
     use curv::{
         // arithmetic::traits::{Modulo, Samplable},
@@ -133,11 +133,11 @@ mod tests {
         .clone()
         .into_owned();
 
-        let stmt = RangeStatement {
+        let stmt = Statement {
             ciphertext,
             ek: &ek,
         };
-        let wit = RangeWitness {
+        let wit = Witness {
             msg,
             randomness: &randomness.0,
         };
@@ -148,7 +148,7 @@ mod tests {
         zkp.verify_range_proof(&stmt, &proof).unwrap();
 
         // test: bad proof
-        let bad_proof = RangeProof {
+        let bad_proof = Proof {
             u: proof.u + BigInt::from(1),
             ..proof
         };
@@ -156,7 +156,7 @@ mod tests {
 
         // test: bad witness
         let one: FE = ECScalar::from(&BigInt::from(1));
-        let bad_wit = RangeWitness {
+        let bad_wit = Witness {
             msg: &(*wit.msg + one),
             ..wit
         };

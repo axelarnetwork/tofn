@@ -84,8 +84,8 @@ impl Zkp {
     }
 }
 
-pub mod mta_resp_proof;
-pub mod range_proof;
+pub mod mta_resp;
+pub mod range;
 
 impl Default for Zkp {
     fn default() -> Self {

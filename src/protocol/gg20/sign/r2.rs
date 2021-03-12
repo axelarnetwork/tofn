@@ -1,6 +1,6 @@
 use super::{Sign, Status};
 use crate::fillvec::FillVec;
-use crate::zkp::{mta_resp_proof, range_proof::RangeStatement};
+use crate::zkp::{mta_resp, range};
 use curv::FE;
 use multi_party_ecdsa::utilities::mta;
 use serde::{Deserialize, Serialize};
@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct P2p {
     pub mta_response_blind: mta::MessageB,
-    pub mta_resp_proof: mta_resp_proof::Proof,
+    pub mta_resp_proof: mta_resp::Proof,
     pub mta_response_keyshare: mta::MessageB,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
@@ -48,7 +48,7 @@ impl Sign {
             self.my_secret_key_share
                 .my_zkp
                 .verify_range_proof(
-                    &RangeStatement {
+                    &range::Statement {
                         ciphertext: &other_encrypted_ecdsa_nonce_summand.c,
                         ek: other_ek,
                     },
@@ -66,12 +66,12 @@ impl Sign {
 
             let other_zkp = &self.my_secret_key_share.all_zkps[*participant_index];
             let mta_resp_proof = other_zkp.mta_resp_proof(
-                &mta_resp_proof::Statement {
+                &mta_resp::Statement {
                     ciphertext1: &other_encrypted_ecdsa_nonce_summand.c,
                     ciphertext2: &mta_response_blind.c,
                     ek: other_ek,
                 },
-                &mta_resp_proof::Witness {
+                &mta_resp::Witness {
                     x: &r1state.my_secret_blind_summand,
                     msg: &beta_prime,
                     randomness: &randomness,

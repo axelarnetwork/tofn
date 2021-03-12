@@ -1,4 +1,4 @@
-use crate::zkp::range_proof::{RangeProof, RangeStatement, RangeWitness};
+use crate::zkp::range;
 use serde::{Deserialize, Serialize};
 
 use crate::{fillvec::FillVec, protocol::gg20::vss};
@@ -23,7 +23,7 @@ pub struct Bcast {
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct P2p {
-    pub range_proof: RangeProof,
+    pub range_proof: range::Proof,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub struct State {
@@ -73,11 +73,11 @@ impl Sign {
             }
             let other_zkp = &self.my_secret_key_share.all_zkps[*participant_index];
             let range_proof = other_zkp.range_proof(
-                &RangeStatement {
+                &range::Statement {
                     ciphertext: &my_encrypted_ecdsa_nonce_summand,
                     ek: my_ek,
                 },
-                &RangeWitness {
+                &range::Witness {
                     msg: &my_ecdsa_nonce_summand,
                     randomness: &my_encrypted_ecdsa_nonce_summand_randomness,
                 },
