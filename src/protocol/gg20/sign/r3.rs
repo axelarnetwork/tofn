@@ -1,7 +1,7 @@
 use super::{Sign, Status};
 use crate::fillvec::FillVec;
 use crate::protocol::gg20::vss;
-use crate::zkp::mta;
+use crate::zkp::{mta, pedersen};
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     FE, GE,
@@ -12,8 +12,9 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bcast {
-    pub nonce_x_blind_summand: FE, // delta_i
-    pub consistency_claim: GE,
+    pub nonce_x_blind_summand: FE,           // delta_i
+    pub nonce_x_keyshare_summand_commit: GE, // a Pedersen commitment
+    pub nonce_x_keyshare_summand_proof: pedersen::Proof,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub struct State {
@@ -83,6 +84,7 @@ impl Sign {
                 )
             });
 
+            // decrypt my portion of the additive share
             let (my_mta_blind_summand_lhs, _) = in_p2p
                 .mta_response_blind
                 .verify_proofs_get_alpha(my_dk, &r1state.my_ecdsa_nonce_summand)
@@ -107,8 +109,9 @@ impl Sign {
                 .unwrap();
         }
 
-        // compute delta_i, sigma_i as per phase 2 of 2020/540
-        // remember:
+        // sum my additive shares to get (my_nonce_x_blind_summand, my_nonce_x_keyshare_summand)
+        // GG20 notation:
+        // (my_nonce_x_blind_summand, my_nonce_x_keyshare_summand) -> (delta_i, sigma_i)
         // my_ecdsa_nonce_summand -> k_i
         // my_secret_blind_summand -> gamma_i
         // my_secret_key_summand -> w_i
@@ -118,6 +121,7 @@ impl Sign {
         let my_mta_blind_summands_lhs = my_mta_blind_summands_lhs.into_vec();
         let my_mta_keyshare_summands_lhs = my_mta_keyshare_summands_lhs.into_vec();
 
+        // start the summation with my contribution
         let mut my_nonce_x_blind_summand = r1state
             .my_ecdsa_nonce_summand
             .mul(&r1state.my_secret_blind_summand.get_element());
@@ -141,16 +145,18 @@ impl Sign {
                 );
         }
 
-        // compute the point T_i = g*sigma_i + h*l_i and zk proof as per phase 3 of 2020/540
-        // rememeber:
-        // my_public_nonce_x_keyshare_summand -> g_sigma_i
-        // my_consistency_claim -> T_i
-        let my_public_nonce_x_keyshare_summand = GE::generator() * my_nonce_x_keyshare_summand;
-        let l: FE = ECScalar::new_random();
-        let h_l = GE::base_point2() * l;
-        let my_consistency_claim = my_public_nonce_x_keyshare_summand + h_l;
-
-        // TODO compute zk proof and send it
+        // commit to my_nonce_x_keyshare_summand and compute a zk proof for the commitment
+        // GG20 notation:
+        // commit -> T_i
+        // randomness -> l
+        let (commit, randomness) = &pedersen::commit(&my_nonce_x_keyshare_summand);
+        let proof = pedersen::prove(
+            &pedersen::Statement { commit },
+            &pedersen::Witness {
+                msg: &my_nonce_x_keyshare_summand,
+                randomness,
+            },
+        );
 
         (
             State {
@@ -159,7 +165,8 @@ impl Sign {
             },
             Bcast {
                 nonce_x_blind_summand: my_nonce_x_blind_summand,
-                consistency_claim: my_consistency_claim,
+                nonce_x_keyshare_summand_commit: *commit,
+                nonce_x_keyshare_summand_proof: proof,
             },
         )
     }

@@ -14,6 +14,10 @@ use paillier::{DecryptionKey, EncryptionKey, KeyGeneration, Paillier};
 use serde::{Deserialize, Serialize};
 use zk_paillier::zkproofs::{CompositeDLogProof, DLogStatement};
 
+pub mod mta;
+pub mod pedersen;
+pub mod range;
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Zkp {
     pub public: ZkpPublic, // TODO this info is already in dlog_statement
@@ -83,9 +87,6 @@ impl Zkp {
         }
     }
 }
-
-pub mod mta;
-pub mod range;
 
 impl Default for Zkp {
     fn default() -> Self {
