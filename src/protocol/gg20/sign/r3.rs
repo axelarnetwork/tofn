@@ -2,10 +2,7 @@ use super::{Sign, Status};
 use crate::fillvec::FillVec;
 use crate::protocol::gg20::vss;
 use crate::zkp::{mta, pedersen};
-use curv::{
-    elliptic::curves::traits::{ECPoint, ECScalar},
-    FE, GE,
-};
+use curv::{elliptic::curves::traits::ECScalar, FE, GE};
 use serde::{Deserialize, Serialize};
 
 // round 3
