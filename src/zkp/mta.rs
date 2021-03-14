@@ -252,10 +252,7 @@ mod tests {
 
     #[test]
     fn basic_correctness() {
-        // create a (statement, witness) pair:
-        // statement (ciphertext1, ciphertext2, ek, x_g), witness (x, msg, randomness)
-        //   such that ciphertext2 = x *' ciphertext1 +' Enc(ek, msg, randomness) and -q^3 < x < q^3
-        //   and x_g = x * G (this is the additional "check")
+        // create a (statement, witness) pair
         let (ek, _dk) = &Paillier::keypair().keys(); // not using safe primes
         let msg = &BigInt::sample_below(&ek.n);
         let x = &FE::new_random();
@@ -324,7 +321,7 @@ mod tests {
 
         // test: bad witness wc (with check)
         let bad_wit_proof_wc = zkp.mta_proof_wc(stmt_wc, bad_wit);
-        zkp.verify_mta_proof_wc(&stmt_wc, &bad_wit_proof_wc)
+        zkp.verify_mta_proof_wc(stmt_wc, &bad_wit_proof_wc)
             .unwrap_err();
     }
 }
