@@ -4,7 +4,7 @@ use crate::zkp::Zkp;
 use curv::{
     arithmetic::traits::{Modulo, Samplable},
     cryptographic_primitives::hashing::{hash_sha256::HSha256, traits::Hash},
-    elliptic::curves::traits::ECScalar,
+    elliptic::curves::traits::{ECPoint, ECScalar},
     BigInt, FE, GE,
 };
 use paillier::{EncryptWithChosenRandomness, EncryptionKey, Paillier, Randomness, RawPlaintext};
@@ -46,14 +46,26 @@ pub struct ProofWc {
 impl Zkp {
     // statement (ciphertext, ek), witness (msg, randomness)
     //   such that ciphertext = Enc(ek, msg, randomness) and -q^3 < msg < q^3
-    // See appendix A.1 of https://eprint.iacr.org/2019/114.pdf
-    // Used by Alice in the first message of MtA
+    // full specification: appendix A.1 of https://eprint.iacr.org/2019/114.pdf
     pub fn range_proof(&self, stmt: &Statement, wit: &Witness) -> Proof {
         self.range_proof_inner(stmt, None, wit).0
     }
 
     pub fn verify_range_proof(&self, stmt: &Statement, proof: &Proof) -> Result<(), &'static str> {
         self.verify_range_proof_inner(stmt, None, proof)
+    }
+
+    // statement (msg_g, ciphertext, ek), witness (msg, randomness)
+    //   such that ciphertext = Enc(ek, msg, randomness) and -q^3 < msg < q^3
+    //   and msg_g = msg * G (this is the additional "check")
+    // adapted from appendix A.1 of https://eprint.iacr.org/2019/114.pdf
+    // full specification: section 4.4, proof \Pi_i of https://eprint.iacr.org/2016/013.pdf
+    pub fn range_proof_wc(&self, stmt: &StatementWc, wit: &Witness) -> ProofWc {
+        let (proof, u1) = self.range_proof_inner(&stmt.stmt, Some(stmt.msg_g), wit);
+        ProofWc {
+            proof,
+            u1: u1.unwrap(),
+        }
     }
 
     #[allow(clippy::many_single_char_names)]
@@ -80,6 +92,7 @@ impl Zkp {
             &stmt.ek.n,
             // TODO add stmt.ek.gamma to this hash like binance? zengo puts a bunch of other crap in here
             &stmt.ciphertext,
+            &msg_g.map_or(BigInt::zero(), |msg_g| msg_g.bytes_compressed_to_big_int()),
             &z,
             &u,
             &w,
@@ -106,10 +119,16 @@ impl Zkp {
         if proof.s1 > self.public.q3 || proof.s1 < BigInt::zero() {
             return Err("s1 not in range q^3");
         }
-        let e_neg =
-            HSha256::create_hash(&[&stmt.ek.n, &stmt.ciphertext, &proof.z, &proof.u, &proof.w])
-                .modulus(&FE::q())
-                .neg();
+        let e_neg = HSha256::create_hash(&[
+            &stmt.ek.n,
+            &stmt.ciphertext,
+            &msg_g.map_or(BigInt::zero(), |msg_g| msg_g.bytes_compressed_to_big_int()),
+            &proof.z,
+            &proof.u,
+            &proof.w,
+        ])
+        .modulus(&FE::q())
+        .neg();
         let u_check = BigInt::mod_mul(
             &Paillier::encrypt_with_chosen_randomness(
                 stmt.ek,
