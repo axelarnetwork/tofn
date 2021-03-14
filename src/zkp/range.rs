@@ -88,6 +88,11 @@ impl Zkp {
                 .into_owned(); // TODO wtf clone into_owned why does paillier suck so bad?
         let w = self.public.commit(&alpha, &gamma);
 
+        let u1 = msg_g.map::<GE, _>(|_| {
+            let alpha: FE = ECScalar::from(&alpha);
+            GE::generator() * alpha
+        });
+
         let e = HSha256::create_hash(&[
             &stmt.ek.n,
             // TODO add stmt.ek.gamma to this hash like binance? zengo puts a bunch of other crap in here
@@ -95,6 +100,7 @@ impl Zkp {
             &msg_g.map_or(BigInt::zero(), |msg_g| msg_g.bytes_compressed_to_big_int()),
             &z,
             &u,
+            &u1.map_or(BigInt::zero(), |u1| u1.bytes_compressed_to_big_int()),
             &w,
         ])
         .modulus(&FE::q());
@@ -113,7 +119,7 @@ impl Zkp {
     pub fn verify_range_proof_inner(
         &self,
         stmt: &Statement,
-        msg_g: Option<&GE>,
+        msg_g_u1: Option<(&GE, &GE)>, // (msg_g, u1)
         proof: &Proof,
     ) -> Result<(), &'static str> {
         if proof.s1 > self.public.q3 || proof.s1 < BigInt::zero() {
@@ -122,9 +128,12 @@ impl Zkp {
         let e_neg = HSha256::create_hash(&[
             &stmt.ek.n,
             &stmt.ciphertext,
-            &msg_g.map_or(BigInt::zero(), |msg_g| msg_g.bytes_compressed_to_big_int()),
+            &msg_g_u1.map_or(BigInt::zero(), |(msg_g, _)| {
+                msg_g.bytes_compressed_to_big_int()
+            }),
             &proof.z,
             &proof.u,
+            &msg_g_u1.map_or(BigInt::zero(), |(_, u1)| u1.bytes_compressed_to_big_int()),
             &proof.w,
         ])
         .modulus(&FE::q())
