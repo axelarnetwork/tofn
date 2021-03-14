@@ -55,11 +55,11 @@ impl Zkp {
     // used by Bob (the "respondent") in MtA protocol
     // MtA : Multiplicative to Additive
     pub fn mta_proof(&self, stmt: &Statement, wit: &Witness) -> Proof {
-        self.proof(stmt, None, wit).0
+        self.mta_proof_inner(stmt, None, wit).0
     }
 
     pub fn verify_mta_proof(&self, stmt: &Statement, proof: &Proof) -> Result<(), &'static str> {
-        self.verify(stmt, proof, None)
+        self.verify_mta_proof_inner(stmt, proof, None)
     }
 
     // statement (ciphertext1, ciphertext2, ek, x_g), witness (x, msg, randomness)
@@ -70,7 +70,7 @@ impl Zkp {
     // used by Bob (the "respondent") in MtAwc protocol
     // MtAwc : Multiplicative to Additive with check
     pub fn mta_proof_wc(&self, stmt: &StatementWc, wit: &Witness) -> ProofWc {
-        let (proof, u) = self.proof(&stmt.stmt, Some(stmt.x_g), wit);
+        let (proof, u) = self.mta_proof_inner(&stmt.stmt, Some(stmt.x_g), wit);
         ProofWc {
             proof,
             u: u.unwrap(),
@@ -82,11 +82,16 @@ impl Zkp {
         stmt: &StatementWc,
         proof: &ProofWc,
     ) -> Result<(), &'static str> {
-        self.verify(&stmt.stmt, &proof.proof, Some((stmt.x_g, &proof.u)))
+        self.verify_mta_proof_inner(&stmt.stmt, &proof.proof, Some((stmt.x_g, &proof.u)))
     }
 
     #[allow(clippy::many_single_char_names)]
-    fn proof(&self, stmt: &Statement, x_g: Option<&GE>, wit: &Witness) -> (Proof, Option<GE>) {
+    fn mta_proof_inner(
+        &self,
+        stmt: &Statement,
+        x_g: Option<&GE>,
+        wit: &Witness,
+    ) -> (Proof, Option<GE>) {
         let alpha = BigInt::sample_below(&self.public.q3);
 
         let sigma = BigInt::sample_below(&self.public.q_n_tilde);
@@ -157,7 +162,7 @@ impl Zkp {
         )
     }
 
-    fn verify(
+    fn verify_mta_proof_inner(
         &self,
         stmt: &Statement,
         proof: &Proof,

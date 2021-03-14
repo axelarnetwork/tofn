@@ -5,15 +5,17 @@ use curv::{
     arithmetic::traits::{Modulo, Samplable},
     cryptographic_primitives::hashing::{hash_sha256::HSha256, traits::Hash},
     elliptic::curves::traits::ECScalar,
-    BigInt, FE,
+    BigInt, FE, GE,
 };
 use paillier::{EncryptWithChosenRandomness, EncryptionKey, Paillier, Randomness, RawPlaintext};
 use serde::{Deserialize, Serialize};
 
+#[derive(Clone, Debug)]
 pub struct Statement<'a> {
     pub ciphertext: &'a BigInt,
     pub ek: &'a EncryptionKey,
 }
+#[derive(Clone, Debug)]
 pub struct Witness<'a> {
     pub msg: &'a FE,
     pub randomness: &'a BigInt, // TODO use Paillier::Ransomness instead?
@@ -29,13 +31,38 @@ pub struct Proof {
     s2: BigInt,
 }
 
+#[derive(Clone, Debug)]
+pub struct StatementWc<'a> {
+    pub stmt: Statement<'a>,
+    pub msg_g: &'a GE,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ProofWc {
+    pub proof: Proof,
+    pub u1: GE,
+}
+
 impl Zkp {
     // statement (ciphertext, ek), witness (msg, randomness)
     //   such that ciphertext = Enc(ek, msg, randomness) and -q^3 < msg < q^3
     // See appendix A.1 of https://eprint.iacr.org/2019/114.pdf
     // Used by Alice in the first message of MtA
-    #[allow(clippy::many_single_char_names)]
     pub fn range_proof(&self, stmt: &Statement, wit: &Witness) -> Proof {
+        self.range_proof_inner(stmt, None, wit).0
+    }
+
+    pub fn verify_range_proof(&self, stmt: &Statement, proof: &Proof) -> Result<(), &'static str> {
+        self.verify_range_proof_inner(stmt, None, proof)
+    }
+
+    #[allow(clippy::many_single_char_names)]
+    fn range_proof_inner(
+        &self,
+        stmt: &Statement,
+        msg_g: Option<&GE>,
+        wit: &Witness,
+    ) -> (Proof, Option<GE>) {
         let alpha = BigInt::sample_below(&self.public.q3);
         let beta = Randomness::sample(&stmt.ek); // TODO sample() may not be coprime to stmt.ek.n; do we care?
         let rho = BigInt::sample_below(&self.public.q_n_tilde);
@@ -67,12 +94,17 @@ impl Zkp {
         let s1 = &e * wit.msg.to_big_int() + alpha;
         let s2 = e * rho + gamma;
 
-        Proof { z, u, w, s, s1, s2 }
+        (Proof { z, u, w, s, s1, s2 }, None)
     }
 
-    pub fn verify_range_proof(&self, stmt: &Statement, proof: &Proof) -> Result<(), ()> {
+    pub fn verify_range_proof_inner(
+        &self,
+        stmt: &Statement,
+        msg_g: Option<&GE>,
+        proof: &Proof,
+    ) -> Result<(), &'static str> {
         if proof.s1 > self.public.q3 || proof.s1 < BigInt::zero() {
-            return Err(());
+            return Err("s1 not in range q^3");
         }
         let e_neg =
             HSha256::create_hash(&[&stmt.ek.n, &stmt.ciphertext, &proof.z, &proof.u, &proof.w])
@@ -89,7 +121,7 @@ impl Zkp {
             &stmt.ek.nn,
         );
         if u_check != proof.u {
-            return Err(());
+            return Err("u check fail");
         }
         let w_check = BigInt::mod_mul(
             &self.public.commit(&proof.s1, &proof.s2),
@@ -97,7 +129,7 @@ impl Zkp {
             &self.public.n_tilde,
         );
         if w_check != proof.w {
-            return Err(());
+            return Err("w check fail");
         }
         Ok(())
     }
