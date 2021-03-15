@@ -32,9 +32,10 @@ pub struct State {
     pub(super) my_public_blind_summand: GE,
     pub(super) my_reveal: BigInt,
     pub(super) my_ecdsa_nonce_summand: FE,
-    // my_commit: BigInt, // for convenience: a copy of R1Bcast.commit
-    // pub my_encrypted_ecdsa_nonce_summand_randomnesses: Vec<Option<BigInt>>, // TODO do we need to store this?
+    // TODO pair these next two fields in a range::Witness
+    // problem: range::Witness has a lifetime parameter---eliminate it
     pub(super) my_encrypted_ecdsa_nonce_summand: BigInt,
+    pub(super) my_encrypted_ecdsa_nonce_summand_randomness: BigInt,
 }
 
 impl Sign {
@@ -93,7 +94,7 @@ impl Sign {
                 my_reveal,
                 my_ecdsa_nonce_summand,
                 my_encrypted_ecdsa_nonce_summand,
-                // my_encrypted_ecdsa_nonce_summand_randomnesses,
+                my_encrypted_ecdsa_nonce_summand_randomness,
             },
             Bcast {
                 commit,

@@ -158,15 +158,24 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], ms
 
     // execute round 5 all participants and store their outputs
     let mut all_r5_bcasts = FillVec::with_len(participants.len());
+    let mut all_r5_p2ps = vec![FillVec::with_len(participants.len()); participants.len()];
     for (i, participant) in participants.iter_mut().enumerate() {
-        let (state, bcast) = participant.r5();
+        let (state, bcast, p2ps) = participant.r5();
         participant.r5state = Some(state);
         participant.status = Status::R5;
         all_r5_bcasts.insert(i, bcast).unwrap();
+
+        // route p2p msgs
+        for (j, p2p) in p2ps.into_iter().enumerate() {
+            if let Some(p2p) = p2p {
+                all_r5_p2ps[j].insert(i, p2p).unwrap();
+            }
+        }
     }
 
     // deliver round 5 msgs
-    for participant in participants.iter_mut() {
+    for (participant, r5_p2ps) in participants.iter_mut().zip(all_r5_p2ps.into_iter()) {
+        participant.in_r5p2ps = r5_p2ps;
         participant.in_r5bcasts = all_r5_bcasts.clone();
     }
 
