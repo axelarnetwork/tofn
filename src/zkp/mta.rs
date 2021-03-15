@@ -43,8 +43,8 @@ pub struct StatementWc<'a> {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ProofWc {
-    pub proof: Proof,
-    pub u: GE,
+    proof: Proof,
+    u: GE,
 }
 
 impl Zkp {
