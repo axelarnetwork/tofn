@@ -35,6 +35,7 @@ pub struct Proof {
 pub struct StatementWc<'a> {
     pub stmt: Statement<'a>,
     pub msg_g: &'a GE,
+    pub g: &'a GE,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -55,13 +56,13 @@ impl Zkp {
         self.verify_range_proof_inner(stmt, proof, None)
     }
 
-    // statement (msg_g, ciphertext, ek), witness (msg, randomness)
+    // statement (msg_g, g, ciphertext, ek), witness (msg, randomness)
     //   such that ciphertext = Enc(ek, msg, randomness) and -q^3 < msg < q^3
-    //   and msg_g = msg * G (this is the additional "check")
+    //   and msg_g = msg * g (this is the additional "check")
     // adapted from appendix A.1 of https://eprint.iacr.org/2019/114.pdf
     // full specification: section 4.4, proof \Pi_i of https://eprint.iacr.org/2016/013.pdf
     pub fn range_proof_wc(&self, stmt: &StatementWc, wit: &Witness) -> ProofWc {
-        let (proof, u1) = self.range_proof_inner(&stmt.stmt, Some(stmt.msg_g), wit);
+        let (proof, u1) = self.range_proof_inner(&stmt.stmt, Some((stmt.msg_g, stmt.g)), wit);
         ProofWc {
             proof,
             u1: u1.unwrap(),
@@ -73,14 +74,18 @@ impl Zkp {
         stmt: &StatementWc,
         proof: &ProofWc,
     ) -> Result<(), &'static str> {
-        self.verify_range_proof_inner(&stmt.stmt, &proof.proof, Some((stmt.msg_g, &proof.u1)))
+        self.verify_range_proof_inner(
+            &stmt.stmt,
+            &proof.proof,
+            Some((stmt.msg_g, stmt.g, &proof.u1)),
+        )
     }
 
     #[allow(clippy::many_single_char_names)]
     fn range_proof_inner(
         &self,
         stmt: &Statement,
-        msg_g: Option<&GE>,
+        msg_g_g: Option<(&GE, &GE)>, // (msg_g, g)
         wit: &Witness,
     ) -> (Proof, Option<GE>) {
         let alpha = BigInt::sample_below(&self.public.q3);
@@ -96,16 +101,19 @@ impl Zkp {
                 .into_owned(); // TODO wtf clone into_owned why does paillier suck so bad?
         let w = self.public.commit(&alpha, &gamma);
 
-        let u1 = msg_g.map::<GE, _>(|_| {
+        let u1 = msg_g_g.map::<GE, _>(|(_, g)| {
             let alpha: FE = ECScalar::from(&alpha);
-            GE::generator() * alpha
+            g * &alpha
         });
 
         let e = HSha256::create_hash(&[
             &stmt.ek.n,
             // TODO add stmt.ek.gamma to this hash like binance? zengo puts a bunch of other crap in here
             &stmt.ciphertext,
-            &msg_g.map_or(BigInt::zero(), |msg_g| msg_g.bytes_compressed_to_big_int()),
+            &msg_g_g.map_or(BigInt::zero(), |(msg_g, _)| {
+                msg_g.bytes_compressed_to_big_int()
+            }),
+            &msg_g_g.map_or(BigInt::zero(), |(_, g)| g.bytes_compressed_to_big_int()),
             &z,
             &u,
             &u1.map_or(BigInt::zero(), |u1| u1.bytes_compressed_to_big_int()),
@@ -124,11 +132,11 @@ impl Zkp {
         (Proof { z, u, w, s, s1, s2 }, u1)
     }
 
-    pub fn verify_range_proof_inner(
+    fn verify_range_proof_inner(
         &self,
         stmt: &Statement,
         proof: &Proof,
-        msg_g_u1: Option<(&GE, &GE)>, // (msg_g, u1)
+        msg_g_g_u1: Option<(&GE, &GE, &GE)>, // (msg_g, g, u1)
     ) -> Result<(), &'static str> {
         if proof.s1 > self.public.q3 || proof.s1 < BigInt::zero() {
             return Err("s1 not in range q^3");
@@ -136,20 +144,23 @@ impl Zkp {
         let e_neg = HSha256::create_hash(&[
             &stmt.ek.n,
             &stmt.ciphertext,
-            &msg_g_u1.map_or(BigInt::zero(), |(msg_g, _)| {
+            &msg_g_g_u1.map_or(BigInt::zero(), |(msg_g, _, _)| {
                 msg_g.bytes_compressed_to_big_int()
             }),
+            &msg_g_g_u1.map_or(BigInt::zero(), |(_, g, _)| g.bytes_compressed_to_big_int()),
             &proof.z,
             &proof.u,
-            &msg_g_u1.map_or(BigInt::zero(), |(_, u1)| u1.bytes_compressed_to_big_int()),
+            &msg_g_g_u1.map_or(BigInt::zero(), |(_, _, u1)| {
+                u1.bytes_compressed_to_big_int()
+            }),
             &proof.w,
         ])
         .modulus(&FE::q())
         .neg();
 
-        if let Some((msg_g, u1)) = msg_g_u1 {
+        if let Some((msg_g, g, u1)) = msg_g_g_u1 {
             let s1: FE = ECScalar::from(&proof.s1);
-            let s1_g = GE::generator() * s1;
+            let s1_g = g * &s1;
             let e_neg: FE = ECScalar::from(&e_neg);
             let u1_check = msg_g * &e_neg + s1_g;
             if u1_check != *u1 {
@@ -202,7 +213,8 @@ mod tests {
         // create a (statement, witness) pair
         let (ek, _dk) = &Paillier::keypair().keys(); // not using safe primes
         let msg = &FE::new_random();
-        let msg_g = &(GE::generator() * msg);
+        let g = &GE::generator();
+        let msg_g = &(g * msg);
         let randomness = Randomness::sample(&ek);
         let ciphertext = &Paillier::encrypt_with_chosen_randomness(
             ek,
@@ -216,6 +228,7 @@ mod tests {
         let stmt_wc = &StatementWc {
             stmt: Statement { ciphertext, ek },
             msg_g,
+            g,
         };
         let stmt = &stmt_wc.stmt;
         let wit = &Witness {

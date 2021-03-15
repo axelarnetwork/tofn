@@ -1,4 +1,5 @@
 use super::{Sign, Status};
+use crate::zkp::range;
 use curv::{elliptic::curves::traits::ECPoint, GE};
 use serde::{Deserialize, Serialize};
 
@@ -19,15 +20,42 @@ impl Sign {
         let r3state = self.r3state.as_ref().unwrap();
         let r5state = self.r5state.as_ref().unwrap();
 
-        // verify that sum of R_i (aka ecdsa_randomizer_x_nonce_summand) equals the generator point as per phase 5 of 2020/540
+        // checks:
+        // * sum of ecdsa_randomizer_x_nonce_summand (R_i) = G as per phase 5 of 2020/540
+        // * verify zk proofs
         let mut ecdsa_randomizer_x_nonce = r5state.my_ecdsa_randomizer_x_nonce_summand;
-        for (i, in_r5bcast) in self.in_r5bcasts.vec_ref().iter().enumerate() {
+        for (i, participant_index) in self.participant_indices.iter().enumerate() {
             if i == self.my_participant_index {
                 continue;
             }
-            let in_r5bcast = in_r5bcast.as_ref().unwrap();
+            let in_r5bcast = self.in_r5bcasts.vec_ref()[i].as_ref().unwrap();
             ecdsa_randomizer_x_nonce =
                 ecdsa_randomizer_x_nonce + in_r5bcast.ecdsa_randomizer_x_nonce_summand;
+
+            let in_r5p2p = self.in_r5p2ps.vec_ref()[i].as_ref().unwrap();
+            self.my_secret_key_share
+                .my_zkp
+                .verify_range_proof_wc(
+                    &range::StatementWc {
+                        stmt: range::Statement {
+                            ciphertext: &self.in_r1bcasts.vec_ref()[i]
+                                .as_ref()
+                                .unwrap()
+                                .encrypted_ecdsa_nonce_summand
+                                .c,
+                            ek: &self.my_secret_key_share.all_eks[*participant_index],
+                        },
+                        msg_g: &in_r5bcast.ecdsa_randomizer_x_nonce_summand,
+                        g: &r5state.ecdsa_randomizer,
+                    },
+                    &in_r5p2p.ecdsa_randomizer_x_nonce_summand_proof,
+                )
+                .unwrap_or_else(|e| {
+                    panic!(
+                        "party {} says: range proof wc failed to verify for party {} because [{}]",
+                        self.my_secret_key_share.my_index, participant_index, e
+                    )
+                });
         }
         assert_eq!(ecdsa_randomizer_x_nonce, GE::generator()); // TODO panic
 

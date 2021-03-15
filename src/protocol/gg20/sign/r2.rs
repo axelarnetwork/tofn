@@ -62,10 +62,10 @@ impl Sign {
                     },
                     &self.in_r1p2ps.vec_ref()[i].as_ref().unwrap().range_proof,
                 )
-                .unwrap_or_else(|_| {
+                .unwrap_or_else(|e| {
                     panic!(
-                        "party {} says: range proof failed to verify for party {}",
-                        self.my_secret_key_share.my_index, participant_index
+                        "party {} says: range proof failed to verify for party {} because [{}]",
+                        self.my_secret_key_share.my_index, participant_index, e
                     )
                 });
 

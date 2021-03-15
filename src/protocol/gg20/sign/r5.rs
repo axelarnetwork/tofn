@@ -56,24 +56,24 @@ impl Sign {
         let my_ecdsa_randomizer_x_nonce_summand = ecdsa_randomizer * r1state.my_ecdsa_nonce_summand; // R_i from 2020/540
 
         let mut out_p2ps = FillVec::with_len(self.participant_indices.len());
+        let stmt_wc = &range::StatementWc {
+            stmt: range::Statement {
+                ciphertext: &r1state.my_encrypted_ecdsa_nonce_summand,
+                ek: &self.my_secret_key_share.my_ek,
+            },
+            msg_g: &my_ecdsa_randomizer_x_nonce_summand,
+            g: &ecdsa_randomizer,
+        };
+        let wit = &range::Witness {
+            msg: &r1state.my_ecdsa_nonce_summand,
+            randomness: &r1state.my_encrypted_ecdsa_nonce_summand_randomness,
+        };
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
             if *participant_index == self.my_secret_key_share.my_index {
                 continue;
             }
             let other_zkp = &self.my_secret_key_share.all_zkps[*participant_index];
-            let range_proof_wc = other_zkp.range_proof_wc(
-                &range::StatementWc {
-                    stmt: range::Statement {
-                        ciphertext: &r1state.my_encrypted_ecdsa_nonce_summand,
-                        ek: &self.my_secret_key_share.my_ek,
-                    },
-                    msg_g: &my_ecdsa_randomizer_x_nonce_summand,
-                },
-                &range::Witness {
-                    msg: &r1state.my_ecdsa_nonce_summand,
-                    randomness: &r1state.my_encrypted_ecdsa_nonce_summand_randomness,
-                },
-            );
+            let range_proof_wc = other_zkp.range_proof_wc(stmt_wc, wit);
             out_p2ps
                 .insert(
                     i,
