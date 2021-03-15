@@ -17,6 +17,8 @@ pub struct Bcast {
 pub struct State {
     pub(super) my_nonce_x_blind_summand: FE,
     pub(super) my_nonce_x_keyshare_summand: FE,
+    pub(super) my_nonce_x_keyshare_summand_commit: GE,
+    pub(super) my_nonce_x_keyshare_summand_commit_randomness: FE,
 }
 
 impl Sign {
@@ -159,6 +161,8 @@ impl Sign {
             State {
                 my_nonce_x_blind_summand,
                 my_nonce_x_keyshare_summand,
+                my_nonce_x_keyshare_summand_commit: *commit,
+                my_nonce_x_keyshare_summand_commit_randomness: *randomness,
             },
             Bcast {
                 nonce_x_blind_summand: my_nonce_x_blind_summand,
