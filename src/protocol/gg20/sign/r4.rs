@@ -30,8 +30,8 @@ impl Sign {
             }
             let in_r3bcast = in_r3bcast.as_ref().unwrap();
 
-            pedersen::verify( 
-                &pedersen::Statement{ commit: &in_r3bcast.nonce_x_keyshare_summand_commit},
+            pedersen::verify(
+                &pedersen::Statement{ commit: &in_r3bcast.nonce_x_keyshare_summand_commit },
                 &in_r3bcast.nonce_x_keyshare_summand_proof
             ).unwrap_or_else(|e| {
                 panic!(
