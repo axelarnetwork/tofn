@@ -40,7 +40,7 @@ pub struct State {
 
 impl Sign {
     // immutable &self: do not modify existing self state, only add more
-    pub(super) fn r1(&self) -> (State, Bcast, Vec<Option<P2p>>) {
+    pub(super) fn r1(&self) -> (State, Bcast, FillVec<P2p>) {
         assert!(matches!(self.status, Status::New));
         let my_secret_key_summand // w_i
             = self.my_secret_key_share.my_ecdsa_secret_key_share
@@ -101,7 +101,7 @@ impl Sign {
                 encrypted_ecdsa_nonce_summand,
                 // TODO broadcast GE::generator() * self.my_secret_key_share.my_ecdsa_secret_key_share ? https://github.com/ZenGo-X/multi-party-ecdsa/blob/master/examples/gg20_sign_client.rs#L138
             },
-            out_p2ps.into_vec(),
+            out_p2ps,
         )
     }
 }

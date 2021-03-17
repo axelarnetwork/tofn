@@ -22,7 +22,7 @@ impl EcdsaSig {
     }
 }
 
-mod protocol;
+// mod protocol;
 
 enum Status {
     New,
@@ -63,7 +63,7 @@ pub struct Sign {
 
     // incoming messages
     in_r1bcasts: FillVec<r1::Bcast>,
-    in_r1p2ps: FillVec<r1::P2p>,
+    in_r1p2ps: Vec<FillVec<r1::P2p>>,
     in_r2p2ps: FillVec<r2::P2p>,
     in_r3bcasts: FillVec<r3::Bcast>,
     in_r4bcasts: FillVec<r4::Bcast>,
@@ -110,7 +110,7 @@ impl Sign {
             r6state: None,
             r7state: None,
             in_r1bcasts: FillVec::with_len(participant_count),
-            in_r1p2ps: FillVec::with_len(participant_count),
+            in_r1p2ps: vec![FillVec::with_len(participant_count); participant_count],
             in_r2p2ps: FillVec::with_len(participant_count),
             in_r3bcasts: FillVec::with_len(participant_count),
             in_r4bcasts: FillVec::with_len(participant_count),

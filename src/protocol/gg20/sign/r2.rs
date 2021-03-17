@@ -46,7 +46,6 @@ impl Sign {
             // 1. unused return values in MessageB::b()
             // 2. MessageA arg is passed by value
             let other_ek = &self.my_secret_key_share.all_eks[*participant_index];
-            let other_zkp = &self.my_secret_key_share.all_zkps[*participant_index];
             let other_encrypted_ecdsa_nonce_summand = &self.in_r1bcasts.vec_ref()[i]
                 .as_ref()
                 .unwrap()
@@ -60,7 +59,10 @@ impl Sign {
                         ciphertext: &other_encrypted_ecdsa_nonce_summand.c,
                         ek: other_ek,
                     },
-                    &self.in_r1p2ps.vec_ref()[i].as_ref().unwrap().range_proof,
+                    &self.in_r1p2ps[i].vec_ref()[self.my_participant_index]
+                        .as_ref()
+                        .unwrap()
+                        .range_proof,
                 )
                 .unwrap_or_else(|e| {
                     panic!(
@@ -73,6 +75,7 @@ impl Sign {
             // TODO tidy scoping: don't need randomness, beta_prime after these two statements
             let (mta_response_blind, my_mta_blind_summand_rhs, randomness, beta_prime) = // (m_b_gamma, beta_gamma)
                 mta_zengo::MessageB::b(&r1state.my_secret_blind_summand, other_ek, other_encrypted_ecdsa_nonce_summand.clone());
+            let other_zkp = &self.my_secret_key_share.all_zkps[*participant_index];
             let mta_proof = other_zkp.mta_proof(
                 &mta::Statement {
                     ciphertext1: &other_encrypted_ecdsa_nonce_summand.c,
