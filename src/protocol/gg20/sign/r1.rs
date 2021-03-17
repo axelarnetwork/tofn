@@ -1,4 +1,4 @@
-use crate::zkp::{RangeProof, RangeStatement, RangeWitness};
+use crate::zkp::range;
 use serde::{Deserialize, Serialize};
 
 use crate::{fillvec::FillVec, protocol::gg20::vss};
@@ -23,7 +23,7 @@ pub struct Bcast {
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct P2p {
-    pub range_proof: RangeProof,
+    pub range_proof: range::Proof,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub struct State {
@@ -32,21 +32,23 @@ pub struct State {
     pub(super) my_public_blind_summand: GE,
     pub(super) my_reveal: BigInt,
     pub(super) my_ecdsa_nonce_summand: FE,
-    // my_commit: BigInt, // for convenience: a copy of R1Bcast.commit
-    // pub my_encrypted_ecdsa_nonce_summand_randomnesses: Vec<Option<BigInt>>, // TODO do we need to store this?
+    // TODO pair these next two fields in a range::Witness
+    // problem: range::Witness has a lifetime parameter---eliminate it
+    pub(super) my_encrypted_ecdsa_nonce_summand: BigInt,
+    pub(super) my_encrypted_ecdsa_nonce_summand_randomness: BigInt,
 }
 
 impl Sign {
     // immutable &self: do not modify existing self state, only add more
     pub(super) fn r1(&self) -> (State, Bcast, Vec<Option<P2p>>) {
         assert!(matches!(self.status, Status::New));
-        let lagrangian_coefficient = vss::lagrangian_coefficient(
-            self.my_secret_key_share.share_count,
-            self.my_secret_key_share.my_index,
-            &self.participant_indices,
-        ); // li
-        let my_secret_key_summand =
-            lagrangian_coefficient * self.my_secret_key_share.my_ecdsa_secret_key_share; // w_i
+        let my_secret_key_summand // w_i
+            = self.my_secret_key_share.my_ecdsa_secret_key_share
+            * vss::lagrangian_coefficient( // l_i
+                self.my_secret_key_share.share_count,
+                self.my_secret_key_share.my_index,
+                &self.participant_indices,
+            );
         let my_secret_blind_summand = FE::new_random(); // gamma_i
         let my_public_blind_summand = GE::generator() * my_secret_blind_summand; // g_gamma_i
         let my_ecdsa_nonce_summand = FE::new_random(); // k_i
@@ -62,6 +64,7 @@ impl Sign {
         let my_ek = &self.my_secret_key_share.my_ek;
         let (encrypted_ecdsa_nonce_summand, my_encrypted_ecdsa_nonce_summand_randomness) =
             mta::MessageA::a(&my_ecdsa_nonce_summand, my_ek);
+        let my_encrypted_ecdsa_nonce_summand = encrypted_ecdsa_nonce_summand.c.clone();
 
         // TODO these variable names are getting ridiculous
         let mut out_p2ps = FillVec::with_len(self.participant_indices.len());
@@ -71,11 +74,11 @@ impl Sign {
             }
             let other_zkp = &self.my_secret_key_share.all_zkps[*participant_index];
             let range_proof = other_zkp.range_proof(
-                &RangeStatement {
-                    ciphertext: &encrypted_ecdsa_nonce_summand.c,
+                &range::Statement {
+                    ciphertext: &my_encrypted_ecdsa_nonce_summand,
                     ek: my_ek,
                 },
-                &RangeWitness {
+                &range::Witness {
                     msg: &my_ecdsa_nonce_summand,
                     randomness: &my_encrypted_ecdsa_nonce_summand_randomness,
                 },
@@ -90,7 +93,8 @@ impl Sign {
                 my_public_blind_summand,
                 my_reveal,
                 my_ecdsa_nonce_summand,
-                // my_encrypted_ecdsa_nonce_summand_randomnesses,
+                my_encrypted_ecdsa_nonce_summand,
+                my_encrypted_ecdsa_nonce_summand_randomness,
             },
             Bcast {
                 commit,

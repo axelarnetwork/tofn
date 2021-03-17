@@ -21,8 +21,7 @@ pub fn share(t: usize, n: usize, secret: &FE) -> (Vec<GE>, Vec<FE>) {
 // 1. accept &[T] instead of taking ownership of a Vec<T>
 // 2. satisfy clippy
 pub fn validate_share(commitments: &[GE], secret_share: &FE, index: usize) -> Result<(), ErrorSS> {
-    let g: GE = ECPoint::generator();
-    let ss_point = g * secret_share;
+    let ss_point = GE::generator() * secret_share;
     validate_share_public(commitments, &ss_point, index)
 }
 

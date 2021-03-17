@@ -10,6 +10,7 @@ enum MsgType {
     R3Bcast,
     R4Bcast,
     R5Bcast,
+    R5P2p,
     R6Bcast,
     R7Bcast,
 }
@@ -93,12 +94,25 @@ impl Protocol for Sign {
                 R4
             }
             R4 => {
-                let (state, bcast) = self.r5();
+                let (state, bcast, p2ps) = self.r5();
                 self.out_r5bcast = Some(bincode::serialize(&MsgMeta {
                     msg_type: MsgType::R5Bcast,
                     from: self.my_participant_index,
                     payload: bincode::serialize(&bcast)?,
                 })?);
+                let mut out_r5p2ps = Vec::with_capacity(self.participant_indices.len());
+                for opt in p2ps {
+                    if let Some(p2p) = opt {
+                        out_r5p2ps.push(Some(bincode::serialize(&MsgMeta {
+                            msg_type: MsgType::R5P2p,
+                            from: self.my_participant_index,
+                            payload: bincode::serialize(&p2p)?,
+                        })?));
+                    } else {
+                        out_r5p2ps.push(None);
+                    }
+                }
+                self.out_r5p2ps = Some(out_r5p2ps);
                 self.r5state = Some(state);
                 R5
             }
@@ -154,6 +168,9 @@ impl Protocol for Sign {
             MsgType::R5Bcast => self
                 .in_r5bcasts
                 .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
+            MsgType::R5P2p => self
+                .in_r5p2ps
+                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
             MsgType::R6Bcast => self
                 .in_r6bcasts
                 .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
@@ -185,7 +202,7 @@ impl Protocol for Sign {
             R2 => &self.out_r2p2ps,
             R3 => &None,
             R4 => &None,
-            R5 => &None,
+            R5 => &self.out_r5p2ps,
             R6 => &None,
             R7 => &None,
             Done => &None,
@@ -200,7 +217,7 @@ impl Protocol for Sign {
             R2 => !self.in_r2p2ps.is_full_except(i),
             R3 => !self.in_r3bcasts.is_full_except(i),
             R4 => !self.in_r4bcasts.is_full_except(i),
-            R5 => !self.in_r5bcasts.is_full_except(i),
+            R5 => !self.in_r5bcasts.is_full_except(i) || !self.in_r5p2ps.is_full_except(i),
             R6 => !self.in_r6bcasts.is_full_except(i),
             R7 => !self.in_r7bcasts.is_full_except(i),
             Done => false,

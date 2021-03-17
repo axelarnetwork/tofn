@@ -1,3 +1,6 @@
+use crate::fillvec::FillVec;
+use crate::zkp::range;
+
 use super::{Sign, Status};
 use curv::{
     cryptographic_primitives::commitments::{hash_commitment::HashCommitment, traits::Commitment},
@@ -12,6 +15,12 @@ use serde::{Deserialize, Serialize};
 pub struct Bcast {
     pub ecdsa_randomizer_x_nonce_summand: GE,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct P2p {
+    pub ecdsa_randomizer_x_nonce_summand_proof: range::ProofWc,
+}
+
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub(super) struct State {
     pub(super) ecdsa_randomizer: GE,
@@ -19,7 +28,7 @@ pub(super) struct State {
 }
 
 impl Sign {
-    pub(super) fn r5(&self) -> (State, Bcast) {
+    pub(super) fn r5(&self) -> (State, Bcast, Vec<Option<P2p>>) {
         assert!(matches!(self.status, Status::R4));
         let r1state = self.r1state.as_ref().unwrap();
         let r4state = self.r4state.as_ref().unwrap();
@@ -43,10 +52,37 @@ impl Sign {
 
             public_blind = public_blind + in_r4bcast.public_blind_summand;
         }
-        let ecdsa_randomizer = public_blind * r4state.nonce_x_blind_inv;
-        let my_ecdsa_randomizer_x_nonce_summand = ecdsa_randomizer * r1state.my_ecdsa_nonce_summand;
+        let ecdsa_randomizer = public_blind * r4state.nonce_x_blind_inv; // R
+        let my_ecdsa_randomizer_x_nonce_summand = ecdsa_randomizer * r1state.my_ecdsa_nonce_summand; // R_i from 2020/540
 
-        // TODO zk proof from phase 5 of 2020/540
+        let mut out_p2ps = FillVec::with_len(self.participant_indices.len());
+        let stmt_wc = &range::StatementWc {
+            stmt: range::Statement {
+                ciphertext: &r1state.my_encrypted_ecdsa_nonce_summand,
+                ek: &self.my_secret_key_share.my_ek,
+            },
+            msg_g: &my_ecdsa_randomizer_x_nonce_summand,
+            g: &ecdsa_randomizer,
+        };
+        let wit = &range::Witness {
+            msg: &r1state.my_ecdsa_nonce_summand,
+            randomness: &r1state.my_encrypted_ecdsa_nonce_summand_randomness,
+        };
+        for (i, participant_index) in self.participant_indices.iter().enumerate() {
+            if *participant_index == self.my_secret_key_share.my_index {
+                continue;
+            }
+            let other_zkp = &self.my_secret_key_share.all_zkps[*participant_index];
+            let range_proof_wc = other_zkp.range_proof_wc(stmt_wc, wit);
+            out_p2ps
+                .insert(
+                    i,
+                    P2p {
+                        ecdsa_randomizer_x_nonce_summand_proof: range_proof_wc,
+                    },
+                )
+                .unwrap();
+        }
 
         (
             State {
@@ -56,6 +92,7 @@ impl Sign {
             Bcast {
                 ecdsa_randomizer_x_nonce_summand: my_ecdsa_randomizer_x_nonce_summand,
             },
+            out_p2ps.into_vec(),
         )
     }
 }
