@@ -219,7 +219,6 @@ impl Protocol for Sign {
                 }
                 for (i, in_r1p2ps) in self.in_all_r1p2ps.iter().enumerate() {
                     if !in_r1p2ps.is_full_except(i) {
-                        println!("party {} fillvec {} not yet full", me, i);
                         return true;
                     }
                 }
