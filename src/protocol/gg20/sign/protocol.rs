@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize)]
 enum MsgType {
     R1Bcast,
-    R1P2p,
+    R1P2p { to: usize },
     R2P2p,
     R3Bcast,
     R4Bcast,
@@ -38,10 +38,10 @@ impl Protocol for Sign {
                     payload: bincode::serialize(&bcast)?,
                 })?);
                 let mut out_r1p2ps = Vec::with_capacity(self.participant_indices.len());
-                for opt in p2ps {
+                for (to, opt) in p2ps.into_vec().into_iter().enumerate() {
                     if let Some(p2p) = opt {
                         out_r1p2ps.push(Some(bincode::serialize(&MsgMeta {
-                            msg_type: MsgType::R1P2p,
+                            msg_type: MsgType::R1P2p { to },
                             from: self.my_participant_index,
                             payload: bincode::serialize(&p2p)?,
                         })?));
@@ -153,9 +153,8 @@ impl Protocol for Sign {
             MsgType::R1Bcast => self
                 .in_r1bcasts
                 .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
-            MsgType::R1P2p => self
-                .in_r1p2ps
-                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
+            MsgType::R1P2p { to } => self.in_all_r1p2ps[msg_meta.from]
+                .insert(to, bincode::deserialize(&msg_meta.payload)?)?,
             MsgType::R2P2p => self
                 .in_r2p2ps
                 .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
@@ -210,16 +209,28 @@ impl Protocol for Sign {
     }
 
     fn expecting_more_msgs_this_round(&self) -> bool {
-        let i = self.my_participant_index;
+        let me = self.my_participant_index;
         match self.status {
             New => false,
-            R1 => !self.in_r1bcasts.is_full_except(i) || !self.in_r1p2ps.is_full_except(i),
-            R2 => !self.in_r2p2ps.is_full_except(i),
-            R3 => !self.in_r3bcasts.is_full_except(i),
-            R4 => !self.in_r4bcasts.is_full_except(i),
-            R5 => !self.in_r5bcasts.is_full_except(i) || !self.in_r5p2ps.is_full_except(i),
-            R6 => !self.in_r6bcasts.is_full_except(i),
-            R7 => !self.in_r7bcasts.is_full_except(i),
+            R1 => {
+                // TODO fix ugly code to deal with wasted entries for messages to myself
+                if !self.in_r1bcasts.is_full_except(me) {
+                    return true;
+                }
+                for (i, in_r1p2ps) in self.in_all_r1p2ps.iter().enumerate() {
+                    if !in_r1p2ps.is_full_except(i) {
+                        println!("party {} fillvec {} not yet full", me, i);
+                        return true;
+                    }
+                }
+                false
+            }
+            R2 => !self.in_r2p2ps.is_full_except(me),
+            R3 => !self.in_r3bcasts.is_full_except(me),
+            R4 => !self.in_r4bcasts.is_full_except(me),
+            R5 => !self.in_r5bcasts.is_full_except(me) || !self.in_r5p2ps.is_full_except(me),
+            R6 => !self.in_r6bcasts.is_full_except(me),
+            R7 => !self.in_r7bcasts.is_full_except(me),
             Done => false,
         }
     }

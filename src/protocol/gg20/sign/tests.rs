@@ -60,7 +60,7 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], ms
 
     // deliver round 1 msgs
     for participant in participants.iter_mut() {
-        participant.in_r1p2ps = all_r1_p2ps.clone();
+        participant.in_all_r1p2ps = all_r1_p2ps.clone();
         participant.in_r1bcasts = all_r1_bcasts.clone();
     }
 
@@ -249,20 +249,20 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], ms
     assert!(sig.verify(&ecdsa_public_key, &msg_to_sign));
 }
 
-// #[test]
-// fn sign_protocol() {
-//     for (share_count, threshold, participant_indices) in TEST_CASES.iter() {
-//         let key_shares = execute_keygen(*share_count, *threshold);
+#[test]
+fn sign_protocol() {
+    for (share_count, threshold, participant_indices) in TEST_CASES.iter() {
+        let key_shares = execute_keygen(*share_count, *threshold);
 
-//         // keep it on the stack: avoid use of Box<dyn Protocol> https://doc.rust-lang.org/book/ch17-02-trait-objects.html
-//         let mut participants: Vec<Sign> = participant_indices
-//             .iter()
-//             .map(|i| Sign::new(&key_shares[*i], &participant_indices, &MSG_TO_SIGN).unwrap())
-//             .collect();
-//         let mut protocols: Vec<&mut dyn Protocol> = participants
-//             .iter_mut()
-//             .map(|p| p as &mut dyn Protocol)
-//             .collect();
-//         execute_protocol_vec(&mut protocols);
-//     }
-// }
+        // keep it on the stack: avoid use of Box<dyn Protocol> https://doc.rust-lang.org/book/ch17-02-trait-objects.html
+        let mut participants: Vec<Sign> = participant_indices
+            .iter()
+            .map(|i| Sign::new(&key_shares[*i], &participant_indices, &MSG_TO_SIGN).unwrap())
+            .collect();
+        let mut protocols: Vec<&mut dyn Protocol> = participants
+            .iter_mut()
+            .map(|p| p as &mut dyn Protocol)
+            .collect();
+        execute_protocol_vec(&mut protocols);
+    }
+}

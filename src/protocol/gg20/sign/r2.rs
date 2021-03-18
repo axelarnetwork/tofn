@@ -59,7 +59,7 @@ impl Sign {
                         ciphertext: &other_encrypted_ecdsa_nonce_summand.c,
                         ek: other_ek,
                     },
-                    &self.in_r1p2ps[i].vec_ref()[self.my_participant_index]
+                    &self.in_all_r1p2ps[i].vec_ref()[self.my_participant_index]
                         .as_ref()
                         .unwrap()
                         .range_proof,

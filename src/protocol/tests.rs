@@ -1,8 +1,10 @@
 use super::*;
 
 pub fn execute_protocol_vec(parties: &mut [&mut dyn Protocol]) {
+    let mut round = 0;
     #[allow(clippy::needless_range_loop)] // see explanation below
     while !all_done(parties) {
+        round += 1;
         // #[allow(clippy::needless_range_loop)]
         // need to iterate over indices 0..n instead of parties.iter()
         // to satisfy the borrow checker
@@ -22,11 +24,25 @@ pub fn execute_protocol_vec(parties: &mut [&mut dyn Protocol]) {
             }
 
             // deliver p2p messages
-            if let Some(p2ps) = parties[i].get_p2p_out() {
-                let p2ps = p2ps.clone();
-                for (j, opt) in p2ps.iter().enumerate() {
-                    if let Some(p2p) = opt {
-                        parties[j].set_msg_in(&p2p).unwrap();
+            // TODO: TEMPORARY HACK FOR TESTING PURPOSES
+            if round == 1 {
+                if let Some(p2ps) = parties[i].get_p2p_out() {
+                    let p2ps = p2ps.clone();
+                    for j in 0..parties.len() {
+                        for opt in &p2ps {
+                            if let Some(p2p) = opt {
+                                parties[j].set_msg_in(&p2p).unwrap();
+                            }
+                        }
+                    }
+                }
+            } else {
+                if let Some(p2ps) = parties[i].get_p2p_out() {
+                    let p2ps = p2ps.clone();
+                    for (j, opt) in p2ps.iter().enumerate() {
+                        if let Some(p2p) = opt {
+                            parties[j].set_msg_in(&p2p).unwrap();
+                        }
                     }
                 }
             }
