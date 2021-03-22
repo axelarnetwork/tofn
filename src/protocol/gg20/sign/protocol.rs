@@ -10,7 +10,7 @@ enum MsgType {
     R3Bcast,
     R4Bcast,
     R5Bcast,
-    R5P2p,
+    R5P2p { to: usize },
     R6Bcast,
     R7Bcast,
 }
@@ -101,10 +101,10 @@ impl Protocol for Sign {
                     payload: bincode::serialize(&bcast)?,
                 })?);
                 let mut out_r5p2ps = Vec::with_capacity(self.participant_indices.len());
-                for opt in p2ps {
+                for (to, opt) in p2ps.into_vec().into_iter().enumerate() {
                     if let Some(p2p) = opt {
                         out_r5p2ps.push(Some(bincode::serialize(&MsgMeta {
-                            msg_type: MsgType::R5P2p,
+                            msg_type: MsgType::R5P2p { to },
                             from: self.my_participant_index,
                             payload: bincode::serialize(&p2p)?,
                         })?));
@@ -166,9 +166,8 @@ impl Protocol for Sign {
             MsgType::R5Bcast => self
                 .in_r5bcasts
                 .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
-            MsgType::R5P2p => self
-                .in_r5p2ps
-                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
+            MsgType::R5P2p { to } => self.in_all_r5p2ps[msg_meta.from]
+                .insert(to, bincode::deserialize(&msg_meta.payload)?)?,
             MsgType::R6Bcast => self
                 .in_r6bcasts
                 .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
@@ -235,7 +234,19 @@ impl Protocol for Sign {
             }
             R3 => !self.in_r3bcasts.is_full_except(me),
             R4 => !self.in_r4bcasts.is_full_except(me),
-            R5 => !self.in_r5bcasts.is_full_except(me) || !self.in_r5p2ps.is_full_except(me),
+            R5 => {
+                // TODO fix ugly code to deal with wasted entries for messages to myself
+                if !self.in_r5bcasts.is_full_except(me) {
+                    return true;
+                }
+                for (i, in_r5p2ps) in self.in_all_r5p2ps.iter().enumerate() {
+                    // TODO skip i == me ?
+                    if !in_r5p2ps.is_full_except(i) {
+                        return true;
+                    }
+                }
+                false
+            }
             R6 => !self.in_r6bcasts.is_full_except(me),
             R7 => !self.in_r7bcasts.is_full_except(me),
             Done => false,

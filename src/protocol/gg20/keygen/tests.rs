@@ -1,5 +1,5 @@
 use super::*;
-use crate::protocol::{tests::execute_protocol_vec, Protocol};
+use crate::protocol::{tests::execute_protocol_vec_no_p2p, Protocol};
 use curv::cryptographic_primitives::secret_sharing::feldman_vss::{
     ShamirSecretSharing, VerifiableSS,
 };
@@ -163,7 +163,7 @@ fn keygen_protocol() {
             .iter_mut()
             .map(|p| p as &mut dyn Protocol)
             .collect();
-        execute_protocol_vec(&mut protocols);
+        execute_protocol_vec_no_p2p(&mut protocols);
     }
 
     for (i, &(share_count, threshold)) in TEST_CASES_INVALID.iter().enumerate() {
