@@ -79,6 +79,14 @@ impl<'a, T> Iterator for HoleVecIter<'a, T> {
         self.position += 1;
         result
     }
+
+    // don't want the user to use this because we enumerate differently
+    fn enumerate(self) -> std::iter::Enumerate<Self>
+    where
+        Self: Sized,
+    {
+        panic!("use HoleVec::enumerate instead");
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -157,21 +165,34 @@ fn map_index(index: usize, hole: usize, max: usize) -> Result<usize, &'static st
 
 #[cfg(test)]
 mod tests {
-    use super::FillVec2;
+    use super::{FillVec2, HoleVec};
 
     #[test]
-    fn basic_correctness() -> Result<(), &'static str> {
+    fn basic_correctness() {
+        let hole_vec = init_hole_vec().unwrap();
+        for c in hole_vec.iter() {
+            println!("hole_vec item: {}", c);
+        }
+    }
+
+    #[test]
+    #[should_panic]
+    fn override_enumerate() {
+        let hole_vec = init_hole_vec().unwrap();
+
+        // should panic
+        for (i, c) in hole_vec.iter().enumerate() {
+            println!("(i,hole_vec[i]): ({},{})", i, c);
+        }
+    }
+
+    fn init_hole_vec() -> Result<HoleVec<char>, &'static str> {
         let mut fill_vec = FillVec2::with_len(2, 5)?;
         fill_vec.insert(0, 'A')?;
         fill_vec.insert(1, 'B')?;
         fill_vec.insert(3, 'C')?;
         fill_vec.insert(4, 'D')?;
         assert!(fill_vec.is_full());
-        let hole_vec = fill_vec.into_hole_vec()?;
-        for (i, c) in hole_vec.iter().enumerate() {
-            println!("(i,hole_vec[i]): ({},{})", i, c);
-        }
-        println!("I want enumerate() to skip the hole index");
-        Ok(())
+        Ok(fill_vec.into_hole_vec()?)
     }
 }
