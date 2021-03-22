@@ -216,7 +216,9 @@ impl Protocol for Sign {
                     return true;
                 }
                 for (i, in_r1p2ps) in self.in_all_r1p2ps.iter().enumerate() {
-                    // TODO skip i == me ?
+                    if i == me {
+                        continue;
+                    }
                     if !in_r1p2ps.is_full_except(i) {
                         return true;
                     }
@@ -225,7 +227,9 @@ impl Protocol for Sign {
             }
             R2 => {
                 for (i, in_r2p2ps) in self.in_all_r2p2ps.iter().enumerate() {
-                    // TODO skip i == me ?
+                    if i == me {
+                        continue;
+                    }
                     if !in_r2p2ps.is_full_except(i) {
                         return true;
                     }
@@ -240,7 +244,9 @@ impl Protocol for Sign {
                     return true;
                 }
                 for (i, in_r5p2ps) in self.in_all_r5p2ps.iter().enumerate() {
-                    // TODO skip i == me ?
+                    if i == me {
+                        continue;
+                    }
                     if !in_r5p2ps.is_full_except(i) {
                         return true;
                     }

@@ -1,7 +1,7 @@
 use super::*;
 use crate::protocol::{
     gg20::keygen::{self, SecretKeyShare},
-    tests::execute_protocol_vec,
+    tests::{execute_protocol_vec, execute_protocol_vec_self_delivery},
     Protocol,
 };
 use curv::{
@@ -252,5 +252,24 @@ fn sign_protocol() {
             .map(|p| p as &mut dyn Protocol)
             .collect();
         execute_protocol_vec(&mut protocols);
+    }
+}
+
+#[test]
+fn sign_protocol_with_self_delivery() {
+    for (share_count, threshold, participant_indices) in TEST_CASES.iter() {
+        let key_shares = execute_keygen(*share_count, *threshold);
+
+        // TODO refactor copied code from sign_protocol
+        // keep it on the stack: avoid use of Box<dyn Protocol> https://doc.rust-lang.org/book/ch17-02-trait-objects.html
+        let mut participants: Vec<Sign> = participant_indices
+            .iter()
+            .map(|i| Sign::new(&key_shares[*i], &participant_indices, &MSG_TO_SIGN).unwrap())
+            .collect();
+        let mut protocols: Vec<&mut dyn Protocol> = participants
+            .iter_mut()
+            .map(|p| p as &mut dyn Protocol)
+            .collect();
+        execute_protocol_vec_self_delivery(&mut protocols, true);
     }
 }
