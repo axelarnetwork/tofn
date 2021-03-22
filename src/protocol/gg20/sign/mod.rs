@@ -64,7 +64,7 @@ pub struct Sign {
     // incoming messages
     in_r1bcasts: FillVec<r1::Bcast>,
     in_all_r1p2ps: Vec<FillVec<r1::P2p>>, // TODO wasted FillVec for myself
-    in_r2p2ps: FillVec<r2::P2p>,
+    in_all_r2p2ps: Vec<FillVec<r2::P2p>>,
     in_r3bcasts: FillVec<r3::Bcast>,
     in_r4bcasts: FillVec<r4::Bcast>,
     in_r5bcasts: FillVec<r5::Bcast>,
@@ -111,7 +111,7 @@ impl Sign {
             r7state: None,
             in_r1bcasts: FillVec::with_len(participant_count),
             in_all_r1p2ps: vec![FillVec::with_len(participant_count); participant_count],
-            in_r2p2ps: FillVec::with_len(participant_count),
+            in_all_r2p2ps: vec![FillVec::with_len(participant_count); participant_count],
             in_r3bcasts: FillVec::with_len(participant_count),
             in_r4bcasts: FillVec::with_len(participant_count),
             in_r5bcasts: FillVec::with_len(participant_count),

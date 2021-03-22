@@ -1,7 +1,7 @@
 use super::*;
 use crate::protocol::{
     gg20::keygen::{self, SecretKeyShare},
-    tests::execute_protocol_vec,
+    tests::execute_protocol_vec_hack,
     Protocol,
 };
 use curv::{
@@ -75,23 +75,17 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], ms
     }
 
     // execute round 2 all participants and store their outputs
-    let mut all_r2_p2ps = vec![FillVec::with_len(participants.len()); participants.len()];
-    for (i, participant) in participants.iter_mut().enumerate() {
+    let mut all_r2_p2ps = Vec::with_capacity(participants.len());
+    for participant in participants.iter_mut() {
         let (state, p2ps) = participant.r2();
         participant.r2state = Some(state);
         participant.status = Status::R2;
-
-        // route p2p msgs
-        for (j, p2p) in p2ps.into_iter().enumerate() {
-            if let Some(p2p) = p2p {
-                all_r2_p2ps[j].insert(i, p2p).unwrap();
-            }
-        }
+        all_r2_p2ps.push(p2ps);
     }
 
     // deliver round 2 msgs
-    for (participant, r2_p2ps) in participants.iter_mut().zip(all_r2_p2ps.into_iter()) {
-        participant.in_r2p2ps = r2_p2ps;
+    for participant in participants.iter_mut() {
+        participant.in_all_r2p2ps = all_r2_p2ps.clone();
     }
 
     // execute round 3 all participants and store their outputs
@@ -263,6 +257,6 @@ fn sign_protocol() {
             .iter_mut()
             .map(|p| p as &mut dyn Protocol)
             .collect();
-        execute_protocol_vec(&mut protocols);
+        execute_protocol_vec_hack(&mut protocols);
     }
 }

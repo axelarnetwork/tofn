@@ -40,7 +40,9 @@ impl Sign {
             if *participant_index == self.my_secret_key_share.my_index {
                 continue;
             }
-            let in_p2p = self.in_r2p2ps.vec_ref()[i].as_ref().unwrap();
+            let in_p2p = self.in_all_r2p2ps[i].vec_ref()[self.my_participant_index]
+                .as_ref()
+                .unwrap();
 
             // verify zk proofs from MtA, MtAwc
             self.my_secret_key_share
