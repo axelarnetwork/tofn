@@ -8,21 +8,36 @@ use serde::{Deserialize, Serialize};
 // round 2
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct P2p {
+pub struct SuccessP2p {
     pub mta_response_blind: mta_zengo::MessageB,
     pub mta_proof: mta::Proof,
     pub mta_response_keyshare: mta_zengo::MessageB,
     pub mta_proof_wc: mta::ProofWc,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
-pub struct State {
+pub struct SuccessState {
     pub(super) my_mta_blind_summands_rhs: Vec<Option<FE>>,
     pub(super) my_mta_keyshare_summands_rhs: Vec<Option<FE>>,
     // pub(super) my_public_key_summand: GE,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FailZkpBcast {
+    pub culprits: Vec<usize>,
+}
+
+pub enum State {
+    Success {
+        state: SuccessState,
+        out_p2ps: FillVec<SuccessP2p>,
+    },
+    FailZkp {
+        out_bcast: FailZkpBcast,
+    },
+}
+
 impl Sign {
-    pub(super) fn r2(&self) -> (State, FillVec<P2p>) {
+    pub(super) fn r2(&self) -> State {
         assert!(matches!(self.status, Status::R1));
 
         // response msg for MtA protocols:
@@ -113,7 +128,7 @@ impl Sign {
             out_p2ps
                 .insert(
                     i,
-                    P2p {
+                    SuccessP2p {
                         mta_response_blind,
                         mta_proof,
                         mta_response_keyshare,
@@ -129,13 +144,13 @@ impl Sign {
                 .unwrap();
         }
 
-        (
-            State {
+        State::Success {
+            state: SuccessState {
                 my_mta_blind_summands_rhs: my_mta_blind_summands_rhs.into_vec(),
                 my_mta_keyshare_summands_rhs: my_mta_keyshare_summands_rhs.into_vec(),
                 // my_public_key_summand,
             },
             out_p2ps,
-        )
+        }
     }
 }

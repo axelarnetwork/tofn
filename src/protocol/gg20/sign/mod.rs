@@ -28,12 +28,14 @@ enum Status {
     New,
     R1,
     R2,
+    R2Fail,
     R3,
     R4,
     R5,
     R6,
     R7,
     Done,
+    Fail,
 }
 
 mod r1;
@@ -54,7 +56,7 @@ pub struct Sign {
     msg_to_sign: FE,             // not used until round 7
     my_participant_index: usize, // participant_indices[my_participant_index] == my_secret_key_share.my_index
     r1state: Option<r1::State>,
-    r2state: Option<r2::State>,
+    r2state: Option<r2::SuccessState>,
     r3state: Option<r3::State>,
     r4state: Option<r4::State>,
     r5state: Option<r5::State>,
@@ -64,7 +66,7 @@ pub struct Sign {
     // incoming messages
     in_r1bcasts: FillVec<r1::Bcast>,
     in_all_r1p2ps: Vec<FillVec<r1::P2p>>, // TODO wasted FillVec for myself
-    in_all_r2p2ps: Vec<FillVec<r2::P2p>>,
+    in_all_r2p2ps: Vec<FillVec<r2::SuccessP2p>>,
     in_r3bcasts: FillVec<r3::Bcast>,
     in_r4bcasts: FillVec<r4::Bcast>,
     in_r5bcasts: FillVec<r5::Bcast>,
@@ -78,13 +80,14 @@ pub struct Sign {
     out_r1bcast: Option<MsgBytes>,
     out_r1p2ps: Option<Vec<Option<MsgBytes>>>,
     out_r2p2ps: Option<Vec<Option<MsgBytes>>>,
+    out_r2bcast_fail: Option<MsgBytes>,
     out_r3bcast: Option<MsgBytes>,
     out_r4bcast: Option<MsgBytes>,
     out_r5bcast: Option<MsgBytes>,
     out_r5p2ps: Option<Vec<Option<MsgBytes>>>,
     out_r6bcast: Option<MsgBytes>,
     out_r7bcast: Option<MsgBytes>,
-    final_output: Option<Asn1Signature>,
+    final_output: Option<Result<Asn1Signature, Vec<usize>>>, // error type: culprit indices
 }
 
 impl Sign {
@@ -121,6 +124,7 @@ impl Sign {
             out_r1bcast: None,
             out_r1p2ps: None,
             out_r2p2ps: None,
+            out_r2bcast_fail: None,
             out_r3bcast: None,
             out_r4bcast: None,
             out_r5bcast: None,
@@ -130,7 +134,7 @@ impl Sign {
             final_output: None,
         })
     }
-    pub fn get_result(&self) -> Option<&Asn1Signature> {
+    pub fn get_result(&self) -> Option<&Result<Asn1Signature, Vec<usize>>> {
         self.final_output.as_ref()
     }
 }

@@ -77,10 +77,19 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], ms
     // execute round 2 all participants and store their outputs
     let mut all_r2_p2ps = Vec::with_capacity(participants.len());
     for participant in participants.iter_mut() {
-        let (state, p2ps) = participant.r2();
-        participant.r2state = Some(state);
-        participant.status = Status::R2;
-        all_r2_p2ps.push(p2ps);
+        match participant.r2() {
+            r2::State::Success { state, out_p2ps } => {
+                participant.r2state = Some(state);
+                participant.status = Status::R2;
+                all_r2_p2ps.push(out_p2ps);
+            }
+            r2::State::FailZkp { out_bcast } => {
+                panic!(
+                    "r2 failed for party {} with culprits: {:?}",
+                    participant.my_secret_key_share.my_index, out_bcast
+                );
+            }
+        }
     }
 
     // deliver round 2 msgs

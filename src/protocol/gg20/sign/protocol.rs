@@ -1,4 +1,4 @@
-use super::{Sign, Status::*};
+use super::{Status::*, *};
 use crate::protocol::{MsgBytes, Protocol, ProtocolResult};
 use serde::{Deserialize, Serialize};
 
@@ -54,24 +54,27 @@ impl Protocol for Sign {
                 R1
             }
 
-            R1 => {
-                let (state, p2ps) = self.r2();
-                let mut out_r2p2ps = Vec::with_capacity(self.participant_indices.len());
-                for (to, opt) in p2ps.into_vec().into_iter().enumerate() {
-                    if let Some(p2p) = opt {
-                        out_r2p2ps.push(Some(bincode::serialize(&MsgMeta {
-                            msg_type: MsgType::R2P2p { to },
-                            from: self.my_participant_index,
-                            payload: bincode::serialize(&p2p)?,
-                        })?));
-                    } else {
-                        out_r2p2ps.push(None);
+            R1 => match self.r2() {
+                r2::State::Success { state, out_p2ps } => {
+                    let mut out_p2ps_serialized =
+                        Vec::with_capacity(self.participant_indices.len());
+                    for (to, opt) in out_p2ps.into_vec().into_iter().enumerate() {
+                        if let Some(p2p) = opt {
+                            out_p2ps_serialized.push(Some(bincode::serialize(&MsgMeta {
+                                msg_type: MsgType::R2P2p { to },
+                                from: self.my_participant_index,
+                                payload: bincode::serialize(&p2p)?,
+                            })?));
+                        } else {
+                            out_p2ps_serialized.push(None);
+                        }
                     }
+                    self.out_r2p2ps = Some(out_p2ps_serialized);
+                    self.r2state = Some(state);
+                    R2
                 }
-                self.out_r2p2ps = Some(out_r2p2ps);
-                self.r2state = Some(state);
-                R2
-            }
+                r2::State::FailZkp { out_bcast } => R2Fail,
+            },
 
             R2 => {
                 let (state, bcast) = self.r3();
@@ -83,6 +86,7 @@ impl Protocol for Sign {
                 self.r3state = Some(state);
                 R3
             }
+            R2Fail => Fail,
             R3 => {
                 let (state, bcast) = self.r4();
                 self.out_r4bcast = Some(bincode::serialize(&MsgMeta {
@@ -137,10 +141,11 @@ impl Protocol for Sign {
                 R7
             }
             R7 => {
-                self.final_output = Some(self.r8());
+                self.final_output = Some(Ok(self.r8()));
                 Done
             }
             Done => return Err(From::from("already done")),
+            Fail => return Err(From::from("already failed")),
         };
         Ok(())
     }
@@ -183,12 +188,14 @@ impl Protocol for Sign {
             New => &None,
             R1 => &self.out_r1bcast,
             R2 => &None,
+            R2Fail => &self.out_r2bcast_fail,
             R3 => &self.out_r3bcast,
             R4 => &self.out_r4bcast,
             R5 => &self.out_r5bcast,
             R6 => &self.out_r6bcast,
             R7 => &self.out_r7bcast,
             Done => &None,
+            Fail => &None,
         }
     }
 
@@ -197,12 +204,14 @@ impl Protocol for Sign {
             New => &None,
             R1 => &self.out_r1p2ps,
             R2 => &self.out_r2p2ps,
+            R2Fail => &None,
             R3 => &None,
             R4 => &None,
             R5 => &self.out_r5p2ps,
             R6 => &None,
             R7 => &None,
             Done => &None,
+            Fail => &None,
         }
     }
 
@@ -236,6 +245,9 @@ impl Protocol for Sign {
                 }
                 false
             }
+            R2Fail => {
+                todo!()
+            }
             R3 => !self.in_r3bcasts.is_full_except(me),
             R4 => !self.in_r4bcasts.is_full_except(me),
             R5 => {
@@ -256,6 +268,7 @@ impl Protocol for Sign {
             R6 => !self.in_r6bcasts.is_full_except(me),
             R7 => !self.in_r7bcasts.is_full_except(me),
             Done => false,
+            Fail => false,
         }
     }
 
