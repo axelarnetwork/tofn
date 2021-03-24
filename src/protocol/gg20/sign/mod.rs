@@ -38,9 +38,25 @@ enum Status {
     Fail,
 }
 
+// all possible crimes
+// variant names are of the form <Status><Crime>
+// TODO separate Crime enum for each round?
+// TODO add variant data (eg. R2ZkpVerify proof from party i to party j fail because x)
+// #[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum Crime {
+    R2ZkpVerify,
+    R3FailFalseAccusation,
+}
+// #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Culprit {
+    participant_index: usize,
+    crime: Crime,
+}
+
 mod r1;
 mod r2;
 mod r3;
+mod r3fail;
 mod r4;
 mod r5;
 mod r6;
@@ -74,15 +90,15 @@ pub struct Sign {
     in_r6bcasts: FillVec<r6::Bcast>,
     in_r7bcasts: FillVec<r7::Bcast>,
 
+    in_r2bcasts_fail: FillVec<r2::FailBcast>,
+
     // TODO currently I do not store my own deserialized output messages
     // instead, my output messages are stored only in serialized form so they can be quickly returned in `get_bcast_out` and `get_p2p_out`
     // if the content of one of my output messages is needed in a future round then it is the responsibility of the round that created that message to copy the needed into into the state for that round
     // example: r3() -> (State, Bcast): `Bcast` contains my `nonce_x_blind_summand`, which is also needed in future rounds
     //   so a copy of nonce_x_blind_summand is stored in `State` as `my_nonce_x_blind_summand`
     // QUESTION: should I instead store all my own deserialized output messages?
-
-    // EXPERIMENT: sad path only for now: store my output messages in deserialized form instead of copying into a separate state field
-    // out_r2bcast_fail: r2::FailZkpBcast,
+    // OPTIONS: (1) store them separately in a `out_` field; (2) store them along with all other parties' messages in `in_` fields
 
     // outgoing serialized messages
     // initialized to `None`, filled as the protocol progresses
@@ -100,7 +116,6 @@ pub struct Sign {
     out_r7bcast: Option<MsgBytes>,
 
     final_output: Option<Result<Asn1Signature, Vec<usize>>>, // error type: culprit indices
-    culprits_set: Vec<bool>, // participant i is malicious <=> culprits[i] == true
 }
 
 impl Sign {
@@ -134,6 +149,7 @@ impl Sign {
             in_all_r5p2ps: vec![FillVec::with_len(participant_count); participant_count],
             in_r6bcasts: FillVec::with_len(participant_count),
             in_r7bcasts: FillVec::with_len(participant_count),
+            in_r2bcasts_fail: FillVec::with_len(participant_count), // TODO experiment: my own bcast is in here, too
             out_r1bcast: None,
             out_r1p2ps: None,
             out_r2p2ps: None,
@@ -145,7 +161,6 @@ impl Sign {
             out_r6bcast: None,
             out_r7bcast: None,
             final_output: None,
-            culprits_set: vec![false; participant_count],
         })
     }
     pub fn get_result(&self) -> Option<&Result<Asn1Signature, Vec<usize>>> {

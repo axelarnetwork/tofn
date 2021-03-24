@@ -18,14 +18,20 @@ pub struct P2p {
 pub struct State {
     pub(super) my_mta_blind_summands_rhs: Vec<Option<FE>>,
     pub(super) my_mta_keyshare_summands_rhs: Vec<Option<FE>>,
-    // pub(super) my_public_key_summand: GE,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Culprit {
+    // the crime is implicit: there is only one possible crime: zkp verification failure
+    pub participant_index: usize, // list of malicious participant indices
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FailBcast {
-    pub culprits: Vec<usize>, // list of malicious participant indices
+    pub culprits: Vec<Culprit>,
 }
 
+// TODO is it better to have `State` and `P2p` be enum types?
 pub enum Output {
     Success {
         state: State,
@@ -87,7 +93,9 @@ impl Sign {
                         "party {} says: range proof failed to verify for party {} because [{}]",
                         self.my_secret_key_share.my_index, participant_index, e
                     );
-                    culprits.push(i);
+                    culprits.push(Culprit {
+                        participant_index: i,
+                    });
                 });
 
             // MtA for nonce * blind
