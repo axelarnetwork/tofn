@@ -55,7 +55,7 @@ impl Protocol for Sign {
             }
 
             R1 => match self.r2() {
-                r2::State::Success { state, out_p2ps } => {
+                r2::Output::Success { state, out_p2ps } => {
                     let mut out_p2ps_serialized =
                         Vec::with_capacity(self.participant_indices.len());
                     for (to, opt) in out_p2ps.into_vec().into_iter().enumerate() {
@@ -73,7 +73,7 @@ impl Protocol for Sign {
                     self.r2state = Some(state);
                     R2
                 }
-                r2::State::Fail { out_bcast } => R2Fail,
+                r2::Output::Fail { out_bcast } => R2Fail,
             },
 
             R2 => {
@@ -188,7 +188,7 @@ impl Protocol for Sign {
             New => &None,
             R1 => &self.out_r1bcast,
             R2 => &None,
-            R2Fail => &self.out_r2bcast_fail,
+            R2Fail => &self.out_r2bcast_fail_serialized,
             R3 => &self.out_r3bcast,
             R4 => &self.out_r4bcast,
             R5 => &self.out_r5bcast,

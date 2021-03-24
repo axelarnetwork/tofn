@@ -56,7 +56,7 @@ pub struct Sign {
     msg_to_sign: FE,             // not used until round 7
     my_participant_index: usize, // participant_indices[my_participant_index] == my_secret_key_share.my_index
     r1state: Option<r1::State>,
-    r2state: Option<r2::SuccessState>,
+    r2state: Option<r2::State>,
     r3state: Option<r3::State>,
     r4state: Option<r4::State>,
     r5state: Option<r5::State>,
@@ -66,7 +66,7 @@ pub struct Sign {
     // incoming messages
     in_r1bcasts: FillVec<r1::Bcast>,
     in_all_r1p2ps: Vec<FillVec<r1::P2p>>, // TODO wasted FillVec for myself
-    in_all_r2p2ps: Vec<FillVec<r2::SuccessP2p>>,
+    in_all_r2p2ps: Vec<FillVec<r2::P2p>>,
     in_r3bcasts: FillVec<r3::Bcast>,
     in_r4bcasts: FillVec<r4::Bcast>,
     in_r5bcasts: FillVec<r5::Bcast>,
@@ -74,21 +74,32 @@ pub struct Sign {
     in_r6bcasts: FillVec<r6::Bcast>,
     in_r7bcasts: FillVec<r7::Bcast>,
 
-    // outgoing messages
+    // TODO currently I do not store my own deserialized output messages
+    // instead, my output messages are stored only in serialized form so they can be quickly returned in `get_bcast_out` and `get_p2p_out`
+    // if the content of one of my output messages is needed in a future round then it is the responsibility of the round that created that message to copy the needed into into the state for that round
+    // example: r3() -> (State, Bcast): `Bcast` contains my `nonce_x_blind_summand`, which is also needed in future rounds
+    //   so a copy of nonce_x_blind_summand is stored in `State` as `my_nonce_x_blind_summand`
+    // QUESTION: should I instead store all my own deserialized output messages?
+
+    // EXPERIMENT: sad path only for now: store my output messages in deserialized form instead of copying into a separate state field
+    // out_r2bcast_fail: r2::FailZkpBcast,
+
+    // outgoing serialized messages
     // initialized to `None`, filled as the protocol progresses
     // p2p Vecs have length participant_indices.len()
+    // TODO these fields are used only to implement `Protocol`: move them to a container struct for `Sign` that's defined in protocol.rs?
     out_r1bcast: Option<MsgBytes>,
     out_r1p2ps: Option<Vec<Option<MsgBytes>>>,
     out_r2p2ps: Option<Vec<Option<MsgBytes>>>,
-    out_r2bcast_fail: Option<MsgBytes>,
+    out_r2bcast_fail_serialized: Option<MsgBytes>, // TODO _serialized suffix to distinguish from EXPERIMENT described above
     out_r3bcast: Option<MsgBytes>,
     out_r4bcast: Option<MsgBytes>,
     out_r5bcast: Option<MsgBytes>,
     out_r5p2ps: Option<Vec<Option<MsgBytes>>>,
     out_r6bcast: Option<MsgBytes>,
     out_r7bcast: Option<MsgBytes>,
-    final_output: Option<Result<Asn1Signature, Vec<usize>>>, // error type: culprit indices
 
+    final_output: Option<Result<Asn1Signature, Vec<usize>>>, // error type: culprit indices
     culprits_set: Vec<bool>, // participant i is malicious <=> culprits[i] == true
 }
 
@@ -126,7 +137,7 @@ impl Sign {
             out_r1bcast: None,
             out_r1p2ps: None,
             out_r2p2ps: None,
-            out_r2bcast_fail: None,
+            out_r2bcast_fail_serialized: None,
             out_r3bcast: None,
             out_r4bcast: None,
             out_r5bcast: None,

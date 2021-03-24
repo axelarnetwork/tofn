@@ -8,36 +8,36 @@ use serde::{Deserialize, Serialize};
 // round 2
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SuccessP2p {
+pub struct P2p {
     pub mta_response_blind: mta_zengo::MessageB,
     pub mta_proof: mta::Proof,
     pub mta_response_keyshare: mta_zengo::MessageB,
     pub mta_proof_wc: mta::ProofWc,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
-pub struct SuccessState {
+pub struct State {
     pub(super) my_mta_blind_summands_rhs: Vec<Option<FE>>,
     pub(super) my_mta_keyshare_summands_rhs: Vec<Option<FE>>,
     // pub(super) my_public_key_summand: GE,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FailZkpBcast {
+pub struct FailBcast {
     pub culprits: Vec<usize>, // list of malicious participant indices
 }
 
-pub enum State {
+pub enum Output {
     Success {
-        state: SuccessState,
-        out_p2ps: FillVec<SuccessP2p>,
+        state: State,
+        out_p2ps: FillVec<P2p>,
     },
     Fail {
-        out_bcast: FailZkpBcast,
+        out_bcast: FailBcast,
     },
 }
 
 impl Sign {
-    pub(super) fn r2(&self) -> State {
+    pub(super) fn r2(&self) -> Output {
         assert!(matches!(self.status, Status::R1));
 
         // response msg for MtA protocols:
@@ -132,7 +132,7 @@ impl Sign {
             out_p2ps
                 .insert(
                     i,
-                    SuccessP2p {
+                    P2p {
                         mta_response_blind,
                         mta_proof,
                         mta_response_keyshare,
@@ -149,8 +149,8 @@ impl Sign {
         }
 
         if culprits.is_empty() {
-            State::Success {
-                state: SuccessState {
+            Output::Success {
+                state: State {
                     my_mta_blind_summands_rhs: my_mta_blind_summands_rhs.into_vec(),
                     my_mta_keyshare_summands_rhs: my_mta_keyshare_summands_rhs.into_vec(),
                     // my_public_key_summand,
@@ -158,8 +158,8 @@ impl Sign {
                 out_p2ps,
             }
         } else {
-            State::Fail {
-                out_bcast: FailZkpBcast { culprits },
+            Output::Fail {
+                out_bcast: FailBcast { culprits },
             }
         }
     }
