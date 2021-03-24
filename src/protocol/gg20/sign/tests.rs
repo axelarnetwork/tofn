@@ -83,7 +83,7 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], ms
                 participant.status = Status::R2;
                 all_r2_p2ps.push(out_p2ps);
             }
-            r2::State::FailZkp { out_bcast } => {
+            r2::State::Fail { out_bcast } => {
                 panic!(
                     "r2 failed for party {} with culprits: {:?}",
                     participant.my_secret_key_share.my_index, out_bcast

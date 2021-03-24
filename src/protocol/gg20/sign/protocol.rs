@@ -73,7 +73,7 @@ impl Protocol for Sign {
                     self.r2state = Some(state);
                     R2
                 }
-                r2::State::FailZkp { out_bcast } => R2Fail,
+                r2::State::Fail { out_bcast } => R2Fail,
             },
 
             R2 => {

@@ -88,6 +88,8 @@ pub struct Sign {
     out_r6bcast: Option<MsgBytes>,
     out_r7bcast: Option<MsgBytes>,
     final_output: Option<Result<Asn1Signature, Vec<usize>>>, // error type: culprit indices
+
+    culprits_set: Vec<bool>, // participant i is malicious <=> culprits[i] == true
 }
 
 impl Sign {
@@ -132,6 +134,7 @@ impl Sign {
             out_r6bcast: None,
             out_r7bcast: None,
             final_output: None,
+            culprits_set: vec![false; participant_count],
         })
     }
     pub fn get_result(&self) -> Option<&Result<Asn1Signature, Vec<usize>>> {

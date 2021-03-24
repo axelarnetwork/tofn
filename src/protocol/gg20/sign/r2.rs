@@ -23,7 +23,7 @@ pub struct SuccessState {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FailZkpBcast {
-    pub culprits: Vec<usize>,
+    pub culprits: Vec<usize>, // list of malicious participant indices
 }
 
 pub enum State {
@@ -31,7 +31,7 @@ pub enum State {
         state: SuccessState,
         out_p2ps: FillVec<SuccessP2p>,
     },
-    FailZkp {
+    Fail {
         out_bcast: FailZkpBcast,
     },
 }
@@ -51,8 +51,11 @@ impl Sign {
         let mut out_p2ps = FillVec::with_len(self.participant_indices.len());
         let mut my_mta_blind_summands_rhs = FillVec::with_len(self.participant_indices.len());
         let mut my_mta_keyshare_summands_rhs = FillVec::with_len(self.participant_indices.len());
+        let mut culprits = Vec::new();
 
+        // verify zk proofs for first message of MtA
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
+            // TODO make a self.iter_others_enumerate method that automatically skips my index
             if *participant_index == self.my_secret_key_share.my_index {
                 continue;
             }
@@ -80,10 +83,11 @@ impl Sign {
                         .range_proof,
                 )
                 .unwrap_or_else(|e| {
-                    panic!(
+                    println!(
                         "party {} says: range proof failed to verify for party {} because [{}]",
                         self.my_secret_key_share.my_index, participant_index, e
-                    )
+                    );
+                    culprits.push(i);
                 });
 
             // MtA for nonce * blind
@@ -144,13 +148,19 @@ impl Sign {
                 .unwrap();
         }
 
-        State::Success {
-            state: SuccessState {
-                my_mta_blind_summands_rhs: my_mta_blind_summands_rhs.into_vec(),
-                my_mta_keyshare_summands_rhs: my_mta_keyshare_summands_rhs.into_vec(),
-                // my_public_key_summand,
-            },
-            out_p2ps,
+        if culprits.is_empty() {
+            State::Success {
+                state: SuccessState {
+                    my_mta_blind_summands_rhs: my_mta_blind_summands_rhs.into_vec(),
+                    my_mta_keyshare_summands_rhs: my_mta_keyshare_summands_rhs.into_vec(),
+                    // my_public_key_summand,
+                },
+                out_p2ps,
+            }
+        } else {
+            State::Fail {
+                out_bcast: FailZkpBcast { culprits },
+            }
         }
     }
 }
