@@ -76,18 +76,17 @@ impl Sign {
                 .encrypted_ecdsa_nonce_summand;
 
             // verify zk proof for first message of MtA
+            let stmt = &range::Statement {
+                ciphertext: &other_encrypted_ecdsa_nonce_summand.c,
+                ek: other_ek,
+            };
+            let proof = &self.in_all_r1p2ps[i].vec_ref()[self.my_participant_index]
+                .as_ref()
+                .unwrap()
+                .range_proof;
             self.my_secret_key_share
                 .my_zkp
-                .verify_range_proof(
-                    &range::Statement {
-                        ciphertext: &other_encrypted_ecdsa_nonce_summand.c,
-                        ek: other_ek,
-                    },
-                    &self.in_all_r1p2ps[i].vec_ref()[self.my_participant_index]
-                        .as_ref()
-                        .unwrap()
-                        .range_proof,
-                )
+                .verify_range_proof(stmt, proof)
                 .unwrap_or_else(|e| {
                     println!(
                         "party {} says: range proof failed to verify for party {} because [{}]",
