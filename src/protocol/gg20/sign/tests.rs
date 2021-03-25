@@ -319,6 +319,7 @@ fn execute_sign_fault_r2(
         all_r1_p2ps.push(p2ps);
     }
 
+    // corrupt the proof from party 0 to party 1
     let proof = &mut all_r1_p2ps[0].vec_ref_mut()[1]
         .as_mut()
         .unwrap()
@@ -353,7 +354,7 @@ fn execute_sign_fault_r2(
                         participant.my_secret_key_share.my_index, out_bcast.culprits
                     );
                 }
-                all_r2_bcasts_fail.insert(i, out_bcast);
+                all_r2_bcasts_fail.insert(i, out_bcast).unwrap();
                 all_r2_p2ps.push(FillVec::with_len(0)); // dummy TODO use FillVec instead of Vec?
             }
         }
@@ -368,50 +369,17 @@ fn execute_sign_fault_r2(
         participant.status = Status::R2Fail;
     }
 
-    // // execute round 3 all participants and store their outputs
-    // let mut all_r3_bcasts = FillVec::with_len(participants.len());
-    // for (i, participant) in participants.iter_mut().enumerate() {
-    //     let (state, bcast) = participant.r3();
-    //     participant.r3state = Some(state);
-    //     participant.status = Status::R3;
-    //     all_r3_bcasts.insert(i, bcast).unwrap();
-    // }
+    // execute round 2 sad path all participants and store their outputs
+    let mut all_culprit_lists = Vec::with_capacity(participants.len());
+    for participant in participants.iter_mut() {
+        let culprits = participant.r3fail();
+        participant.status = Status::Fail;
+        all_culprit_lists.push(culprits);
+    }
 
-    // // execute round 8 all participants and store their outputs
-    // let mut all_sigs = FillVec::with_len(participants.len());
-    // for (i, participant) in participants.iter_mut().enumerate() {
-    //     let sig = participant.r8();
-    //     participant.status = Status::Done;
-    //     all_sigs.insert(i, sig).unwrap();
-    // }
-
-    // // TEST: everyone correctly computed the signature
-    // let msg_to_sign = ECScalar::from(&BigInt::from(msg_to_sign));
-    // let r: FE = ECScalar::from(&randomizer.x_coor().unwrap().mod_floor(&FE::q()));
-    // let s: FE = nonce * (msg_to_sign + ecdsa_secret_key * r);
-    // let s = {
-    //     // normalize s
-    //     let s_bigint = s.to_big_int();
-    //     let s_neg = FE::q() - &s_bigint;
-    //     if s_bigint > s_neg {
-    //         ECScalar::from(&s_neg)
-    //     } else {
-    //         s
-    //     }
-    // };
-    // for sig in all_sigs
-    //     .vec_ref()
-    //     .iter()
-    //     .map(|opt| Signature::from_asn1(opt.as_ref().unwrap().as_bytes()).unwrap())
-    // {
-    //     let (sig_r, sig_s) = (sig.r(), sig.s());
-    //     let (sig_r, sig_s): (FieldBytes, FieldBytes) = (From::from(sig_r), From::from(sig_s));
-    //     let (sig_r, sig_s) = (sig_r.as_slice(), sig_s.as_slice());
-    //     let (sig_r, sig_s): (BigInt, BigInt) = (BigInt::from(sig_r), BigInt::from(sig_s));
-    //     assert_eq!(sig_r, r.to_big_int());
-    //     assert_eq!(sig_s, s.to_big_int());
-    // }
-
-    // let sig = EcdsaSig { r, s };
-    // assert!(sig.verify(&ecdsa_public_key, &msg_to_sign));
+    // TEST: everyone correctly computed the culprit list
+    let actual_culprits: Vec<usize> = vec![0];
+    for culprit_list in all_culprit_lists {
+        assert_eq!(culprit_list, actual_culprits);
+    }
 }

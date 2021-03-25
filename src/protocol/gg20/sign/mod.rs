@@ -43,15 +43,15 @@ enum Status {
 // TODO separate Crime enum for each round?
 // TODO add variant data (eg. R2ZkpVerify proof from party i to party j fail because x)
 // #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum Crime {
-    R2ZkpVerify,
-    R3FailFalseAccusation,
-}
+// pub enum Crime {
+//     R2ZkpVerify,
+//     R3FailFalseAccusation,
+// }
 // #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Culprit {
-    participant_index: usize,
-    crime: Crime,
-}
+// pub struct Culprit {
+//     participant_index: usize,
+//     crime: Crime,
+// }
 
 mod r1;
 mod r2;

@@ -8,7 +8,7 @@ impl Sign {
 
         let mut culprits = vec![false; self.participant_indices.len()];
 
-        for &accuser in self.participant_indices.iter() {
+        for accuser in 0..self.participant_indices.len() {
             if let Some(fail_bcast) = self.in_r2bcasts_fail.vec_ref()[accuser].as_ref() {
                 for accused in fail_bcast.culprits.iter() {
                     let prover_ek = &self.my_secret_key_share.all_eks[accused.participant_index];
