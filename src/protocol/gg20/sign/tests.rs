@@ -1,8 +1,11 @@
 use super::*;
-use crate::protocol::{
-    gg20::keygen::{self, SecretKeyShare},
-    tests::{execute_protocol_vec, execute_protocol_vec_self_delivery},
-    Protocol,
+use crate::{
+    protocol::{
+        gg20::keygen::{self, SecretKeyShare},
+        tests::{execute_protocol_vec, execute_protocol_vec_self_delivery},
+        Protocol,
+    },
+    zkp::range::tests::corrupt_proof,
 };
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
@@ -281,4 +284,134 @@ fn sign_protocol_with_self_delivery() {
             .collect();
         execute_protocol_vec_self_delivery(&mut protocols, true);
     }
+}
+
+#[test]
+fn sign_fault_r2() {
+    for (share_count, threshold, participant_indices) in TEST_CASES.iter() {
+        if *share_count < 2 {
+            continue; // need at least 2 shares for this test
+        }
+        let key_shares = execute_keygen(*share_count, *threshold);
+        execute_sign_fault_r2(&key_shares, participant_indices, &MSG_TO_SIGN);
+    }
+}
+
+fn execute_sign_fault_r2(
+    key_shares: &[SecretKeyShare],
+    participant_indices: &[usize],
+    msg_to_sign: &[u8],
+) {
+    assert!(participant_indices.len() > 1);
+    let mut participants: Vec<Sign> = participant_indices
+        .iter()
+        .map(|i| Sign::new(&key_shares[*i], participant_indices, msg_to_sign).unwrap())
+        .collect();
+
+    // execute round 1 all participants and store their outputs
+    let mut all_r1_bcasts = FillVec::with_len(participants.len());
+    let mut all_r1_p2ps = Vec::with_capacity(participants.len());
+    for (i, participant) in participants.iter_mut().enumerate() {
+        let (state, bcast, p2ps) = participant.r1();
+        participant.r1state = Some(state);
+        participant.status = Status::R1;
+        all_r1_bcasts.insert(i, bcast).unwrap();
+        all_r1_p2ps.push(p2ps);
+    }
+
+    let proof = &mut all_r1_p2ps[0].vec_ref_mut()[1]
+        .as_mut()
+        .unwrap()
+        .range_proof;
+    *proof = corrupt_proof(proof);
+
+    // deliver round 1 msgs
+    for participant in participants.iter_mut() {
+        participant.in_all_r1p2ps = all_r1_p2ps.clone();
+        participant.in_r1bcasts = all_r1_bcasts.clone();
+    }
+
+    // execute round 2 all participants and store their outputs
+    let mut all_r2_p2ps = Vec::with_capacity(participants.len());
+    let mut all_r2_bcasts_fail = FillVec::with_len(participants.len());
+    for (i, participant) in participants.iter_mut().enumerate() {
+        match participant.r2() {
+            r2::Output::Success { state, out_p2ps } => {
+                if i == 1 {
+                    panic!(
+                        "r2 party {} expect failure but found success",
+                        participant.my_secret_key_share.my_index
+                    );
+                }
+                participant.r2state = Some(state);
+                all_r2_p2ps.push(out_p2ps);
+            }
+            r2::Output::Fail { out_bcast } => {
+                if i != 1 {
+                    panic!(
+                        "r2 party {} expect success but found failure with culprits {:?}",
+                        participant.my_secret_key_share.my_index, out_bcast.culprits
+                    );
+                }
+                all_r2_bcasts_fail.insert(i, out_bcast);
+                all_r2_p2ps.push(FillVec::with_len(0)); // dummy TODO use FillVec instead of Vec?
+            }
+        }
+    }
+
+    // deliver round 2 msgs
+    for participant in participants.iter_mut() {
+        participant.in_all_r2p2ps = all_r2_p2ps.clone();
+        participant.in_r2bcasts_fail = all_r2_bcasts_fail.clone();
+
+        // all participants transition to R2Fail because they all received at least one r2::FailBcast
+        participant.status = Status::R2Fail;
+    }
+
+    // // execute round 3 all participants and store their outputs
+    // let mut all_r3_bcasts = FillVec::with_len(participants.len());
+    // for (i, participant) in participants.iter_mut().enumerate() {
+    //     let (state, bcast) = participant.r3();
+    //     participant.r3state = Some(state);
+    //     participant.status = Status::R3;
+    //     all_r3_bcasts.insert(i, bcast).unwrap();
+    // }
+
+    // // execute round 8 all participants and store their outputs
+    // let mut all_sigs = FillVec::with_len(participants.len());
+    // for (i, participant) in participants.iter_mut().enumerate() {
+    //     let sig = participant.r8();
+    //     participant.status = Status::Done;
+    //     all_sigs.insert(i, sig).unwrap();
+    // }
+
+    // // TEST: everyone correctly computed the signature
+    // let msg_to_sign = ECScalar::from(&BigInt::from(msg_to_sign));
+    // let r: FE = ECScalar::from(&randomizer.x_coor().unwrap().mod_floor(&FE::q()));
+    // let s: FE = nonce * (msg_to_sign + ecdsa_secret_key * r);
+    // let s = {
+    //     // normalize s
+    //     let s_bigint = s.to_big_int();
+    //     let s_neg = FE::q() - &s_bigint;
+    //     if s_bigint > s_neg {
+    //         ECScalar::from(&s_neg)
+    //     } else {
+    //         s
+    //     }
+    // };
+    // for sig in all_sigs
+    //     .vec_ref()
+    //     .iter()
+    //     .map(|opt| Signature::from_asn1(opt.as_ref().unwrap().as_bytes()).unwrap())
+    // {
+    //     let (sig_r, sig_s) = (sig.r(), sig.s());
+    //     let (sig_r, sig_s): (FieldBytes, FieldBytes) = (From::from(sig_r), From::from(sig_s));
+    //     let (sig_r, sig_s) = (sig_r.as_slice(), sig_s.as_slice());
+    //     let (sig_r, sig_s): (BigInt, BigInt) = (BigInt::from(sig_r), BigInt::from(sig_s));
+    //     assert_eq!(sig_r, r.to_big_int());
+    //     assert_eq!(sig_s, s.to_big_int());
+    // }
+
+    // let sig = EcdsaSig { r, s };
+    // assert!(sig.verify(&ecdsa_public_key, &msg_to_sign));
 }

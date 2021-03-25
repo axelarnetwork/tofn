@@ -32,6 +32,9 @@ impl<T> FillVec<T> {
     pub fn vec_ref(&self) -> &Vec<Option<T>> {
         &self.vec
     }
+    pub fn vec_ref_mut(&mut self) -> &mut Vec<Option<T>> {
+        &mut self.vec
+    }
     pub fn into_vec(self) -> Vec<Option<T>> {
         self.vec
     }

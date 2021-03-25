@@ -196,7 +196,7 @@ impl Zkp {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::{
         Zkp, {Proof, ProofWc, Statement, StatementWc, Witness},
     };
@@ -246,20 +246,11 @@ mod tests {
         zkp.verify_range_proof_wc(stmt_wc, &proof_wc).unwrap();
 
         // test: bad proof
-        let bad_proof = Proof {
-            u: proof.u + BigInt::from(1),
-            ..proof
-        };
+        let bad_proof = corrupt_proof(&proof);
         zkp.verify_range_proof(&stmt, &bad_proof).unwrap_err();
 
         // test: bad proof wc (with check)
-        let bad_proof_wc = ProofWc {
-            proof: Proof {
-                w: proof_wc.proof.w + BigInt::from(1),
-                ..proof_wc.proof
-            },
-            ..proof_wc
-        };
+        let bad_proof_wc = corrupt_proof_wc(&proof_wc);
         zkp.verify_range_proof_wc(stmt_wc, &bad_proof_wc)
             .unwrap_err();
 
@@ -277,4 +268,24 @@ mod tests {
         zkp.verify_range_proof_wc(stmt_wc, &bad_wit_proof_wc)
             .unwrap_err();
     }
+
+    pub fn corrupt_proof(proof: &Proof) -> Proof {
+        let proof = proof.clone();
+        Proof {
+            u: proof.u + BigInt::from(1),
+            ..proof
+        }
+    }
+    pub fn corrupt_proof_wc(proof_wc: &ProofWc) -> ProofWc {
+        let proof_wc = proof_wc.clone();
+        ProofWc {
+            proof: Proof {
+                w: proof_wc.proof.w + BigInt::from(1),
+                ..proof_wc.proof
+            },
+            ..proof_wc
+        }
+    }
+    // curv library sucks so bad that I cannot possibly write a corrupt_witness function
+    // curv library does not allow in-place arithmetic, which I need to act on
 }
