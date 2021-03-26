@@ -12,7 +12,7 @@ impl Sign {
             if let Some(fail_bcast) = self.in_r2bcasts_fail.vec_ref()[accuser].as_ref() {
                 for accused in fail_bcast.culprits.iter() {
                     let prover_ek = &self.my_secret_key_share.all_eks
-                        [self.participant_indices[accused.participant_index]];
+                        [self.participant_indices[accused.participant_index]]; // TODO clarify confusion: participant vs party indices
                     let prover_encrypted_ecdsa_nonce_summand = &self.in_r1bcasts.vec_ref()
                         [accused.participant_index]
                         .as_ref()

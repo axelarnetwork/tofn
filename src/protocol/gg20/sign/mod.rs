@@ -68,9 +68,20 @@ pub struct Sign {
 
     // state data
     my_secret_key_share: SecretKeyShare,
-    participant_indices: Vec<usize>,
     msg_to_sign: FE,             // not used until round 7
-    my_participant_index: usize, // participant_indices[my_participant_index] == my_secret_key_share.my_index
+
+    // TODO this is a source of bugs
+    // "party" indices are in 0..share_count from keygen
+    // "participant" indices are in 0..participant_count from sign
+    // eg. participant_indices[my_participant_index] == my_secret_key_share.my_index
+    // SUGGESTION: use the "newtype" pattern to wrap usize for party vs participant indices
+    // https://doc.rust-lang.org/book/ch19-04-advanced-types.html#using-the-newtype-pattern-for-type-safety-and-abstraction
+    //   write simple methods to convert between them
+    //   eg. my_secret_key_share.all_eks can be indexed only by party indices
+    //   eg. in_r2bcasts can be indexed only by participant indices
+    participant_indices: Vec<usize>,
+    my_participant_index: usize, 
+
     r1state: Option<r1::State>,
     r2state: Option<r2::State>,
     r3state: Option<r3::State>,
