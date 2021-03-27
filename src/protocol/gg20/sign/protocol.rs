@@ -7,6 +7,7 @@ enum MsgType {
     R1Bcast,
     R1P2p { to: usize },
     R2P2p { to: usize },
+    R2FailBcast,
     R3Bcast,
     R4Bcast,
     R5Bcast,
@@ -73,7 +74,14 @@ impl Protocol for Sign {
                     self.r2state = Some(state);
                     R2
                 }
-                r2::Output::Fail { out_bcast } => R2Fail,
+                r2::Output::Fail { out_bcast } => {
+                    self.out_r2bcast_fail_serialized = Some(bincode::serialize(&MsgMeta {
+                        msg_type: MsgType::R2FailBcast,
+                        from: self.my_participant_index,
+                        payload: bincode::serialize(&out_bcast)?,
+                    })?);
+                    R2Fail
+                }
             },
 
             R2 => {
@@ -162,6 +170,9 @@ impl Protocol for Sign {
                 .insert(to, bincode::deserialize(&msg_meta.payload)?)?,
             MsgType::R2P2p { to } => self.in_all_r2p2ps[msg_meta.from]
                 .insert(to, bincode::deserialize(&msg_meta.payload)?)?,
+            MsgType::R2FailBcast => self
+                .in_r2bcasts_fail
+                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
             MsgType::R3Bcast => self
                 .in_r3bcasts
                 .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
@@ -217,6 +228,10 @@ impl Protocol for Sign {
 
     fn expecting_more_msgs_this_round(&self) -> bool {
         let me = self.my_participant_index;
+
+        // TODO account for sad path messages
+        // need to receive one message per party (happy OR sad)
+
         match self.status {
             New => false,
             R1 => {

@@ -68,7 +68,7 @@ pub struct Sign {
 
     // state data
     my_secret_key_share: SecretKeyShare,
-    msg_to_sign: FE,             // not used until round 7
+    msg_to_sign: FE, // not used until round 7
 
     // TODO this is a source of bugs
     // "party" indices are in 0..share_count from keygen
@@ -80,7 +80,7 @@ pub struct Sign {
     //   eg. my_secret_key_share.all_eks can be indexed only by party indices
     //   eg. in_r2bcasts can be indexed only by participant indices
     participant_indices: Vec<usize>,
-    my_participant_index: usize, 
+    my_participant_index: usize,
 
     r1state: Option<r1::State>,
     r2state: Option<r2::State>,

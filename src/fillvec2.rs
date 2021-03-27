@@ -193,6 +193,6 @@ mod tests {
         fill_vec.insert(3, 'C')?;
         fill_vec.insert(4, 'D')?;
         assert!(fill_vec.is_full());
-        Ok(fill_vec.into_hole_vec()?)
+        fill_vec.into_hole_vec()
     }
 }
