@@ -114,7 +114,9 @@ pub struct Sign {
     // outgoing serialized messages
     // initialized to `None`, filled as the protocol progresses
     // p2p Vecs have length participant_indices.len()
-    // TODO these fields are used only to implement `Protocol`: move them to a container struct for `Sign` that's defined in protocol.rs?
+    // TODO these fields are used only to implement `Protocol`
+    // - delete them and instead serialize on the fly?
+    // - move them to a container struct S for `Sign` that's defined in protocol.rs?  But then S implements Protocol instead of Sign...
     out_r1bcast: Option<MsgBytes>,
     out_r1p2ps: Option<Vec<Option<MsgBytes>>>,
     out_r2p2ps: Option<Vec<Option<MsgBytes>>>,

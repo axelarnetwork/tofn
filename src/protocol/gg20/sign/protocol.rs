@@ -2,8 +2,9 @@ use super::{Status::*, *};
 use crate::protocol::{MsgBytes, Protocol, ProtocolResult};
 use serde::{Deserialize, Serialize};
 
+// TODO should be private - break abstraction for tests only
 #[derive(Serialize, Deserialize)]
-enum MsgType {
+pub(super) enum MsgType {
     R1Bcast,
     R1P2p { to: usize },
     R2P2p { to: usize },
@@ -17,11 +18,12 @@ enum MsgType {
 }
 
 // TODO identical to keygen::MsgMeta except for MsgType---use generic
+// TODO should be private - break abstraction for tests only
 #[derive(Serialize, Deserialize)]
-struct MsgMeta {
-    msg_type: MsgType,
-    from: usize,
-    payload: MsgBytes,
+pub(super) struct MsgMeta {
+    pub(super) msg_type: MsgType,
+    pub(super) from: usize,
+    pub(super) payload: MsgBytes,
 }
 
 impl Protocol for Sign {
