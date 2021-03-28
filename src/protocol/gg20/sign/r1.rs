@@ -113,7 +113,7 @@ mod tests {
         protocol::{
             gg20::keygen::{tests::execute_keygen, SecretKeyShare},
             gg20::sign::tests::{MSG_TO_SIGN, TEST_CASES},
-            tests::execute_protocol_vec,
+            tests::execute_protocol_vec_self_delivery,
             Protocol,
         },
         zkp::range::tests::corrupt_proof,
@@ -241,18 +241,22 @@ mod tests {
     // I sure do wish Rust would support easy delegation https://github.com/rust-lang/rfcs/pull/2393
     impl Protocol for BadProof {
         fn next_round(&mut self) -> crate::protocol::ProtocolResult {
+            // TODO fix bad design - code copied from impl Protocol
+            // this test could be broken by changes to protocol.rs
             match &self.s.status {
                 Status::New => {
                     if self.expecting_more_msgs_this_round() {
-                        return Err(From::from("can't prceed yet"));
+                        return Err(From::from("can't proceed yet"));
                     }
-                    let (state, bcast, p2ps) = self.s.r1();
+                    let (state, bcast, mut p2ps) = self.s.r1();
 
-                    // corrupt the proof from party `criminal` to party `victim`
-                    // let proof = &mut p2ps.vec_ref_mut()[self.victim].as_mut().unwrap().range_proof;
-                    // *proof = corrupt_proof(proof);
+                    // corrupt the proof to self.victim
+                    let proof = &mut p2ps.vec_ref_mut()[self.victim]
+                        .as_mut()
+                        .unwrap()
+                        .range_proof;
+                    *proof = corrupt_proof(proof);
 
-                    // TODO introduce a fault here
                     self.s.update_state_r1(state, bcast, p2ps)
                 }
                 _ => self.s.next_round(),
@@ -309,7 +313,10 @@ mod tests {
                     .collect(),
             );
 
-            execute_protocol_vec(&mut protocols);
+            // TODO this test fails without self delivery - see r3fail.rs
+            execute_protocol_vec_self_delivery(&mut protocols, true);
+
+            // TODO check for correct result
         }
     }
 }

@@ -29,6 +29,8 @@ impl Protocol for Sign {
         if self.expecting_more_msgs_this_round() {
             return Err(From::from("can't prceed yet"));
         }
+        self.move_to_sad_path();
+
         // TODO refactor repeated code!
         match self.status {
             New => {
@@ -75,7 +77,10 @@ impl Protocol for Sign {
                 self.r3state = Some(state);
                 self.status = R3;
             }
-            R2Fail => self.status = Fail,
+            R2Fail => {
+                self.final_output = Some(Err(self.r3fail()));
+                self.status = Fail;
+            }
             R3 => {
                 let (state, bcast) = self.r4();
                 self.out_r4bcast = Some(bincode::serialize(&MsgMeta {
@@ -230,19 +235,17 @@ impl Protocol for Sign {
                 }
                 false
             }
-            R2 => {
-                for (i, in_r2p2ps) in self.in_all_r2p2ps.iter().enumerate() {
+            R2 | R2Fail => {
+                for i in 0..self.participant_indices.len() {
                     if i == me {
                         continue;
                     }
-                    if !in_r2p2ps.is_full_except(i) {
+                    if !self.in_all_r2p2ps[i].is_full_except(i) && self.in_r2bcasts_fail.is_none(i)
+                    {
                         return true;
                     }
                 }
                 false
-            }
-            R2Fail => {
-                todo!()
             }
             R3 => !self.in_r3bcasts.is_full_except(me),
             R4 => !self.in_r4bcasts.is_full_except(me),
@@ -269,12 +272,21 @@ impl Protocol for Sign {
     }
 
     fn done(&self) -> bool {
-        matches!(self.status, Done)
+        matches!(self.status, Done | Fail)
     }
 }
 
+// TODO these methods should be private - break abstraction for tests only
 impl Sign {
-    // TODO should be private - break abstraction for tests only
+    pub(super) fn move_to_sad_path(&mut self) {
+        if let R2 = self.status {
+            // if I've received any r2 bcast fails then switch to R2Fail status
+            if self.in_r2bcasts_fail.some_count() > 0 {
+                self.status = R2Fail;
+            }
+        }
+    }
+
     pub(super) fn update_state_r1(
         &mut self,
         state: r1::State,

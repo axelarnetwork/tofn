@@ -265,6 +265,8 @@ fn basic_correctness_protocol() {
             .map(|p| p as &mut dyn Protocol)
             .collect();
         execute_protocol_vec(&mut protocols);
+
+        // TODO check for correct result
     }
 }
 
@@ -284,7 +286,7 @@ fn protocol_with_self_delivery() {
             .map(|p| p as &mut dyn Protocol)
             .collect();
         execute_protocol_vec_self_delivery(&mut protocols, true);
+
+        // TODO check for correct result
     }
 }
-
-// TODO move these tests into r3fail module

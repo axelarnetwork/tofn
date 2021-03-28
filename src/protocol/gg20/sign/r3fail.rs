@@ -13,10 +13,18 @@ impl Sign {
                 for accused in fail_bcast.culprits.iter() {
                     let prover_ek = &self.my_secret_key_share.all_eks
                         [self.participant_indices[accused.participant_index]]; // TODO clarify confusion: participant vs party indices
+
+                    // TODO if accussed == me and self delivery is off then this next line will panic
+                    // because I do not have my own r1bcast in self.in_r1bcasts
                     let prover_encrypted_ecdsa_nonce_summand = &self.in_r1bcasts.vec_ref()
                         [accused.participant_index]
                         .as_ref()
-                        .unwrap()
+                        .unwrap_or_else(|| {
+                            panic!(
+                                "r3fail party {} no r1bcast from {}",
+                                self.my_participant_index, accused.participant_index
+                            )
+                        })
                         .encrypted_ecdsa_nonce_summand
                         .c;
                     let verifier_zkp = &self.my_secret_key_share.all_zkps[accuser];
