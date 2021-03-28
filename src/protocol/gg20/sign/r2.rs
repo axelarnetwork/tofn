@@ -177,7 +177,7 @@ mod tests {
     use super::super::*;
     use crate::protocol::{
         gg20::keygen::{tests::execute_keygen, SecretKeyShare},
-        gg20::sign::tests::{MSG_TO_SIGN, TEST_CASES},
+        gg20::tests::sign::{MSG_TO_SIGN, TEST_CASES},
     };
 
     #[test]

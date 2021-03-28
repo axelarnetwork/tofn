@@ -36,14 +36,7 @@ pub fn execute_protocol_vec_no_p2p(parties: &mut [&mut dyn Protocol]) {
     }
 }
 
-pub fn execute_protocol_vec(parties: &mut [&mut dyn Protocol]) {
-    execute_protocol_vec_self_delivery(parties, false)
-}
-
-pub fn execute_protocol_vec_self_delivery(
-    parties: &mut [&mut dyn Protocol],
-    allow_self_delivery: bool,
-) {
+pub fn execute_protocol_vec(parties: &mut [&mut dyn Protocol], allow_self_delivery: bool) {
     #[allow(clippy::needless_range_loop)] // see explanation below
     while !all_done(parties) {
         // #[allow(clippy::needless_range_loop)]

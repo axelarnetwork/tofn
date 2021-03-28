@@ -112,8 +112,8 @@ mod tests {
     use crate::{
         protocol::{
             gg20::keygen::{tests::execute_keygen, SecretKeyShare},
-            gg20::sign::tests::{MSG_TO_SIGN, TEST_CASES},
-            tests::execute_protocol_vec_self_delivery,
+            gg20::tests::sign::{MSG_TO_SIGN, TEST_CASES},
+            tests::execute_protocol_vec,
             Protocol,
         },
         zkp::range::tests::corrupt_proof,
@@ -317,7 +317,7 @@ mod tests {
             );
 
             // TODO this test fails without self delivery - see r3fail.rs
-            execute_protocol_vec_self_delivery(&mut protocols, true);
+            execute_protocol_vec(&mut protocols, true);
 
             // TEST: everyone correctly computed the culprit list
             let actual_culprits: Vec<usize> = vec![0];

@@ -1,8 +1,7 @@
 use super::*;
 use crate::protocol::{
     gg20::keygen::{self, SecretKeyShare},
-    tests::{execute_protocol_vec, execute_protocol_vec_self_delivery},
-    Protocol,
+    gg20::tests::sign::{MSG_TO_SIGN, TEST_CASES},
 };
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
@@ -10,18 +9,6 @@ use curv::{
 };
 use k256::{ecdsa::Signature, FieldBytes};
 use keygen::tests::execute_keygen;
-
-lazy_static::lazy_static! {
-    pub static ref MSG_TO_SIGN: Vec<u8> = vec![42];
-    pub static ref TEST_CASES: Vec<(usize, usize, Vec<usize>)> = vec![ // (share_count, threshold, participant_indices)
-        // (5, 2, vec![1,2,4]),
-        (5, 2, vec![4,1,2]),
-        // (5, 2, vec![0,1,2,3]),
-        // (5, 2, vec![4,2,3,1,0]),
-        (1,0,vec![0]),
-    ];
-    // TODO add TEST_CASES_INVALID
-}
 
 #[test]
 fn basic_correctness() {
@@ -245,61 +232,12 @@ fn basic_correctness_inner(
     assert!(sig.verify(&ecdsa_public_key, &msg_to_sign));
 }
 
-#[test]
-fn basic_correctness_protocol() {
-    for (share_count, threshold, participant_indices) in TEST_CASES.iter() {
-        let key_shares = execute_keygen(*share_count, *threshold);
-
-        // keep it on the stack: avoid use of Box<dyn Protocol> https://doc.rust-lang.org/book/ch17-02-trait-objects.html
-        let mut participants: Vec<Sign> = participant_indices
-            .iter()
-            .map(|i| Sign::new(&key_shares[*i], &participant_indices, &MSG_TO_SIGN).unwrap())
-            .collect();
-        let mut protocols: Vec<&mut dyn Protocol> = participants
-            .iter_mut()
-            .map(|p| p as &mut dyn Protocol)
-            .collect();
-        execute_protocol_vec(&mut protocols);
-
-        // TEST: everyone computed the same signature
-        let (r, s) = extract_r_s(participants[0].get_result().unwrap().unwrap());
-        for p in participants.iter() {
-            let (sig_r, sig_s) = extract_r_s(p.get_result().unwrap().unwrap());
-            assert_eq!(sig_r, r);
-            assert_eq!(sig_s, s);
-        }
-    }
-}
-
-#[test]
-fn protocol_with_self_delivery() {
-    for (share_count, threshold, participant_indices) in TEST_CASES.iter() {
-        let key_shares = execute_keygen(*share_count, *threshold);
-
-        // TODO refactor copied code from sign_protocol
-        // keep it on the stack: avoid use of Box<dyn Protocol> https://doc.rust-lang.org/book/ch17-02-trait-objects.html
-        let mut participants: Vec<Sign> = participant_indices
-            .iter()
-            .map(|i| Sign::new(&key_shares[*i], &participant_indices, &MSG_TO_SIGN).unwrap())
-            .collect();
-        let mut protocols: Vec<&mut dyn Protocol> = participants
-            .iter_mut()
-            .map(|p| p as &mut dyn Protocol)
-            .collect();
-        execute_protocol_vec_self_delivery(&mut protocols, true);
-
-        // TEST: everyone computed the same signature
-        let (r, s) = extract_r_s(participants[0].get_result().unwrap().unwrap());
-        for p in participants.iter() {
-            let (sig_r, sig_s) = extract_r_s(p.get_result().unwrap().unwrap());
-            assert_eq!(sig_r, r);
-            assert_eq!(sig_s, s);
-        }
-    }
-}
-
 fn extract_r_s(asn1_sig: &Asn1Signature) -> (FieldBytes, FieldBytes) {
     let sig = Signature::from_asn1(asn1_sig.as_bytes()).unwrap();
     let (sig_r, sig_s) = (sig.r(), sig.s());
     (From::from(sig_r), From::from(sig_s))
+}
+
+pub fn equal_sigs(lhs: &Asn1Signature, rhs: &Asn1Signature) -> bool {
+    extract_r_s(lhs) == extract_r_s(rhs)
 }
