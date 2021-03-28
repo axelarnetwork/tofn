@@ -176,8 +176,8 @@ impl Sign {
             final_output: None,
         })
     }
-    pub fn get_result(&self) -> Option<&Result<Asn1Signature, Vec<usize>>> {
-        self.final_output.as_ref()
+    pub fn get_result(&self) -> Option<Result<&Asn1Signature, &Vec<usize>>> {
+        self.final_output.as_ref().map(|o| o.as_ref())
     }
 }
 

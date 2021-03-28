@@ -236,6 +236,9 @@ mod tests {
                 victim,
             })
         }
+        pub fn get_result(&self) -> Option<Result<&Asn1Signature, &Vec<usize>>> {
+            self.s.get_result()
+        }
     }
 
     // I sure do wish Rust would support easy delegation https://github.com/rust-lang/rfcs/pull/2393
@@ -316,7 +319,15 @@ mod tests {
             // TODO this test fails without self delivery - see r3fail.rs
             execute_protocol_vec_self_delivery(&mut protocols, true);
 
-            // TODO check for correct result
+            // TEST: everyone correctly computed the culprit list
+            let actual_culprits: Vec<usize> = vec![0];
+            assert_eq!(bad_guy.get_result().unwrap().unwrap_err(), &actual_culprits);
+            for good_guy in good_guys {
+                assert_eq!(
+                    good_guy.get_result().unwrap().unwrap_err(),
+                    &actual_culprits
+                );
+            }
         }
     }
 }

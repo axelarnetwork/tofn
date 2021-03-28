@@ -233,13 +233,8 @@ fn basic_correctness_inner(
             s
         }
     };
-    for sig in all_sigs
-        .vec_ref()
-        .iter()
-        .map(|opt| Signature::from_asn1(opt.as_ref().unwrap().as_bytes()).unwrap())
-    {
-        let (sig_r, sig_s) = (sig.r(), sig.s());
-        let (sig_r, sig_s): (FieldBytes, FieldBytes) = (From::from(sig_r), From::from(sig_s));
+    for sig in all_sigs.vec_ref().iter() {
+        let (sig_r, sig_s) = extract_r_s(sig.as_ref().unwrap());
         let (sig_r, sig_s) = (sig_r.as_slice(), sig_s.as_slice());
         let (sig_r, sig_s): (BigInt, BigInt) = (BigInt::from(sig_r), BigInt::from(sig_s));
         assert_eq!(sig_r, r.to_big_int());
@@ -266,7 +261,13 @@ fn basic_correctness_protocol() {
             .collect();
         execute_protocol_vec(&mut protocols);
 
-        // TODO check for correct result
+        // TEST: everyone computed the same signature
+        let (r, s) = extract_r_s(participants[0].get_result().unwrap().unwrap());
+        for p in participants.iter() {
+            let (sig_r, sig_s) = extract_r_s(p.get_result().unwrap().unwrap());
+            assert_eq!(sig_r, r);
+            assert_eq!(sig_s, s);
+        }
     }
 }
 
@@ -287,6 +288,18 @@ fn protocol_with_self_delivery() {
             .collect();
         execute_protocol_vec_self_delivery(&mut protocols, true);
 
-        // TODO check for correct result
+        // TEST: everyone computed the same signature
+        let (r, s) = extract_r_s(participants[0].get_result().unwrap().unwrap());
+        for p in participants.iter() {
+            let (sig_r, sig_s) = extract_r_s(p.get_result().unwrap().unwrap());
+            assert_eq!(sig_r, r);
+            assert_eq!(sig_s, s);
+        }
     }
+}
+
+fn extract_r_s(asn1_sig: &Asn1Signature) -> (FieldBytes, FieldBytes) {
+    let sig = Signature::from_asn1(asn1_sig.as_bytes()).unwrap();
+    let (sig_r, sig_s) = (sig.r(), sig.s());
+    (From::from(sig_r), From::from(sig_s))
 }
