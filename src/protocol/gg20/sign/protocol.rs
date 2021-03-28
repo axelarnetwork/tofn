@@ -2,9 +2,8 @@ use super::{Status::*, *};
 use crate::protocol::{MsgBytes, Protocol, ProtocolResult};
 use serde::{Deserialize, Serialize};
 
-// TODO should be private - break abstraction for tests only
 #[derive(Serialize, Deserialize)]
-pub(super) enum MsgType {
+enum MsgType {
     R1Bcast,
     R1P2p { to: usize },
     R2P2p { to: usize },
@@ -18,12 +17,11 @@ pub(super) enum MsgType {
 }
 
 // TODO identical to keygen::MsgMeta except for MsgType---use generic
-// TODO should be private - break abstraction for tests only
 #[derive(Serialize, Deserialize)]
-pub(super) struct MsgMeta {
-    pub(super) msg_type: MsgType,
-    pub(super) from: usize,
-    pub(super) payload: MsgBytes,
+struct MsgMeta {
+    msg_type: MsgType,
+    from: usize,
+    payload: MsgBytes,
 }
 
 impl Protocol for Sign {
@@ -32,29 +30,10 @@ impl Protocol for Sign {
             return Err(From::from("can't prceed yet"));
         }
         // TODO refactor repeated code!
-        self.status = match self.status {
+        match self.status {
             New => {
                 let (state, bcast, p2ps) = self.r1();
-                self.out_r1bcast = Some(bincode::serialize(&MsgMeta {
-                    msg_type: MsgType::R1Bcast,
-                    from: self.my_participant_index,
-                    payload: bincode::serialize(&bcast)?,
-                })?);
-                let mut out_r1p2ps = Vec::with_capacity(self.participant_indices.len());
-                for (to, opt) in p2ps.into_vec().into_iter().enumerate() {
-                    if let Some(p2p) = opt {
-                        out_r1p2ps.push(Some(bincode::serialize(&MsgMeta {
-                            msg_type: MsgType::R1P2p { to },
-                            from: self.my_participant_index,
-                            payload: bincode::serialize(&p2p)?,
-                        })?));
-                    } else {
-                        out_r1p2ps.push(None);
-                    }
-                }
-                self.out_r1p2ps = Some(out_r1p2ps);
-                self.r1state = Some(state);
-                R1
+                self.update_state_r1(state, bcast, p2ps)?;
             }
 
             R1 => match self.r2() {
@@ -74,7 +53,7 @@ impl Protocol for Sign {
                     }
                     self.out_r2p2ps = Some(out_p2ps_serialized);
                     self.r2state = Some(state);
-                    R2
+                    self.status = R2;
                 }
                 r2::Output::Fail { out_bcast } => {
                     self.out_r2bcast_fail_serialized = Some(bincode::serialize(&MsgMeta {
@@ -82,7 +61,7 @@ impl Protocol for Sign {
                         from: self.my_participant_index,
                         payload: bincode::serialize(&out_bcast)?,
                     })?);
-                    R2Fail
+                    self.status = R2Fail;
                 }
             },
 
@@ -94,9 +73,9 @@ impl Protocol for Sign {
                     payload: bincode::serialize(&bcast)?,
                 })?);
                 self.r3state = Some(state);
-                R3
+                self.status = R3;
             }
-            R2Fail => Fail,
+            R2Fail => self.status = Fail,
             R3 => {
                 let (state, bcast) = self.r4();
                 self.out_r4bcast = Some(bincode::serialize(&MsgMeta {
@@ -105,7 +84,7 @@ impl Protocol for Sign {
                     payload: bincode::serialize(&bcast)?,
                 })?);
                 self.r4state = Some(state);
-                R4
+                self.status = R4;
             }
             R4 => {
                 let (state, bcast, p2ps) = self.r5();
@@ -128,7 +107,7 @@ impl Protocol for Sign {
                 }
                 self.out_r5p2ps = Some(out_r5p2ps);
                 self.r5state = Some(state);
-                R5
+                self.status = R5;
             }
             R5 => {
                 let (state, bcast) = self.r6();
@@ -138,7 +117,7 @@ impl Protocol for Sign {
                     payload: bincode::serialize(&bcast)?,
                 })?);
                 self.r6state = Some(state);
-                R6
+                self.status = R6;
             }
             R6 => {
                 let (state, bcast) = self.r7();
@@ -148,11 +127,11 @@ impl Protocol for Sign {
                     payload: bincode::serialize(&bcast)?,
                 })?);
                 self.r7state = Some(state);
-                R7
+                self.status = R7;
             }
             R7 => {
                 self.final_output = Some(Ok(self.r8()));
-                Done
+                self.status = Done;
             }
             Done => return Err(From::from("already done")),
             Fail => return Err(From::from("already failed")),
@@ -291,5 +270,37 @@ impl Protocol for Sign {
 
     fn done(&self) -> bool {
         matches!(self.status, Done)
+    }
+}
+
+impl Sign {
+    // TODO should be private - break abstraction for tests only
+    pub(super) fn update_state_r1(
+        &mut self,
+        state: r1::State,
+        bcast: r1::Bcast,
+        p2ps: FillVec<r1::P2p>,
+    ) -> ProtocolResult {
+        self.out_r1bcast = Some(bincode::serialize(&MsgMeta {
+            msg_type: MsgType::R1Bcast,
+            from: self.my_participant_index,
+            payload: bincode::serialize(&bcast)?,
+        })?);
+        let mut out_r1p2ps = Vec::with_capacity(self.participant_indices.len());
+        for (to, opt) in p2ps.into_vec().into_iter().enumerate() {
+            if let Some(p2p) = opt {
+                out_r1p2ps.push(Some(bincode::serialize(&MsgMeta {
+                    msg_type: MsgType::R1P2p { to },
+                    from: self.my_participant_index,
+                    payload: bincode::serialize(&p2p)?,
+                })?));
+            } else {
+                out_r1p2ps.push(None);
+            }
+        }
+        self.out_r1p2ps = Some(out_r1p2ps);
+        self.r1state = Some(state);
+        self.status = R1;
+        Ok(())
     }
 }
