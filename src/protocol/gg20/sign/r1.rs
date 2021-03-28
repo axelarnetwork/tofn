@@ -219,56 +219,64 @@ mod tests {
         }
     }
 
-    struct BadProof(Sign); // newtype pattern + delegation to emulate struct embedding
+    struct BadProof {
+        s: Sign,
+        victim: usize,
+    }
 
     impl BadProof {
         pub fn new(
             my_secret_key_share: &SecretKeyShare,
             participant_indices: &[usize],
             msg_to_sign: &[u8],
+            victim: usize,
         ) -> Result<Self, ParamsError> {
-            Ok(Self(Sign::new(
-                my_secret_key_share,
-                participant_indices,
-                msg_to_sign,
-            )?))
+            Ok(Self {
+                s: Sign::new(my_secret_key_share, participant_indices, msg_to_sign)?,
+                victim,
+            })
         }
     }
 
     // I sure do wish Rust would support easy delegation https://github.com/rust-lang/rfcs/pull/2393
     impl Protocol for BadProof {
         fn next_round(&mut self) -> crate::protocol::ProtocolResult {
-            match &self.0.status {
+            match &self.s.status {
                 Status::New => {
                     if self.expecting_more_msgs_this_round() {
                         return Err(From::from("can't prceed yet"));
                     }
-                    let (state, bcast, p2ps) = self.0.r1();
+                    let (state, bcast, p2ps) = self.s.r1();
+
+                    // corrupt the proof from party `criminal` to party `victim`
+                    // let proof = &mut p2ps.vec_ref_mut()[self.victim].as_mut().unwrap().range_proof;
+                    // *proof = corrupt_proof(proof);
+
                     // TODO introduce a fault here
-                    self.0.update_state_r1(state, bcast, p2ps)
+                    self.s.update_state_r1(state, bcast, p2ps)
                 }
-                _ => self.0.next_round(),
+                _ => self.s.next_round(),
             }
         }
 
         fn set_msg_in(&mut self, msg: &[u8]) -> crate::protocol::ProtocolResult {
-            self.0.set_msg_in(msg)
+            self.s.set_msg_in(msg)
         }
 
         fn get_bcast_out(&self) -> &Option<MsgBytes> {
-            self.0.get_bcast_out()
+            self.s.get_bcast_out()
         }
 
         fn get_p2p_out(&self) -> &Option<Vec<Option<MsgBytes>>> {
-            self.0.get_p2p_out()
+            self.s.get_p2p_out()
         }
 
         fn expecting_more_msgs_this_round(&self) -> bool {
-            self.0.expecting_more_msgs_this_round()
+            self.s.expecting_more_msgs_this_round()
         }
 
         fn done(&self) -> bool {
-            self.0.done()
+            self.s.done()
         }
     }
 
@@ -284,6 +292,7 @@ mod tests {
                 &key_shares[participant_indices[0]],
                 &participant_indices,
                 &MSG_TO_SIGN,
+                1,
             )
             .unwrap();
             let mut good_guys: Vec<Sign> = participant_indices
