@@ -289,6 +289,15 @@ mod tests {
 
     #[test]
     fn one_bad_proof_protocol() {
+        one_bad_proof_protocol_inner(false)
+    }
+
+    #[test]
+    fn one_bad_proof_protocol_with_self_delivery() {
+        one_bad_proof_protocol_inner(true)
+    }
+
+    fn one_bad_proof_protocol_inner(allow_self_delivery: bool) {
         for (share_count, threshold, participant_indices) in TEST_CASES.iter() {
             if participant_indices.len() < 2 {
                 continue; // need at least 2 participants for this test
@@ -316,8 +325,7 @@ mod tests {
                     .collect(),
             );
 
-            // TODO this test fails without self delivery - see r3fail.rs
-            execute_protocol_vec(&mut protocols, true);
+            execute_protocol_vec(&mut protocols, allow_self_delivery);
 
             // TEST: everyone correctly computed the culprit list
             let actual_culprits: Vec<usize> = vec![0];

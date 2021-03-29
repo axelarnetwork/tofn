@@ -58,11 +58,17 @@ impl Protocol for Sign {
                     self.status = R2;
                 }
                 r2::Output::Fail { out_bcast } => {
+                    // serialize outgoing bcast
                     self.out_r2bcast_fail_serialized = Some(bincode::serialize(&MsgMeta {
                         msg_type: MsgType::R2FailBcast,
                         from: self.my_participant_index,
                         payload: bincode::serialize(&out_bcast)?,
                     })?);
+
+                    // self delivery
+                    self.in_r2bcasts_fail
+                        .insert(self.my_participant_index, out_bcast)?;
+
                     self.status = R2Fail;
                 }
             },
@@ -149,16 +155,38 @@ impl Protocol for Sign {
         // TODO refactor repeated code
         let msg_meta: MsgMeta = bincode::deserialize(msg)?;
         match msg_meta.msg_type {
-            MsgType::R1Bcast => self
-                .in_r1bcasts
-                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
-            MsgType::R1P2p { to } => self.in_all_r1p2ps[msg_meta.from]
-                .insert(to, bincode::deserialize(&msg_meta.payload)?)?,
+            MsgType::R1Bcast => {
+                if !self.in_r1bcasts.is_none(msg_meta.from) {
+                    println!(
+                        "WARN: participant {} overwrite existing R1Bcast msg from {}",
+                        self.my_participant_index, msg_meta.from
+                    );
+                }
+                self.in_r1bcasts
+                    .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
+            }
+            MsgType::R1P2p { to } => {
+                let r1_p2ps = &mut self.in_all_r1p2ps[msg_meta.from];
+                if !r1_p2ps.is_none(to) {
+                    println!(
+                        "WARN: participant {} overwrite existing R1P2p msg from {} to {}",
+                        self.my_participant_index, msg_meta.from, to
+                    );
+                }
+                r1_p2ps.overwrite(to, bincode::deserialize(&msg_meta.payload)?);
+            }
             MsgType::R2P2p { to } => self.in_all_r2p2ps[msg_meta.from]
                 .insert(to, bincode::deserialize(&msg_meta.payload)?)?,
-            MsgType::R2FailBcast => self
-                .in_r2bcasts_fail
-                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
+            MsgType::R2FailBcast => {
+                if !self.in_r2bcasts_fail.is_none(msg_meta.from) {
+                    println!(
+                        "WARN: participant {} overwrite existing R2FailBcast msg from {}",
+                        self.my_participant_index, msg_meta.from
+                    );
+                }
+                self.in_r2bcasts_fail
+                    .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
+            }
             MsgType::R3Bcast => self
                 .in_r3bcasts
                 .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
@@ -293,13 +321,16 @@ impl Sign {
         bcast: r1::Bcast,
         p2ps: FillVec<r1::P2p>,
     ) -> ProtocolResult {
+        // serialize outgoing bcast
         self.out_r1bcast = Some(bincode::serialize(&MsgMeta {
             msg_type: MsgType::R1Bcast,
             from: self.my_participant_index,
             payload: bincode::serialize(&bcast)?,
         })?);
+
+        // serialize outgoing p2ps
         let mut out_r1p2ps = Vec::with_capacity(self.participant_indices.len());
-        for (to, opt) in p2ps.into_vec().into_iter().enumerate() {
+        for (to, opt) in p2ps.vec_ref().iter().enumerate() {
             if let Some(p2p) = opt {
                 out_r1p2ps.push(Some(bincode::serialize(&MsgMeta {
                     msg_type: MsgType::R1P2p { to },
@@ -311,6 +342,11 @@ impl Sign {
             }
         }
         self.out_r1p2ps = Some(out_r1p2ps);
+
+        // self delivery
+        self.in_r1bcasts.insert(self.my_participant_index, bcast)?;
+        self.in_all_r1p2ps[self.my_participant_index] = p2ps;
+
         self.r1state = Some(state);
         self.status = R1;
         Ok(())
