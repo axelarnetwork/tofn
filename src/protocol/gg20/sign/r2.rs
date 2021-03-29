@@ -178,6 +178,8 @@ mod tests {
     use crate::protocol::{
         gg20::keygen::{tests::execute_keygen, SecretKeyShare},
         gg20::tests::sign::{MSG_TO_SIGN, TEST_CASES},
+        tests::execute_protocol_vec,
+        Protocol,
     };
 
     #[test]
@@ -279,6 +281,130 @@ mod tests {
                 "party {} unexpected culprit list",
                 i
             );
+        }
+    }
+
+    struct FalseAccusation {
+        s: Sign,
+        victim: usize,
+    }
+
+    impl FalseAccusation {
+        pub fn new(
+            my_secret_key_share: &SecretKeyShare,
+            participant_indices: &[usize],
+            msg_to_sign: &[u8],
+            victim: usize,
+        ) -> Result<Self, ParamsError> {
+            Ok(Self {
+                s: Sign::new(my_secret_key_share, participant_indices, msg_to_sign)?,
+                victim,
+            })
+        }
+        pub fn get_result(&self) -> Option<Result<&Asn1Signature, &Vec<usize>>> {
+            self.s.get_result()
+        }
+    }
+
+    // I sure do wish Rust would support easy delegation https://github.com/rust-lang/rfcs/pull/2393
+    impl Protocol for FalseAccusation {
+        fn next_round(&mut self) -> crate::protocol::ProtocolResult {
+            // TODO fix bad design - code copied from impl Protocol
+            // this test could be broken by changes to protocol.rs
+            match &self.s.status {
+                Status::R1 => {
+                    if self.expecting_more_msgs_this_round() {
+                        return Err(From::from("can't proceed yet"));
+                    }
+
+                    // falsely accuse `victim` of a bad proof in r1
+                    // no need to execute self.s.r2()
+                    println!(
+                        "participant {} falsely accuse {}",
+                        self.s.my_participant_index, self.victim
+                    );
+                    self.s.update_state_r2fail(r2::FailBcast {
+                        culprits: vec![r2::Culprit {
+                            participant_index: self.victim,
+                        }],
+                    })
+                }
+                _ => self.s.next_round(),
+            }
+        }
+
+        fn set_msg_in(&mut self, msg: &[u8]) -> crate::protocol::ProtocolResult {
+            self.s.set_msg_in(msg)
+        }
+
+        fn get_bcast_out(&self) -> &Option<MsgBytes> {
+            self.s.get_bcast_out()
+        }
+
+        fn get_p2p_out(&self) -> &Option<Vec<Option<MsgBytes>>> {
+            self.s.get_p2p_out()
+        }
+
+        fn expecting_more_msgs_this_round(&self) -> bool {
+            self.s.expecting_more_msgs_this_round()
+        }
+
+        fn done(&self) -> bool {
+            self.s.done()
+        }
+    }
+
+    #[test]
+    fn one_false_accusation_protocol() {
+        one_false_accusation_protocol_inner(false)
+    }
+
+    #[test]
+    fn one_false_accusation_protocol_with_self_delivery() {
+        one_false_accusation_protocol_inner(true)
+    }
+
+    fn one_false_accusation_protocol_inner(allow_self_delivery: bool) {
+        // TODO copied code from r1::one_pad_proof_protocol_inner
+
+        for (share_count, threshold, participant_indices) in TEST_CASES.iter() {
+            if participant_indices.len() < 2 {
+                continue; // need at least 2 participants for this test
+            }
+            let key_shares = execute_keygen(*share_count, *threshold);
+
+            let mut bad_guy = FalseAccusation::new(
+                &key_shares[participant_indices[0]],
+                &participant_indices,
+                &MSG_TO_SIGN,
+                1,
+            )
+            .unwrap();
+            let mut good_guys: Vec<Sign> = participant_indices
+                .iter()
+                .skip(1)
+                .map(|i| Sign::new(&key_shares[*i], &participant_indices, &MSG_TO_SIGN).unwrap())
+                .collect();
+
+            let mut protocols: Vec<&mut dyn Protocol> = vec![&mut bad_guy as &mut dyn Protocol];
+            protocols.append(
+                &mut good_guys
+                    .iter_mut()
+                    .map(|p| p as &mut dyn Protocol)
+                    .collect(),
+            );
+
+            execute_protocol_vec(&mut protocols, allow_self_delivery);
+
+            // TEST: everyone correctly computed the culprit list
+            let actual_culprits: Vec<usize> = vec![0];
+            assert_eq!(bad_guy.get_result().unwrap().unwrap_err(), &actual_culprits);
+            for good_guy in good_guys {
+                assert_eq!(
+                    good_guy.get_result().unwrap().unwrap_err(),
+                    &actual_culprits
+                );
+            }
         }
     }
 }

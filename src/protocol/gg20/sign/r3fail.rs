@@ -11,11 +11,9 @@ impl Sign {
         for accuser in 0..self.participant_indices.len() {
             if let Some(fail_bcast) = self.in_r2bcasts_fail.vec_ref()[accuser].as_ref() {
                 for accused in fail_bcast.culprits.iter() {
+                    // TODO clarify confusion: participant vs party indices
                     let prover_ek = &self.my_secret_key_share.all_eks
-                        [self.participant_indices[accused.participant_index]]; // TODO clarify confusion: participant vs party indices
-
-                    // TODO if accussed == me and self delivery is off then this next line will panic
-                    // because I do not have my own r1bcast in self.in_r1bcasts
+                        [self.participant_indices[accused.participant_index]];
                     let prover_encrypted_ecdsa_nonce_summand = &self.in_r1bcasts.vec_ref()
                         [accused.participant_index]
                         .as_ref()
@@ -27,7 +25,8 @@ impl Sign {
                         })
                         .encrypted_ecdsa_nonce_summand
                         .c;
-                    let verifier_zkp = &self.my_secret_key_share.all_zkps[accuser];
+                    let verifier_zkp =
+                        &self.my_secret_key_share.all_zkps[self.participant_indices[accuser]];
 
                     let stmt = &range::Statement {
                         ciphertext: &prover_encrypted_ecdsa_nonce_summand,

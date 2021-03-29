@@ -58,18 +58,7 @@ impl Protocol for Sign {
                     self.status = R2;
                 }
                 r2::Output::Fail { out_bcast } => {
-                    // serialize outgoing bcast
-                    self.out_r2bcast_fail_serialized = Some(bincode::serialize(&MsgMeta {
-                        msg_type: MsgType::R2FailBcast,
-                        from: self.my_participant_index,
-                        payload: bincode::serialize(&out_bcast)?,
-                    })?);
-
-                    // self delivery
-                    self.in_r2bcasts_fail
-                        .insert(self.my_participant_index, out_bcast)?;
-
-                    self.status = R2Fail;
+                    self.update_state_r2fail(out_bcast)?;
                 }
             },
 
@@ -349,6 +338,22 @@ impl Sign {
 
         self.r1state = Some(state);
         self.status = R1;
+        Ok(())
+    }
+
+    pub(super) fn update_state_r2fail(&mut self, bcast: r2::FailBcast) -> ProtocolResult {
+        // serialize outgoing bcast
+        self.out_r2bcast_fail_serialized = Some(bincode::serialize(&MsgMeta {
+            msg_type: MsgType::R2FailBcast,
+            from: self.my_participant_index,
+            payload: bincode::serialize(&bcast)?,
+        })?);
+
+        // self delivery
+        self.in_r2bcasts_fail
+            .insert(self.my_participant_index, bcast)?;
+
+        self.status = R2Fail;
         Ok(())
     }
 }
