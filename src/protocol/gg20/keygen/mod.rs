@@ -86,7 +86,6 @@ pub struct CommonInfo {
     pub all_ecdsa_public_key_shares: Vec<GE>,
     pub all_eks: Vec<EncryptionKey>,
     pub all_zkps: Vec<Zkp>,
-    pub uids: Vec<String>,
     pub my_index: usize,
     pub share_count: usize,
 }
