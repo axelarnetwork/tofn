@@ -177,33 +177,28 @@ mod tests {
     use super::super::*;
     use crate::protocol::{
         gg20::keygen::{tests::execute_keygen, SecretKeyShare},
-        gg20::tests::sign::{MSG_TO_SIGN, TEST_CASES},
+        gg20::tests::sign::{OneCrimeTestCase, MSG_TO_SIGN, ONE_CRIMINAL_TEST_CASES},
         tests::execute_protocol_vec,
         Protocol,
     };
 
     #[test]
     fn one_false_accusation() {
-        for (share_count, threshold, participant_indices) in TEST_CASES.iter() {
-            if participant_indices.len() < 2 {
-                continue; // need at least 2 participants for this test
-            }
-            let key_shares = execute_keygen(*share_count, *threshold);
-            one_false_accusation_inner(&key_shares, participant_indices, &MSG_TO_SIGN);
+        for test in ONE_CRIMINAL_TEST_CASES.iter() {
+            let key_shares = execute_keygen(test.share_count, test.threshold);
+            one_false_accusation_inner(&key_shares, test, &MSG_TO_SIGN);
         }
     }
 
     fn one_false_accusation_inner(
         key_shares: &[SecretKeyShare],
-        participant_indices: &[usize],
+        t: &OneCrimeTestCase,
         msg_to_sign: &[u8],
     ) {
-        assert!(participant_indices.len() > 1);
-        let (criminal_accuser, victim_accused) = (1, 0);
-
-        let mut participants: Vec<Sign> = participant_indices
+        let mut participants: Vec<Sign> = t
+            .participant_indices
             .iter()
-            .map(|i| Sign::new(&key_shares[*i], participant_indices, msg_to_sign).unwrap())
+            .map(|i| Sign::new(&key_shares[*i], &t.participant_indices, msg_to_sign).unwrap())
             .collect();
 
         // execute round 1 all participants and store their outputs
@@ -230,13 +225,13 @@ mod tests {
             match participant.r2() {
                 r2::Output::Success { state, out_p2ps } => {
                     // insert a false accusation by party 1 against party 0
-                    if i == criminal_accuser {
+                    if i == t.criminal {
                         all_r2_bcasts_fail
                             .insert(
                                 i,
                                 r2::FailBcast {
                                     culprits: vec![r2::Culprit {
-                                        participant_index: victim_accused,
+                                        participant_index: t.victim,
                                     }],
                                 },
                             )
@@ -274,7 +269,7 @@ mod tests {
         }
 
         // TEST: everyone correctly computed the culprit list
-        let actual_culprits: Vec<usize> = vec![criminal_accuser];
+        let actual_culprits: Vec<usize> = vec![t.criminal];
         for (i, culprit_list) in all_culprit_lists.iter().enumerate() {
             assert_eq!(
                 culprit_list, &actual_culprits,
@@ -367,37 +362,36 @@ mod tests {
     fn one_false_accusation_protocol_inner(allow_self_delivery: bool) {
         // TODO copied code from r1::one_pad_proof_protocol_inner
 
-        for (share_count, threshold, participant_indices) in TEST_CASES.iter() {
-            if participant_indices.len() < 2 {
-                continue; // need at least 2 participants for this test
-            }
-            let key_shares = execute_keygen(*share_count, *threshold);
+        for t in ONE_CRIMINAL_TEST_CASES.iter() {
+            let key_shares = execute_keygen(t.share_count, t.threshold);
 
             let mut bad_guy = FalseAccusation::new(
-                &key_shares[participant_indices[0]],
-                &participant_indices,
+                &key_shares[t.participant_indices[t.criminal]],
+                &t.participant_indices,
                 &MSG_TO_SIGN,
-                1,
+                t.victim,
             )
             .unwrap();
-            let mut good_guys: Vec<Sign> = participant_indices
+            let mut good_guys: Vec<Sign> = t
+                .participant_indices
                 .iter()
-                .skip(1)
-                .map(|i| Sign::new(&key_shares[*i], &participant_indices, &MSG_TO_SIGN).unwrap())
+                .enumerate()
+                .filter(|(p, _)| *p != t.criminal)
+                .map(|(_, i)| {
+                    Sign::new(&key_shares[*i], &t.participant_indices, &MSG_TO_SIGN).unwrap()
+                })
                 .collect();
 
-            let mut protocols: Vec<&mut dyn Protocol> = vec![&mut bad_guy as &mut dyn Protocol];
-            protocols.append(
-                &mut good_guys
-                    .iter_mut()
-                    .map(|p| p as &mut dyn Protocol)
-                    .collect(),
-            );
+            let mut protocols: Vec<&mut dyn Protocol> = good_guys
+                .iter_mut()
+                .map(|p| p as &mut dyn Protocol)
+                .collect();
+            protocols.insert(t.criminal, &mut bad_guy as &mut dyn Protocol);
 
             execute_protocol_vec(&mut protocols, allow_self_delivery);
 
             // TEST: everyone correctly computed the culprit list
-            let actual_culprits: Vec<usize> = vec![0];
+            let actual_culprits: Vec<usize> = vec![t.criminal];
             assert_eq!(bad_guy.get_result().unwrap().unwrap_err(), &actual_culprits);
             for good_guy in good_guys {
                 assert_eq!(
