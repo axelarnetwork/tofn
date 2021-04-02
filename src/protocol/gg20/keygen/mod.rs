@@ -86,12 +86,12 @@ pub struct CommonInfo {
     pub all_ecdsa_public_key_shares: Vec<GE>,
     pub all_eks: Vec<EncryptionKey>,
     pub all_zkps: Vec<Zkp>,
-    pub my_index: usize,
     pub share_count: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShareInfo {
+    pub my_index: usize,
     pub my_dk: DecryptionKey,
     pub my_ek: EncryptionKey,
     pub my_zkp: Zkp,
