@@ -1,9 +1,5 @@
 use super::{EcdsaSig, Sign, Status};
-use curv::elliptic::curves::traits::ECScalar;
-use k256::{
-    ecdsa::{Asn1Signature, Signature},
-    FieldBytes,
-};
+use k256::ecdsa::Asn1Signature;
 
 // round 8
 
@@ -30,16 +26,6 @@ impl Sign {
         ));
 
         // convet signature into ASN1/DER (Bitcoin) format
-        // TODO there must be a better way to do this
-        let (r, s) = (&sig.r.to_big_int(), &sig.s.to_big_int());
-        let (r, s): (Vec<u8>, Vec<u8>) = (r.into(), s.into());
-        let (r, s): (&[u8], &[u8]) = (&r, &s);
-        let (r, s): (FieldBytes, FieldBytes) =
-            (*FieldBytes::from_slice(r), *FieldBytes::from_slice(s));
-        let mut sig =
-            Signature::from_scalars(r, s).expect("fail to convert signature bytes to asn1");
-        sig.normalize_s()
-            .expect("fail to normalize signature s value");
-        sig.to_asn1()
+        sig.to_k256().to_asn1()
     }
 }
