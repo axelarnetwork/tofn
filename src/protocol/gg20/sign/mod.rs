@@ -6,7 +6,10 @@ use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     BigInt, FE, GE,
 };
-use k256::ecdsa::Asn1Signature;
+use k256::{
+    ecdsa::{Asn1Signature, Signature},
+    FieldBytes,
+};
 
 // TODO isn't there a library for this? Yes. It's called k256.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -19,6 +22,27 @@ impl EcdsaSig {
         let s_inv = self.s.invert();
         let randomizer = GE::generator() * (*msg * s_inv) + *pubkey * (self.r * s_inv);
         self.r == ECScalar::from(&randomizer.x_coor().unwrap().mod_floor(&FE::q()))
+    }
+    pub fn to_k256(&self) -> Signature {
+        let (r, s) = (&self.r.to_big_int(), &self.s.to_big_int());
+        let (r, s): (Vec<u8>, Vec<u8>) = (r.into(), s.into());
+        let (r, s) = (Self::pad(r), Self::pad(s));
+        let (r, s): (FieldBytes, FieldBytes) =
+            (*FieldBytes::from_slice(&r), *FieldBytes::from_slice(&s));
+        let mut sig =
+            Signature::from_scalars(r, s).expect("fail to convert signature bytes to asn1");
+        sig.normalize_s()
+            .expect("fail to normalize signature s value");
+        sig
+    }
+    pub fn pad(v: Vec<u8>) -> Vec<u8> {
+        assert!(v.len() <= 32);
+        if v.len() == 32 {
+            return v;
+        }
+        let mut v_pad = vec![0; 32];
+        v_pad[(32 - v.len())..].copy_from_slice(&v);
+        v_pad
     }
 }
 
