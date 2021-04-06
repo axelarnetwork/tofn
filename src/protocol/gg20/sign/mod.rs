@@ -6,10 +6,7 @@ use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     BigInt, FE, GE,
 };
-use k256::{
-    ecdsa::{Asn1Signature, Signature},
-    FieldBytes,
-};
+use k256::{ecdsa::Signature, FieldBytes};
 
 // TODO isn't there a library for this? Yes. It's called k256.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -152,7 +149,7 @@ pub struct Sign {
     out_r6bcast: Option<MsgBytes>,
     out_r7bcast: Option<MsgBytes>,
 
-    final_output: Option<Result<Asn1Signature, Vec<usize>>>, // error type: culprit indices
+    final_output: Option<Result<Vec<u8>, Vec<usize>>>, // T is serialized asn1 sig, E is culprit indices
 }
 
 impl Sign {
@@ -200,7 +197,7 @@ impl Sign {
             final_output: None,
         })
     }
-    pub fn get_result(&self) -> Option<Result<&Asn1Signature, &Vec<usize>>> {
+    pub fn get_result(&self) -> Option<Result<&Vec<u8>, &Vec<usize>>> {
         self.final_output.as_ref().map(|o| o.as_ref())
     }
 }

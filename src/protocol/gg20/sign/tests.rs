@@ -7,7 +7,10 @@ use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     BigInt,
 };
-use k256::{ecdsa::Signature, FieldBytes};
+use k256::{
+    ecdsa::{Asn1Signature, Signature},
+    FieldBytes,
+};
 use keygen::tests::execute_keygen;
 
 #[test]
@@ -236,8 +239,4 @@ fn extract_r_s(asn1_sig: &Asn1Signature) -> (FieldBytes, FieldBytes) {
     let sig = Signature::from_asn1(asn1_sig.as_bytes()).unwrap();
     let (sig_r, sig_s) = (sig.r(), sig.s());
     (From::from(sig_r), From::from(sig_s))
-}
-
-pub fn equal_sigs(lhs: &Asn1Signature, rhs: &Asn1Signature) -> bool {
-    extract_r_s(lhs) == extract_r_s(rhs)
 }

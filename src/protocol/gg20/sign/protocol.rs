@@ -130,7 +130,7 @@ impl Protocol for Sign {
                 self.status = R7;
             }
             R7 => {
-                self.final_output = Some(Ok(self.r8()));
+                self.final_output = Some(Ok(self.r8().as_bytes().to_vec()));
                 self.status = Done;
             }
             Done => return Err(From::from("already done")),

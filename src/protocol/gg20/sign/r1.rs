@@ -236,7 +236,7 @@ mod tests {
                 victim,
             })
         }
-        pub fn get_result(&self) -> Option<Result<&Asn1Signature, &Vec<usize>>> {
+        pub fn get_result(&self) -> Option<Result<&Vec<u8>, &Vec<usize>>> {
             self.s.get_result()
         }
     }

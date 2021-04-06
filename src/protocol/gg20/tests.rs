@@ -1,9 +1,6 @@
 pub mod sign {
     use crate::protocol::{
-        gg20::{
-            keygen::tests::execute_keygen,
-            sign::{tests::equal_sigs, Sign},
-        },
+        gg20::{keygen::tests::execute_keygen, sign::Sign},
         tests::execute_protocol_vec,
         Protocol,
     };
@@ -73,7 +70,7 @@ pub mod sign {
             let sig = participants[0].get_result().unwrap().unwrap();
             for p in participants.iter() {
                 let cur_sig = p.get_result().unwrap().unwrap();
-                assert!(equal_sigs(cur_sig, sig));
+                assert_eq!(cur_sig, sig);
             }
         }
     }
