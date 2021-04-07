@@ -13,7 +13,7 @@ use k256::{ecdsa::Signature, FieldBytes};
 
 // TODO isn't there a library for this? Yes. It's called k256.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EcdsaSig {
+struct EcdsaSig {
     pub r: FE,
     pub s: FE,
 }
