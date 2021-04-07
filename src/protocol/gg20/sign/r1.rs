@@ -214,7 +214,7 @@ mod tests {
         // TEST: everyone correctly computed the culprit list
         let actual_culprits = vec![Criminal {
             index: t.criminal,
-            crime: CrimeType::Malicious,
+            crime_type: CrimeType::Malicious,
         }];
         for culprit_list in all_culprit_lists {
             assert_eq!(culprit_list, actual_culprits);
@@ -332,7 +332,7 @@ mod tests {
             // TEST: everyone correctly computed the culprit list
             let actual_culprits = vec![Criminal {
                 index: t.criminal,
-                crime: CrimeType::Malicious,
+                crime_type: CrimeType::Malicious,
             }];
             assert_eq!(
                 bad_guy.clone_output().unwrap().unwrap_err(),

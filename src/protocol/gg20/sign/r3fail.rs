@@ -63,7 +63,7 @@ impl Sign {
                         culprit_index,
                         Criminal {
                             index: culprit_index,
-                            crime: CrimeType::Malicious,
+                            crime_type: CrimeType::Malicious,
                         },
                     );
                 }
