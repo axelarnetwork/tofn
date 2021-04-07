@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 enum MsgType {
     R1Bcast,
     R2Bcast,
-    R2P2p,
+    R2P2p { to: usize },
     R3Bcast,
 }
 
@@ -44,10 +44,10 @@ impl Protocol for Keygen {
                     payload: bincode::serialize(&bcast)?,
                 })?);
                 let mut out_r2p2ps = Vec::with_capacity(self.share_count);
-                for opt in p2ps {
+                for (to, opt) in p2ps.into_vec().into_iter().enumerate() {
                     if let Some(p2p) = opt {
                         out_r2p2ps.push(Some(bincode::serialize(&MsgMeta {
-                            msg_type: MsgType::R2P2p,
+                            msg_type: MsgType::R2P2p { to },
                             from: self.my_index,
                             payload: bincode::serialize(&p2p)?,
                         })?));
@@ -91,9 +91,8 @@ impl Protocol for Keygen {
             MsgType::R2Bcast => self
                 .in_r2bcasts
                 .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
-            MsgType::R2P2p => self
-                .in_r2p2ps
-                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
+            MsgType::R2P2p { to } => self.in_all_r2p2ps[msg_meta.from]
+                .insert(to, bincode::deserialize(&msg_meta.payload)?)?,
             MsgType::R3Bcast => self
                 .in_r3bcasts
                 .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
@@ -122,12 +121,25 @@ impl Protocol for Keygen {
     }
 
     fn expecting_more_msgs_this_round(&self) -> bool {
-        let i = self.my_index;
+        let me = self.my_index;
         match self.status {
             New => false,
-            R1 => !self.in_r1bcasts.is_full_except(i),
-            R2 => !self.in_r2bcasts.is_full_except(i) || !self.in_r2p2ps.is_full_except(i),
-            R3 => !self.in_r3bcasts.is_full_except(i),
+            R1 => !self.in_r1bcasts.is_full_except(me),
+            R2 => {
+                if !self.in_r2bcasts.is_full_except(me) {
+                    return true;
+                }
+                for (i, in_r2p2ps) in self.in_all_r2p2ps.iter().enumerate() {
+                    if i == me {
+                        continue;
+                    }
+                    if !in_r2p2ps.is_full_except(i) {
+                        return true;
+                    }
+                }
+                false
+            }
+            R3 => !self.in_r3bcasts.is_full_except(me),
             Done => false,
         }
     }

@@ -3,7 +3,7 @@ use paillier::EncryptionKey;
 use serde::{Deserialize, Serialize};
 
 use super::{Keygen, Status};
-use crate::{protocol::gg20::vss, zkp::Zkp};
+use crate::{fillvec::FillVec, protocol::gg20::vss, zkp::Zkp};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Bcast {
@@ -26,7 +26,7 @@ pub struct State {
 }
 
 impl Keygen {
-    pub(super) fn r2(&self) -> (State, Bcast, Vec<Option<P2p>>) {
+    pub(super) fn r2(&self) -> (State, Bcast, FillVec<P2p>) {
         assert!(matches!(self.status, Status::R1));
         let r1state = self.r1state.as_ref().unwrap();
 
@@ -85,19 +85,24 @@ impl Keygen {
         );
 
         // prepare outgoing p2p messages: secret shares of my_ecdsa_secret_summand
-        let mut out_p2p: Vec<Option<P2p>> = my_secret_summand_shares
-            .into_iter()
-            .map(|x| {
-                Some(P2p {
-                    secret_summand_share: x,
-                })
-            })
-            .collect();
-        let my_share_of_my_ecdsa_secret_summand =
-            out_p2p[self.my_index].take().unwrap().secret_summand_share;
+        let mut out_p2ps = FillVec::with_len(self.share_count);
+        let mut my_share_of_my_ecdsa_secret_summand = None;
+        for (i, secret_summand_share) in my_secret_summand_shares.into_iter().enumerate() {
+            if i == self.my_index {
+                my_share_of_my_ecdsa_secret_summand = Some(secret_summand_share);
+                continue;
+            }
+            out_p2ps
+                .insert(
+                    i,
+                    P2p {
+                        secret_summand_share,
+                    },
+                )
+                .unwrap();
+        }
 
         // TODO sign and encrypt each p2p_msg
-        assert_eq!(out_p2p.len(), self.share_count);
 
         let out_bcast = Bcast {
             reveal: r1state.my_reveal.clone(),
@@ -105,14 +110,14 @@ impl Keygen {
         };
         (
             State {
-                my_share_of_my_ecdsa_secret_summand,
+                my_share_of_my_ecdsa_secret_summand: my_share_of_my_ecdsa_secret_summand.unwrap(),
                 my_secret_summand_share_commitments,
                 all_commits,
                 all_eks,
                 all_zkps,
             },
             out_bcast,
-            out_p2p,
+            out_p2ps,
         )
     }
 }

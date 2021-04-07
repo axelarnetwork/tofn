@@ -1,5 +1,5 @@
 use super::*;
-use crate::protocol::{tests::execute_protocol_vec_no_p2p, Protocol};
+use crate::protocol::{tests::execute_protocol_vec, Protocol};
 use curv::cryptographic_primitives::secret_sharing::feldman_vss::{
     ShamirSecretSharing, VerifiableSS,
 };
@@ -57,26 +57,20 @@ pub(in super::super) fn execute_keygen(
 
     // execute round 2 all parties and store their outputs
     let mut all_r2_bcasts = FillVec::with_len(share_count);
-    let mut all_r2_p2ps = vec![FillVec::with_len(share_count); share_count];
+    let mut all_r2_p2ps = Vec::with_capacity(share_count);
     for (i, party) in parties.iter_mut().enumerate() {
         let (state, bcast, p2ps) = party.r2();
         party.r2state = Some(state);
         party.status = Status::R2;
         all_r2_bcasts.insert(i, bcast).unwrap();
-
-        // route p2p msgs
-        for (j, p2p) in p2ps.into_iter().enumerate() {
-            if let Some(p2p) = p2p {
-                all_r2_p2ps[j].insert(i, p2p).unwrap();
-            }
-        }
+        all_r2_p2ps.push(p2ps);
     }
     let all_r2_bcasts = all_r2_bcasts; // make read-only
     let all_r2_p2ps = all_r2_p2ps; // make read-only
 
     // deliver round 2 msgs
-    for (party, r2_p2ps) in parties.iter_mut().zip(all_r2_p2ps.into_iter()) {
-        party.in_r2p2ps = r2_p2ps;
+    for party in parties.iter_mut() {
+        party.in_all_r2p2ps = all_r2_p2ps.clone();
         party.in_r2bcasts = all_r2_bcasts.clone();
     }
 
@@ -163,7 +157,7 @@ fn keygen_protocol() {
             .iter_mut()
             .map(|p| p as &mut dyn Protocol)
             .collect();
-        execute_protocol_vec_no_p2p(&mut protocols);
+        execute_protocol_vec(&mut protocols, true);
     }
 
     for (i, &(share_count, threshold)) in TEST_CASES_INVALID.iter().enumerate() {

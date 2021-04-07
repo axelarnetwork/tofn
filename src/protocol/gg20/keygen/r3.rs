@@ -40,16 +40,18 @@ impl Keygen {
             }
             let bcast = self.in_r2bcasts.vec_ref()[i].clone().unwrap_or_else(|| {
                 panic!(
-                    "party {} says: missing bcast input for party {}",
+                    "keygen r3 party {}: missing bcast msg from party {}",
                     self.my_index, i
                 )
             });
-            let p2p = self.in_r2p2ps.vec_ref()[i].clone().unwrap_or_else(|| {
-                panic!(
-                    "party {} says: missing p2p input for party {}",
-                    self.my_index, i
-                )
-            });
+            let in_r2p2p = self.in_all_r2p2ps[i].vec_ref()[self.my_index]
+                .as_ref()
+                .unwrap_or_else(|| {
+                    panic!(
+                        "keygen r3 party {}: missing p2p msg from party {}",
+                        self.my_index, i
+                    )
+                });
             let ecdsa_public_summand = &bcast.secret_summand_share_commitments[0];
             let com = HashCommitment::create_commitment_with_user_defined_randomness(
                 &ecdsa_public_summand.bytes_compressed_to_big_int(),
@@ -58,13 +60,13 @@ impl Keygen {
             assert!(r2state.all_commits[i] == com);
             assert!(vss::validate_share(
                 &bcast.secret_summand_share_commitments,
-                &p2p.secret_summand_share,
+                &in_r2p2p.secret_summand_share,
                 self.my_index
             )
             .is_ok());
 
             ecdsa_public_key = ecdsa_public_key + ecdsa_public_summand;
-            my_ecdsa_secret_key_share = my_ecdsa_secret_key_share + p2p.secret_summand_share;
+            my_ecdsa_secret_key_share = my_ecdsa_secret_key_share + in_r2p2p.secret_summand_share;
 
             for (j, ecdsa_public_key_share) in all_ecdsa_public_key_shares.iter_mut().enumerate() {
                 *ecdsa_public_key_share = *ecdsa_public_key_share
