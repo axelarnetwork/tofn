@@ -21,22 +21,9 @@ pub struct Criminal {
     index: usize,
     crime: CrimeType,
 }
-pub type Output<'a, T> = std::result::Result<T, &'a [Criminal]>;
-struct OutputOwned<T>(std::result::Result<T, Vec<Criminal>>);
-
-impl<T> OutputOwned<T> {
-    fn success(t: T) -> Self {
-        Self(Ok(t))
-    }
-    fn fail(criminals: Vec<Criminal>) -> Self {
-        Self(Err(criminals))
-    }
-    fn as_output(&self) -> Output<&T> {
-        self.0
-            .as_ref()
-            .map_err(|criminals| criminals as &[Criminal])
-    }
-}
+// TODO it's too much trouble to return references to local data,
+// so protocol outputs are owned instead
+type Output<T> = std::result::Result<T, Vec<Criminal>>;
 
 pub mod gg20;
 #[cfg(test)]

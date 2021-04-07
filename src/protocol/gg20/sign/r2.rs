@@ -295,8 +295,8 @@ mod tests {
                 victim,
             })
         }
-        pub fn get_result(&self) -> Option<SignOutput> {
-            self.s.get_result()
+        pub fn clone_output(&self) -> Option<SignOutput> {
+            self.s.clone_output()
         }
     }
 
@@ -395,13 +395,13 @@ mod tests {
                 crime: CrimeType::Malicious,
             }];
             assert_eq!(
-                bad_guy.get_result().unwrap().as_ref().unwrap_err(),
-                &actual_culprits
+                bad_guy.clone_output().unwrap().unwrap_err(),
+                actual_culprits
             );
             for good_guy in good_guys {
                 assert_eq!(
-                    good_guy.get_result().unwrap().as_ref().unwrap_err(),
-                    &actual_culprits
+                    good_guy.clone_output().unwrap().unwrap_err(),
+                    actual_culprits
                 );
             }
         }

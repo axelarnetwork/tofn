@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     fillvec::FillVec,
-    protocol::{MsgBytes, Output, OutputOwned},
+    protocol::{MsgBytes, Output},
 };
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
@@ -152,7 +152,7 @@ pub struct Sign {
     out_r6bcast: Option<MsgBytes>,
     out_r7bcast: Option<MsgBytes>,
 
-    final_output: Option<OutputOwned<Vec<u8>>>, // T is serialized asn1 sig
+    final_output: Option<SignOutput>, // T is serialized asn1 sig
 }
 
 impl Sign {
@@ -200,18 +200,12 @@ impl Sign {
             final_output: None,
         })
     }
-    pub fn get_result(&self) -> Option<SignOutput> {
-        // for ease of use and to avoid copying: return type is either &[u8] (happy) or &[Criminal] (sad)
-        match self.final_output.as_ref() {
-            Some(output_owned) => {
-                Some(output_owned.as_output().map(|sig_bytes| sig_bytes as &[u8]))
-            }
-            None => None,
-        }
+    pub fn clone_output(&self) -> Option<SignOutput> {
+        self.final_output.clone()
     }
 }
 
-pub type SignOutput<'a> = Output<'a, &'a [u8]>;
+pub type SignOutput = Output<Vec<u8>>;
 
 /// validate_params helper with custom error type
 /// Assume `secret_key_share` is valid and check `participant_indices` against it.
