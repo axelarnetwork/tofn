@@ -197,8 +197,8 @@ impl Sign {
             final_output: None,
         })
     }
-    pub fn get_result(&self) -> Option<Result<&Vec<u8>, &Vec<usize>>> {
-        self.final_output.as_ref().map(|o| o.as_ref())
+    pub fn get_result(&self) -> Option<Result<Vec<u8>, Vec<usize>>> {
+        self.final_output.clone()
     }
 }
 

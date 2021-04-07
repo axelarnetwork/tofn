@@ -236,7 +236,7 @@ mod tests {
                 victim,
             })
         }
-        pub fn get_result(&self) -> Option<Result<&Vec<u8>, &Vec<usize>>> {
+        pub fn get_result(&self) -> Option<Result<Vec<u8>, Vec<usize>>> {
             self.s.get_result()
         }
     }
@@ -329,12 +329,9 @@ mod tests {
 
             // TEST: everyone correctly computed the culprit list
             let actual_culprits: Vec<usize> = vec![t.criminal];
-            assert_eq!(bad_guy.get_result().unwrap().unwrap_err(), &actual_culprits);
+            assert_eq!(bad_guy.get_result().unwrap().unwrap_err(), actual_culprits);
             for good_guy in good_guys {
-                assert_eq!(
-                    good_guy.get_result().unwrap().unwrap_err(),
-                    &actual_culprits
-                );
+                assert_eq!(good_guy.get_result().unwrap().unwrap_err(), actual_culprits);
             }
         }
     }
