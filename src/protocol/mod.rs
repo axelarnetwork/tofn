@@ -21,7 +21,8 @@ pub struct Criminal {
     index: usize,
     crime: CrimeType,
 }
-pub type Output<T> = std::result::Result<T, Vec<Criminal>>;
+pub type Output<'a, T> = std::result::Result<T, &'a [Criminal]>;
+type OutputOwned<T> = std::result::Result<T, Vec<Criminal>>;
 
 pub mod gg20;
 #[cfg(test)]

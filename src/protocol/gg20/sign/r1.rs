@@ -238,7 +238,7 @@ mod tests {
                 victim,
             })
         }
-        pub fn get_result(&self) -> Option<&Output<Vec<u8>>> {
+        pub fn get_result(&self) -> Option<Output<&[u8]>> {
             self.s.get_result()
         }
     }
