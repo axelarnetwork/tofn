@@ -1,16 +1,17 @@
-use super::{Sign, Status::*};
+use super::{Status::*, *};
 use crate::protocol::{MsgBytes, Protocol, ProtocolResult};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 enum MsgType {
     R1Bcast,
-    R1P2p,
-    R2P2p,
+    R1P2p { to: usize },
+    R2P2p { to: usize },
+    R2FailBcast,
     R3Bcast,
     R4Bcast,
     R5Bcast,
-    R5P2p,
+    R5P2p { to: usize },
     R6Bcast,
     R7Bcast,
 }
@@ -28,50 +29,38 @@ impl Protocol for Sign {
         if self.expecting_more_msgs_this_round() {
             return Err(From::from("can't prceed yet"));
         }
+        self.move_to_sad_path();
+
         // TODO refactor repeated code!
-        self.status = match self.status {
+        match self.status {
             New => {
                 let (state, bcast, p2ps) = self.r1();
-                self.out_r1bcast = Some(bincode::serialize(&MsgMeta {
-                    msg_type: MsgType::R1Bcast,
-                    from: self.my_participant_index,
-                    payload: bincode::serialize(&bcast)?,
-                })?);
-                let mut out_r1p2ps = Vec::with_capacity(self.participant_indices.len());
-                for opt in p2ps {
-                    if let Some(p2p) = opt {
-                        out_r1p2ps.push(Some(bincode::serialize(&MsgMeta {
-                            msg_type: MsgType::R1P2p,
-                            from: self.my_participant_index,
-                            payload: bincode::serialize(&p2p)?,
-                        })?));
-                    } else {
-                        out_r1p2ps.push(None);
-                    }
-                }
-                self.out_r1p2ps = Some(out_r1p2ps);
-                self.r1state = Some(state);
-                R1
+                self.update_state_r1(state, bcast, p2ps)?;
             }
 
-            R1 => {
-                let (state, p2ps) = self.r2();
-                let mut out_r2p2ps = Vec::with_capacity(self.participant_indices.len());
-                for opt in p2ps {
-                    if let Some(p2p) = opt {
-                        out_r2p2ps.push(Some(bincode::serialize(&MsgMeta {
-                            msg_type: MsgType::R2P2p,
-                            from: self.my_participant_index,
-                            payload: bincode::serialize(&p2p)?,
-                        })?));
-                    } else {
-                        out_r2p2ps.push(None);
+            R1 => match self.r2() {
+                r2::Output::Success { state, out_p2ps } => {
+                    let mut out_p2ps_serialized =
+                        Vec::with_capacity(self.participant_indices.len());
+                    for (to, opt) in out_p2ps.into_vec().into_iter().enumerate() {
+                        if let Some(p2p) = opt {
+                            out_p2ps_serialized.push(Some(bincode::serialize(&MsgMeta {
+                                msg_type: MsgType::R2P2p { to },
+                                from: self.my_participant_index,
+                                payload: bincode::serialize(&p2p)?,
+                            })?));
+                        } else {
+                            out_p2ps_serialized.push(None);
+                        }
                     }
+                    self.out_r2p2ps = Some(out_p2ps_serialized);
+                    self.r2state = Some(state);
+                    self.status = R2;
                 }
-                self.out_r2p2ps = Some(out_r2p2ps);
-                self.r2state = Some(state);
-                R2
-            }
+                r2::Output::Fail { out_bcast } => {
+                    self.update_state_r2fail(out_bcast)?;
+                }
+            },
 
             R2 => {
                 let (state, bcast) = self.r3();
@@ -81,7 +70,11 @@ impl Protocol for Sign {
                     payload: bincode::serialize(&bcast)?,
                 })?);
                 self.r3state = Some(state);
-                R3
+                self.status = R3;
+            }
+            R2Fail => {
+                self.final_output = Some(Output::Err(self.r3fail()));
+                self.status = Fail;
             }
             R3 => {
                 let (state, bcast) = self.r4();
@@ -91,7 +84,7 @@ impl Protocol for Sign {
                     payload: bincode::serialize(&bcast)?,
                 })?);
                 self.r4state = Some(state);
-                R4
+                self.status = R4;
             }
             R4 => {
                 let (state, bcast, p2ps) = self.r5();
@@ -101,10 +94,10 @@ impl Protocol for Sign {
                     payload: bincode::serialize(&bcast)?,
                 })?);
                 let mut out_r5p2ps = Vec::with_capacity(self.participant_indices.len());
-                for opt in p2ps {
+                for (to, opt) in p2ps.into_vec().into_iter().enumerate() {
                     if let Some(p2p) = opt {
                         out_r5p2ps.push(Some(bincode::serialize(&MsgMeta {
-                            msg_type: MsgType::R5P2p,
+                            msg_type: MsgType::R5P2p { to },
                             from: self.my_participant_index,
                             payload: bincode::serialize(&p2p)?,
                         })?));
@@ -114,7 +107,7 @@ impl Protocol for Sign {
                 }
                 self.out_r5p2ps = Some(out_r5p2ps);
                 self.r5state = Some(state);
-                R5
+                self.status = R5;
             }
             R5 => {
                 let (state, bcast) = self.r6();
@@ -124,7 +117,7 @@ impl Protocol for Sign {
                     payload: bincode::serialize(&bcast)?,
                 })?);
                 self.r6state = Some(state);
-                R6
+                self.status = R6;
             }
             R6 => {
                 let (state, bcast) = self.r7();
@@ -134,13 +127,14 @@ impl Protocol for Sign {
                     payload: bincode::serialize(&bcast)?,
                 })?);
                 self.r7state = Some(state);
-                R7
+                self.status = R7;
             }
             R7 => {
-                self.final_output = Some(self.r8());
-                Done
+                self.final_output = Some(Output::Ok(self.r8().as_bytes().to_vec()));
+                self.status = Done;
             }
             Done => return Err(From::from("already done")),
+            Fail => return Err(From::from("already failed")),
         };
         Ok(())
     }
@@ -150,15 +144,38 @@ impl Protocol for Sign {
         // TODO refactor repeated code
         let msg_meta: MsgMeta = bincode::deserialize(msg)?;
         match msg_meta.msg_type {
-            MsgType::R1Bcast => self
-                .in_r1bcasts
-                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
-            MsgType::R1P2p => self
-                .in_r1p2ps
-                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
-            MsgType::R2P2p => self
-                .in_r2p2ps
-                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
+            MsgType::R1Bcast => {
+                if !self.in_r1bcasts.is_none(msg_meta.from) {
+                    println!(
+                        "WARN: participant {} overwrite existing R1Bcast msg from {}",
+                        self.my_participant_index, msg_meta.from
+                    );
+                }
+                self.in_r1bcasts
+                    .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
+            }
+            MsgType::R1P2p { to } => {
+                let r1_p2ps = &mut self.in_all_r1p2ps[msg_meta.from];
+                if !r1_p2ps.is_none(to) {
+                    println!(
+                        "WARN: participant {} overwrite existing R1P2p msg from {} to {}",
+                        self.my_participant_index, msg_meta.from, to
+                    );
+                }
+                r1_p2ps.overwrite(to, bincode::deserialize(&msg_meta.payload)?);
+            }
+            MsgType::R2P2p { to } => self.in_all_r2p2ps[msg_meta.from]
+                .insert(to, bincode::deserialize(&msg_meta.payload)?)?,
+            MsgType::R2FailBcast => {
+                if !self.in_r2bcasts_fail.is_none(msg_meta.from) {
+                    println!(
+                        "WARN: participant {} overwrite existing R2FailBcast msg from {}",
+                        self.my_participant_index, msg_meta.from
+                    );
+                }
+                self.in_r2bcasts_fail
+                    .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
+            }
             MsgType::R3Bcast => self
                 .in_r3bcasts
                 .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
@@ -168,9 +185,8 @@ impl Protocol for Sign {
             MsgType::R5Bcast => self
                 .in_r5bcasts
                 .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
-            MsgType::R5P2p => self
-                .in_r5p2ps
-                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
+            MsgType::R5P2p { to } => self.in_all_r5p2ps[msg_meta.from]
+                .insert(to, bincode::deserialize(&msg_meta.payload)?)?,
             MsgType::R6Bcast => self
                 .in_r6bcasts
                 .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
@@ -186,12 +202,14 @@ impl Protocol for Sign {
             New => &None,
             R1 => &self.out_r1bcast,
             R2 => &None,
+            R2Fail => &self.out_r2bcast_fail_serialized,
             R3 => &self.out_r3bcast,
             R4 => &self.out_r4bcast,
             R5 => &self.out_r5bcast,
             R6 => &self.out_r6bcast,
             R7 => &self.out_r7bcast,
             Done => &None,
+            Fail => &None,
         }
     }
 
@@ -200,31 +218,142 @@ impl Protocol for Sign {
             New => &None,
             R1 => &self.out_r1p2ps,
             R2 => &self.out_r2p2ps,
+            R2Fail => &None,
             R3 => &None,
             R4 => &None,
             R5 => &self.out_r5p2ps,
             R6 => &None,
             R7 => &None,
             Done => &None,
+            Fail => &None,
         }
     }
 
     fn expecting_more_msgs_this_round(&self) -> bool {
-        let i = self.my_participant_index;
+        let me = self.my_participant_index;
+
+        // TODO account for sad path messages
+        // need to receive one message per party (happy OR sad)
+
         match self.status {
             New => false,
-            R1 => !self.in_r1bcasts.is_full_except(i) || !self.in_r1p2ps.is_full_except(i),
-            R2 => !self.in_r2p2ps.is_full_except(i),
-            R3 => !self.in_r3bcasts.is_full_except(i),
-            R4 => !self.in_r4bcasts.is_full_except(i),
-            R5 => !self.in_r5bcasts.is_full_except(i) || !self.in_r5p2ps.is_full_except(i),
-            R6 => !self.in_r6bcasts.is_full_except(i),
-            R7 => !self.in_r7bcasts.is_full_except(i),
+            R1 => {
+                // TODO fix ugly code to deal with wasted entries for messages to myself
+                if !self.in_r1bcasts.is_full_except(me) {
+                    return true;
+                }
+                for (i, in_r1p2ps) in self.in_all_r1p2ps.iter().enumerate() {
+                    if i == me {
+                        continue;
+                    }
+                    if !in_r1p2ps.is_full_except(i) {
+                        return true;
+                    }
+                }
+                false
+            }
+            R2 | R2Fail => {
+                for i in 0..self.participant_indices.len() {
+                    if i == me {
+                        continue;
+                    }
+                    if !self.in_all_r2p2ps[i].is_full_except(i) && self.in_r2bcasts_fail.is_none(i)
+                    {
+                        return true;
+                    }
+                }
+                false
+            }
+            R3 => !self.in_r3bcasts.is_full_except(me),
+            R4 => !self.in_r4bcasts.is_full_except(me),
+            R5 => {
+                // TODO fix ugly code to deal with wasted entries for messages to myself
+                if !self.in_r5bcasts.is_full_except(me) {
+                    return true;
+                }
+                for (i, in_r5p2ps) in self.in_all_r5p2ps.iter().enumerate() {
+                    if i == me {
+                        continue;
+                    }
+                    if !in_r5p2ps.is_full_except(i) {
+                        return true;
+                    }
+                }
+                false
+            }
+            R6 => !self.in_r6bcasts.is_full_except(me),
+            R7 => !self.in_r7bcasts.is_full_except(me),
             Done => false,
+            Fail => false,
         }
     }
 
     fn done(&self) -> bool {
-        matches!(self.status, Done)
+        matches!(self.status, Done | Fail)
+    }
+}
+
+// TODO these methods should be private - break abstraction for tests only
+impl Sign {
+    pub(super) fn move_to_sad_path(&mut self) {
+        if let R2 = self.status {
+            // if I've received any r2 bcast fails then switch to R2Fail status
+            if self.in_r2bcasts_fail.some_count() > 0 {
+                self.status = R2Fail;
+            }
+        }
+    }
+
+    pub(super) fn update_state_r1(
+        &mut self,
+        state: r1::State,
+        bcast: r1::Bcast,
+        p2ps: FillVec<r1::P2p>,
+    ) -> ProtocolResult {
+        // serialize outgoing bcast
+        self.out_r1bcast = Some(bincode::serialize(&MsgMeta {
+            msg_type: MsgType::R1Bcast,
+            from: self.my_participant_index,
+            payload: bincode::serialize(&bcast)?,
+        })?);
+
+        // serialize outgoing p2ps
+        let mut out_r1p2ps = Vec::with_capacity(self.participant_indices.len());
+        for (to, opt) in p2ps.vec_ref().iter().enumerate() {
+            if let Some(p2p) = opt {
+                out_r1p2ps.push(Some(bincode::serialize(&MsgMeta {
+                    msg_type: MsgType::R1P2p { to },
+                    from: self.my_participant_index,
+                    payload: bincode::serialize(&p2p)?,
+                })?));
+            } else {
+                out_r1p2ps.push(None);
+            }
+        }
+        self.out_r1p2ps = Some(out_r1p2ps);
+
+        // self delivery
+        self.in_r1bcasts.insert(self.my_participant_index, bcast)?;
+        self.in_all_r1p2ps[self.my_participant_index] = p2ps;
+
+        self.r1state = Some(state);
+        self.status = R1;
+        Ok(())
+    }
+
+    pub(super) fn update_state_r2fail(&mut self, bcast: r2::FailBcast) -> ProtocolResult {
+        // serialize outgoing bcast
+        self.out_r2bcast_fail_serialized = Some(bincode::serialize(&MsgMeta {
+            msg_type: MsgType::R2FailBcast,
+            from: self.my_participant_index,
+            payload: bincode::serialize(&bcast)?,
+        })?);
+
+        // self delivery
+        self.in_r2bcasts_fail
+            .insert(self.my_participant_index, bcast)?;
+
+        self.status = R2Fail;
+        Ok(())
     }
 }

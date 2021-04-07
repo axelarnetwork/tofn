@@ -32,7 +32,14 @@ impl Sign {
             ecdsa_randomizer_x_nonce =
                 ecdsa_randomizer_x_nonce + in_r5bcast.ecdsa_randomizer_x_nonce_summand;
 
-            let in_r5p2p = self.in_r5p2ps.vec_ref()[i].as_ref().unwrap();
+            let in_r5p2p = self.in_all_r5p2ps[i].vec_ref()[self.my_participant_index]
+                .as_ref()
+                .unwrap_or_else(|| {
+                    panic!(
+                        "sign r5 participant {}: missing p2p msg from participant {}",
+                        self.my_participant_index, i
+                    )
+                });
             self.my_secret_key_share
                 .my_zkp
                 .verify_range_proof_wc(

@@ -1,37 +1,31 @@
 use super::*;
 use crate::protocol::{
     gg20::keygen::{self, SecretKeyShare},
-    tests::execute_protocol_vec,
-    Protocol,
+    gg20::tests::sign::{MSG_TO_SIGN, TEST_CASES},
 };
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     BigInt,
 };
-use k256::{ecdsa::Signature, FieldBytes};
+use k256::{
+    ecdsa::{Asn1Signature, Signature},
+    FieldBytes,
+};
 use keygen::tests::execute_keygen;
 
-lazy_static::lazy_static! {
-    static ref MSG_TO_SIGN: Vec<u8> = vec![42];
-    static ref TEST_CASES: Vec<(usize, usize, Vec<usize>)> = vec![ // (share_count, threshold, participant_indices)
-        // (5, 2, vec![1,2,4]),
-        (5, 2, vec![4,1,2]),
-        // (5, 2, vec![0,1,2,3]),
-        // (5, 2, vec![4,2,3,1,0]),
-        (1,0,vec![0]),
-    ];
-    // TODO add TEST_CASES_INVALID
-}
-
 #[test]
-fn sign() {
+fn basic_correctness() {
     for (share_count, threshold, participant_indices) in TEST_CASES.iter() {
         let key_shares = execute_keygen(*share_count, *threshold);
-        execute_sign(&key_shares, participant_indices, &MSG_TO_SIGN);
+        basic_correctness_inner(&key_shares, participant_indices, &MSG_TO_SIGN);
     }
 }
 
-fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], msg_to_sign: &[u8]) {
+fn basic_correctness_inner(
+    key_shares: &[SecretKeyShare],
+    participant_indices: &[usize],
+    msg_to_sign: &[u8],
+) {
     let mut participants: Vec<Sign> = participant_indices
         .iter()
         .map(|i| Sign::new(&key_shares[*i], participant_indices, msg_to_sign).unwrap())
@@ -49,24 +43,18 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], ms
 
     // execute round 1 all participants and store their outputs
     let mut all_r1_bcasts = FillVec::with_len(participants.len());
-    let mut all_r1_p2ps = vec![FillVec::with_len(participants.len()); participants.len()];
+    let mut all_r1_p2ps = Vec::with_capacity(participants.len());
     for (i, participant) in participants.iter_mut().enumerate() {
         let (state, bcast, p2ps) = participant.r1();
         participant.r1state = Some(state);
         participant.status = Status::R1;
         all_r1_bcasts.insert(i, bcast).unwrap();
-
-        // route p2p msgs
-        for (j, p2p) in p2ps.into_iter().enumerate() {
-            if let Some(p2p) = p2p {
-                all_r1_p2ps[j].insert(i, p2p).unwrap();
-            }
-        }
+        all_r1_p2ps.push(p2ps);
     }
 
     // deliver round 1 msgs
-    for (participant, r1_p2ps) in participants.iter_mut().zip(all_r1_p2ps.into_iter()) {
-        participant.in_r1p2ps = r1_p2ps;
+    for participant in participants.iter_mut() {
+        participant.in_all_r1p2ps = all_r1_p2ps.clone();
         participant.in_r1bcasts = all_r1_bcasts.clone();
     }
 
@@ -81,23 +69,26 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], ms
     }
 
     // execute round 2 all participants and store their outputs
-    let mut all_r2_p2ps = vec![FillVec::with_len(participants.len()); participants.len()];
-    for (i, participant) in participants.iter_mut().enumerate() {
-        let (state, p2ps) = participant.r2();
-        participant.r2state = Some(state);
-        participant.status = Status::R2;
-
-        // route p2p msgs
-        for (j, p2p) in p2ps.into_iter().enumerate() {
-            if let Some(p2p) = p2p {
-                all_r2_p2ps[j].insert(i, p2p).unwrap();
+    let mut all_r2_p2ps = Vec::with_capacity(participants.len());
+    for participant in participants.iter_mut() {
+        match participant.r2() {
+            r2::Output::Success { state, out_p2ps } => {
+                participant.r2state = Some(state);
+                participant.status = Status::R2;
+                all_r2_p2ps.push(out_p2ps);
+            }
+            r2::Output::Fail { out_bcast } => {
+                panic!(
+                    "r2 party {} expect success got failure with culprits: {:?}",
+                    participant.my_secret_key_share.my_index, out_bcast
+                );
             }
         }
     }
 
     // deliver round 2 msgs
-    for (participant, r2_p2ps) in participants.iter_mut().zip(all_r2_p2ps.into_iter()) {
-        participant.in_r2p2ps = r2_p2ps;
+    for participant in participants.iter_mut() {
+        participant.in_all_r2p2ps = all_r2_p2ps.clone();
     }
 
     // execute round 3 all participants and store their outputs
@@ -158,24 +149,18 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], ms
 
     // execute round 5 all participants and store their outputs
     let mut all_r5_bcasts = FillVec::with_len(participants.len());
-    let mut all_r5_p2ps = vec![FillVec::with_len(participants.len()); participants.len()];
+    let mut all_r5_p2ps = Vec::with_capacity(participants.len());
     for (i, participant) in participants.iter_mut().enumerate() {
         let (state, bcast, p2ps) = participant.r5();
         participant.r5state = Some(state);
         participant.status = Status::R5;
         all_r5_bcasts.insert(i, bcast).unwrap();
-
-        // route p2p msgs
-        for (j, p2p) in p2ps.into_iter().enumerate() {
-            if let Some(p2p) = p2p {
-                all_r5_p2ps[j].insert(i, p2p).unwrap();
-            }
-        }
+        all_r5_p2ps.push(p2ps);
     }
 
     // deliver round 5 msgs
-    for (participant, r5_p2ps) in participants.iter_mut().zip(all_r5_p2ps.into_iter()) {
-        participant.in_r5p2ps = r5_p2ps;
+    for participant in participants.iter_mut() {
+        participant.in_all_r5p2ps = all_r5_p2ps.clone();
         participant.in_r5bcasts = all_r5_bcasts.clone();
     }
 
@@ -238,13 +223,8 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], ms
             s
         }
     };
-    for sig in all_sigs
-        .vec_ref()
-        .iter()
-        .map(|opt| Signature::from_asn1(opt.as_ref().unwrap().as_bytes()).unwrap())
-    {
-        let (sig_r, sig_s) = (sig.r(), sig.s());
-        let (sig_r, sig_s): (FieldBytes, FieldBytes) = (From::from(sig_r), From::from(sig_s));
+    for sig in all_sigs.vec_ref().iter() {
+        let (sig_r, sig_s) = extract_r_s(sig.as_ref().unwrap());
         let (sig_r, sig_s) = (sig_r.as_slice(), sig_s.as_slice());
         let (sig_r, sig_s): (BigInt, BigInt) = (BigInt::from(sig_r), BigInt::from(sig_s));
         assert_eq!(sig_r, r.to_big_int());
@@ -255,20 +235,8 @@ fn execute_sign(key_shares: &[SecretKeyShare], participant_indices: &[usize], ms
     assert!(sig.verify(&ecdsa_public_key, &msg_to_sign));
 }
 
-#[test]
-fn sign_protocol() {
-    for (share_count, threshold, participant_indices) in TEST_CASES.iter() {
-        let key_shares = execute_keygen(*share_count, *threshold);
-
-        // keep it on the stack: avoid use of Box<dyn Protocol> https://doc.rust-lang.org/book/ch17-02-trait-objects.html
-        let mut participants: Vec<Sign> = participant_indices
-            .iter()
-            .map(|i| Sign::new(&key_shares[*i], &participant_indices, &MSG_TO_SIGN).unwrap())
-            .collect();
-        let mut protocols: Vec<&mut dyn Protocol> = participants
-            .iter_mut()
-            .map(|p| p as &mut dyn Protocol)
-            .collect();
-        execute_protocol_vec(&mut protocols);
-    }
+fn extract_r_s(asn1_sig: &Asn1Signature) -> (FieldBytes, FieldBytes) {
+    let sig = Signature::from_asn1(asn1_sig.as_bytes()).unwrap();
+    let (sig_r, sig_s) = (sig.r(), sig.s());
+    (From::from(sig_r), From::from(sig_s))
 }

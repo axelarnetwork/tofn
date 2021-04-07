@@ -28,7 +28,7 @@ pub(super) struct State {
 }
 
 impl Sign {
-    pub(super) fn r5(&self) -> (State, Bcast, Vec<Option<P2p>>) {
+    pub(super) fn r5(&self) -> (State, Bcast, FillVec<P2p>) {
         assert!(matches!(self.status, Status::R4));
         let r1state = self.r1state.as_ref().unwrap();
         let r4state = self.r4state.as_ref().unwrap();
@@ -92,7 +92,7 @@ impl Sign {
             Bcast {
                 ecdsa_randomizer_x_nonce_summand: my_ecdsa_randomizer_x_nonce_summand,
             },
-            out_p2ps.into_vec(),
+            out_p2ps,
         )
     }
 }

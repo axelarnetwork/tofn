@@ -21,16 +21,22 @@ impl<T> FillVec<T> {
         }
     }
     pub fn insert(&mut self, index: usize, value: T) -> Result<()> {
-        let stored = &mut self.vec[index];
-        if stored.is_some() {
+        if self.vec[index].is_some() {
             return Err(FillVecError::ValueAlreadySet(index));
         }
+        self.overwrite(index, value);
+        Ok(())
+    }
+    pub fn overwrite(&mut self, index: usize, value: T) {
+        let stored = &mut self.vec[index];
         *stored = Some(value);
         self.some_count += 1;
-        Ok(())
     }
     pub fn vec_ref(&self) -> &Vec<Option<T>> {
         &self.vec
+    }
+    pub fn vec_ref_mut(&mut self) -> &mut Vec<Option<T>> {
+        &mut self.vec
     }
     pub fn into_vec(self) -> Vec<Option<T>> {
         self.vec

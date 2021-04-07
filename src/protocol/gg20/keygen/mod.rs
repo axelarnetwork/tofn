@@ -62,7 +62,7 @@ pub struct Keygen {
     // incoming messages
     in_r1bcasts: FillVec<r1::Bcast>,
     in_r2bcasts: FillVec<r2::Bcast>,
-    in_r2p2ps: FillVec<r2::P2p>,
+    in_all_r2p2ps: Vec<FillVec<r2::P2p>>,
     in_r3bcasts: FillVec<r3::Bcast>,
 
     // outgoing/incoming messages
@@ -111,7 +111,7 @@ impl Keygen {
             r3state: None,
             in_r1bcasts: FillVec::with_len(share_count),
             in_r2bcasts: FillVec::with_len(share_count),
-            in_r2p2ps: FillVec::with_len(share_count),
+            in_all_r2p2ps: vec![FillVec::with_len(share_count); share_count],
             in_r3bcasts: FillVec::with_len(share_count),
             out_r1bcast: None,
             out_r2bcast: None,

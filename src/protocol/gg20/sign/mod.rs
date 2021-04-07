@@ -1,19 +1,19 @@
 use super::keygen::SecretKeyShare;
 use serde::{Deserialize, Serialize};
 
-use crate::{fillvec::FillVec, protocol::MsgBytes};
+use crate::{
+    fillvec::FillVec,
+    protocol::{MsgBytes, Output},
+};
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     BigInt, FE, GE,
 };
-use k256::{
-    ecdsa::{Asn1Signature, Signature},
-    FieldBytes,
-};
+use k256::{ecdsa::Signature, FieldBytes};
 
 // TODO isn't there a library for this? Yes. It's called k256.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EcdsaSig {
+struct EcdsaSig {
     pub r: FE,
     pub s: FE,
 }
@@ -52,17 +52,35 @@ enum Status {
     New,
     R1,
     R2,
+    R2Fail,
     R3,
     R4,
     R5,
     R6,
     R7,
     Done,
+    Fail,
 }
+
+// all possible crimes
+// variant names are of the form <Status><Crime>
+// TODO separate Crime enum for each round?
+// TODO add variant data (eg. R2ZkpVerify proof from party i to party j fail because x)
+// #[derive(Debug, Clone, Serialize, Deserialize)]
+// pub enum Crime {
+//     R2ZkpVerify,
+//     R3FailFalseAccusation,
+// }
+// #[derive(Debug, Clone, Serialize, Deserialize)]
+// pub struct Culprit {
+//     participant_index: usize,
+//     crime: Crime,
+// }
 
 mod r1;
 mod r2;
 mod r3;
+mod r3fail;
 mod r4;
 mod r5;
 mod r6;
@@ -74,9 +92,20 @@ pub struct Sign {
 
     // state data
     my_secret_key_share: SecretKeyShare,
+    msg_to_sign: FE, // not used until round 7
+
+    // TODO this is a source of bugs
+    // "party" indices are in 0..share_count from keygen
+    // "participant" indices are in 0..participant_count from sign
+    // eg. participant_indices[my_participant_index] == my_secret_key_share.my_index
+    // SUGGESTION: use the "newtype" pattern to wrap usize for party vs participant indices
+    // https://doc.rust-lang.org/book/ch19-04-advanced-types.html#using-the-newtype-pattern-for-type-safety-and-abstraction
+    //   write simple methods to convert between them
+    //   eg. my_secret_key_share.all_eks can be indexed only by party indices
+    //   eg. in_r2bcasts can be indexed only by participant indices
     participant_indices: Vec<usize>,
-    msg_to_sign: FE,             // not used until round 7
-    my_participant_index: usize, // participant_indices[my_participant_index] == my_secret_key_share.my_index
+    my_participant_index: usize,
+
     r1state: Option<r1::State>,
     r2state: Option<r2::State>,
     r3state: Option<r3::State>,
@@ -87,28 +116,43 @@ pub struct Sign {
 
     // incoming messages
     in_r1bcasts: FillVec<r1::Bcast>,
-    in_r1p2ps: FillVec<r1::P2p>,
-    in_r2p2ps: FillVec<r2::P2p>,
+    in_all_r1p2ps: Vec<FillVec<r1::P2p>>, // TODO wasted FillVec for myself
+    in_all_r2p2ps: Vec<FillVec<r2::P2p>>,
     in_r3bcasts: FillVec<r3::Bcast>,
     in_r4bcasts: FillVec<r4::Bcast>,
     in_r5bcasts: FillVec<r5::Bcast>,
-    in_r5p2ps: FillVec<r5::P2p>,
+    in_all_r5p2ps: Vec<FillVec<r5::P2p>>,
     in_r6bcasts: FillVec<r6::Bcast>,
     in_r7bcasts: FillVec<r7::Bcast>,
 
-    // outgoing messages
+    in_r2bcasts_fail: FillVec<r2::FailBcast>,
+
+    // TODO currently I do not store my own deserialized output messages
+    // instead, my output messages are stored only in serialized form so they can be quickly returned in `get_bcast_out` and `get_p2p_out`
+    // if the content of one of my output messages is needed in a future round then it is the responsibility of the round that created that message to copy the needed into into the state for that round
+    // example: r3() -> (State, Bcast): `Bcast` contains my `nonce_x_blind_summand`, which is also needed in future rounds
+    //   so a copy of nonce_x_blind_summand is stored in `State` as `my_nonce_x_blind_summand`
+    // QUESTION: should I instead store all my own deserialized output messages?
+    // OPTIONS: (1) store them separately in a `out_` field; (2) store them along with all other parties' messages in `in_` fields
+
+    // outgoing serialized messages
     // initialized to `None`, filled as the protocol progresses
     // p2p Vecs have length participant_indices.len()
+    // TODO these fields are used only to implement `Protocol`
+    // - delete them and instead serialize on the fly?
+    // - move them to a container struct S for `Sign` that's defined in protocol.rs?  But then S implements Protocol instead of Sign...
     out_r1bcast: Option<MsgBytes>,
     out_r1p2ps: Option<Vec<Option<MsgBytes>>>,
     out_r2p2ps: Option<Vec<Option<MsgBytes>>>,
+    out_r2bcast_fail_serialized: Option<MsgBytes>, // TODO _serialized suffix to distinguish from EXPERIMENT described above
     out_r3bcast: Option<MsgBytes>,
     out_r4bcast: Option<MsgBytes>,
     out_r5bcast: Option<MsgBytes>,
     out_r5p2ps: Option<Vec<Option<MsgBytes>>>,
     out_r6bcast: Option<MsgBytes>,
     out_r7bcast: Option<MsgBytes>,
-    final_output: Option<Asn1Signature>,
+
+    final_output: Option<SignOutput>, // T is serialized asn1 sig
 }
 
 impl Sign {
@@ -134,17 +178,19 @@ impl Sign {
             r6state: None,
             r7state: None,
             in_r1bcasts: FillVec::with_len(participant_count),
-            in_r1p2ps: FillVec::with_len(participant_count),
-            in_r2p2ps: FillVec::with_len(participant_count),
+            in_all_r1p2ps: vec![FillVec::with_len(participant_count); participant_count],
+            in_all_r2p2ps: vec![FillVec::with_len(participant_count); participant_count],
             in_r3bcasts: FillVec::with_len(participant_count),
             in_r4bcasts: FillVec::with_len(participant_count),
             in_r5bcasts: FillVec::with_len(participant_count),
-            in_r5p2ps: FillVec::with_len(participant_count),
+            in_all_r5p2ps: vec![FillVec::with_len(participant_count); participant_count],
             in_r6bcasts: FillVec::with_len(participant_count),
             in_r7bcasts: FillVec::with_len(participant_count),
+            in_r2bcasts_fail: FillVec::with_len(participant_count), // TODO experiment: my own bcast is in here, too
             out_r1bcast: None,
             out_r1p2ps: None,
             out_r2p2ps: None,
+            out_r2bcast_fail_serialized: None,
             out_r3bcast: None,
             out_r4bcast: None,
             out_r5bcast: None,
@@ -154,10 +200,12 @@ impl Sign {
             final_output: None,
         })
     }
-    pub fn get_result(&self) -> Option<&Asn1Signature> {
-        self.final_output.as_ref()
+    pub fn clone_output(&self) -> Option<SignOutput> {
+        self.final_output.clone()
     }
 }
+
+pub type SignOutput = Output<Vec<u8>>;
 
 /// validate_params helper with custom error type
 /// Assume `secret_key_share` is valid and check `participant_indices` against it.
@@ -243,7 +291,7 @@ impl std::fmt::Display for ParamsError {
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 
 #[cfg(test)]
 mod k256_tests;
