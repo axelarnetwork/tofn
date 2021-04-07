@@ -1,18 +1,11 @@
 use super::*;
-use crate::protocol::{tests::execute_protocol_vec, Protocol};
+use crate::protocol::gg20::tests::keygen::{TEST_CASES, TEST_CASES_INVALID};
 use curv::cryptographic_primitives::secret_sharing::feldman_vss::{
     ShamirSecretSharing, VerifiableSS,
 };
 
-lazy_static::lazy_static! {
-    pub static ref TEST_CASES: Vec<(usize,usize)> // (share_count, threshold)
-    = vec![(5,3)];
-    // = vec![(5, 0), (5, 1), (5, 3), (5, 4)];
-    pub static ref TEST_CASES_INVALID: Vec<(usize,usize)> = vec![(5, 5), (5, 6), (2, 4)];
-}
-
 #[test]
-fn keygen() {
+fn basic_correctness() {
     for &(share_count, threshold) in TEST_CASES.iter() {
         execute_keygen(share_count, threshold);
     }
@@ -25,11 +18,7 @@ fn keygen() {
     }
 }
 
-// pub(in super::super) so that sign module can see execute_keygen
-pub(in super::super) fn execute_keygen(
-    share_count: usize,
-    threshold: usize,
-) -> Vec<SecretKeyShare> {
+pub(crate) fn execute_keygen(share_count: usize, threshold: usize) -> Vec<SecretKeyShare> {
     let mut parties: Vec<Keygen> = (0..share_count)
         .map(|i| Keygen::new(share_count, threshold, i).unwrap())
         .collect();
@@ -144,23 +133,4 @@ pub(in super::super) fn execute_keygen(
     }
 
     all_secret_key_shares
-}
-
-#[test]
-fn keygen_protocol() {
-    for &(share_count, threshold) in TEST_CASES.iter() {
-        // keep it on the stack: avoid use of Box<dyn Protocol> https://doc.rust-lang.org/book/ch17-02-trait-objects.html
-        let mut keygen_protocols: Vec<Keygen> = (0..share_count)
-            .map(|i| Keygen::new(share_count, threshold, i).unwrap())
-            .collect();
-        let mut protocols: Vec<&mut dyn Protocol> = keygen_protocols
-            .iter_mut()
-            .map(|p| p as &mut dyn Protocol)
-            .collect();
-        execute_protocol_vec(&mut protocols, true);
-    }
-
-    for (i, &(share_count, threshold)) in TEST_CASES_INVALID.iter().enumerate() {
-        assert!(Keygen::new(share_count, threshold, i).is_err());
-    }
 }

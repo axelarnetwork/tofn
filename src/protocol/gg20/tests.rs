@@ -1,3 +1,47 @@
+pub mod keygen {
+    use crate::protocol::{gg20::keygen::Keygen, tests::execute_protocol_vec, Protocol};
+
+    lazy_static::lazy_static! {
+        pub static ref TEST_CASES: Vec<(usize,usize)> // (share_count, threshold)
+        // = vec![(5,3)];
+        = vec![(5, 0), (5, 1), (5, 3), (5, 4)];
+        pub static ref TEST_CASES_INVALID: Vec<(usize,usize)> = vec![(5, 5), (5, 6), (2, 4)];
+    }
+
+    #[test]
+    fn protocol_basic_correctness() {
+        protocol_basic_correctness_inner(false)
+    }
+
+    #[test]
+    fn protocol_basic_correctness_with_self_delivery() {
+        protocol_basic_correctness_inner(true)
+    }
+
+    fn protocol_basic_correctness_inner(allow_self_delivery: bool) {
+        for &(share_count, threshold) in TEST_CASES.iter() {
+            // keep it on the stack: avoid use of Box<dyn Protocol> https://doc.rust-lang.org/book/ch17-02-trait-objects.html
+            let mut parties: Vec<Keygen> = (0..share_count)
+                .map(|i| Keygen::new(share_count, threshold, i).unwrap())
+                .collect();
+            let mut protocols: Vec<&mut dyn Protocol> =
+                parties.iter_mut().map(|p| p as &mut dyn Protocol).collect();
+            execute_protocol_vec(&mut protocols, allow_self_delivery);
+
+            // TEST: everyone computed the same pubkey
+            let pubkey = parties[0].get_result().unwrap();
+            for p in parties.iter() {
+                let cur_key = p.get_result().unwrap();
+                assert_eq!(cur_key.ecdsa_public_key, pubkey.ecdsa_public_key);
+            }
+        }
+
+        for (i, &(share_count, threshold)) in TEST_CASES_INVALID.iter().enumerate() {
+            assert!(Keygen::new(share_count, threshold, i).is_err());
+        }
+    }
+}
+
 pub mod sign {
     use crate::protocol::{
         gg20::{keygen::tests::execute_keygen, sign::Sign},
