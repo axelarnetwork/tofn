@@ -1,7 +1,10 @@
 use super::keygen::SecretKeyShare;
 use serde::{Deserialize, Serialize};
 
-use crate::{fillvec::FillVec, protocol::MsgBytes};
+use crate::{
+    fillvec::FillVec,
+    protocol::{MsgBytes, Output},
+};
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     BigInt, FE, GE,
@@ -149,7 +152,7 @@ pub struct Sign {
     out_r6bcast: Option<MsgBytes>,
     out_r7bcast: Option<MsgBytes>,
 
-    final_output: Option<Result<Vec<u8>, Vec<usize>>>, // T is serialized asn1 sig, E is culprit indices
+    final_output: Option<Output<Vec<u8>>>, // T is serialized asn1 sig
 }
 
 impl Sign {
@@ -197,8 +200,8 @@ impl Sign {
             final_output: None,
         })
     }
-    pub fn get_result(&self) -> Option<Result<Vec<u8>, Vec<usize>>> {
-        self.final_output.clone()
+    pub fn get_result(&self) -> Option<&Output<Vec<u8>>> {
+        self.final_output.as_ref()
     }
 }
 

@@ -10,6 +10,19 @@ pub trait Protocol {
     fn done(&self) -> bool;
 }
 
+// TODO where to put this?
+#[derive(Debug, Clone, PartialEq)]
+pub enum CrimeType {
+    Malicious,    // cryptographic evidence of malice (eg. zk proof fail to verify)
+    NonMalicious, // no cryptographic evidence of malice (eg. timeout)
+}
+#[derive(Debug, Clone, PartialEq)]
+pub struct Criminal {
+    index: usize,
+    crime: CrimeType,
+}
+pub type Output<T> = std::result::Result<T, Vec<Criminal>>;
+
 pub mod gg20;
 #[cfg(test)]
 mod tests;

@@ -1,12 +1,16 @@
 use super::{Sign, Status};
-use crate::zkp::range;
+use crate::{
+    fillvec::FillVec,
+    protocol::{CrimeType, Criminal},
+    zkp::range,
+};
 
 impl Sign {
-    pub(super) fn r3fail(&self) -> Vec<usize> {
+    pub(super) fn r3fail(&self) -> Vec<Criminal> {
         assert!(matches!(self.status, Status::R2Fail));
         assert!(self.in_r2bcasts_fail.some_count() > 0);
 
-        let mut culprits = vec![false; self.participant_indices.len()];
+        let mut culprits = FillVec::with_len(self.participant_indices.len());
 
         for accuser in 0..self.participant_indices.len() {
             if let Some(fail_bcast) = self.in_r2bcasts_fail.vec_ref()[accuser].as_ref() {
@@ -54,15 +58,21 @@ impl Sign {
                             accused.participant_index
                         }
                     };
-                    culprits[culprit_index] = true;
+                    culprits.overwrite(
+                        culprit_index,
+                        Criminal {
+                            index: culprit_index,
+                            crime: CrimeType::Malicious,
+                        },
+                    );
                 }
             }
         }
 
         culprits
+            .into_vec()
             .into_iter()
-            .enumerate()
-            .filter_map(|(i, b)| if b { Some(i) } else { None })
+            .filter_map(|opt| opt)
             .collect()
     }
 }

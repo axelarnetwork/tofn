@@ -179,7 +179,7 @@ mod tests {
         gg20::keygen::{tests::execute_keygen, SecretKeyShare},
         gg20::tests::sign::{OneCrimeTestCase, MSG_TO_SIGN, ONE_CRIMINAL_TEST_CASES},
         tests::execute_protocol_vec,
-        Protocol,
+        CrimeType, Criminal, Protocol,
     };
 
     #[test]
@@ -269,13 +269,12 @@ mod tests {
         }
 
         // TEST: everyone correctly computed the culprit list
-        let actual_culprits: Vec<usize> = vec![t.criminal];
-        for (i, culprit_list) in all_culprit_lists.iter().enumerate() {
-            assert_eq!(
-                culprit_list, &actual_culprits,
-                "party {} unexpected culprit list",
-                i
-            );
+        let actual_culprits = vec![Criminal {
+            index: t.criminal,
+            crime: CrimeType::Malicious,
+        }];
+        for culprit_list in all_culprit_lists {
+            assert_eq!(culprit_list, actual_culprits,);
         }
     }
 
@@ -296,7 +295,7 @@ mod tests {
                 victim,
             })
         }
-        pub fn get_result(&self) -> Option<Result<Vec<u8>, Vec<usize>>> {
+        pub fn get_result(&self) -> Option<&Output<Vec<u8>>> {
             self.s.get_result()
         }
     }
@@ -391,10 +390,19 @@ mod tests {
             execute_protocol_vec(&mut protocols, allow_self_delivery);
 
             // TEST: everyone correctly computed the culprit list
-            let actual_culprits: Vec<usize> = vec![t.criminal];
-            assert_eq!(bad_guy.get_result().unwrap().unwrap_err(), actual_culprits);
+            let actual_culprits = vec![Criminal {
+                index: t.criminal,
+                crime: CrimeType::Malicious,
+            }];
+            assert_eq!(
+                bad_guy.get_result().unwrap().as_ref().unwrap_err(),
+                &actual_culprits
+            );
             for good_guy in good_guys {
-                assert_eq!(good_guy.get_result().unwrap().unwrap_err(), actual_culprits);
+                assert_eq!(
+                    good_guy.get_result().unwrap().as_ref().unwrap_err(),
+                    &actual_culprits
+                );
             }
         }
     }
