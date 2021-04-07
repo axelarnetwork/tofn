@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     fillvec::FillVec,
-    protocol::{Criminal, MsgBytes, Output, OutputOwned},
+    protocol::{MsgBytes, Output, OutputOwned},
 };
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
@@ -203,12 +203,9 @@ impl Sign {
     pub fn get_result(&self) -> Option<Output<&[u8]>> {
         // for ease of use and to avoid copying: return type is either &[u8] (happy) or &[Criminal] (sad)
         match self.final_output.as_ref() {
-            Some(output_owned) => Some(
-                output_owned
-                    .as_ref()
-                    .map(|sig_bytes| sig_bytes as &[u8])
-                    .map_err(|criminals| criminals as &[Criminal]),
-            ),
+            Some(output_owned) => {
+                Some(output_owned.as_output().map(|sig_bytes| sig_bytes as &[u8]))
+            }
             None => None,
         }
     }

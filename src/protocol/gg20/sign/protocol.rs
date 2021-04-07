@@ -73,7 +73,7 @@ impl Protocol for Sign {
                 self.status = R3;
             }
             R2Fail => {
-                self.final_output = Some(OutputOwned::Err(self.r3fail()));
+                self.final_output = Some(OutputOwned::fail(self.r3fail()));
                 self.status = Fail;
             }
             R3 => {
@@ -130,7 +130,7 @@ impl Protocol for Sign {
                 self.status = R7;
             }
             R7 => {
-                self.final_output = Some(OutputOwned::Ok(self.r8().as_bytes().to_vec()));
+                self.final_output = Some(OutputOwned::success(self.r8().as_bytes().to_vec()));
                 self.status = Done;
             }
             Done => return Err(From::from("already done")),
