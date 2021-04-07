@@ -295,7 +295,7 @@ mod tests {
                 victim,
             })
         }
-        pub fn get_result(&self) -> Option<Output<&[u8]>> {
+        pub fn get_result(&self) -> Option<SignOutput> {
             self.s.get_result()
         }
     }

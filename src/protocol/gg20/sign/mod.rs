@@ -200,7 +200,7 @@ impl Sign {
             final_output: None,
         })
     }
-    pub fn get_result(&self) -> Option<Output<&[u8]>> {
+    pub fn get_result(&self) -> Option<SignOutput> {
         // for ease of use and to avoid copying: return type is either &[u8] (happy) or &[Criminal] (sad)
         match self.final_output.as_ref() {
             Some(output_owned) => {
@@ -210,6 +210,8 @@ impl Sign {
         }
     }
 }
+
+pub type SignOutput<'a> = Output<'a, &'a [u8]>;
 
 /// validate_params helper with custom error type
 /// Assume `secret_key_share` is valid and check `participant_indices` against it.

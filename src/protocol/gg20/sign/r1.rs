@@ -113,7 +113,7 @@ mod tests {
             gg20::keygen::{tests::execute_keygen, SecretKeyShare},
             gg20::tests::sign::{OneCrimeTestCase, MSG_TO_SIGN, ONE_CRIMINAL_TEST_CASES},
             tests::execute_protocol_vec,
-            CrimeType, Criminal, Output, Protocol,
+            CrimeType, Criminal, Protocol,
         },
         zkp::range::tests::corrupt_proof,
     };
@@ -238,7 +238,7 @@ mod tests {
                 victim,
             })
         }
-        pub fn get_result(&self) -> Option<Output<&[u8]>> {
+        pub fn get_result(&self) -> Option<SignOutput> {
             self.s.get_result()
         }
     }
