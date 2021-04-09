@@ -4,6 +4,7 @@ use crate::zkp::{mta, range};
 use curv::{elliptic::curves::traits::ECPoint, FE, GE};
 use multi_party_ecdsa::utilities::mta as mta_zengo;
 use serde::{Deserialize, Serialize};
+use tracing::info;
 
 // round 2
 
@@ -88,7 +89,7 @@ impl Sign {
                 .my_zkp
                 .verify_range_proof(stmt, proof)
                 .unwrap_or_else(|e| {
-                    println!(
+                    info!(
                         "party {} says: range proof failed to verify for party {} because [{}]",
                         self.my_secret_key_share.my_index, participant_index, e
                     );
