@@ -18,9 +18,10 @@ pub enum CrimeType {
 }
 #[derive(Debug, Clone, PartialEq)]
 pub struct Criminal {
-    index: usize,
-    crime: CrimeType,
+    pub index: usize,
+    pub crime_type: CrimeType,
 }
+
 // TODO it's too much trouble to return references to local data,
 // so protocol outputs are owned instead
 type Output<T> = std::result::Result<T, Vec<Criminal>>;
