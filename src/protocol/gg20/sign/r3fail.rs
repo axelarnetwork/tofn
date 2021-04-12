@@ -4,6 +4,7 @@ use crate::{
     protocol::{CrimeType, Criminal},
     zkp::range,
 };
+use tracing::info;
 
 impl Sign {
     pub(super) fn r3fail(&self) -> Vec<Criminal> {
@@ -44,14 +45,14 @@ impl Sign {
 
                     let culprit_index = match verification {
                         Ok(_) => {
-                            println!(
+                            info!(
                                 "participant {} detect false accusation by {} against {}",
                                 self.my_participant_index, accuser, accused.participant_index
                             );
                             accuser
                         }
                         Err(e) => {
-                            println!(
+                            info!(
                                 "participant {} detect bad proof from {} to {} because [{}]",
                                 self.my_participant_index, accused.participant_index, accuser, e
                             );

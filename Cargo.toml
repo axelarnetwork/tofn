@@ -13,6 +13,10 @@ bincode = "1.2.1"
 k256 = { version = "0", features = ["ecdsa"] }
 multi-party-ecdsa = { git = "https://github.com/ZenGo-X/multi-party-ecdsa", tag = "v0.4.3" } # for utilities::mta
 
+# logging
+log = "0.4"
+tracing = "0.1"
+
 # baggage from multi-party-ecdsa
 curv = { git = "https://github.com/KZen-networks/curv", tag = "v0.2.6", features = ["ec_secp256k1"] }
 paillier = { git = "https://github.com/KZen-networks/rust-paillier", tag = "v0.3.4"}

@@ -2,6 +2,8 @@ use super::{Status::*, *};
 use crate::protocol::{MsgBytes, Protocol, ProtocolResult};
 use serde::{Deserialize, Serialize};
 
+use tracing::warn;
+
 #[derive(Serialize, Deserialize)]
 enum MsgType {
     R1Bcast,
@@ -146,8 +148,8 @@ impl Protocol for Sign {
         match msg_meta.msg_type {
             MsgType::R1Bcast => {
                 if !self.in_r1bcasts.is_none(msg_meta.from) {
-                    println!(
-                        "WARN: participant {} overwrite existing R1Bcast msg from {}",
+                    warn!(
+                        "participant {} overwrite existing R1Bcast msg from {}",
                         self.my_participant_index, msg_meta.from
                     );
                 }
@@ -157,8 +159,8 @@ impl Protocol for Sign {
             MsgType::R1P2p { to } => {
                 let r1_p2ps = &mut self.in_all_r1p2ps[msg_meta.from];
                 if !r1_p2ps.is_none(to) {
-                    println!(
-                        "WARN: participant {} overwrite existing R1P2p msg from {} to {}",
+                    warn!(
+                        "participant {} overwrite existing R1P2p msg from {} to {}",
                         self.my_participant_index, msg_meta.from, to
                     );
                 }
@@ -168,8 +170,8 @@ impl Protocol for Sign {
                 .insert(to, bincode::deserialize(&msg_meta.payload)?)?,
             MsgType::R2FailBcast => {
                 if !self.in_r2bcasts_fail.is_none(msg_meta.from) {
-                    println!(
-                        "WARN: participant {} overwrite existing R2FailBcast msg from {}",
+                    warn!(
+                        "participant {} overwrite existing R2FailBcast msg from {}",
                         self.my_participant_index, msg_meta.from
                     );
                 }
