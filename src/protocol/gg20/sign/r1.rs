@@ -104,6 +104,7 @@ impl Sign {
         )
     }
 }
+<<<<<<< HEAD
 
 #[cfg(test)]
 mod tests {
@@ -347,3 +348,5 @@ mod tests {
         }
     }
 }
+=======
+>>>>>>> Delete malicious-related tests from r1 and r2
