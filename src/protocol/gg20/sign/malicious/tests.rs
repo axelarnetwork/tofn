@@ -57,6 +57,14 @@ fn r2_bad_mta_proof() {
     }
 }
 
+#[test]
+fn r2_bad_mta_wc_proof() {
+    for t in ONE_CRIMINAL_TEST_CASES.iter() {
+        malicious_behaviour_protocol(t, true, R2BadMtaWc { victim: t.victim });
+        malicious_behaviour_protocol(t, false, R2BadMtaWc { victim: t.victim });
+    }
+}
+
 // generic malicious behaviour test
 fn malicious_behaviour_protocol(
     t: &OneCrimeTestCase,

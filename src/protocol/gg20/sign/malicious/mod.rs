@@ -7,7 +7,9 @@ pub enum MaliciousType {
     R1BadProof { victim: usize },
     R1FalseAccusation { victim: usize },
     R2BadMta { victim: usize },
+    R2BadMtaWc { victim: usize },
 }
+use MaliciousType::*;
 
 pub struct BadSign {
     sign: Sign,
@@ -35,7 +37,7 @@ impl BadSign {
 impl Protocol for BadSign {
     fn next_round(&mut self) -> ProtocolResult {
         match self.malicious_type {
-            MaliciousType::R1BadProof { victim } => {
+            R1BadProof { victim } => {
                 if !matches!(self.sign.status, Status::New) {
                     return self.sign.next_round();
                 };
@@ -50,7 +52,7 @@ impl Protocol for BadSign {
 
                 self.sign.update_state_r1(state, bcast, p2ps)
             }
-            MaliciousType::R1FalseAccusation { victim } => {
+            R1FalseAccusation { victim } => {
                 if !matches!(self.sign.status, Status::R1) {
                     return self.sign.next_round();
                 };
@@ -65,7 +67,7 @@ impl Protocol for BadSign {
                     }],
                 })
             }
-            MaliciousType::R2BadMta { victim } => {
+            R2BadMta { victim } => {
                 if !matches!(self.sign.status, Status::R1) {
                     return self.sign.next_round();
                 };
@@ -86,6 +88,36 @@ impl Protocol for BadSign {
                     r2::Output::Fail { out_bcast } => {
                         warn!(
                             "malicious participant {} instructed to corrupt r2 mta proof to {} but r2 has already failed so reverting to honesty",
+                            self.sign.my_participant_index, victim
+                        );
+                        self.sign.update_state_r2fail(out_bcast)
+                    }
+                }
+            }
+            R2BadMtaWc { victim } => {
+                if !matches!(self.sign.status, Status::R1) {
+                    return self.sign.next_round();
+                };
+                match self.sign.r2() {
+                    r2::Output::Success {
+                        state,
+                        mut out_p2ps,
+                    } => {
+                        info!(
+                            "malicious participant {} r2 corrupt mta_wc proof to {}",
+                            self.sign.my_participant_index, victim
+                        );
+                        let proof = &mut out_p2ps.vec_ref_mut()[victim]
+                            .as_mut()
+                            .unwrap()
+                            .mta_proof_wc;
+                        *proof = mta::corrupt_proof_wc(proof);
+
+                        self.sign.update_state_r2(state, out_p2ps)
+                    }
+                    r2::Output::Fail { out_bcast } => {
+                        warn!(
+                            "malicious participant {} instructed to corrupt r2 mta_wc proof to {} but r2 has already failed so reverting to honesty",
                             self.sign.my_participant_index, victim
                         );
                         self.sign.update_state_r2fail(out_bcast)

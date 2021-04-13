@@ -246,6 +246,15 @@ pub fn corrupt_proof(proof: &Proof) -> Proof {
     }
 }
 
+// TODO #[cfg(feature = "malicious")]
+pub fn corrupt_proof_wc(proof: &ProofWc) -> ProofWc {
+    let proof = proof.clone();
+    ProofWc {
+        u: proof.u + GE::generator(),
+        ..proof
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{Proof, ProofWc, Statement, StatementWc, Witness, Zkp};
