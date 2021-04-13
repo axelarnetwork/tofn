@@ -31,7 +31,7 @@ pub struct Culprit {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Crime {
     Mta,
-    Mtawc,
+    MtaWc,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -118,7 +118,7 @@ impl Sign {
                     );
                     culprits.push(Culprit {
                         participant_index: i,
-                        crime: Crime::Mtawc,
+                        crime: Crime::MtaWc,
                     });
                 });
 

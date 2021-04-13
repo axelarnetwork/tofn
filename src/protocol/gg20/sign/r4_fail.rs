@@ -52,7 +52,7 @@ impl Sign {
                             };
                             verifier_zkp.verify_mta_proof(stmt, &prover_r2p2p.mta_proof)
                         }
-                        r3::Crime::Mtawc => {
+                        r3::Crime::MtaWc => {
                             let prover_party_index =
                                 self.participant_indices[accused.participant_index];
                             let prover_public_key_summand = self

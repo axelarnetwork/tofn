@@ -1,4 +1,4 @@
-use super::{r2, ParamsError, Sign, SignOutput, Status};
+use super::{r2, r3, ParamsError, Sign, SignOutput, Status};
 use crate::protocol::{gg20::keygen::SecretKeyShare, MsgBytes, Protocol, ProtocolResult};
 use crate::zkp::{mta, range};
 use tracing::{info, warn};
@@ -8,6 +8,8 @@ pub enum MaliciousType {
     R1FalseAccusation { victim: usize },
     R2BadMta { victim: usize },
     R2BadMtaWc { victim: usize },
+    R2FalseAccusationMta { victim: usize },
+    R2FalseAccusationMtaWc { victim: usize },
 }
 use MaliciousType::*;
 
@@ -123,6 +125,39 @@ impl Protocol for BadSign {
                         self.sign.update_state_r2fail(out_bcast)
                     }
                 }
+            }
+            R2FalseAccusationMta { victim } => {
+                if !matches!(self.sign.status, Status::R2) {
+                    return self.sign.next_round();
+                };
+                // no need to execute self.s.r3()
+                info!(
+                    "malicious participant {} r2 falsely accuse {} mta",
+                    self.sign.my_participant_index, victim
+                );
+                self.sign.update_state_r3fail(r3::FailBcast {
+                    culprits: vec![r3::Culprit {
+                        participant_index: victim,
+                        crime: r3::Crime::Mta,
+                    }],
+                })
+            }
+            R2FalseAccusationMtaWc { victim } => {
+                // TODO refactor copied code from R2FalseAccusationMta
+                if !matches!(self.sign.status, Status::R2) {
+                    return self.sign.next_round();
+                };
+                // no need to execute self.s.r3()
+                info!(
+                    "malicious participant {} r2 falsely accuse {} mta_wc",
+                    self.sign.my_participant_index, victim
+                );
+                self.sign.update_state_r3fail(r3::FailBcast {
+                    culprits: vec![r3::Culprit {
+                        participant_index: victim,
+                        crime: r3::Crime::MtaWc,
+                    }],
+                })
             }
         }
     }
