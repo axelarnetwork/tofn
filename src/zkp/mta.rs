@@ -237,6 +237,15 @@ impl Zkp {
     }
 }
 
+// TODO #[cfg(feature = "malicious")]
+pub fn corrupt_proof(proof: &Proof) -> Proof {
+    let proof = proof.clone();
+    Proof {
+        v: proof.v + BigInt::from(1),
+        ..proof
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{Proof, ProofWc, Statement, StatementWc, Witness, Zkp};

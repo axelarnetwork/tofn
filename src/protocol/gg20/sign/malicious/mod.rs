@@ -1,11 +1,12 @@
 use super::{r2, ParamsError, Sign, SignOutput, Status};
 use crate::protocol::{gg20::keygen::SecretKeyShare, MsgBytes, Protocol, ProtocolResult};
-use crate::zkp::range::corrupt_proof;
+use crate::zkp::{mta, range};
+use tracing::{info, warn};
+
 pub enum MaliciousType {
-    // corrupt proof at r1
-    R1BadProof(usize),
-    // falsely accuse a participant
-    FalseAccusation(usize),
+    R1BadProof { victim: usize },
+    R1FalseAccusation { victim: usize },
+    R2BadMta { victim: usize },
 }
 
 pub struct BadSign {
@@ -34,27 +35,28 @@ impl BadSign {
 impl Protocol for BadSign {
     fn next_round(&mut self) -> ProtocolResult {
         match self.malicious_type {
-            MaliciousType::R1BadProof(victim) => {
+            MaliciousType::R1BadProof { victim } => {
                 if !matches!(self.sign.status, Status::New) {
                     return self.sign.next_round();
                 };
                 let (state, bcast, mut p2ps) = self.sign.r1();
-                // corrupt the proof to self.victim
-                let proof = &mut p2ps.vec_ref_mut()[victim].as_mut().unwrap().range_proof;
-                *proof = corrupt_proof(proof);
 
-                self.sign.update_state_r1(state, bcast, p2ps)?;
-                Ok(())
+                info!(
+                    "malicious participant {} r1 corrupt proof to {}",
+                    self.sign.my_participant_index, victim
+                );
+                let proof = &mut p2ps.vec_ref_mut()[victim].as_mut().unwrap().range_proof;
+                *proof = range::corrupt_proof(proof);
+
+                self.sign.update_state_r1(state, bcast, p2ps)
             }
-            MaliciousType::FalseAccusation(victim) => {
+            MaliciousType::R1FalseAccusation { victim } => {
                 if !matches!(self.sign.status, Status::R1) {
                     return self.sign.next_round();
                 };
-
-                // falsely accuse `victim` of a bad proof in r1
                 // no need to execute self.s.r2()
-                println!(
-                    "participant {} falsely accuse {}",
+                info!(
+                    "malicious participant {} r1 falsely accuse {}",
                     self.sign.my_participant_index, victim
                 );
                 self.sign.update_state_r2fail(r2::FailBcast {
@@ -62,6 +64,33 @@ impl Protocol for BadSign {
                         participant_index: victim,
                     }],
                 })
+            }
+            MaliciousType::R2BadMta { victim } => {
+                if !matches!(self.sign.status, Status::R1) {
+                    return self.sign.next_round();
+                };
+                match self.sign.r2() {
+                    r2::Output::Success {
+                        state,
+                        mut out_p2ps,
+                    } => {
+                        info!(
+                            "malicious participant {} r2 corrupt mta proof to {}",
+                            self.sign.my_participant_index, victim
+                        );
+                        let proof = &mut out_p2ps.vec_ref_mut()[victim].as_mut().unwrap().mta_proof;
+                        *proof = mta::corrupt_proof(proof);
+
+                        self.sign.update_state_r2(state, out_p2ps)
+                    }
+                    r2::Output::Fail { out_bcast } => {
+                        warn!(
+                            "malicious participant {} instructed to corrupt r2 mta proof to {} but r2 has already failed so reverting to honesty",
+                            self.sign.my_participant_index, victim
+                        );
+                        self.sign.update_state_r2fail(out_bcast)
+                    }
+                }
             }
         }
     }
@@ -83,4 +112,4 @@ impl Protocol for BadSign {
 }
 
 #[cfg(test)]
-pub(crate) mod tests;
+mod tests;

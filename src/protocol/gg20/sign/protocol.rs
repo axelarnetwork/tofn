@@ -43,22 +43,7 @@ impl Protocol for Sign {
 
             R1 => match self.r2() {
                 r2::Output::Success { state, out_p2ps } => {
-                    let mut out_p2ps_serialized =
-                        Vec::with_capacity(self.participant_indices.len());
-                    for (to, opt) in out_p2ps.into_vec().into_iter().enumerate() {
-                        if let Some(p2p) = opt {
-                            out_p2ps_serialized.push(Some(bincode::serialize(&MsgMeta {
-                                msg_type: MsgType::R2P2p { to },
-                                from: self.my_participant_index,
-                                payload: bincode::serialize(&p2p)?,
-                            })?));
-                        } else {
-                            out_p2ps_serialized.push(None);
-                        }
-                    }
-                    self.out_r2p2ps = Some(out_p2ps_serialized);
-                    self.r2state = Some(state);
-                    self.status = R2;
+                    self.update_state_r2(state, out_p2ps)?;
                 }
                 r2::Output::Fail { out_bcast } => {
                     self.update_state_r2fail(out_bcast)?;
@@ -175,8 +160,16 @@ impl Protocol for Sign {
                 }
                 r1_p2ps.overwrite(to, bincode::deserialize(&msg_meta.payload)?);
             }
-            MsgType::R2P2p { to } => self.in_all_r2p2ps[msg_meta.from]
-                .insert(to, bincode::deserialize(&msg_meta.payload)?)?,
+            MsgType::R2P2p { to } => {
+                let r2_p2ps = &mut self.in_all_r2p2ps[msg_meta.from];
+                if !r2_p2ps.is_none(to) {
+                    warn!(
+                        "participant {} overwrite existing R2P2p msg from {} to {}",
+                        self.my_participant_index, msg_meta.from, to
+                    );
+                }
+                r2_p2ps.overwrite(to, bincode::deserialize(&msg_meta.payload)?);
+            }
             MsgType::R2FailBcast => {
                 if !self.in_r2bcasts_fail.is_none(msg_meta.from) {
                     warn!(
@@ -378,6 +371,30 @@ impl Sign {
 
         self.r1state = Some(state);
         self.status = R1;
+        Ok(())
+    }
+
+    pub(super) fn update_state_r2(
+        &mut self,
+        state: r2::State,
+        out_p2ps: FillVec<r2::P2p>,
+    ) -> ProtocolResult {
+        let mut out_p2ps_serialized = Vec::with_capacity(self.participant_indices.len());
+        for (to, opt) in out_p2ps.vec_ref().iter().enumerate() {
+            if let Some(p2p) = opt {
+                out_p2ps_serialized.push(Some(bincode::serialize(&MsgMeta {
+                    msg_type: MsgType::R2P2p { to },
+                    from: self.my_participant_index,
+                    payload: bincode::serialize(&p2p)?,
+                })?));
+            } else {
+                out_p2ps_serialized.push(None);
+            }
+        }
+        self.out_r2p2ps = Some(out_p2ps_serialized);
+        self.in_all_r2p2ps[self.my_participant_index] = out_p2ps; // self delivery
+        self.r2state = Some(state);
+        self.status = R2;
         Ok(())
     }
 
