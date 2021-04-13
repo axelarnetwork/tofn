@@ -55,7 +55,7 @@ enum Status {
     R2,
     R2Fail,
     R3,
-    // R3Fail,
+    R3Fail,
     R4,
     R5,
     R6,
@@ -84,6 +84,7 @@ mod r2;
 mod r3;
 mod r3fail;
 mod r4;
+mod r4_fail;
 mod r5;
 mod r6;
 mod r7;

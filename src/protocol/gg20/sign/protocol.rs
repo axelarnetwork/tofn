@@ -93,6 +93,10 @@ impl Protocol for Sign {
                 self.r4state = Some(state);
                 self.status = R4;
             }
+            R3Fail => {
+                self.final_output = Some(Output::Err(self.r4_fail()));
+                self.status = Fail;
+            }
             R4 => {
                 let (state, bcast, p2ps) = self.r5();
                 self.out_r5bcast = Some(bincode::serialize(&MsgMeta {
@@ -221,6 +225,7 @@ impl Protocol for Sign {
             R2 => &None,
             R2Fail => &self.out_r2bcast_fail_serialized,
             R3 => &self.out_r3bcast,
+            R3Fail => &self.out_r3bcast_fail_serialized,
             R4 => &self.out_r4bcast,
             R5 => &self.out_r5bcast,
             R6 => &self.out_r6bcast,
@@ -237,6 +242,7 @@ impl Protocol for Sign {
             R2 => &self.out_r2p2ps,
             R2Fail => &None,
             R3 => &None,
+            R3Fail => &None,
             R4 => &None,
             R5 => &self.out_r5p2ps,
             R6 => &None,
@@ -281,7 +287,17 @@ impl Protocol for Sign {
                 }
                 false
             }
-            R3 => !self.in_r3bcasts.is_full_except(me),
+            R3 | R3Fail => {
+                for i in 0..self.participant_indices.len() {
+                    if i == me {
+                        continue;
+                    }
+                    if self.in_r3bcasts.is_none(i) && self.in_r3bcasts_fail.is_none(i) {
+                        return true;
+                    }
+                }
+                false
+            }
             R4 => !self.in_r4bcasts.is_full_except(me),
             R5 => {
                 // TODO fix ugly code to deal with wasted entries for messages to myself
@@ -313,11 +329,18 @@ impl Protocol for Sign {
 // TODO these methods should be private - break abstraction for tests only
 impl Sign {
     pub(super) fn move_to_sad_path(&mut self) {
-        if let R2 = self.status {
-            // if I've received any r2 bcast fails then switch to R2Fail status
-            if self.in_r2bcasts_fail.some_count() > 0 {
-                self.status = R2Fail;
+        match self.status {
+            R2 => {
+                if self.in_r2bcasts_fail.some_count() > 0 {
+                    self.status = R2Fail;
+                }
             }
+            R3 => {
+                if self.in_r3bcasts_fail.some_count() > 0 {
+                    self.status = R3Fail;
+                }
+            }
+            _ => (),
         }
     }
 
@@ -387,7 +410,7 @@ impl Sign {
         self.in_r3bcasts_fail
             .insert(self.my_participant_index, bcast)?;
 
-        // self.status = R3Fail;
+        self.status = R3Fail;
         Ok(())
     }
 }
