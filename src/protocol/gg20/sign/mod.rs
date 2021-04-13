@@ -55,6 +55,7 @@ enum Status {
     R2,
     R2Fail,
     R3,
+    // R3Fail,
     R4,
     R5,
     R6,
@@ -127,6 +128,7 @@ pub struct Sign {
     in_r7bcasts: FillVec<r7::Bcast>,
 
     in_r2bcasts_fail: FillVec<r2::FailBcast>,
+    in_r3bcasts_fail: FillVec<r3::FailBcast>,
 
     // TODO currently I do not store my own deserialized output messages
     // instead, my output messages are stored only in serialized form so they can be quickly returned in `get_bcast_out` and `get_p2p_out`
@@ -145,13 +147,14 @@ pub struct Sign {
     out_r1bcast: Option<MsgBytes>,
     out_r1p2ps: Option<Vec<Option<MsgBytes>>>,
     out_r2p2ps: Option<Vec<Option<MsgBytes>>>,
-    out_r2bcast_fail_serialized: Option<MsgBytes>, // TODO _serialized suffix to distinguish from EXPERIMENT described above
     out_r3bcast: Option<MsgBytes>,
     out_r4bcast: Option<MsgBytes>,
     out_r5bcast: Option<MsgBytes>,
     out_r5p2ps: Option<Vec<Option<MsgBytes>>>,
     out_r6bcast: Option<MsgBytes>,
     out_r7bcast: Option<MsgBytes>,
+    out_r2bcast_fail_serialized: Option<MsgBytes>, // TODO _serialized suffix to distinguish from EXPERIMENT described above
+    out_r3bcast_fail_serialized: Option<MsgBytes>,
 
     final_output: Option<SignOutput>, // T is serialized asn1 sig
 }
@@ -188,16 +191,18 @@ impl Sign {
             in_r6bcasts: FillVec::with_len(participant_count),
             in_r7bcasts: FillVec::with_len(participant_count),
             in_r2bcasts_fail: FillVec::with_len(participant_count), // TODO experiment: my own bcast is in here, too
+            in_r3bcasts_fail: FillVec::with_len(participant_count), // TODO experiment: my own bcast is in here, too
             out_r1bcast: None,
             out_r1p2ps: None,
             out_r2p2ps: None,
-            out_r2bcast_fail_serialized: None,
             out_r3bcast: None,
             out_r4bcast: None,
             out_r5bcast: None,
             out_r5p2ps: None,
             out_r6bcast: None,
             out_r7bcast: None,
+            out_r2bcast_fail_serialized: None,
+            out_r3bcast_fail_serialized: None,
             final_output: None,
         })
     }
