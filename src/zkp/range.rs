@@ -195,6 +195,14 @@ impl Zkp {
     }
 }
 
+pub fn corrupt_proof(proof: &Proof) -> Proof {
+    let proof = proof.clone();
+    Proof {
+        u: proof.u + BigInt::from(1),
+        ..proof
+    }
+}
+
 #[cfg(test)]
 pub mod tests {
     use super::{
