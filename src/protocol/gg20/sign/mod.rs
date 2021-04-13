@@ -46,6 +46,7 @@ impl EcdsaSig {
     }
 }
 
+pub mod malicious;
 mod protocol;
 
 enum Status {
