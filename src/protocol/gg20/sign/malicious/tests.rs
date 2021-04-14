@@ -1,5 +1,5 @@
 use super::super::*;
-use super::*;
+use super::{MaliciousType::*, *};
 use crate::{
     protocol::{
         gg20::keygen::{tests::execute_keygen, SecretKeyShare},
@@ -10,42 +10,51 @@ use crate::{
     zkp::range::tests::corrupt_proof,
 };
 
-// test all malicious behaviours at the protocol level
 #[test]
-fn malicious_behaviours() {
-    let self_delivery_opts = vec![true, false];
-
+fn r1_bad_proof() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
-        for self_delivery in &self_delivery_opts {
-            // is there any way to iterate enums?
-            malicious_behaviour_protocol(t, *self_delivery, MaliciousType::R1BadProof(t.victim));
-            malicious_behaviour_protocol(
-                t,
-                *self_delivery,
-                MaliciousType::FalseAccusation(t.victim),
-            );
-        }
-    }
-}
-
-// or perhaps it is more convenient to test each case individually
-#[test]
-fn bad_proof_protocol() {
-    let with_self_delivery = false;
-    for t in ONE_CRIMINAL_TEST_CASES.iter() {
-        malicious_behaviour_protocol(t, with_self_delivery, MaliciousType::R1BadProof(t.victim));
+        malicious_behaviour_protocol(t, true, R1BadProof { victim: t.victim });
+        malicious_behaviour_protocol(t, false, R1BadProof { victim: t.victim });
     }
 }
 
 #[test]
-fn false_accusation_protocol() {
-    let with_self_delivery = false;
+fn r1_false_accusation() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
-        malicious_behaviour_protocol(
-            t,
-            with_self_delivery,
-            MaliciousType::FalseAccusation(t.victim),
-        );
+        malicious_behaviour_protocol(t, true, R1FalseAccusation { victim: t.victim });
+        malicious_behaviour_protocol(t, false, R1FalseAccusation { victim: t.victim });
+    }
+}
+
+#[test]
+fn r2_bad_mta_proof() {
+    for t in ONE_CRIMINAL_TEST_CASES.iter() {
+        malicious_behaviour_protocol(t, true, R2BadMta { victim: t.victim });
+        malicious_behaviour_protocol(t, false, R2BadMta { victim: t.victim });
+    }
+}
+
+#[test]
+fn r2_bad_mta_wc_proof() {
+    for t in ONE_CRIMINAL_TEST_CASES.iter() {
+        malicious_behaviour_protocol(t, true, R2BadMtaWc { victim: t.victim });
+        malicious_behaviour_protocol(t, false, R2BadMtaWc { victim: t.victim });
+    }
+}
+
+#[test]
+fn r2_false_accusation_mta() {
+    for t in ONE_CRIMINAL_TEST_CASES.iter() {
+        malicious_behaviour_protocol(t, true, R2FalseAccusationMta { victim: t.victim });
+        malicious_behaviour_protocol(t, false, R2FalseAccusationMta { victim: t.victim });
+    }
+}
+
+#[test]
+fn r2_false_accusation_mta_wc() {
+    for t in ONE_CRIMINAL_TEST_CASES.iter() {
+        malicious_behaviour_protocol(t, true, R2FalseAccusationMtaWc { victim: t.victim });
+        malicious_behaviour_protocol(t, false, R2FalseAccusationMtaWc { victim: t.victim });
     }
 }
 
@@ -100,6 +109,7 @@ fn malicious_behaviour_protocol(
 }
 
 /// lower level tests
+// TODO delete these? they are redundant
 #[test]
 fn one_bad_proof() {
     for test in ONE_CRIMINAL_TEST_CASES.iter() {

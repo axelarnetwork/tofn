@@ -4,6 +4,7 @@ use crate::protocol::gg20::vss;
 use crate::zkp::{mta, pedersen};
 use curv::{elliptic::curves::traits::ECScalar, FE, GE};
 use serde::{Deserialize, Serialize};
+use tracing::warn;
 
 // round 3
 
@@ -21,8 +22,31 @@ pub struct State {
     pub(super) my_nonce_x_keyshare_summand_commit_randomness: FE,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Culprit {
+    pub participant_index: usize,
+    pub crime: Crime,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum Crime {
+    Mta,
+    MtaWc,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FailBcast {
+    pub culprits: Vec<Culprit>,
+}
+
+// TODO is it better to have `State` and `P2p` be enum types?
+pub enum Output {
+    Success { state: State, out_bcast: Bcast },
+    Fail { out_bcast: FailBcast },
+}
+
 impl Sign {
-    pub(super) fn r3(&self) -> (State, Bcast) {
+    pub(super) fn r3(&self) -> Output {
         assert!(matches!(self.status, Status::R2));
 
         let (my_ek, my_dk) = (
@@ -36,6 +60,8 @@ impl Sign {
         // 2. my_ecdsa_nonce_summand * my_secret_key_summand
         let mut my_mta_blind_summands_lhs = FillVec::with_len(self.participant_indices.len());
         let mut my_mta_keyshare_summands_lhs = FillVec::with_len(self.participant_indices.len());
+        let mut culprits = Vec::new();
+
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
             if *participant_index == self.my_secret_key_share.my_index {
                 continue;
@@ -56,10 +82,14 @@ impl Sign {
                     &in_p2p.mta_proof,
                 )
                 .unwrap_or_else(|e| {
-                    panic!(
-                        "party {} says: mta respondent proof failed to verify for party {} because [{}]",
+                    warn!(
+                        "party {} says: mta proof failed to verify for party {} because [{}]",
                         self.my_secret_key_share.my_index, participant_index, e
-                    )
+                    );
+                    culprits.push(Culprit {
+                        participant_index: i,
+                        crime: Crime::Mta,
+                    });
                 });
             let other_public_key_summand = self.my_secret_key_share.all_ecdsa_public_key_shares
                 [*participant_index]
@@ -68,22 +98,29 @@ impl Sign {
                     *participant_index,
                     &self.participant_indices,
                 );
-            self.my_secret_key_share.my_zkp.verify_mta_proof_wc(
-                &mta::StatementWc {
-                    stmt: mta::Statement {
-                        ciphertext1: &r1state.my_encrypted_ecdsa_nonce_summand,
-                        ciphertext2: &in_p2p.mta_response_keyshare.c,
-                        ek: my_ek,
+            self.my_secret_key_share
+                .my_zkp
+                .verify_mta_proof_wc(
+                    &mta::StatementWc {
+                        stmt: mta::Statement {
+                            ciphertext1: &r1state.my_encrypted_ecdsa_nonce_summand,
+                            ciphertext2: &in_p2p.mta_response_keyshare.c,
+                            ek: my_ek,
+                        },
+                        x_g: &other_public_key_summand,
                     },
-                    x_g: &other_public_key_summand,
-                },
-                &in_p2p.mta_proof_wc,
-            ).unwrap_or_else(|e| {
-                panic!(
-                    "party {} says: mta respondent proof wc failed to verify for party {} because [{}]",
-                    self.my_secret_key_share.my_index, participant_index, e
+                    &in_p2p.mta_proof_wc,
                 )
-            });
+                .unwrap_or_else(|e| {
+                    warn!(
+                        "party {} says: mta_wc proof failed to verify for party {} because [{}]",
+                        self.my_secret_key_share.my_index, participant_index, e
+                    );
+                    culprits.push(Culprit {
+                        participant_index: i,
+                        crime: Crime::MtaWc,
+                    });
+                });
 
             // decrypt my portion of the additive share
             let (my_mta_blind_summand_lhs, _) = in_p2p
@@ -108,6 +145,12 @@ impl Sign {
             my_mta_keyshare_summands_lhs
                 .insert(i, my_mta_keyshare_summand_lhs)
                 .unwrap();
+        }
+
+        if !culprits.is_empty() {
+            return Output::Fail {
+                out_bcast: FailBcast { culprits },
+            };
         }
 
         // sum my additive shares to get (my_nonce_x_blind_summand, my_nonce_x_keyshare_summand)
@@ -159,18 +202,18 @@ impl Sign {
             },
         );
 
-        (
-            State {
+        Output::Success {
+            state: State {
                 my_nonce_x_blind_summand,
                 my_nonce_x_keyshare_summand,
                 my_nonce_x_keyshare_summand_commit: *commit,
                 my_nonce_x_keyshare_summand_commit_randomness: *randomness,
             },
-            Bcast {
+            out_bcast: Bcast {
                 nonce_x_blind_summand: my_nonce_x_blind_summand,
                 nonce_x_keyshare_summand_commit: *commit,
                 nonce_x_keyshare_summand_proof: proof,
             },
-        )
+        }
     }
 }

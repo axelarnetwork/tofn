@@ -195,6 +195,7 @@ impl Zkp {
     }
 }
 
+// TODO #[cfg(feature = "malicious")]
 pub fn corrupt_proof(proof: &Proof) -> Proof {
     let proof = proof.clone();
     Proof {

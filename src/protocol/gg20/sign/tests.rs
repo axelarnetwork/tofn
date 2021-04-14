@@ -51,6 +51,7 @@ fn basic_correctness_inner(
         all_r1_bcasts.insert(i, bcast).unwrap();
         all_r1_p2ps.push(p2ps);
     }
+    assert_eq!(all_r1_p2ps.len(), participants.len());
 
     // deliver round 1 msgs
     for participant in participants.iter_mut() {
@@ -85,6 +86,7 @@ fn basic_correctness_inner(
             }
         }
     }
+    assert_eq!(all_r2_p2ps.len(), participants.len());
 
     // deliver round 2 msgs
     for participant in participants.iter_mut() {
@@ -94,10 +96,19 @@ fn basic_correctness_inner(
     // execute round 3 all participants and store their outputs
     let mut all_r3_bcasts = FillVec::with_len(participants.len());
     for (i, participant) in participants.iter_mut().enumerate() {
-        let (state, bcast) = participant.r3();
-        participant.r3state = Some(state);
-        participant.status = Status::R3;
-        all_r3_bcasts.insert(i, bcast).unwrap();
+        match participant.r3() {
+            r3::Output::Success { state, out_bcast } => {
+                participant.r3state = Some(state);
+                participant.status = Status::R3;
+                all_r3_bcasts.insert(i, out_bcast).unwrap();
+            }
+            r3::Output::Fail { out_bcast } => {
+                panic!(
+                    "r3 party {} expect success got failure with culprits: {:?}",
+                    participant.my_secret_key_share.my_index, out_bcast
+                );
+            }
+        }
     }
 
     // deliver round 3 msgs
