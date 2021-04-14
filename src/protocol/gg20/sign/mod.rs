@@ -133,6 +133,7 @@ pub struct Sign {
     in_r2bcasts_fail: FillVec<r2::FailBcast>,
     in_r3bcasts_fail: FillVec<r3::FailBcast>,
     in_r4bcasts_fail: FillVec<r4::FailBcast>,
+    in_r5bcasts_fail: FillVec<r5::FailBcast>,
 
     // TODO currently I do not store my own deserialized output messages
     // instead, my output messages are stored only in serialized form so they can be quickly returned in `get_bcast_out` and `get_p2p_out`
@@ -195,9 +196,10 @@ impl Sign {
             in_all_r5p2ps: vec![FillVec::with_len(participant_count); participant_count],
             in_r6bcasts: FillVec::with_len(participant_count),
             in_r7bcasts: FillVec::with_len(participant_count),
-            in_r2bcasts_fail: FillVec::with_len(participant_count), // TODO experiment: my own bcast is in here, too
-            in_r3bcasts_fail: FillVec::with_len(participant_count), // TODO experiment: my own bcast is in here, too
-            in_r4bcasts_fail: FillVec::with_len(participant_count), // TODO experiment: my own bcast is in here, too
+            in_r2bcasts_fail: FillVec::with_len(participant_count),
+            in_r3bcasts_fail: FillVec::with_len(participant_count),
+            in_r4bcasts_fail: FillVec::with_len(participant_count),
+            in_r5bcasts_fail: FillVec::with_len(participant_count),
             out_r1bcast: None,
             out_r1p2ps: None,
             out_r2p2ps: None,
