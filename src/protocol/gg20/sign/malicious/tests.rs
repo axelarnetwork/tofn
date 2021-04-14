@@ -7,7 +7,7 @@ use crate::{
         tests::execute_protocol_vec,
         CrimeType, Criminal, Protocol,
     },
-    zkp::range::tests::corrupt_proof,
+    zkp::range,
 };
 
 #[test]
@@ -146,7 +146,7 @@ fn one_bad_proof_inner(key_shares: &[SecretKeyShare], t: &OneCrimeTestCase, msg_
         .as_mut()
         .unwrap()
         .range_proof;
-    *proof = corrupt_proof(proof);
+    *proof = range::corrupt_proof(proof);
 
     // deliver round 1 msgs
     for participant in participants.iter_mut() {

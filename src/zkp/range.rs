@@ -204,10 +204,19 @@ pub fn corrupt_proof(proof: &Proof) -> Proof {
     }
 }
 
+// TODO #[cfg(feature = "malicious")]
+pub fn corrupt_proof_wc(proof_wc: &ProofWc) -> ProofWc {
+    let proof_wc = proof_wc.clone();
+    ProofWc {
+        u1: proof_wc.u1 + GE::generator(),
+        ..proof_wc
+    }
+}
+
 #[cfg(test)]
 pub mod tests {
     use super::{
-        Zkp, {Proof, ProofWc, Statement, StatementWc, Witness},
+        Zkp, {corrupt_proof, corrupt_proof_wc, Statement, StatementWc, Witness},
     };
     use curv::{
         elliptic::curves::traits::{ECPoint, ECScalar},
@@ -264,6 +273,8 @@ pub mod tests {
             .unwrap_err();
 
         // test: bad witness
+        // curv library sucks so bad that I cannot possibly write a corrupt_witness function
+        // curv library does not allow in-place arithmetic
         let one: FE = ECScalar::from(&BigInt::from(1));
         let bad_wit = &Witness {
             msg: &(*wit.msg + one),
@@ -271,30 +282,8 @@ pub mod tests {
         };
         let bad_proof = zkp.range_proof(stmt, bad_wit);
         zkp.verify_range_proof(&stmt, &bad_proof).unwrap_err();
-
-        // test: bad witness wc (with check)
         let bad_wit_proof_wc = zkp.range_proof_wc(stmt_wc, bad_wit);
         zkp.verify_range_proof_wc(stmt_wc, &bad_wit_proof_wc)
             .unwrap_err();
     }
-
-    pub fn corrupt_proof(proof: &Proof) -> Proof {
-        let proof = proof.clone();
-        Proof {
-            u: proof.u + BigInt::from(1),
-            ..proof
-        }
-    }
-    pub fn corrupt_proof_wc(proof_wc: &ProofWc) -> ProofWc {
-        let proof_wc = proof_wc.clone();
-        ProofWc {
-            proof: Proof {
-                w: proof_wc.proof.w + BigInt::from(1),
-                ..proof_wc.proof
-            },
-            ..proof_wc
-        }
-    }
-    // curv library sucks so bad that I cannot possibly write a corrupt_witness function
-    // curv library does not allow in-place arithmetic, which I need to act on
 }
