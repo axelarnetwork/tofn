@@ -108,7 +108,7 @@ impl Protocol for Sign {
                     self.r5state = Some(state);
                     self.status = R5;
                 }
-                r5::Output::Fail { out_bcast } => {
+                r5::Output::Fail { out_bcast: _ } => {
                     todo!()
                 }
             },
@@ -211,9 +211,16 @@ impl Protocol for Sign {
                 self.in_r3bcasts_fail
                     .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
             }
-            MsgType::R4Bcast => self
-                .in_r4bcasts
-                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
+            MsgType::R4Bcast => {
+                if !self.in_r4bcasts.is_none(msg_meta.from) {
+                    warn!(
+                        "participant {} overwrite existing R4Bcast msg from {}",
+                        self.my_participant_index, msg_meta.from
+                    );
+                }
+                self.in_r4bcasts
+                    .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
+            }
             MsgType::R4FailBcast => {
                 if !self.in_r4bcasts_fail.is_none(msg_meta.from) {
                     warn!(
@@ -224,17 +231,46 @@ impl Protocol for Sign {
                 self.in_r4bcasts_fail
                     .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
             }
-            MsgType::R5Bcast => self
-                .in_r5bcasts
-                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
-            MsgType::R5P2p { to } => self.in_all_r5p2ps[msg_meta.from]
-                .insert(to, bincode::deserialize(&msg_meta.payload)?)?,
-            MsgType::R6Bcast => self
-                .in_r6bcasts
-                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
-            MsgType::R7Bcast => self
-                .in_r7bcasts
-                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
+            MsgType::R5Bcast => {
+                if !self.in_r5bcasts.is_none(msg_meta.from) {
+                    warn!(
+                        "participant {} overwrite existing R5Bcast msg from {}",
+                        self.my_participant_index, msg_meta.from
+                    );
+                }
+                self.in_r5bcasts
+                    .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
+            }
+            MsgType::R5P2p { to } => {
+                let r5_p2ps = &mut self.in_all_r5p2ps[msg_meta.from];
+                if !r5_p2ps.is_none(to) {
+                    warn!(
+                        "participant {} overwrite existing R5P2p msg from {} to {}",
+                        self.my_participant_index, msg_meta.from, to
+                    );
+                }
+                r5_p2ps.overwrite(to, bincode::deserialize(&msg_meta.payload)?);
+            }
+            MsgType::R6Bcast => {
+                if !self.in_r6bcasts.is_none(msg_meta.from) {
+                    warn!(
+                        "participant {} overwrite existing R6Bcast msg from {}",
+                        self.my_participant_index, msg_meta.from
+                    );
+                }
+                self.in_r6bcasts
+                    .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
+            }
+            MsgType::R7Bcast => {
+                if !self.in_r7bcasts.is_none(msg_meta.from) {
+                    warn!(
+                        "participant {} overwrite existing R7Bcast msg from {}",
+                        self.my_participant_index, msg_meta.from
+                    );
+                }
+                self.in_r7bcasts
+                    .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
+            }
         };
         Ok(())
     }
