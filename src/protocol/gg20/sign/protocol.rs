@@ -13,6 +13,7 @@ enum MsgType {
     R3Bcast,
     R3FailBcast,
     R4Bcast,
+    R4FailBcast,
     R5Bcast,
     R5P2p { to: usize },
     R6Bcast,
@@ -79,7 +80,7 @@ impl Protocol for Sign {
                     self.status = R4;
                 }
                 r4::Output::Fail { out_bcast } => {
-                    todo!()
+                    self.update_state_r4fail(out_bcast)?;
                 }
             },
             R3Fail => {
@@ -200,6 +201,16 @@ impl Protocol for Sign {
             MsgType::R4Bcast => self
                 .in_r4bcasts
                 .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
+            MsgType::R4FailBcast => {
+                if !self.in_r4bcasts_fail.is_none(msg_meta.from) {
+                    warn!(
+                        "participant {} overwrite existing R4FailBcast msg from {}",
+                        self.my_participant_index, msg_meta.from
+                    );
+                }
+                self.in_r4bcasts_fail
+                    .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
+            }
             MsgType::R5Bcast => self
                 .in_r5bcasts
                 .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
@@ -433,5 +444,23 @@ impl Sign {
 
         self.status = R3Fail;
         Ok(())
+    }
+
+    // TODO refactor copied code from update_state_r2fail
+    pub(super) fn update_state_r4fail(&mut self, bcast: r4::FailBcast) -> ProtocolResult {
+        // serialize outgoing bcast
+        self.out_r4bcast_fail_serialized = Some(bincode::serialize(&MsgMeta {
+            msg_type: MsgType::R4FailBcast,
+            from: self.my_participant_index,
+            payload: bincode::serialize(&bcast)?,
+        })?);
+
+        // self delivery
+        self.in_r4bcasts_fail
+            .insert(self.my_participant_index, bcast)?;
+
+        // self.status = R4Fail;
+        // Ok(())
+        todo!()
     }
 }
