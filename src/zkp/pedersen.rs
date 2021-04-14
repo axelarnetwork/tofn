@@ -132,15 +132,36 @@ fn verify_inner(
     Ok(())
 }
 
+// TODO #[cfg(feature = "malicious")]
+pub fn corrupt_proof(proof: &Proof) -> Proof {
+    let proof = proof.clone();
+    let one: FE = ECScalar::from(&BigInt::from(1));
+    Proof {
+        u: proof.u + one,
+        ..proof
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        commit, prove, prove_wc, verify, verify_wc, Proof, ProofWc, Statement, StatementWc, Witness,
+        commit, corrupt_proof, prove, prove_wc, verify, verify_wc, ProofWc, Statement, StatementWc,
+        Witness,
     };
     use curv::{
         elliptic::curves::traits::{ECPoint, ECScalar},
         BigInt, FE, GE,
     };
+
+    // TODO move this outside of tests module when needed; it's here now to pacify clippy
+    // TODO #[cfg(feature = "malicious")]
+    pub fn corrupt_proof_wc(proof: &ProofWc) -> ProofWc {
+        let proof = proof.clone();
+        ProofWc {
+            beta: proof.beta + GE::generator(),
+            ..proof
+        }
+    }
 
     #[test]
     fn basic_correctness() {
@@ -166,24 +187,15 @@ mod tests {
         verify_wc(stmt_wc, &proof_wc).unwrap();
 
         // test: bad proof
-        let one: FE = ECScalar::from(&BigInt::from(1));
-        let bad_proof = Proof {
-            u: proof.u + one,
-            ..proof
-        };
+        let bad_proof = corrupt_proof(&proof);
         verify(&stmt, &bad_proof).unwrap_err();
 
         // test: bad proof wc (with check)
-        let bad_proof_wc = ProofWc {
-            proof: Proof {
-                t: proof_wc.proof.t + one,
-                ..proof_wc.proof
-            },
-            ..proof_wc
-        };
+        let bad_proof_wc = corrupt_proof_wc(&proof_wc);
         verify_wc(stmt_wc, &bad_proof_wc).unwrap_err();
 
         // test: bad witness
+        let one: FE = ECScalar::from(&BigInt::from(1));
         let bad_wit = &Witness {
             msg: &(*wit.msg + one),
             ..*wit

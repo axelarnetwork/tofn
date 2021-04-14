@@ -257,7 +257,7 @@ pub fn corrupt_proof_wc(proof: &ProofWc) -> ProofWc {
 
 #[cfg(test)]
 mod tests {
-    use super::{Proof, ProofWc, Statement, StatementWc, Witness, Zkp};
+    use super::{corrupt_proof, corrupt_proof_wc, Statement, StatementWc, Witness, Zkp};
     use curv::{
         arithmetic::traits::Samplable,
         elliptic::curves::traits::{ECPoint, ECScalar},
@@ -313,20 +313,11 @@ mod tests {
         zkp.verify_mta_proof_wc(stmt_wc, &proof_wc).unwrap();
 
         // test: bad proof
-        let bad_proof = Proof {
-            v: proof.v + BigInt::from(1),
-            ..proof
-        };
+        let bad_proof = corrupt_proof(&proof);
         zkp.verify_mta_proof(stmt, &bad_proof).unwrap_err();
 
         // test: bad proof wc (with check)
-        let bad_proof_wc = ProofWc {
-            proof: Proof {
-                v: proof_wc.proof.v + BigInt::from(1),
-                ..proof_wc.proof
-            },
-            ..proof_wc
-        };
+        let bad_proof_wc = corrupt_proof_wc(&proof_wc);
         zkp.verify_mta_proof_wc(stmt_wc, &bad_proof_wc).unwrap_err();
 
         // test: bad witness

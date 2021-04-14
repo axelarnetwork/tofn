@@ -7,7 +7,7 @@ use crate::{
         tests::execute_protocol_vec,
         CrimeType, Criminal, Protocol,
     },
-    zkp::range::tests::corrupt_proof,
+    zkp::range,
 };
 
 #[test]
@@ -55,6 +55,14 @@ fn r2_false_accusation_mta_wc() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
         malicious_behaviour_protocol(t, true, R2FalseAccusationMtaWc { victim: t.victim });
         malicious_behaviour_protocol(t, false, R2FalseAccusationMtaWc { victim: t.victim });
+    }
+}
+
+#[test]
+fn r3_bad_proof() {
+    for t in ONE_CRIMINAL_TEST_CASES.iter() {
+        malicious_behaviour_protocol(t, true, R3BadProof);
+        malicious_behaviour_protocol(t, false, R3BadProof);
     }
 }
 
@@ -146,7 +154,7 @@ fn one_bad_proof_inner(key_shares: &[SecretKeyShare], t: &OneCrimeTestCase, msg_
         .as_mut()
         .unwrap()
         .range_proof;
-    *proof = corrupt_proof(proof);
+    *proof = range::corrupt_proof(proof);
 
     // deliver round 1 msgs
     for participant in participants.iter_mut() {
