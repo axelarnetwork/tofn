@@ -87,6 +87,7 @@ mod r3fail;
 mod r4;
 mod r4_fail;
 mod r5;
+mod r5_fail;
 mod r6;
 mod r7;
 mod r8;

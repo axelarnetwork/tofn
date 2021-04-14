@@ -58,6 +58,14 @@ fn r2_false_accusation_mta_wc() {
     }
 }
 
+#[test]
+fn r3_bad_proof() {
+    for t in ONE_CRIMINAL_TEST_CASES.iter() {
+        malicious_behaviour_protocol(t, true, R3BadProof);
+        malicious_behaviour_protocol(t, false, R3BadProof);
+    }
+}
+
 // generic malicious behaviour test
 fn malicious_behaviour_protocol(
     t: &OneCrimeTestCase,

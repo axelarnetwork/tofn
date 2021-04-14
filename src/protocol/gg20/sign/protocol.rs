@@ -105,9 +105,8 @@ impl Protocol for Sign {
                 self.status = R5;
             }
             R4Fail => {
-                todo!()
-                // self.final_output = Some(Output::Err(self.r5_fail()));
-                // self.status = Fail;
+                self.final_output = Some(Output::Err(self.r5_fail()));
+                self.status = Fail;
             }
             R5 => {
                 let (state, bcast) = self.r6();
