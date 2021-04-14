@@ -110,6 +110,11 @@ impl Protocol for Sign {
                 self.r5state = Some(state);
                 self.status = R5;
             }
+            R4Fail => {
+                todo!()
+                // self.final_output = Some(Output::Err(self.r5_fail()));
+                // self.status = Fail;
+            }
             R5 => {
                 let (state, bcast) = self.r6();
                 self.out_r6bcast = Some(bincode::serialize(&MsgMeta {
@@ -235,6 +240,7 @@ impl Protocol for Sign {
             R3 => &self.out_r3bcast,
             R3Fail => &self.out_r3bcast_fail_serialized,
             R4 => &self.out_r4bcast,
+            R4Fail => &self.out_r4bcast_fail_serialized,
             R5 => &self.out_r5bcast,
             R6 => &self.out_r6bcast,
             R7 => &self.out_r7bcast,
@@ -252,6 +258,7 @@ impl Protocol for Sign {
             R3 => &None,
             R3Fail => &None,
             R4 => &None,
+            R4Fail => &None,
             R5 => &self.out_r5p2ps,
             R6 => &None,
             R7 => &None,
@@ -306,7 +313,17 @@ impl Protocol for Sign {
                 }
                 false
             }
-            R4 => !self.in_r4bcasts.is_full_except(me),
+            R4 | R4Fail => {
+                for i in 0..self.participant_indices.len() {
+                    if i == me {
+                        continue;
+                    }
+                    if self.in_r4bcasts.is_none(i) && self.in_r4bcasts_fail.is_none(i) {
+                        return true;
+                    }
+                }
+                false
+            }
             R5 => {
                 // TODO fix ugly code to deal with wasted entries for messages to myself
                 if !self.in_r5bcasts.is_full_except(me) {
@@ -459,8 +476,7 @@ impl Sign {
         self.in_r4bcasts_fail
             .insert(self.my_participant_index, bcast)?;
 
-        // self.status = R4Fail;
-        // Ok(())
-        todo!()
+        self.status = R4Fail;
+        Ok(())
     }
 }

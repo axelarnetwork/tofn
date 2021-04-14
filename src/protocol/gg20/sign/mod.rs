@@ -57,6 +57,7 @@ enum Status {
     R3,
     R3Fail,
     R4,
+    R4Fail,
     R5,
     R6,
     R7,
