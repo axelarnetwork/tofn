@@ -81,29 +81,37 @@ impl Protocol for Sign {
                 self.final_output = Some(Output::Err(self.r4_fail()));
                 self.status = Fail;
             }
-            R4 => {
-                let (state, bcast, p2ps) = self.r5();
-                self.out_r5bcast = Some(bincode::serialize(&MsgMeta {
-                    msg_type: MsgType::R5Bcast,
-                    from: self.my_participant_index,
-                    payload: bincode::serialize(&bcast)?,
-                })?);
-                let mut out_r5p2ps = Vec::with_capacity(self.participant_indices.len());
-                for (to, opt) in p2ps.into_vec().into_iter().enumerate() {
-                    if let Some(p2p) = opt {
-                        out_r5p2ps.push(Some(bincode::serialize(&MsgMeta {
-                            msg_type: MsgType::R5P2p { to },
-                            from: self.my_participant_index,
-                            payload: bincode::serialize(&p2p)?,
-                        })?));
-                    } else {
-                        out_r5p2ps.push(None);
+            R4 => match self.r5() {
+                r5::Output::Success {
+                    state,
+                    out_bcast,
+                    out_p2ps,
+                } => {
+                    self.out_r5bcast = Some(bincode::serialize(&MsgMeta {
+                        msg_type: MsgType::R5Bcast,
+                        from: self.my_participant_index,
+                        payload: bincode::serialize(&out_bcast)?,
+                    })?);
+                    let mut out_r5p2ps = Vec::with_capacity(self.participant_indices.len());
+                    for (to, opt) in out_p2ps.into_vec().into_iter().enumerate() {
+                        if let Some(p2p) = opt {
+                            out_r5p2ps.push(Some(bincode::serialize(&MsgMeta {
+                                msg_type: MsgType::R5P2p { to },
+                                from: self.my_participant_index,
+                                payload: bincode::serialize(&p2p)?,
+                            })?));
+                        } else {
+                            out_r5p2ps.push(None);
+                        }
                     }
+                    self.out_r5p2ps = Some(out_r5p2ps);
+                    self.r5state = Some(state);
+                    self.status = R5;
                 }
-                self.out_r5p2ps = Some(out_r5p2ps);
-                self.r5state = Some(state);
-                self.status = R5;
-            }
+                r5::Output::Fail { out_bcast } => {
+                    todo!()
+                }
+            },
             R4Fail => {
                 self.final_output = Some(Output::Err(self.r5_fail()));
                 self.status = Fail;
