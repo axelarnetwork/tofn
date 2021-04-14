@@ -53,13 +53,7 @@ impl Protocol for Sign {
 
             R2 => match self.r3() {
                 r3::Output::Success { state, out_bcast } => {
-                    self.out_r3bcast = Some(bincode::serialize(&MsgMeta {
-                        msg_type: MsgType::R3Bcast,
-                        from: self.my_participant_index,
-                        payload: bincode::serialize(&out_bcast)?,
-                    })?);
-                    self.r3state = Some(state);
-                    self.status = R3;
+                    self.update_state_r3(state, out_bcast)?;
                 }
                 r3::Output::Fail { out_bcast } => {
                     self.update_state_r3fail(out_bcast)?;
@@ -190,9 +184,16 @@ impl Protocol for Sign {
                 self.in_r2bcasts_fail
                     .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
             }
-            MsgType::R3Bcast => self
-                .in_r3bcasts
-                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
+            MsgType::R3Bcast => {
+                if !self.in_r3bcasts.is_none(msg_meta.from) {
+                    warn!(
+                        "participant {} overwrite existing R3Bcast msg from {}",
+                        self.my_participant_index, msg_meta.from
+                    );
+                }
+                self.in_r3bcasts
+                    .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
+            }
             MsgType::R3FailBcast => {
                 if !self.in_r3bcasts_fail.is_none(msg_meta.from) {
                     warn!(
@@ -365,6 +366,11 @@ impl Sign {
                     self.status = R3Fail;
                 }
             }
+            R4 => {
+                if self.in_r4bcasts_fail.some_count() > 0 {
+                    self.status = R4Fail;
+                }
+            }
             _ => (),
         }
     }
@@ -431,18 +437,31 @@ impl Sign {
     }
 
     pub(super) fn update_state_r2fail(&mut self, bcast: r2::FailBcast) -> ProtocolResult {
-        // serialize outgoing bcast
         self.out_r2bcast_fail_serialized = Some(bincode::serialize(&MsgMeta {
             msg_type: MsgType::R2FailBcast,
             from: self.my_participant_index,
             payload: bincode::serialize(&bcast)?,
         })?);
-
-        // self delivery
         self.in_r2bcasts_fail
-            .insert(self.my_participant_index, bcast)?;
-
+            .insert(self.my_participant_index, bcast)?; // self delivery
         self.status = R2Fail;
+        Ok(())
+    }
+
+    pub(super) fn update_state_r3(
+        &mut self,
+        state: r3::State,
+        out_bcast: r3::Bcast,
+    ) -> ProtocolResult {
+        self.out_r3bcast = Some(bincode::serialize(&MsgMeta {
+            msg_type: MsgType::R3Bcast,
+            from: self.my_participant_index,
+            payload: bincode::serialize(&out_bcast)?,
+        })?);
+        self.in_r3bcasts
+            .insert(self.my_participant_index, out_bcast)?; // self delivery
+        self.r3state = Some(state);
+        self.status = R3;
         Ok(())
     }
 
@@ -454,11 +473,8 @@ impl Sign {
             from: self.my_participant_index,
             payload: bincode::serialize(&bcast)?,
         })?);
-
-        // self delivery
         self.in_r3bcasts_fail
-            .insert(self.my_participant_index, bcast)?;
-
+            .insert(self.my_participant_index, bcast)?; // self delivery
         self.status = R3Fail;
         Ok(())
     }

@@ -1,6 +1,6 @@
 use super::{r2, r3, ParamsError, Sign, SignOutput, Status};
 use crate::protocol::{gg20::keygen::SecretKeyShare, MsgBytes, Protocol, ProtocolResult};
-use crate::zkp::{mta, range};
+use crate::zkp::{mta, pedersen, range};
 use tracing::{info, warn};
 
 pub enum MaliciousType {
@@ -10,6 +10,7 @@ pub enum MaliciousType {
     R2BadMtaWc { victim: usize },
     R2FalseAccusationMta { victim: usize },
     R2FalseAccusationMtaWc { victim: usize },
+    R3BadProof,
 }
 use MaliciousType::*;
 
@@ -158,6 +159,33 @@ impl Protocol for BadSign {
                         crime: r3::Crime::MtaWc,
                     }],
                 })
+            }
+            R3BadProof => {
+                if !matches!(self.sign.status, Status::R2) {
+                    return self.sign.next_round();
+                };
+                match self.sign.r3() {
+                    r3::Output::Success {
+                        state,
+                        mut out_bcast,
+                    } => {
+                        info!(
+                            "malicious participant {} r3 corrupt pedersen proof",
+                            self.sign.my_participant_index
+                        );
+                        let proof = &mut out_bcast.nonce_x_keyshare_summand_proof;
+                        *proof = pedersen::corrupt_proof(proof);
+
+                        self.sign.update_state_r3(state, out_bcast)
+                    }
+                    r3::Output::Fail { out_bcast } => {
+                        warn!(
+                            "malicious participant {} instructed to corrupt r3 pedersen proof but r3 has already failed so reverting to honesty",
+                            self.sign.my_participant_index
+                        );
+                        self.sign.update_state_r3fail(out_bcast)
+                    }
+                }
             }
         }
     }
