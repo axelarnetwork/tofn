@@ -68,16 +68,20 @@ impl Protocol for Sign {
                 self.final_output = Some(Output::Err(self.r3fail()));
                 self.status = Fail;
             }
-            R3 => {
-                let (state, bcast) = self.r4();
-                self.out_r4bcast = Some(bincode::serialize(&MsgMeta {
-                    msg_type: MsgType::R4Bcast,
-                    from: self.my_participant_index,
-                    payload: bincode::serialize(&bcast)?,
-                })?);
-                self.r4state = Some(state);
-                self.status = R4;
-            }
+            R3 => match self.r4() {
+                r4::Output::Success { state, out_bcast } => {
+                    self.out_r4bcast = Some(bincode::serialize(&MsgMeta {
+                        msg_type: MsgType::R4Bcast,
+                        from: self.my_participant_index,
+                        payload: bincode::serialize(&out_bcast)?,
+                    })?);
+                    self.r4state = Some(state);
+                    self.status = R4;
+                }
+                r4::Output::Fail { out_bcast } => {
+                    todo!()
+                }
+            },
             R3Fail => {
                 self.final_output = Some(Output::Err(self.r4_fail()));
                 self.status = Fail;
