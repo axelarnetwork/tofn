@@ -82,6 +82,14 @@ fn r4_bad_reveal() {
     }
 }
 
+#[test]
+fn r5_bad_proof() {
+    for t in ONE_CRIMINAL_TEST_CASES.iter() {
+        malicious_behaviour_protocol(t, true, R5BadProof { victim: t.victim });
+        malicious_behaviour_protocol(t, false, R5BadProof { victim: t.victim });
+    }
+}
+
 // generic malicious behaviour test
 fn malicious_behaviour_protocol(
     t: &OneCrimeTestCase,

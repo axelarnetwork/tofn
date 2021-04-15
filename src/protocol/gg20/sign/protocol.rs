@@ -428,6 +428,11 @@ impl Sign {
                     self.status = R5Fail;
                 }
             }
+            R6 => {
+                if self.in_r6bcasts_fail.some_count() > 0 {
+                    self.status = R6Fail;
+                }
+            }
             _ => (),
         }
     }
