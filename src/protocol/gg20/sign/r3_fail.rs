@@ -7,7 +7,7 @@ use crate::{
 use tracing::info;
 
 impl Sign {
-    pub(super) fn r3fail(&self) -> Vec<Criminal> {
+    pub(super) fn r3_fail(&self) -> Vec<Criminal> {
         assert!(matches!(self.status, Status::R2Fail));
         assert!(self.in_r2bcasts_fail.some_count() > 0);
 

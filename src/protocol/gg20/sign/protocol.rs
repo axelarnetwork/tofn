@@ -61,7 +61,7 @@ impl Protocol for Sign {
                 }
             },
             R2Fail => {
-                self.final_output = Some(Output::Err(self.r3fail()));
+                self.final_output = Some(Output::Err(self.r3_fail()));
                 self.status = Fail;
             }
             R3 => match self.r4() {

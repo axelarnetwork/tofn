@@ -218,7 +218,7 @@ fn one_bad_proof_inner(key_shares: &[SecretKeyShare], t: &OneCrimeTestCase, msg_
     // execute round 2 sad path all participants and store their outputs
     let mut all_culprit_lists = Vec::with_capacity(participants.len());
     for participant in participants.iter_mut() {
-        let culprits = participant.r3fail();
+        let culprits = participant.r3_fail();
         participant.status = Status::Fail;
         all_culprit_lists.push(culprits);
     }
@@ -315,7 +315,7 @@ fn one_false_accusation_inner(
     // execute round 2 sad path all participants and store their outputs
     let mut all_culprit_lists = Vec::with_capacity(participants.len());
     for participant in participants.iter_mut() {
-        let culprits = participant.r3fail();
+        let culprits = participant.r3_fail();
         participant.status = Status::Fail;
         all_culprit_lists.push(culprits);
     }
