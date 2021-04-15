@@ -283,6 +283,7 @@ fn one_false_accusation_inner(
                             r2::FailBcast {
                                 culprits: vec![r2::Culprit {
                                     participant_index: t.victim,
+                                    crime: r2::Crime::RangeProof,
                                 }],
                             },
                         )

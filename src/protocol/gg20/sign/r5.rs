@@ -31,7 +31,12 @@ pub struct State {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Culprit {
     pub participant_index: usize,
-    // the crime is implicit: there is only one possible crime: commit verification failure
+    pub crime: Crime,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum Crime {
+    CommitReveal,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -78,6 +83,7 @@ impl Sign {
                 );
                 culprits.push(Culprit {
                     participant_index: i,
+                    crime: Crime::CommitReveal,
                 });
             }
             public_blind = public_blind + in_r4bcast.public_blind_summand;

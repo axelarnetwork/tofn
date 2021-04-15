@@ -23,8 +23,13 @@ pub struct State {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Culprit {
-    // the crime is implicit: there is only one possible crime: zkp verification failure
-    pub participant_index: usize, // list of malicious participant indices
+    pub participant_index: usize,
+    pub crime: Crime,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum Crime {
+    RangeProof,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -95,6 +100,7 @@ impl Sign {
                     );
                     culprits.push(Culprit {
                         participant_index: i,
+                        crime: Crime::RangeProof,
                     });
                 });
 

@@ -72,6 +72,7 @@ impl Protocol for BadSign {
                 self.sign.update_state_r2fail(r2::FailBcast {
                     culprits: vec![r2::Culprit {
                         participant_index: victim,
+                        crime: r2::Crime::RangeProof,
                     }],
                 })
             }
@@ -204,6 +205,7 @@ impl Protocol for BadSign {
                 self.sign.update_state_r4fail(r4::FailBcast {
                     culprits: vec![r4::Culprit {
                         participant_index: victim,
+                        crime: r4::Crime::PedersenProof,
                     }],
                 })
             }
@@ -246,6 +248,7 @@ impl Protocol for BadSign {
                 self.sign.update_state_r5fail(r5::FailBcast {
                     culprits: vec![r5::Culprit {
                         participant_index: victim,
+                        crime: r5::Crime::CommitReveal,
                     }],
                 })
             }
