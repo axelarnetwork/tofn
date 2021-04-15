@@ -96,6 +96,7 @@ mod r6_fail;
 mod r7;
 mod r7_fail;
 mod r8;
+mod r8_fail;
 
 pub struct Sign {
     status: Status,
@@ -140,7 +141,7 @@ pub struct Sign {
     in_r4bcasts_fail: FillVec<r4::FailBcast>,
     in_r5bcasts_fail: FillVec<r5::FailBcast>,
     in_r6bcasts_fail: FillVec<r6::FailBcast>,
-    in_r7bcasts_fail: FillVec<r6::FailBcast>,
+    in_r7bcasts_fail: FillVec<r7::FailBcast>,
 
     // TODO currently I do not store my own deserialized output messages
     // instead, my output messages are stored only in serialized form so they can be quickly returned in `get_bcast_out` and `get_p2p_out`
