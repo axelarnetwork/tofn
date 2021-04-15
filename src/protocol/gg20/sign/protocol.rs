@@ -122,6 +122,9 @@ impl Protocol for Sign {
                 self.final_output = Some(Output::Ok(self.r8().as_bytes().to_vec()));
                 self.status = Done;
             }
+            R7Fail => {
+                todo!();
+            }
             Done => return Err(From::from("already done")),
             Fail => return Err(From::from("already failed")),
         };
@@ -302,6 +305,7 @@ impl Protocol for Sign {
             R6 => &self.out_r6bcast,
             R6Fail => &self.out_r6bcast_fail_serialized,
             R7 => &self.out_r7bcast,
+            R7Fail => &self.out_r7bcast_fail_serialized,
             Done => &None,
             Fail => &None,
         }
@@ -322,6 +326,7 @@ impl Protocol for Sign {
             R6 => &None,
             R6Fail => &None,
             R7 => &None,
+            R7Fail => &None,
             Done => &None,
             Fail => &None,
         }
@@ -408,7 +413,17 @@ impl Protocol for Sign {
                 }
                 false
             }
-            R7 => !self.in_r7bcasts.is_full_except(me),
+            R7 | R7Fail => {
+                for i in 0..self.participant_indices.len() {
+                    if i == me {
+                        continue;
+                    }
+                    if self.in_r7bcasts.is_none(i) && self.in_r7bcasts_fail.is_none(i) {
+                        return true;
+                    }
+                }
+                false
+            }
             Done => false,
             Fail => false,
         }
@@ -446,6 +461,11 @@ impl Sign {
             R6 => {
                 if self.in_r6bcasts_fail.some_count() > 0 {
                     self.status = R6Fail;
+                }
+            }
+            R7 => {
+                if self.in_r7bcasts_fail.some_count() > 0 {
+                    self.status = R7Fail;
                 }
             }
             _ => (),
