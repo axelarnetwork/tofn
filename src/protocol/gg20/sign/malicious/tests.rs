@@ -67,6 +67,14 @@ fn r3_bad_proof() {
 }
 
 #[test]
+fn r3_false_accusation() {
+    for t in ONE_CRIMINAL_TEST_CASES.iter() {
+        malicious_behaviour_protocol(t, true, R3FalseAccusation { victim: t.victim });
+        malicious_behaviour_protocol(t, false, R3FalseAccusation { victim: t.victim });
+    }
+}
+
+#[test]
 fn r4_bad_reveal() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
         malicious_behaviour_protocol(t, true, R4BadReveal);

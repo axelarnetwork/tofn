@@ -1,4 +1,4 @@
-use super::{r2, r3, r4, ParamsError, Sign, SignOutput, Status};
+use super::{r2, r3, r4, r5, ParamsError, Sign, SignOutput, Status};
 use crate::protocol::{gg20::keygen::SecretKeyShare, MsgBytes, Protocol, ProtocolResult};
 use crate::zkp::{mta, pedersen, range};
 use curv::BigInt;
@@ -13,7 +13,9 @@ pub enum MaliciousType {
     R2FalseAccusationMta { victim: usize },
     R2FalseAccusationMtaWc { victim: usize },
     R3BadProof,
+    R3FalseAccusation { victim: usize },
     R4BadReveal,
+    R4FalseAccusation { victim: usize },
 }
 use MaliciousType::*;
 
@@ -190,6 +192,21 @@ impl Protocol for BadSign {
                     }
                 }
             }
+            R3FalseAccusation { victim } => {
+                if !matches!(self.sign.status, Status::R3) {
+                    return self.sign.next_round();
+                };
+                // no need to execute self.s.r4()
+                info!(
+                    "malicious participant {} r3 falsely accuse {}",
+                    self.sign.my_participant_index, victim
+                );
+                self.sign.update_state_r4fail(r4::FailBcast {
+                    culprits: vec![r4::Culprit {
+                        participant_index: victim,
+                    }],
+                })
+            }
             R4BadReveal => {
                 if !matches!(self.sign.status, Status::R3) {
                     return self.sign.next_round();
@@ -216,6 +233,21 @@ impl Protocol for BadSign {
                         self.sign.update_state_r4fail(out_bcast)
                     }
                 }
+            }
+            R4FalseAccusation { victim } => {
+                if !matches!(self.sign.status, Status::R4) {
+                    return self.sign.next_round();
+                };
+                // no need to execute self.s.r5()
+                info!(
+                    "malicious participant {} r4 falsely accuse {}",
+                    self.sign.my_participant_index, victim
+                );
+                self.sign.update_state_r5fail(r5::FailBcast {
+                    culprits: vec![r5::Culprit {
+                        participant_index: victim,
+                    }],
+                })
             }
         }
     }
