@@ -59,6 +59,7 @@ enum Status {
     R4,
     R4Fail,
     R5,
+    R5Fail,
     R6,
     R7,
     Done,
@@ -89,6 +90,7 @@ mod r4_fail;
 mod r5;
 mod r5_fail;
 mod r6;
+mod r6_fail;
 mod r7;
 mod r8;
 
@@ -161,6 +163,7 @@ pub struct Sign {
     out_r2bcast_fail_serialized: Option<MsgBytes>, // TODO _serialized suffix to distinguish from EXPERIMENT described above
     out_r3bcast_fail_serialized: Option<MsgBytes>,
     out_r4bcast_fail_serialized: Option<MsgBytes>,
+    out_r5bcast_fail_serialized: Option<MsgBytes>,
 
     final_output: Option<SignOutput>, // T is serialized asn1 sig
 }
@@ -212,6 +215,7 @@ impl Sign {
             out_r2bcast_fail_serialized: None,
             out_r3bcast_fail_serialized: None,
             out_r4bcast_fail_serialized: None,
+            out_r5bcast_fail_serialized: None,
             final_output: None,
         })
     }

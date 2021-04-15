@@ -84,8 +84,8 @@ impl Protocol for Sign {
                 } => {
                     self.update_state_r5(state, out_bcast, out_p2ps)?;
                 }
-                r5::Output::Fail { out_bcast: _ } => {
-                    todo!()
+                r5::Output::Fail { out_bcast } => {
+                    self.update_state_r5fail(out_bcast)?;
                 }
             },
             R4Fail => {
@@ -95,6 +95,10 @@ impl Protocol for Sign {
             R5 => {
                 let (state, bcast) = self.r6();
                 self.update_state_r6(state, bcast)?;
+            }
+            R5Fail => {
+                self.final_output = Some(Output::Err(self.r6_fail()));
+                self.status = Fail;
             }
             R6 => {
                 let (state, bcast) = self.r7();
@@ -260,6 +264,7 @@ impl Protocol for Sign {
             R4 => &self.out_r4bcast,
             R4Fail => &self.out_r4bcast_fail_serialized,
             R5 => &self.out_r5bcast,
+            R5Fail => &self.out_r5bcast_fail_serialized,
             R6 => &self.out_r6bcast,
             R7 => &self.out_r7bcast,
             Done => &None,
@@ -278,6 +283,7 @@ impl Protocol for Sign {
             R4 => &None,
             R4Fail => &None,
             R5 => &self.out_r5p2ps,
+            R5Fail => &None,
             R6 => &None,
             R7 => &None,
             Done => &None,
@@ -342,16 +348,14 @@ impl Protocol for Sign {
                 }
                 false
             }
-            R5 => {
-                // TODO fix ugly code to deal with wasted entries for messages to myself
-                if !self.in_r5bcasts.is_full_except(me) {
-                    return true;
-                }
-                for (i, in_r5p2ps) in self.in_all_r5p2ps.iter().enumerate() {
+            R5 | R5Fail => {
+                for i in 0..self.participant_indices.len() {
                     if i == me {
                         continue;
                     }
-                    if !in_r5p2ps.is_full_except(i) {
+                    if (self.in_r5bcasts.is_none(i) || !self.in_all_r5p2ps[i].is_full_except(i))
+                        && self.in_r5bcasts_fail.is_none(i)
+                    {
                         return true;
                     }
                 }
@@ -567,6 +571,19 @@ impl Sign {
 
         self.r5state = Some(state);
         self.status = R5;
+        Ok(())
+    }
+
+    // TODO refactor copied code from update_state_r2fail
+    pub(super) fn update_state_r5fail(&mut self, bcast: r5::FailBcast) -> ProtocolResult {
+        self.out_r5bcast_fail_serialized = Some(bincode::serialize(&MsgMeta {
+            msg_type: MsgType::R5FailBcast,
+            from: self.my_participant_index,
+            payload: bincode::serialize(&bcast)?,
+        })?);
+        self.in_r5bcasts_fail
+            .insert(self.my_participant_index, bcast)?; // self delivery
+        self.status = R5Fail;
         Ok(())
     }
 
