@@ -59,6 +59,7 @@ enum Status {
     R4,
     R4Fail,
     R5,
+    R5Fail,
     R6,
     R7,
     Done,
@@ -83,12 +84,13 @@ enum Status {
 mod r1;
 mod r2;
 mod r3;
-mod r3fail;
+mod r3_fail;
 mod r4;
 mod r4_fail;
 mod r5;
 mod r5_fail;
 mod r6;
+mod r6_fail;
 mod r7;
 mod r8;
 
@@ -133,6 +135,7 @@ pub struct Sign {
     in_r2bcasts_fail: FillVec<r2::FailBcast>,
     in_r3bcasts_fail: FillVec<r3::FailBcast>,
     in_r4bcasts_fail: FillVec<r4::FailBcast>,
+    in_r5bcasts_fail: FillVec<r5::FailBcast>,
 
     // TODO currently I do not store my own deserialized output messages
     // instead, my output messages are stored only in serialized form so they can be quickly returned in `get_bcast_out` and `get_p2p_out`
@@ -160,6 +163,7 @@ pub struct Sign {
     out_r2bcast_fail_serialized: Option<MsgBytes>, // TODO _serialized suffix to distinguish from EXPERIMENT described above
     out_r3bcast_fail_serialized: Option<MsgBytes>,
     out_r4bcast_fail_serialized: Option<MsgBytes>,
+    out_r5bcast_fail_serialized: Option<MsgBytes>,
 
     final_output: Option<SignOutput>, // T is serialized asn1 sig
 }
@@ -195,9 +199,10 @@ impl Sign {
             in_all_r5p2ps: vec![FillVec::with_len(participant_count); participant_count],
             in_r6bcasts: FillVec::with_len(participant_count),
             in_r7bcasts: FillVec::with_len(participant_count),
-            in_r2bcasts_fail: FillVec::with_len(participant_count), // TODO experiment: my own bcast is in here, too
-            in_r3bcasts_fail: FillVec::with_len(participant_count), // TODO experiment: my own bcast is in here, too
-            in_r4bcasts_fail: FillVec::with_len(participant_count), // TODO experiment: my own bcast is in here, too
+            in_r2bcasts_fail: FillVec::with_len(participant_count),
+            in_r3bcasts_fail: FillVec::with_len(participant_count),
+            in_r4bcasts_fail: FillVec::with_len(participant_count),
+            in_r5bcasts_fail: FillVec::with_len(participant_count),
             out_r1bcast: None,
             out_r1p2ps: None,
             out_r2p2ps: None,
@@ -210,6 +215,7 @@ impl Sign {
             out_r2bcast_fail_serialized: None,
             out_r3bcast_fail_serialized: None,
             out_r4bcast_fail_serialized: None,
+            out_r5bcast_fail_serialized: None,
             final_output: None,
         })
     }

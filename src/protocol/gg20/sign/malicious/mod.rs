@@ -1,9 +1,11 @@
-use super::{r2, r3, ParamsError, Sign, SignOutput, Status};
+use super::{r2, r3, r4, r5, ParamsError, Sign, SignOutput, Status};
 use crate::protocol::{gg20::keygen::SecretKeyShare, MsgBytes, Protocol, ProtocolResult};
 use crate::zkp::{mta, pedersen, range};
+use curv::BigInt;
 use tracing::{info, warn};
 
 pub enum MaliciousType {
+    // TODO R1BadCommit,
     R1BadProof { victim: usize },
     R1FalseAccusation { victim: usize },
     R2BadMta { victim: usize },
@@ -11,6 +13,9 @@ pub enum MaliciousType {
     R2FalseAccusationMta { victim: usize },
     R2FalseAccusationMtaWc { victim: usize },
     R3BadProof,
+    R3FalseAccusation { victim: usize },
+    R4BadReveal,
+    R4FalseAccusation { victim: usize },
 }
 use MaliciousType::*;
 
@@ -67,6 +72,7 @@ impl Protocol for BadSign {
                 self.sign.update_state_r2fail(r2::FailBcast {
                     culprits: vec![r2::Culprit {
                         participant_index: victim,
+                        crime: r2::Crime::RangeProof,
                     }],
                 })
             }
@@ -186,6 +192,65 @@ impl Protocol for BadSign {
                         self.sign.update_state_r3fail(out_bcast)
                     }
                 }
+            }
+            R3FalseAccusation { victim } => {
+                if !matches!(self.sign.status, Status::R3) {
+                    return self.sign.next_round();
+                };
+                // no need to execute self.s.r4()
+                info!(
+                    "malicious participant {} r3 falsely accuse {}",
+                    self.sign.my_participant_index, victim
+                );
+                self.sign.update_state_r4fail(r4::FailBcast {
+                    culprits: vec![r4::Culprit {
+                        participant_index: victim,
+                        crime: r4::Crime::PedersenProof,
+                    }],
+                })
+            }
+            R4BadReveal => {
+                if !matches!(self.sign.status, Status::R3) {
+                    return self.sign.next_round();
+                };
+                match self.sign.r4() {
+                    r4::Output::Success {
+                        state,
+                        mut out_bcast,
+                    } => {
+                        info!(
+                            "malicious participant {} r4 corrupt commit reveal",
+                            self.sign.my_participant_index
+                        );
+                        let reveal = &mut out_bcast.reveal;
+                        *reveal += BigInt::from(1);
+
+                        self.sign.update_state_r4(state, out_bcast)
+                    }
+                    r4::Output::Fail { out_bcast } => {
+                        warn!(
+                            "malicious participant {} instructed to corrupt r4 commit reveal but r4 has already failed so reverting to honesty",
+                            self.sign.my_participant_index
+                        );
+                        self.sign.update_state_r4fail(out_bcast)
+                    }
+                }
+            }
+            R4FalseAccusation { victim } => {
+                if !matches!(self.sign.status, Status::R4) {
+                    return self.sign.next_round();
+                };
+                // no need to execute self.s.r5()
+                info!(
+                    "malicious participant {} r4 falsely accuse {}",
+                    self.sign.my_participant_index, victim
+                );
+                self.sign.update_state_r5fail(r5::FailBcast {
+                    culprits: vec![r5::Culprit {
+                        participant_index: victim,
+                        crime: r5::Crime::CommitReveal,
+                    }],
+                })
             }
         }
     }

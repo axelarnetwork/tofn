@@ -8,6 +8,7 @@ use curv::{
     GE,
 };
 use serde::{Deserialize, Serialize};
+use tracing::warn;
 
 // round 5
 
@@ -22,13 +23,39 @@ pub struct P2p {
 }
 
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
-pub(super) struct State {
+pub struct State {
     pub(super) ecdsa_randomizer: GE,
     pub(super) my_ecdsa_randomizer_x_nonce_summand: GE,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Culprit {
+    pub participant_index: usize,
+    pub crime: Crime,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum Crime {
+    CommitReveal,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FailBcast {
+    pub culprits: Vec<Culprit>,
+}
+pub enum Output {
+    Success {
+        state: State,
+        out_bcast: Bcast,
+        out_p2ps: FillVec<P2p>,
+    },
+    Fail {
+        out_bcast: FailBcast,
+    },
+}
+
 impl Sign {
-    pub(super) fn r5(&self) -> (State, Bcast, FillVec<P2p>) {
+    pub(super) fn r5(&self) -> Output {
         assert!(matches!(self.status, Status::R4));
         let r1state = self.r1state.as_ref().unwrap();
         let r4state = self.r4state.as_ref().unwrap();
@@ -36,6 +63,8 @@ impl Sign {
         // compute R (aka ecdsa_randomizer) as per phase 4 of 2020/540
         // first verify all commits and compute sum of all reveals
         let mut public_blind = r1state.my_public_blind_summand;
+        let mut culprits = Vec::new();
+
         for (i, in_r4bcast) in self.in_r4bcasts.vec_ref().iter().enumerate() {
             if i == self.my_participant_index {
                 continue;
@@ -47,11 +76,25 @@ impl Sign {
                     .bytes_compressed_to_big_int(),
                 &in_r4bcast.reveal,
             );
-            // TODO panic
-            assert_eq!(self.in_r1bcasts.vec_ref()[i].as_ref().unwrap().commit, com);
-
+            if self.in_r1bcasts.vec_ref()[i].as_ref().unwrap().commit != com {
+                warn!(
+                    "party {} says: commit failed to verify for party {}",
+                    self.my_secret_key_share.my_index, self.participant_indices[i]
+                );
+                culprits.push(Culprit {
+                    participant_index: i,
+                    crime: Crime::CommitReveal,
+                });
+            }
             public_blind = public_blind + in_r4bcast.public_blind_summand;
         }
+
+        if !culprits.is_empty() {
+            return Output::Fail {
+                out_bcast: FailBcast { culprits },
+            };
+        }
+
         let ecdsa_randomizer = public_blind * r4state.nonce_x_blind_inv; // R
         let my_ecdsa_randomizer_x_nonce_summand = ecdsa_randomizer * r1state.my_ecdsa_nonce_summand; // R_i from 2020/540
 
@@ -84,15 +127,15 @@ impl Sign {
                 .unwrap();
         }
 
-        (
-            State {
+        Output::Success {
+            state: State {
                 ecdsa_randomizer,
                 my_ecdsa_randomizer_x_nonce_summand,
             },
-            Bcast {
+            out_bcast: Bcast {
                 ecdsa_randomizer_x_nonce_summand: my_ecdsa_randomizer_x_nonce_summand,
             },
             out_p2ps,
-        )
+        }
     }
 }

@@ -171,11 +171,24 @@ fn basic_correctness_inner(
     let mut all_r5_bcasts = FillVec::with_len(participants.len());
     let mut all_r5_p2ps = Vec::with_capacity(participants.len());
     for (i, participant) in participants.iter_mut().enumerate() {
-        let (state, bcast, p2ps) = participant.r5();
-        participant.r5state = Some(state);
-        participant.status = Status::R5;
-        all_r5_bcasts.insert(i, bcast).unwrap();
-        all_r5_p2ps.push(p2ps);
+        match participant.r5() {
+            r5::Output::Success {
+                state,
+                out_bcast,
+                out_p2ps,
+            } => {
+                participant.r5state = Some(state);
+                participant.status = Status::R5;
+                all_r5_bcasts.insert(i, out_bcast).unwrap();
+                all_r5_p2ps.push(out_p2ps);
+            }
+            r5::Output::Fail { out_bcast } => {
+                panic!(
+                    "r5 party {} expect success got failure with culprits: {:?}",
+                    participant.my_secret_key_share.my_index, out_bcast
+                );
+            }
+        }
     }
 
     // deliver round 5 msgs
