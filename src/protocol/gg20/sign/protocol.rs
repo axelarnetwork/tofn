@@ -18,6 +18,7 @@ enum MsgType {
     R5P2p { to: usize },
     R5FailBcast,
     R6Bcast,
+    R6FailBcast,
     R7Bcast,
 }
 
@@ -241,6 +242,16 @@ impl Protocol for Sign {
                     );
                 }
                 self.in_r6bcasts
+                    .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
+            }
+            MsgType::R6FailBcast => {
+                if !self.in_r6bcasts_fail.is_none(msg_meta.from) {
+                    warn!(
+                        "participant {} overwrite existing R6FailBcast msg from {}",
+                        self.my_participant_index, msg_meta.from
+                    );
+                }
+                self.in_r6bcasts_fail
                     .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
             }
             MsgType::R7Bcast => {
