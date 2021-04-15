@@ -93,6 +93,7 @@ mod r5_fail;
 mod r6;
 mod r6_fail;
 mod r7;
+mod r7_fail;
 mod r8;
 
 pub struct Sign {
