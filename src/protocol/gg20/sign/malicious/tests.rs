@@ -83,10 +83,26 @@ fn r4_bad_reveal() {
 }
 
 #[test]
+fn r4_false_accusation() {
+    for t in ONE_CRIMINAL_TEST_CASES.iter() {
+        malicious_behaviour_protocol(t, true, R4FalseAccusation { victim: t.victim });
+        malicious_behaviour_protocol(t, false, R4FalseAccusation { victim: t.victim });
+    }
+}
+
+#[test]
 fn r5_bad_proof() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
         malicious_behaviour_protocol(t, true, R5BadProof { victim: t.victim });
         malicious_behaviour_protocol(t, false, R5BadProof { victim: t.victim });
+    }
+}
+
+#[test]
+fn r5_false_accusation() {
+    for t in ONE_CRIMINAL_TEST_CASES.iter() {
+        malicious_behaviour_protocol(t, true, R5FalseAccusation { victim: t.victim });
+        malicious_behaviour_protocol(t, false, R5FalseAccusation { victim: t.victim });
     }
 }
 

@@ -1,4 +1,4 @@
-use super::{r2, r3, r4, r5, ParamsError, Sign, SignOutput, Status};
+use super::{r2, r3, r4, r5, r6, ParamsError, Sign, SignOutput, Status};
 use crate::protocol::{gg20::keygen::SecretKeyShare, MsgBytes, Protocol, ProtocolResult};
 use crate::zkp::{mta, pedersen, range};
 use curv::BigInt;
@@ -17,6 +17,7 @@ pub enum MaliciousType {
     R4BadReveal,
     R4FalseAccusation { victim: usize },
     R5BadProof { victim: usize },
+    R5FalseAccusation { victim: usize },
 }
 use MaliciousType::*;
 
@@ -283,6 +284,22 @@ impl Protocol for BadSign {
                         self.sign.update_state_r5fail(out_bcast)
                     }
                 }
+            }
+            R5FalseAccusation { victim } => {
+                if !matches!(self.sign.status, Status::R5) {
+                    return self.sign.next_round();
+                };
+                // no need to execute self.s.r6()
+                info!(
+                    "malicious participant {} r5 falsely accuse {}",
+                    self.sign.my_participant_index, victim
+                );
+                self.sign.update_state_r6fail(r6::FailBcast {
+                    culprits: vec![r6::Culprit {
+                        participant_index: victim,
+                        crime: r6::Crime::RangeProofWc,
+                    }],
+                })
             }
         }
     }
