@@ -2,6 +2,7 @@ use super::{Sign, Status};
 use crate::zkp::{pedersen, range};
 use curv::{elliptic::curves::traits::ECPoint, GE};
 use serde::{Deserialize, Serialize};
+use tracing::warn;
 
 // round 6
 
@@ -11,12 +12,32 @@ pub struct Bcast {
     pub ecdsa_public_key_check_proof_wc: pedersen::ProofWc,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
-pub(super) struct State {
+pub struct State {
     pub(super) my_ecdsa_public_key_check: GE,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Culprit {
+    pub participant_index: usize,
+    pub crime: Crime,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum Crime {
+    RangeProofWc,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FailBcast {
+    pub culprits: Vec<Culprit>,
+}
+pub enum Output {
+    Success { state: State, out_bcast: Bcast },
+    Fail { out_bcast: FailBcast },
+}
+
 impl Sign {
-    pub(super) fn r6(&self) -> (State, Bcast) {
+    pub(super) fn r6(&self) -> Output {
         assert!(matches!(self.status, Status::R5));
         let r5state = self.r5state.as_ref().unwrap();
 
@@ -24,6 +45,8 @@ impl Sign {
         // * sum of ecdsa_randomizer_x_nonce_summand (R_i) = G as per phase 5 of 2020/540
         // * verify zk proofs
         let mut ecdsa_randomizer_x_nonce = r5state.my_ecdsa_randomizer_x_nonce_summand;
+        let mut culprits = Vec::new();
+
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
             if i == self.my_participant_index {
                 continue;
@@ -58,12 +81,23 @@ impl Sign {
                     &in_r5p2p.ecdsa_randomizer_x_nonce_summand_proof,
                 )
                 .unwrap_or_else(|e| {
-                    panic!(
+                    warn!(
                         "party {} says: range proof wc failed to verify for party {} because [{}]",
                         self.my_secret_key_share.my_index, participant_index, e
-                    )
+                    );
+                    culprits.push(Culprit {
+                        participant_index: i,
+                        crime: Crime::RangeProofWc,
+                    });
                 });
         }
+
+        if !culprits.is_empty() {
+            return Output::Fail {
+                out_bcast: FailBcast { culprits },
+            };
+        }
+
         assert_eq!(ecdsa_randomizer_x_nonce, GE::generator()); // TODO panic
 
         // compute S_i (aka ecdsa_public_key_check) and zk proof as per phase 6 of 2020/540
@@ -84,14 +118,14 @@ impl Sign {
             },
         );
 
-        (
-            State {
+        Output::Success {
+            state: State {
                 my_ecdsa_public_key_check,
             },
-            Bcast {
+            out_bcast: Bcast {
                 ecdsa_public_key_check: my_ecdsa_public_key_check,
                 ecdsa_public_key_check_proof_wc: proof_wc,
             },
-        )
+        }
     }
 }
