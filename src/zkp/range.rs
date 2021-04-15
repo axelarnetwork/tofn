@@ -204,10 +204,19 @@ pub fn corrupt_proof(proof: &Proof) -> Proof {
     }
 }
 
+// TODO #[cfg(feature = "malicious")]
+pub fn corrupt_proof_wc(proof_wc: &ProofWc) -> ProofWc {
+    let proof_wc = proof_wc.clone();
+    ProofWc {
+        u1: proof_wc.u1 + GE::generator(),
+        ..proof_wc
+    }
+}
+
 #[cfg(test)]
 pub mod tests {
     use super::{
-        Zkp, {corrupt_proof, ProofWc, Statement, StatementWc, Witness},
+        Zkp, {corrupt_proof, corrupt_proof_wc, Statement, StatementWc, Witness},
     };
     use curv::{
         elliptic::curves::traits::{ECPoint, ECScalar},
@@ -216,16 +225,6 @@ pub mod tests {
     use paillier::{
         EncryptWithChosenRandomness, KeyGeneration, Paillier, Randomness, RawPlaintext,
     };
-
-    // TODO move this outside of tests module when needed; it's here now to pacify clippy
-    // TODO #[cfg(feature = "malicious")]
-    pub fn corrupt_proof_wc(proof_wc: &ProofWc) -> ProofWc {
-        let proof_wc = proof_wc.clone();
-        ProofWc {
-            u1: proof_wc.u1 + GE::generator(),
-            ..proof_wc
-        }
-    }
 
     #[test]
     fn basic_correctness() {

@@ -16,6 +16,7 @@ pub enum MaliciousType {
     R3FalseAccusation { victim: usize },
     R4BadReveal,
     R4FalseAccusation { victim: usize },
+    R5BadProof { victim: usize },
 }
 use MaliciousType::*;
 
@@ -251,6 +252,37 @@ impl Protocol for BadSign {
                         crime: r5::Crime::CommitReveal,
                     }],
                 })
+            }
+            R5BadProof { victim } => {
+                if !matches!(self.sign.status, Status::R4) {
+                    return self.sign.next_round();
+                };
+                match self.sign.r5() {
+                    r5::Output::Success {
+                        state,
+                        out_bcast,
+                        mut out_p2ps,
+                    } => {
+                        info!(
+                            "malicious participant {} r5 corrupt range proof wc",
+                            self.sign.my_participant_index
+                        );
+                        let proof = &mut out_p2ps.vec_ref_mut()[victim]
+                            .as_mut()
+                            .unwrap()
+                            .ecdsa_randomizer_x_nonce_summand_proof;
+                        *proof = range::corrupt_proof_wc(proof);
+
+                        self.sign.update_state_r5(state, out_bcast, out_p2ps)
+                    }
+                    r5::Output::Fail { out_bcast } => {
+                        warn!(
+                            "malicious participant {} instructed to corrupt r5 range proof wc but r5 has already failed so reverting to honesty",
+                            self.sign.my_participant_index
+                        );
+                        self.sign.update_state_r5fail(out_bcast)
+                    }
+                }
             }
         }
     }
