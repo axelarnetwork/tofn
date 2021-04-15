@@ -61,6 +61,7 @@ enum Status {
     R5,
     R5Fail,
     R6,
+    R6Fail,
     R7,
     Done,
     Fail,
@@ -165,6 +166,7 @@ pub struct Sign {
     out_r3bcast_fail_serialized: Option<MsgBytes>,
     out_r4bcast_fail_serialized: Option<MsgBytes>,
     out_r5bcast_fail_serialized: Option<MsgBytes>,
+    out_r6bcast_fail_serialized: Option<MsgBytes>,
 
     final_output: Option<SignOutput>, // T is serialized asn1 sig
 }
@@ -218,6 +220,7 @@ impl Sign {
             out_r3bcast_fail_serialized: None,
             out_r4bcast_fail_serialized: None,
             out_r5bcast_fail_serialized: None,
+            out_r6bcast_fail_serialized: None,
             final_output: None,
         })
     }

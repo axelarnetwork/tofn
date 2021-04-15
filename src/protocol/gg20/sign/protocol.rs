@@ -109,6 +109,9 @@ impl Protocol for Sign {
                 let (state, bcast) = self.r7();
                 self.update_state_r7(state, bcast)?;
             }
+            R6Fail => {
+                todo!()
+            }
             R7 => {
                 self.final_output = Some(Output::Ok(self.r8().as_bytes().to_vec()));
                 self.status = Done;
@@ -281,6 +284,7 @@ impl Protocol for Sign {
             R5 => &self.out_r5bcast,
             R5Fail => &self.out_r5bcast_fail_serialized,
             R6 => &self.out_r6bcast,
+            R6Fail => &self.out_r6bcast_fail_serialized,
             R7 => &self.out_r7bcast,
             Done => &None,
             Fail => &None,
@@ -300,6 +304,7 @@ impl Protocol for Sign {
             R5 => &self.out_r5p2ps,
             R5Fail => &None,
             R6 => &None,
+            R6Fail => &None,
             R7 => &None,
             Done => &None,
             Fail => &None,
@@ -376,7 +381,17 @@ impl Protocol for Sign {
                 }
                 false
             }
-            R6 => !self.in_r6bcasts.is_full_except(me),
+            R6 | R6Fail => {
+                for i in 0..self.participant_indices.len() {
+                    if i == me {
+                        continue;
+                    }
+                    if self.in_r6bcasts.is_none(i) && self.in_r6bcasts_fail.is_none(i) {
+                        return true;
+                    }
+                }
+                false
+            }
             R7 => !self.in_r7bcasts.is_full_except(me),
             Done => false,
             Fail => false,
