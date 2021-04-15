@@ -20,6 +20,7 @@ enum MsgType {
     R6Bcast,
     R6FailBcast,
     R7Bcast,
+    R7FailBcast,
 }
 
 // TODO identical to keygen::MsgMeta except for MsgType---use generic
@@ -270,6 +271,16 @@ impl Protocol for Sign {
                     );
                 }
                 self.in_r7bcasts
+                    .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
+            }
+            MsgType::R7FailBcast => {
+                if !self.in_r7bcasts_fail.is_none(msg_meta.from) {
+                    warn!(
+                        "participant {} overwrite existing R7FailBcast msg from {}",
+                        self.my_participant_index, msg_meta.from
+                    );
+                }
+                self.in_r7bcasts_fail
                     .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
             }
         };
