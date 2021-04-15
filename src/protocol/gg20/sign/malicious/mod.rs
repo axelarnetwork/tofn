@@ -1,9 +1,11 @@
-use super::{r2, r3, ParamsError, Sign, SignOutput, Status};
+use super::{r2, r3, r4, ParamsError, Sign, SignOutput, Status};
 use crate::protocol::{gg20::keygen::SecretKeyShare, MsgBytes, Protocol, ProtocolResult};
 use crate::zkp::{mta, pedersen, range};
+use curv::BigInt;
 use tracing::{info, warn};
 
 pub enum MaliciousType {
+    // TODO R1BadCommit,
     R1BadProof { victim: usize },
     R1FalseAccusation { victim: usize },
     R2BadMta { victim: usize },
@@ -11,6 +13,7 @@ pub enum MaliciousType {
     R2FalseAccusationMta { victim: usize },
     R2FalseAccusationMtaWc { victim: usize },
     R3BadProof,
+    R4BadReveal,
 }
 use MaliciousType::*;
 
@@ -184,6 +187,33 @@ impl Protocol for BadSign {
                             self.sign.my_participant_index
                         );
                         self.sign.update_state_r3fail(out_bcast)
+                    }
+                }
+            }
+            R4BadReveal => {
+                if !matches!(self.sign.status, Status::R3) {
+                    return self.sign.next_round();
+                };
+                match self.sign.r4() {
+                    r4::Output::Success {
+                        state,
+                        mut out_bcast,
+                    } => {
+                        info!(
+                            "malicious participant {} r4 corrupt commit reveal",
+                            self.sign.my_participant_index
+                        );
+                        let reveal = &mut out_bcast.reveal;
+                        *reveal += BigInt::from(1);
+
+                        self.sign.update_state_r4(state, out_bcast)
+                    }
+                    r4::Output::Fail { out_bcast } => {
+                        warn!(
+                            "malicious participant {} instructed to corrupt r4 commit reveal but r4 has already failed so reverting to honesty",
+                            self.sign.my_participant_index
+                        );
+                        self.sign.update_state_r4fail(out_bcast)
                     }
                 }
             }
