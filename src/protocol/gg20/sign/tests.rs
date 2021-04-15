@@ -232,10 +232,19 @@ fn basic_correctness_inner(
     // execute round 7 all participants and store their outputs
     let mut all_r7_bcasts = FillVec::with_len(participants.len());
     for (i, participant) in participants.iter_mut().enumerate() {
-        let (state, bcast) = participant.r7();
-        participant.r7state = Some(state);
-        participant.status = Status::R7;
-        all_r7_bcasts.insert(i, bcast).unwrap();
+        match participant.r7() {
+            r7::Output::Success { state, out_bcast } => {
+                participant.r7state = Some(state);
+                participant.status = Status::R7;
+                all_r7_bcasts.insert(i, out_bcast).unwrap();
+            }
+            r7::Output::Fail { out_bcast } => {
+                panic!(
+                    "r7 party {} expect success got failure with culprits: {:?}",
+                    participant.my_secret_key_share.my_index, out_bcast
+                );
+            }
+        }
     }
 
     // deliver round 7 msgs
