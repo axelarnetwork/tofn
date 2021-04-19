@@ -1,4 +1,4 @@
-use super::{r2, r3, r4, r5, r6, ParamsError, Sign, SignOutput, Status};
+use super::{r2, r3, r4, r5, r6, r7, ParamsError, Sign, SignOutput, Status};
 use crate::protocol::{gg20::keygen::SecretKeyShare, MsgBytes, Protocol, ProtocolResult};
 use crate::zkp::{mta, pedersen, range};
 use curv::BigInt;
@@ -18,6 +18,8 @@ pub enum MaliciousType {
     R4FalseAccusation { victim: usize },
     R5BadProof { victim: usize },
     R5FalseAccusation { victim: usize },
+    R6BadProof,
+    R6FalseAccusation { victim: usize },
 }
 use MaliciousType::*;
 
@@ -298,6 +300,49 @@ impl Protocol for BadSign {
                     culprits: vec![r6::Culprit {
                         participant_index: victim,
                         crime: r6::Crime::RangeProofWc,
+                    }],
+                })
+            }
+            R6BadProof => {
+                if !matches!(self.sign.status, Status::R5) {
+                    return self.sign.next_round();
+                };
+                match self.sign.r6() {
+                    r6::Output::Success {
+                        state,
+                        mut out_bcast,
+                    } => {
+                        info!(
+                            "malicious participant {} r6 corrupt pedersen proof Wc",
+                            self.sign.my_participant_index
+                        );
+                        let proof = &mut out_bcast.ecdsa_public_key_check_proof_wc;
+                        *proof = pedersen::corrupt_proof_wc(proof);
+
+                        self.sign.update_state_r6(state, out_bcast)
+                    }
+                    r6::Output::Fail { out_bcast } => {
+                        warn!(
+                            "malicious participant {} instructed to corrupt r6 pedersen proof wc but r6 has already failed so reverting to honesty",
+                            self.sign.my_participant_index
+                        );
+                        self.sign.update_state_r6fail(out_bcast)
+                    }
+                }
+            }
+            R6FalseAccusation { victim } => {
+                if !matches!(self.sign.status, Status::R6) {
+                    return self.sign.next_round();
+                };
+                // no need to execute self.s.r7()
+                info!(
+                    "malicious participant {} r6 falsely accuse {}",
+                    self.sign.my_participant_index, victim
+                );
+                self.sign.update_state_r7fail(r7::FailBcast {
+                    culprits: vec![r7::Culprit {
+                        participant_index: victim,
+                        crime: r7::Crime::PedersenProofWc,
                     }],
                 })
             }

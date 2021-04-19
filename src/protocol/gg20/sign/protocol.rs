@@ -20,6 +20,7 @@ enum MsgType {
     R6Bcast,
     R6FailBcast,
     R7Bcast,
+    R7FailBcast,
 }
 
 // TODO identical to keygen::MsgMeta except for MsgType---use generic
@@ -105,10 +106,14 @@ impl Protocol for Sign {
                 self.final_output = Some(Output::Err(self.r6_fail()));
                 self.status = Fail;
             }
-            R6 => {
-                let (state, bcast) = self.r7();
-                self.update_state_r7(state, bcast)?;
-            }
+            R6 => match self.r7() {
+                r7::Output::Success { state, out_bcast } => {
+                    self.update_state_r7(state, out_bcast)?;
+                }
+                r7::Output::Fail { out_bcast } => {
+                    self.update_state_r7fail(out_bcast)?;
+                }
+            },
             R6Fail => {
                 self.final_output = Some(Output::Err(self.r7_fail()));
                 self.status = Fail;
@@ -116,6 +121,10 @@ impl Protocol for Sign {
             R7 => {
                 self.final_output = Some(Output::Ok(self.r8().as_bytes().to_vec()));
                 self.status = Done;
+            }
+            R7Fail => {
+                self.final_output = Some(Output::Err(self.r8_fail()));
+                self.status = Fail;
             }
             Done => return Err(From::from("already done")),
             Fail => return Err(From::from("already failed")),
@@ -268,6 +277,16 @@ impl Protocol for Sign {
                 self.in_r7bcasts
                     .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
             }
+            MsgType::R7FailBcast => {
+                if !self.in_r7bcasts_fail.is_none(msg_meta.from) {
+                    warn!(
+                        "participant {} overwrite existing R7FailBcast msg from {}",
+                        self.my_participant_index, msg_meta.from
+                    );
+                }
+                self.in_r7bcasts_fail
+                    .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
+            }
         };
         Ok(())
     }
@@ -287,6 +306,7 @@ impl Protocol for Sign {
             R6 => &self.out_r6bcast,
             R6Fail => &self.out_r6bcast_fail_serialized,
             R7 => &self.out_r7bcast,
+            R7Fail => &self.out_r7bcast_fail_serialized,
             Done => &None,
             Fail => &None,
         }
@@ -307,6 +327,7 @@ impl Protocol for Sign {
             R6 => &None,
             R6Fail => &None,
             R7 => &None,
+            R7Fail => &None,
             Done => &None,
             Fail => &None,
         }
@@ -393,7 +414,17 @@ impl Protocol for Sign {
                 }
                 false
             }
-            R7 => !self.in_r7bcasts.is_full_except(me),
+            R7 | R7Fail => {
+                for i in 0..self.participant_indices.len() {
+                    if i == me {
+                        continue;
+                    }
+                    if self.in_r7bcasts.is_none(i) && self.in_r7bcasts_fail.is_none(i) {
+                        return true;
+                    }
+                }
+                false
+            }
             Done => false,
             Fail => false,
         }
@@ -431,6 +462,11 @@ impl Sign {
             R6 => {
                 if self.in_r6bcasts_fail.some_count() > 0 {
                     self.status = R6Fail;
+                }
+            }
+            R7 => {
+                if self.in_r7bcasts_fail.some_count() > 0 {
+                    self.status = R7Fail;
                 }
             }
             _ => (),
@@ -674,6 +710,19 @@ impl Sign {
             .insert(self.my_participant_index, out_bcast)?; // self delivery
         self.r7state = Some(state);
         self.status = R7;
+        Ok(())
+    }
+
+    // TODO refactor copied code from update_state_r2fail
+    pub(super) fn update_state_r7fail(&mut self, bcast: r7::FailBcast) -> ProtocolResult {
+        self.out_r7bcast_fail_serialized = Some(bincode::serialize(&MsgMeta {
+            msg_type: MsgType::R7FailBcast,
+            from: self.my_participant_index,
+            payload: bincode::serialize(&bcast)?,
+        })?);
+        self.in_r7bcasts_fail
+            .insert(self.my_participant_index, bcast)?; // self delivery
+        self.status = R7Fail;
         Ok(())
     }
 }

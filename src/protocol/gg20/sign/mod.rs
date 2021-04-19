@@ -63,6 +63,7 @@ enum Status {
     R6,
     R6Fail,
     R7,
+    R7Fail,
     Done,
     Fail,
 }
@@ -95,6 +96,7 @@ mod r6_fail;
 mod r7;
 mod r7_fail;
 mod r8;
+mod r8_fail;
 
 pub struct Sign {
     status: Status,
@@ -139,6 +141,7 @@ pub struct Sign {
     in_r4bcasts_fail: FillVec<r4::FailBcast>,
     in_r5bcasts_fail: FillVec<r5::FailBcast>,
     in_r6bcasts_fail: FillVec<r6::FailBcast>,
+    in_r7bcasts_fail: FillVec<r7::FailBcast>,
 
     // TODO currently I do not store my own deserialized output messages
     // instead, my output messages are stored only in serialized form so they can be quickly returned in `get_bcast_out` and `get_p2p_out`
@@ -168,6 +171,7 @@ pub struct Sign {
     out_r4bcast_fail_serialized: Option<MsgBytes>,
     out_r5bcast_fail_serialized: Option<MsgBytes>,
     out_r6bcast_fail_serialized: Option<MsgBytes>,
+    out_r7bcast_fail_serialized: Option<MsgBytes>,
 
     final_output: Option<SignOutput>, // T is serialized asn1 sig
 }
@@ -208,6 +212,7 @@ impl Sign {
             in_r4bcasts_fail: FillVec::with_len(participant_count),
             in_r5bcasts_fail: FillVec::with_len(participant_count),
             in_r6bcasts_fail: FillVec::with_len(participant_count),
+            in_r7bcasts_fail: FillVec::with_len(participant_count),
             out_r1bcast: None,
             out_r1p2ps: None,
             out_r2p2ps: None,
@@ -222,6 +227,7 @@ impl Sign {
             out_r4bcast_fail_serialized: None,
             out_r5bcast_fail_serialized: None,
             out_r6bcast_fail_serialized: None,
+            out_r7bcast_fail_serialized: None,
             final_output: None,
         })
     }
