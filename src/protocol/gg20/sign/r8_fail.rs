@@ -2,7 +2,7 @@ use super::{Sign, Status};
 use crate::{
     fillvec::FillVec,
     protocol::{CrimeType, Criminal},
-    zkp::range,
+    zkp::pedersen,
 };
 use tracing::info;
 
@@ -11,6 +11,17 @@ impl Sign {
         assert!(matches!(self.status, Status::R7Fail));
         assert!(self.in_r7bcasts_fail.some_count() > 0);
 
+        let ecdsa_randomizer = &self
+            .r5state
+            .as_ref()
+            .unwrap_or_else(|| {
+                // TODO these checks should be unnecessary after refactoring
+                panic!(
+                    "r8fail party {} hey where did my r5state go!?",
+                    self.my_participant_index
+                )
+            })
+            .ecdsa_randomizer;
         let mut culprits = FillVec::with_len(self.participant_indices.len());
 
         // TODO refactor copied code to iterate over (accuser, accused)
@@ -20,65 +31,37 @@ impl Sign {
                 for accused in fail_bcast.culprits.iter() {
                     // DONE TO HERE
 
-                    let prover_ek = &self.my_secret_key_share.all_eks
-                        [self.participant_indices[accused.participant_index]];
-                    let prover_encrypted_ecdsa_nonce_summand = &self.in_r1bcasts.vec_ref()
-                        [accused.participant_index]
+                    let prover_commit = &self.in_r3bcasts.vec_ref()[accused.participant_index]
                         .as_ref()
                         .unwrap_or_else(|| {
                             panic!(
-                                // TODO these checks should be unnecessary after refactoring
-                                "r7fail party {} missing r1bcast from {}",
-                                self.my_participant_index, accused.participant_index
-                            )
-                        })
-                        .encrypted_ecdsa_nonce_summand
-                        .c;
-                    let prover_ecdsa_randomizer_x_nonce_summand = &self.in_r5bcasts.vec_ref()
-                        [accused.participant_index]
-                        .as_ref()
-                        .unwrap_or_else(|| {
-                            panic!(
-                                // TODO these checks should be unnecessary after refactoring
-                                "r7fail party {} missing r5bcast from {}",
-                                self.my_participant_index, accused.participant_index
-                            )
-                        })
-                        .ecdsa_randomizer_x_nonce_summand;
-                    let ecdsa_randomizer = &self
-                        .r5state
-                        .as_ref()
-                        .unwrap_or_else(|| {
                             // TODO these checks should be unnecessary after refactoring
-                            panic!(
-                                "r7fail party {} hey where did my r5state go!?",
-                                self.my_participant_index
-                            )
+                            "r8_fail party {} missing r3bcast from {}",
+                            self.my_participant_index, accused.participant_index
+                        )
                         })
-                        .ecdsa_randomizer;
-                    let verifier_zkp =
-                        &self.my_secret_key_share.all_zkps[self.participant_indices[accuser]];
-
-                    let stmt = &range::StatementWc {
-                        stmt: range::Statement {
-                            ciphertext: prover_encrypted_ecdsa_nonce_summand,
-                            ek: prover_ek,
-                        },
-                        msg_g: prover_ecdsa_randomizer_x_nonce_summand,
-                        g: ecdsa_randomizer,
-                    };
-                    let proof = &self.in_all_r5p2ps[accused.participant_index].vec_ref()[accuser]
+                        .nonce_x_keyshare_summand_commit;
+                    let prover_r6bcast = self.in_r6bcasts.vec_ref()[accused.participant_index]
                         .as_ref()
                         .unwrap_or_else(|| {
                             panic!(
-                                // TODO these checks should be unnecessary after refactoring
-                                "r7fail party {} missing r5p2p from {} to {}",
-                                self.my_participant_index, accused.participant_index, accuser
-                            )
-                        })
-                        .ecdsa_randomizer_x_nonce_summand_proof;
+                            // TODO these checks should be unnecessary after refactoring
+                            "r8_fail party {} missing r6bcast from {}",
+                            self.my_participant_index, accused.participant_index
+                        )
+                        });
 
-                    let verification = verifier_zkp.verify_range_proof_wc(stmt, proof);
+                    let verification = pedersen::verify_wc(
+                        &pedersen::StatementWc {
+                            stmt: pedersen::Statement {
+                                commit: prover_commit,
+                            },
+                            msg_g: &prover_r6bcast.ecdsa_public_key_check,
+                            g: ecdsa_randomizer,
+                        },
+                        &prover_r6bcast.ecdsa_public_key_check_proof_wc,
+                    );
+
                     let culprit_index = match verification {
                         Ok(_) => {
                             info!(
