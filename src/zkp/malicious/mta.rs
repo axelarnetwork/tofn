@@ -92,18 +92,5 @@ mod tests {
         // test: bad proof wc (with check)
         let bad_proof_wc = corrupt_proof_wc(&proof_wc);
         zkp.verify_mta_proof_wc(stmt_wc, &bad_proof_wc).unwrap_err();
-
-        // test: bad witness
-        let bad_wit = &Witness {
-            msg: &(wit.msg + BigInt::from(1)),
-            ..*wit
-        };
-        let bad_wit_proof = zkp.mta_proof(stmt, bad_wit);
-        zkp.verify_mta_proof(&stmt, &bad_wit_proof).unwrap_err();
-
-        // test: bad witness wc (with check)
-        let bad_wit_proof_wc = zkp.mta_proof_wc(stmt_wc, bad_wit);
-        zkp.verify_mta_proof_wc(stmt_wc, &bad_wit_proof_wc)
-            .unwrap_err();
     }
 }
