@@ -1,6 +1,6 @@
 use super::{r2, r3, r4, r5, r6, r7, ParamsError, Sign, SignOutput, Status};
 use crate::protocol::{gg20::keygen::SecretKeyShare, MsgBytes, Protocol, ProtocolResult};
-use crate::zkp::{mta, pedersen, range};
+use crate::zkp::{malicious, pedersen, range};
 use curv::BigInt;
 use tracing::{info, warn};
 
@@ -94,7 +94,7 @@ impl Protocol for BadSign {
                             self.sign.my_participant_index, victim
                         );
                         let proof = &mut out_p2ps.vec_ref_mut()[victim].as_mut().unwrap().mta_proof;
-                        *proof = mta::corrupt_proof(proof);
+                        *proof = malicious::mta::corrupt_proof(proof);
 
                         self.sign.update_state_r2(state, out_p2ps)
                     }
@@ -124,7 +124,7 @@ impl Protocol for BadSign {
                             .as_mut()
                             .unwrap()
                             .mta_proof_wc;
-                        *proof = mta::corrupt_proof_wc(proof);
+                        *proof = malicious::mta::corrupt_proof_wc(proof);
 
                         self.sign.update_state_r2(state, out_p2ps)
                     }
