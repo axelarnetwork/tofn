@@ -18,6 +18,7 @@ pub enum MaliciousType {
     R4FalseAccusation { victim: usize },
     R5BadProof { victim: usize },
     R5FalseAccusation { victim: usize },
+    R6BadProof,
 }
 use MaliciousType::*;
 
@@ -300,6 +301,33 @@ impl Protocol for BadSign {
                         crime: r6::Crime::RangeProofWc,
                     }],
                 })
+            }
+            R6BadProof => {
+                if !matches!(self.sign.status, Status::R5) {
+                    return self.sign.next_round();
+                };
+                match self.sign.r6() {
+                    r6::Output::Success {
+                        state,
+                        mut out_bcast,
+                    } => {
+                        info!(
+                            "malicious participant {} r6 corrupt pedersen proof Wc",
+                            self.sign.my_participant_index
+                        );
+                        let proof = &mut out_bcast.ecdsa_public_key_check_proof_wc;
+                        *proof = pedersen::corrupt_proof_wc(proof);
+
+                        self.sign.update_state_r6(state, out_bcast)
+                    }
+                    r6::Output::Fail { out_bcast } => {
+                        warn!(
+                            "malicious participant {} instructed to corrupt r6 pedersen proof wc but r6 has already failed so reverting to honesty",
+                            self.sign.my_participant_index
+                        );
+                        self.sign.update_state_r6fail(out_bcast)
+                    }
+                }
             }
         }
     }

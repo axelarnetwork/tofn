@@ -142,26 +142,25 @@ pub fn corrupt_proof(proof: &Proof) -> Proof {
     }
 }
 
+// TODO #[cfg(feature = "malicious")]
+pub fn corrupt_proof_wc(proof: &ProofWc) -> ProofWc {
+    let proof = proof.clone();
+    ProofWc {
+        beta: proof.beta + GE::generator(),
+        ..proof
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        commit, corrupt_proof, prove, prove_wc, verify, verify_wc, ProofWc, Statement, StatementWc,
-        Witness,
+        commit, corrupt_proof, corrupt_proof_wc, prove, prove_wc, verify, verify_wc, Statement,
+        StatementWc, Witness,
     };
     use curv::{
         elliptic::curves::traits::{ECPoint, ECScalar},
         BigInt, FE, GE,
     };
-
-    // TODO move this outside of tests module when needed; it's here now to pacify clippy
-    // TODO #[cfg(feature = "malicious")]
-    pub fn corrupt_proof_wc(proof: &ProofWc) -> ProofWc {
-        let proof = proof.clone();
-        ProofWc {
-            beta: proof.beta + GE::generator(),
-            ..proof
-        }
-    }
 
     #[test]
     fn basic_correctness() {
