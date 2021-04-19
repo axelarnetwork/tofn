@@ -106,6 +106,14 @@ fn r5_false_accusation() {
     }
 }
 
+#[test]
+fn r6_bad_proof() {
+    for t in ONE_CRIMINAL_TEST_CASES.iter() {
+        malicious_behaviour_protocol(t, true, R6BadProof);
+        malicious_behaviour_protocol(t, false, R6BadProof);
+    }
+}
+
 // generic malicious behaviour test
 fn malicious_behaviour_protocol(
     t: &OneCrimeTestCase,
