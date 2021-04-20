@@ -22,6 +22,11 @@ impl Sign {
         for accuser in 0..self.participant_indices.len() {
             if let Some(fail_bcast) = self.in_r5bcasts_fail.vec_ref()[accuser].as_ref() {
                 for accused in fail_bcast.culprits.iter() {
+                    // TODO don't perform verification
+                    // instead, check consistency against my own culprits from r5
+                    // explanation: I already performed verification in r5
+                    // the only purpose of r6_fail is to detect false accusation
+
                     let commit = &self.in_r1bcasts.vec_ref()[accused.participant_index]
                         .as_ref()
                         .unwrap_or_else(|| {

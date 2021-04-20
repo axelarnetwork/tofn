@@ -124,15 +124,18 @@ impl Protocol for Sign {
                     self.final_output = Some(Output::Ok(sig.as_bytes().to_vec()));
                     self.status = Done;
                 }
-                r8::Output::Fail { out_bcast: _ } => {
-                    todo!()
+                r8::Output::Fail { out_bcast } => {
+                    self.update_state_r8fail(out_bcast)?;
                 }
             },
             R7Fail => {
                 self.final_output = Some(Output::Err(self.r8_fail()));
                 self.status = Fail;
             }
-            R8Fail => todo!(),
+            R8Fail => {
+                self.final_output = Some(Output::Err(self.r9_fail()));
+                self.status = Fail;
+            }
             Done => return Err(From::from("already done")),
             Fail => return Err(From::from("already failed")),
         };
@@ -743,6 +746,19 @@ impl Sign {
         self.in_r7bcasts_fail
             .insert(self.my_participant_index, bcast)?; // self delivery
         self.status = R7Fail;
+        Ok(())
+    }
+
+    // TODO refactor copied code from update_state_r2fail
+    pub(super) fn update_state_r8fail(&mut self, bcast: r8::FailBcast) -> ProtocolResult {
+        self.out_r8bcast_fail_serialized = Some(bincode::serialize(&MsgMeta {
+            msg_type: MsgType::R8FailBcast,
+            from: self.my_participant_index,
+            payload: bincode::serialize(&bcast)?,
+        })?);
+        self.in_r8bcasts_fail
+            .insert(self.my_participant_index, bcast)?; // self delivery
+        self.status = R8Fail;
         Ok(())
     }
 }
