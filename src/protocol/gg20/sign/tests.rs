@@ -257,10 +257,10 @@ fn basic_correctness_inner(
     for (i, participant) in participants.iter_mut().enumerate() {
         let sig = match participant.r8() {
             r8::Output::Success { sig } => sig,
-            r8::Output::Fail { out_bcast } => {
+            r8::Output::Fail { criminals } => {
                 panic!(
-                    "r8 party {} expect success got failure with culprits: {:?}",
-                    participant.my_secret_key_share.my_index, out_bcast
+                    "r8 party {} expect success got failure with criminals: {:?}",
+                    participant.my_secret_key_share.my_index, criminals
                 );
             }
         };

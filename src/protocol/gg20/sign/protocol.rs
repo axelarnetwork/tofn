@@ -21,7 +21,6 @@ enum MsgType {
     R6FailBcast,
     R7Bcast,
     R7FailBcast,
-    R8FailBcast,
 }
 
 // TODO identical to keygen::MsgMeta except for MsgType---use generic
@@ -124,16 +123,13 @@ impl Protocol for Sign {
                     self.final_output = Some(Output::Ok(sig.as_bytes().to_vec()));
                     self.status = Done;
                 }
-                r8::Output::Fail { out_bcast } => {
-                    self.update_state_r8fail(out_bcast)?;
+                r8::Output::Fail { criminals } => {
+                    self.final_output = Some(Output::Err(criminals));
+                    self.status = Fail;
                 }
             },
             R7Fail => {
                 self.final_output = Some(Output::Err(self.r8_fail()));
-                self.status = Fail;
-            }
-            R8Fail => {
-                self.final_output = Some(Output::Err(self.r9_fail()));
                 self.status = Fail;
             }
             Done => return Err(From::from("already done")),
@@ -297,16 +293,6 @@ impl Protocol for Sign {
                 self.in_r7bcasts_fail
                     .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
             }
-            MsgType::R8FailBcast => {
-                if !self.in_r8bcasts_fail.is_none(msg_meta.from) {
-                    warn!(
-                        "participant {} overwrite existing R8FailBcast msg from {}",
-                        self.my_participant_index, msg_meta.from
-                    );
-                }
-                self.in_r8bcasts_fail
-                    .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
-            }
         };
         Ok(())
     }
@@ -327,7 +313,6 @@ impl Protocol for Sign {
             R6Fail => &self.out_r6bcast_fail_serialized,
             R7 => &self.out_r7bcast,
             R7Fail => &self.out_r7bcast_fail_serialized,
-            R8Fail => &self.out_r8bcast_fail_serialized,
             Done => &None,
             Fail => &None,
         }
@@ -349,7 +334,6 @@ impl Protocol for Sign {
             R6Fail => &None,
             R7 => &None,
             R7Fail => &None,
-            R8Fail => &None,
             Done => &None,
             Fail => &None,
         }
@@ -447,7 +431,6 @@ impl Protocol for Sign {
                 }
                 false
             }
-            R8Fail => !self.in_r8bcasts_fail.is_full_except(me),
             Done => false,
             Fail => false,
         }
@@ -746,19 +729,6 @@ impl Sign {
         self.in_r7bcasts_fail
             .insert(self.my_participant_index, bcast)?; // self delivery
         self.status = R7Fail;
-        Ok(())
-    }
-
-    // TODO refactor copied code from update_state_r2fail
-    pub(super) fn update_state_r8fail(&mut self, bcast: r8::FailBcast) -> ProtocolResult {
-        self.out_r8bcast_fail_serialized = Some(bincode::serialize(&MsgMeta {
-            msg_type: MsgType::R8FailBcast,
-            from: self.my_participant_index,
-            payload: bincode::serialize(&bcast)?,
-        })?);
-        self.in_r8bcasts_fail
-            .insert(self.my_participant_index, bcast)?; // self delivery
-        self.status = R8Fail;
         Ok(())
     }
 }

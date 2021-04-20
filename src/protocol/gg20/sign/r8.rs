@@ -1,27 +1,13 @@
 use super::{EcdsaSig, Sign, Status};
+use crate::protocol::{CrimeType, Criminal};
 use k256::ecdsa::Asn1Signature;
-use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
 
 // round 8
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Culprit {
-    pub participant_index: usize,
-    pub crime: Crime,
-}
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum Crime {
-    SigVerify,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FailBcast {
-    pub culprits: Vec<Culprit>,
-}
 pub enum Output {
     Success { sig: Asn1Signature },
-    Fail { out_bcast: FailBcast },
+    Fail { criminals: Vec<Criminal> },
 }
 
 impl Sign {
@@ -54,7 +40,7 @@ impl Sign {
         // (r,s) is an invalid ECDSA signature
         // compute a list of culprits
         // culprits fail Eq. (1) of https://eprint.iacr.org/2020/540.pdf
-        let mut culprits = Vec::new();
+        let mut criminals = Vec::new();
         let r5state = self.r5state.as_ref().unwrap();
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
             if i == self.my_participant_index {
@@ -75,20 +61,18 @@ impl Sign {
                     "party {} says: sig check failure for party {}",
                     self.my_secret_key_share.my_index, participant_index
                 );
-                culprits.push(Culprit {
-                    participant_index: i,
-                    crime: Crime::SigVerify,
+                criminals.push(Criminal {
+                    index: i,
+                    crime_type: CrimeType::Malicious,
                 });
             }
         }
 
-        if culprits.is_empty() {
+        if criminals.is_empty() {
             error!("party {} says: sig is invalid, yet all sig checks pass. proceeding to fail mode with zero culprits",
             self.my_secret_key_share.my_index);
         }
 
-        Output::Fail {
-            out_bcast: FailBcast { culprits },
-        }
+        Output::Fail { criminals }
     }
 }
