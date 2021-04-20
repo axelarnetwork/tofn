@@ -132,6 +132,7 @@ impl Protocol for Sign {
                 self.final_output = Some(Output::Err(self.r8_fail()));
                 self.status = Fail;
             }
+            R8Fail => todo!(),
             Done => return Err(From::from("already done")),
             Fail => return Err(From::from("already failed")),
         };
@@ -323,6 +324,7 @@ impl Protocol for Sign {
             R6Fail => &self.out_r6bcast_fail_serialized,
             R7 => &self.out_r7bcast,
             R7Fail => &self.out_r7bcast_fail_serialized,
+            R8Fail => &self.out_r8bcast_fail_serialized,
             Done => &None,
             Fail => &None,
         }
@@ -344,6 +346,7 @@ impl Protocol for Sign {
             R6Fail => &None,
             R7 => &None,
             R7Fail => &None,
+            R8Fail => &None,
             Done => &None,
             Fail => &None,
         }
@@ -441,6 +444,7 @@ impl Protocol for Sign {
                 }
                 false
             }
+            R8Fail => !self.in_r8bcasts_fail.is_full_except(me),
             Done => false,
             Fail => false,
         }
