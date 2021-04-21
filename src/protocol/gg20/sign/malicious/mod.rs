@@ -4,8 +4,10 @@ use crate::zkp::{mta, pedersen, range};
 use curv::{elliptic::curves::traits::ECScalar, BigInt, FE};
 use tracing::{info, warn};
 
+#[derive(Clone)]
 pub enum MaliciousType {
     // TODO R1BadCommit,
+    Honest,
     R1BadProof { victim: usize },
     R1FalseAccusation { victim: usize },
     R2BadMta { victim: usize },
@@ -50,6 +52,7 @@ impl BadSign {
 impl Protocol for BadSign {
     fn next_round(&mut self) -> ProtocolResult {
         match self.malicious_type {
+            Honest => self.sign.next_round(),
             R1BadProof { victim } => {
                 if !matches!(self.sign.status, Status::New) {
                     return self.sign.next_round();
