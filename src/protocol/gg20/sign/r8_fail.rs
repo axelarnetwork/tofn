@@ -6,6 +6,10 @@ use crate::{
 };
 use tracing::info;
 
+// TODO DELETE THIS FILE
+// no need to perform verification because I already did it in r7
+// instead, end the protocol in r7 and return criminals
+
 impl Sign {
     pub(super) fn r8_fail(&self) -> Vec<Criminal> {
         assert!(matches!(self.status, Status::R7Fail));
@@ -29,8 +33,6 @@ impl Sign {
         for accuser in 0..self.participant_indices.len() {
             if let Some(fail_bcast) = self.in_r7bcasts_fail.vec_ref()[accuser].as_ref() {
                 for accused in fail_bcast.culprits.iter() {
-                    // DONE TO HERE
-
                     let prover_commit = &self.in_r3bcasts.vec_ref()[accused.participant_index]
                         .as_ref()
                         .unwrap_or_else(|| {

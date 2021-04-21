@@ -3,12 +3,15 @@ use crate::{
     fillvec::FillVec,
     protocol::{CrimeType, Criminal},
 };
-use tracing::info;
-
 use curv::{
     cryptographic_primitives::commitments::{hash_commitment::HashCommitment, traits::Commitment},
     elliptic::curves::traits::ECPoint,
 };
+use tracing::info;
+
+// TODO DELETE THIS FILE
+// no need to perform verification because I already did it in r5
+// instead, end the protocol in r5 and return criminals
 
 impl Sign {
     pub(super) fn r6_fail(&self) -> Vec<Criminal> {

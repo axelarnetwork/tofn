@@ -118,10 +118,16 @@ impl Protocol for Sign {
                 self.final_output = Some(Output::Err(self.r7_fail()));
                 self.status = Fail;
             }
-            R7 => {
-                self.final_output = Some(Output::Ok(self.r8().as_bytes().to_vec()));
-                self.status = Done;
-            }
+            R7 => match self.r8() {
+                r8::Output::Success { sig } => {
+                    self.final_output = Some(Output::Ok(sig.as_bytes().to_vec()));
+                    self.status = Done;
+                }
+                r8::Output::Fail { criminals } => {
+                    self.final_output = Some(Output::Err(criminals));
+                    self.status = Fail;
+                }
+            },
             R7Fail => {
                 self.final_output = Some(Output::Err(self.r8_fail()));
                 self.status = Fail;

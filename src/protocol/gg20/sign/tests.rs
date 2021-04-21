@@ -255,7 +255,15 @@ fn basic_correctness_inner(
     // execute round 8 all participants and store their outputs
     let mut all_sigs = FillVec::with_len(participants.len());
     for (i, participant) in participants.iter_mut().enumerate() {
-        let sig = participant.r8();
+        let sig = match participant.r8() {
+            r8::Output::Success { sig } => sig,
+            r8::Output::Fail { criminals } => {
+                panic!(
+                    "r8 party {} expect success got failure with criminals: {:?}",
+                    participant.my_secret_key_share.my_index, criminals
+                );
+            }
+        };
         participant.status = Status::Done;
         all_sigs.insert(i, sig).unwrap();
     }

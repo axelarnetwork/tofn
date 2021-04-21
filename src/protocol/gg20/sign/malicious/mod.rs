@@ -1,7 +1,7 @@
 use super::{r2, r3, r4, r5, r6, r7, ParamsError, Sign, SignOutput, Status};
 use crate::protocol::{gg20::keygen::SecretKeyShare, MsgBytes, Protocol, ProtocolResult};
 use crate::zkp::{mta, pedersen, range};
-use curv::BigInt;
+use curv::{elliptic::curves::traits::ECScalar, BigInt, FE};
 use tracing::{info, warn};
 
 pub enum MaliciousType {
@@ -20,6 +20,7 @@ pub enum MaliciousType {
     R5FalseAccusation { victim: usize },
     R6BadProof,
     R6FalseAccusation { victim: usize },
+    R7BadSigSummand,
 }
 use MaliciousType::*;
 
@@ -345,6 +346,38 @@ impl Protocol for BadSign {
                         crime: r7::Crime::PedersenProofWc,
                     }],
                 })
+            }
+            R7BadSigSummand => {
+                if !matches!(self.sign.status, Status::R6) {
+                    return self.sign.next_round();
+                };
+                match self.sign.r7() {
+                    r7::Output::Success {
+                        mut state,
+                        mut out_bcast,
+                    } => {
+                        info!(
+                            "malicious participant {} r7 corrupt ecdsa_sig_summand",
+                            self.sign.my_participant_index
+                        );
+                        let one: FE = ECScalar::from(&BigInt::from(1));
+                        // need to corrupt both state and out_bcast
+                        // because they both contain a copy of ecdsa_sig_summand
+                        let ecdsa_sig_summand = &mut out_bcast.ecdsa_sig_summand;
+                        *ecdsa_sig_summand = *ecdsa_sig_summand + one;
+                        let ecdsa_sig_summand_state = &mut state.my_ecdsa_sig_summand;
+                        *ecdsa_sig_summand_state = *ecdsa_sig_summand_state + one;
+
+                        self.sign.update_state_r7(state, out_bcast)
+                    }
+                    r7::Output::Fail { out_bcast } => {
+                        warn!(
+                            "malicious participant {} instructed to corrupt r7 ecdsa_sig_summand but r7 has already failed so reverting to honesty",
+                            self.sign.my_participant_index
+                        );
+                        self.sign.update_state_r7fail(out_bcast)
+                    }
+                }
             }
         }
     }

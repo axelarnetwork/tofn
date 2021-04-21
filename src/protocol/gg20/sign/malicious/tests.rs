@@ -122,6 +122,14 @@ fn r6_false_accusation() {
     }
 }
 
+#[test]
+fn r7_bad_sig_share() {
+    for t in ONE_CRIMINAL_TEST_CASES.iter() {
+        malicious_behaviour_protocol(t, true, R7BadSigSummand);
+        malicious_behaviour_protocol(t, false, R7BadSigSummand);
+    }
+}
+
 // generic malicious behaviour test
 fn malicious_behaviour_protocol(
     t: &OneCrimeTestCase,
