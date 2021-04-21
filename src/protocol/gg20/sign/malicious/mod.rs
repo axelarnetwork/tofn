@@ -64,7 +64,7 @@ impl Protocol for BadSign {
                     self.sign.my_participant_index, victim
                 );
                 let proof = &mut p2ps.vec_ref_mut()[victim].as_mut().unwrap().range_proof;
-                *proof = range::corrupt_proof(proof);
+                *proof = range::malicious::corrupt_proof(proof);
 
                 self.sign.update_state_r1(state, bcast, p2ps)
             }
@@ -98,7 +98,7 @@ impl Protocol for BadSign {
                             self.sign.my_participant_index, victim
                         );
                         let proof = &mut out_p2ps.vec_ref_mut()[victim].as_mut().unwrap().mta_proof;
-                        *proof = mta::corrupt_proof(proof);
+                        *proof = mta::malicious::corrupt_proof(proof);
 
                         self.sign.update_state_r2(state, out_p2ps)
                     }
@@ -128,7 +128,7 @@ impl Protocol for BadSign {
                             .as_mut()
                             .unwrap()
                             .mta_proof_wc;
-                        *proof = mta::corrupt_proof_wc(proof);
+                        *proof = mta::malicious::corrupt_proof_wc(proof);
 
                         self.sign.update_state_r2(state, out_p2ps)
                     }
@@ -188,7 +188,7 @@ impl Protocol for BadSign {
                             self.sign.my_participant_index
                         );
                         let proof = &mut out_bcast.nonce_x_keyshare_summand_proof;
-                        *proof = pedersen::corrupt_proof(proof);
+                        *proof = pedersen::malicious::corrupt_proof(proof);
 
                         self.sign.update_state_r3(state, out_bcast)
                     }
@@ -278,7 +278,7 @@ impl Protocol for BadSign {
                             .as_mut()
                             .unwrap()
                             .ecdsa_randomizer_x_nonce_summand_proof;
-                        *proof = range::corrupt_proof_wc(proof);
+                        *proof = range::malicious::corrupt_proof_wc(proof);
 
                         self.sign.update_state_r5(state, out_bcast, out_p2ps)
                     }
@@ -321,7 +321,7 @@ impl Protocol for BadSign {
                             self.sign.my_participant_index
                         );
                         let proof = &mut out_bcast.ecdsa_public_key_check_proof_wc;
-                        *proof = pedersen::corrupt_proof_wc(proof);
+                        *proof = pedersen::malicious::corrupt_proof_wc(proof);
 
                         self.sign.update_state_r6(state, out_bcast)
                     }

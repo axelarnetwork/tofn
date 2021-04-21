@@ -46,6 +46,7 @@ impl EcdsaSig {
     }
 }
 
+#[cfg(feature = "malicious")]
 pub mod malicious;
 mod protocol;
 
