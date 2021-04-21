@@ -195,28 +195,34 @@ impl Zkp {
     }
 }
 
-// TODO #[cfg(feature = "malicious")]
-pub fn corrupt_proof(proof: &Proof) -> Proof {
-    let proof = proof.clone();
-    Proof {
-        u: proof.u + BigInt::from(1),
-        ..proof
+#[cfg(any(test, feature = "malicious"))]
+pub(crate) mod malicious {
+    use super::*;
+
+    pub fn corrupt_proof(proof: &Proof) -> Proof {
+        let proof = proof.clone();
+        Proof {
+            u: proof.u + BigInt::from(1),
+            ..proof
+        }
+    }
+
+    pub fn corrupt_proof_wc(proof_wc: &ProofWc) -> ProofWc {
+        let proof_wc = proof_wc.clone();
+        ProofWc {
+            u1: proof_wc.u1 + GE::generator(),
+            ..proof_wc
+        }
     }
 }
-
-// TODO #[cfg(feature = "malicious")]
-pub fn corrupt_proof_wc(proof_wc: &ProofWc) -> ProofWc {
-    let proof_wc = proof_wc.clone();
-    ProofWc {
-        u1: proof_wc.u1 + GE::generator(),
-        ..proof_wc
-    }
-}
-
 #[cfg(test)]
 pub mod tests {
     use super::{
-        Zkp, {corrupt_proof, corrupt_proof_wc, Statement, StatementWc, Witness},
+        Zkp,
+        {
+            malicious::{corrupt_proof, corrupt_proof_wc},
+            Statement, StatementWc, Witness,
+        },
     };
     use curv::{
         elliptic::curves::traits::{ECPoint, ECScalar},

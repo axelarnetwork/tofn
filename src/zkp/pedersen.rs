@@ -132,30 +132,34 @@ fn verify_inner(
     Ok(())
 }
 
-// TODO #[cfg(feature = "malicious")]
-pub fn corrupt_proof(proof: &Proof) -> Proof {
-    let proof = proof.clone();
-    let one: FE = ECScalar::from(&BigInt::from(1));
-    Proof {
-        u: proof.u + one,
-        ..proof
-    }
-}
+#[cfg(any(test, feature = "malicious"))]
+pub(crate) mod malicious {
+    use super::*;
 
-// TODO #[cfg(feature = "malicious")]
-pub fn corrupt_proof_wc(proof: &ProofWc) -> ProofWc {
-    let proof = proof.clone();
-    ProofWc {
-        beta: proof.beta + GE::generator(),
-        ..proof
+    pub fn corrupt_proof(proof: &Proof) -> Proof {
+        let proof = proof.clone();
+        let one: FE = ECScalar::from(&BigInt::from(1));
+        Proof {
+            u: proof.u + one,
+            ..proof
+        }
+    }
+
+    pub fn corrupt_proof_wc(proof: &ProofWc) -> ProofWc {
+        let proof = proof.clone();
+        ProofWc {
+            beta: proof.beta + GE::generator(),
+            ..proof
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        commit, corrupt_proof, corrupt_proof_wc, prove, prove_wc, verify, verify_wc, Statement,
-        StatementWc, Witness,
+        commit,
+        malicious::{corrupt_proof, corrupt_proof_wc},
+        prove, prove_wc, verify, verify_wc, Statement, StatementWc, Witness,
     };
     use curv::{
         elliptic::curves::traits::{ECPoint, ECScalar},
