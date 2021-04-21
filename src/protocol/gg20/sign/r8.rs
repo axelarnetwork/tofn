@@ -43,9 +43,6 @@ impl Sign {
         let mut criminals = Vec::new();
         let r5state = self.r5state.as_ref().unwrap();
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
-            if i == self.my_participant_index {
-                continue;
-            }
             let in_r5bcast = self.in_r5bcasts.vec_ref()[i].as_ref().unwrap();
             let in_r6bcast = self.in_r6bcasts.vec_ref()[i].as_ref().unwrap();
             let in_r7bcast = self.in_r7bcasts.vec_ref()[i].as_ref().unwrap();

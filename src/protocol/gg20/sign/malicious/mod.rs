@@ -353,16 +353,20 @@ impl Protocol for BadSign {
                 };
                 match self.sign.r7() {
                     r7::Output::Success {
-                        state,
+                        mut state,
                         mut out_bcast,
                     } => {
                         info!(
                             "malicious participant {} r7 corrupt ecdsa_sig_summand",
                             self.sign.my_participant_index
                         );
-                        let ecdsa_sig_summand = &mut out_bcast.ecdsa_sig_summand;
                         let one: FE = ECScalar::from(&BigInt::from(1));
+                        // need to corrupt both state and out_bcast
+                        // because they both contain a copy of ecdsa_sig_summand
+                        let ecdsa_sig_summand = &mut out_bcast.ecdsa_sig_summand;
                         *ecdsa_sig_summand = *ecdsa_sig_summand + one;
+                        let ecdsa_sig_summand_state = &mut state.my_ecdsa_sig_summand;
+                        *ecdsa_sig_summand_state = *ecdsa_sig_summand_state + one;
 
                         self.sign.update_state_r7(state, out_bcast)
                     }
