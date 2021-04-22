@@ -166,8 +166,11 @@ fn map_index(index: usize, hole: usize, max: usize) -> Result<usize, &'static st
 #[cfg(test)]
 mod tests {
     use super::{FillVec2, HoleVec};
+    // enable logs in tests
+    use tracing_test::traced_test;
 
     #[test]
+    #[traced_test]
     fn basic_correctness() {
         let hole_vec = init_hole_vec().unwrap();
         for c in hole_vec.iter() {
@@ -176,6 +179,7 @@ mod tests {
     }
 
     #[test]
+    #[traced_test]
     #[should_panic]
     fn override_enumerate() {
         let hole_vec = init_hole_vec().unwrap();

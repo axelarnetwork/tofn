@@ -237,8 +237,11 @@ pub mod tests {
     use paillier::{
         EncryptWithChosenRandomness, KeyGeneration, Paillier, Randomness, RawPlaintext,
     };
+    // enable logs in tests
+    use tracing_test::traced_test;
 
     #[test]
+    #[traced_test]
     fn basic_correctness() {
         // create a (statement, witness) pair
         let (ek, _dk) = &Paillier::keypair().keys(); // not using safe primes

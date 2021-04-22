@@ -9,8 +9,11 @@ use crate::{
     },
     zkp::range,
 };
+// enable logs in tests
+use tracing_test::traced_test;
 
 #[test]
+#[traced_test]
 fn r1_bad_proof() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
         malicious_behaviour_protocol(t, true, R1BadProof { victim: t.victim });
@@ -19,6 +22,7 @@ fn r1_bad_proof() {
 }
 
 #[test]
+#[traced_test]
 fn r1_false_accusation() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
         malicious_behaviour_protocol(t, true, R1FalseAccusation { victim: t.victim });
@@ -27,6 +31,7 @@ fn r1_false_accusation() {
 }
 
 #[test]
+#[traced_test]
 fn r2_bad_mta_proof() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
         malicious_behaviour_protocol(t, true, R2BadMta { victim: t.victim });
@@ -35,6 +40,7 @@ fn r2_bad_mta_proof() {
 }
 
 #[test]
+#[traced_test]
 fn r2_bad_mta_wc_proof() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
         malicious_behaviour_protocol(t, true, R2BadMtaWc { victim: t.victim });
@@ -43,6 +49,7 @@ fn r2_bad_mta_wc_proof() {
 }
 
 #[test]
+#[traced_test]
 fn r2_false_accusation_mta() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
         malicious_behaviour_protocol(t, true, R2FalseAccusationMta { victim: t.victim });
@@ -51,6 +58,7 @@ fn r2_false_accusation_mta() {
 }
 
 #[test]
+#[traced_test]
 fn r2_false_accusation_mta_wc() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
         malicious_behaviour_protocol(t, true, R2FalseAccusationMtaWc { victim: t.victim });
@@ -59,6 +67,7 @@ fn r2_false_accusation_mta_wc() {
 }
 
 #[test]
+#[traced_test]
 fn r3_bad_proof() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
         malicious_behaviour_protocol(t, true, R3BadProof);
@@ -67,6 +76,7 @@ fn r3_bad_proof() {
 }
 
 #[test]
+#[traced_test]
 fn r3_false_accusation() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
         malicious_behaviour_protocol(t, true, R3FalseAccusation { victim: t.victim });
@@ -75,6 +85,7 @@ fn r3_false_accusation() {
 }
 
 #[test]
+#[traced_test]
 fn r4_bad_reveal() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
         malicious_behaviour_protocol(t, true, R4BadReveal);
@@ -83,6 +94,7 @@ fn r4_bad_reveal() {
 }
 
 #[test]
+#[traced_test]
 fn r4_false_accusation() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
         malicious_behaviour_protocol(t, true, R4FalseAccusation { victim: t.victim });
@@ -91,6 +103,7 @@ fn r4_false_accusation() {
 }
 
 #[test]
+#[traced_test]
 fn r5_bad_proof() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
         malicious_behaviour_protocol(t, true, R5BadProof { victim: t.victim });
@@ -99,6 +112,7 @@ fn r5_bad_proof() {
 }
 
 #[test]
+#[traced_test]
 fn r5_false_accusation() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
         malicious_behaviour_protocol(t, true, R5FalseAccusation { victim: t.victim });
@@ -107,6 +121,7 @@ fn r5_false_accusation() {
 }
 
 #[test]
+#[traced_test]
 fn r6_bad_proof() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
         malicious_behaviour_protocol(t, true, R6BadProof);
@@ -115,6 +130,7 @@ fn r6_bad_proof() {
 }
 
 #[test]
+#[traced_test]
 fn r6_false_accusation() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
         malicious_behaviour_protocol(t, true, R6FalseAccusation { victim: t.victim });
@@ -123,6 +139,7 @@ fn r6_false_accusation() {
 }
 
 #[test]
+#[traced_test]
 fn r7_bad_sig_share() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
         malicious_behaviour_protocol(t, true, R7BadSigSummand);
@@ -183,6 +200,7 @@ fn malicious_behaviour_protocol(
 /// lower level tests
 // TODO delete these? they are redundant
 #[test]
+#[traced_test]
 fn one_bad_proof() {
     for test in ONE_CRIMINAL_TEST_CASES.iter() {
         if test.participant_indices.len() < 2 {
@@ -282,6 +300,7 @@ fn one_bad_proof_inner(key_shares: &[SecretKeyShare], t: &OneCrimeTestCase, msg_
 }
 
 #[test]
+#[traced_test]
 fn one_false_accusation() {
     for test in ONE_CRIMINAL_TEST_CASES.iter() {
         let key_shares = execute_keygen(test.share_count, test.threshold);

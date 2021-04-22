@@ -7,13 +7,17 @@ pub mod keygen {
         = vec![(5, 0), (5, 1), (5, 3), (5, 4)];
         pub static ref TEST_CASES_INVALID: Vec<(usize,usize)> = vec![(5, 5), (5, 6), (2, 4)];
     }
+    // enable logs in tests
+    use tracing_test::traced_test;
 
     #[test]
+    #[traced_test]
     fn protocol_basic_correctness() {
         protocol_basic_correctness_inner(false)
     }
 
     #[test]
+    #[traced_test]
     fn protocol_basic_correctness_with_self_delivery() {
         protocol_basic_correctness_inner(true)
     }
@@ -48,6 +52,8 @@ pub mod sign {
         tests::execute_protocol_vec,
         Protocol,
     };
+    // enable logs in tests
+    use tracing_test::traced_test;
 
     lazy_static::lazy_static! {
         pub static ref MSG_TO_SIGN: Vec<u8> = vec![42];
@@ -86,11 +92,13 @@ pub mod sign {
     }
 
     #[test]
+    #[traced_test]
     fn protocol_basic_correctness() {
         protocol_basic_correctness_inner(false)
     }
 
     #[test]
+    #[traced_test]
     fn protocol_basic_correctness_with_self_delivery() {
         protocol_basic_correctness_inner(true)
     }
