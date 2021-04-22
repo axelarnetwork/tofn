@@ -132,6 +132,12 @@ fn verify_inner(
     Ok(())
 }
 
+// in constrast with the rest of malicious modules in tofn, we include the
+// malicious module of
+// 1. zkp::mta
+// 2. zkp::pedersen
+// 3. zkp::range
+// in non-malicious test build to avoid code-duplication for malicious tests.
 #[cfg(any(test, feature = "malicious"))]
 pub(crate) mod malicious {
     use super::*;
