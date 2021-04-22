@@ -12,8 +12,11 @@ use curv::{
 //     FieldBytes, PublicKey, SecretKey,
 // };
 use k256::FieldBytes;
+// enable logs in tests
+use tracing_test::traced_test;
 
 #[test]
+#[traced_test]
 fn k256() {
     // repeat many times to catch nondeterministic errors https://github.com/axelarnetwork/tofn/issues/14
     let num_trials = 100;

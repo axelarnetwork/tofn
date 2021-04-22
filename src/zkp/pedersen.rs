@@ -171,8 +171,11 @@ mod tests {
         elliptic::curves::traits::{ECPoint, ECScalar},
         BigInt, FE, GE,
     };
+    // enable logs in tests
+    use tracing_test::traced_test;
 
     #[test]
+    #[traced_test]
     fn basic_correctness() {
         let msg = &FE::new_random();
         let g = &GE::generator();

@@ -3,8 +3,10 @@ use crate::protocol::gg20::tests::keygen::{TEST_CASES, TEST_CASES_INVALID};
 use curv::cryptographic_primitives::secret_sharing::feldman_vss::{
     ShamirSecretSharing, VerifiableSS,
 };
+use tracing_test::traced_test;
 
 #[test]
+#[traced_test]
 fn basic_correctness() {
     for &(share_count, threshold) in TEST_CASES.iter() {
         execute_keygen(share_count, threshold);

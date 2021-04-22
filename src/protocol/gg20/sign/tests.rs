@@ -12,8 +12,11 @@ use k256::{
     FieldBytes,
 };
 use keygen::tests::execute_keygen;
+// enable logs in tests
+use tracing_test::traced_test;
 
 #[test]
+#[traced_test]
 fn basic_correctness() {
     for (share_count, threshold, participant_indices) in TEST_CASES.iter() {
         let key_shares = execute_keygen(*share_count, *threshold);
