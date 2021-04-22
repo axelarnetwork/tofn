@@ -46,6 +46,8 @@ impl EcdsaSig {
     }
 }
 
+// only include malicious module in malicious build
+#[cfg(feature = "malicious")]
 pub mod malicious;
 mod protocol;
 

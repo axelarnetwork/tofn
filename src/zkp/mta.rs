@@ -237,27 +237,39 @@ impl Zkp {
     }
 }
 
-// TODO #[cfg(feature = "malicious")]
-pub fn corrupt_proof(proof: &Proof) -> Proof {
-    let proof = proof.clone();
-    Proof {
-        v: proof.v + BigInt::from(1),
-        ..proof
-    }
-}
+// in contrast with the rest of malicious modules in tofn, we include the
+// malicious module of
+// 1. zkp::mta
+// 2. zkp::pedersen
+// 3. zkp::range
+// in non-malicious test build to avoid code-duplication for malicious tests.
+#[cfg(any(test, feature = "malicious"))]
+pub(crate) mod malicious {
+    use super::*;
 
-// TODO #[cfg(feature = "malicious")]
-pub fn corrupt_proof_wc(proof: &ProofWc) -> ProofWc {
-    let proof = proof.clone();
-    ProofWc {
-        u: proof.u + GE::generator(),
-        ..proof
+    pub fn corrupt_proof(proof: &Proof) -> Proof {
+        let proof = proof.clone();
+        Proof {
+            v: proof.v + BigInt::from(1),
+            ..proof
+        }
+    }
+
+    pub fn corrupt_proof_wc(proof: &ProofWc) -> ProofWc {
+        let proof = proof.clone();
+        ProofWc {
+            u: proof.u + GE::generator(),
+            ..proof
+        }
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{corrupt_proof, corrupt_proof_wc, Statement, StatementWc, Witness, Zkp};
+pub(crate) mod tests {
+    use super::{
+        malicious::{corrupt_proof, corrupt_proof_wc},
+        Statement, StatementWc, Witness, Zkp,
+    };
     use curv::{
         arithmetic::traits::Samplable,
         elliptic::curves::traits::{ECPoint, ECScalar},

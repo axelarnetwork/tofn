@@ -24,3 +24,6 @@ zk-paillier = { git = "https://github.com/KZen-networks/zk-paillier", tag = "v0.
 
 [dev-dependencies]
 lazy_static = "1.4"
+
+[features]
+malicious = []
