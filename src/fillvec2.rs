@@ -166,8 +166,7 @@ fn map_index(index: usize, hole: usize, max: usize) -> Result<usize, &'static st
 #[cfg(test)]
 mod tests {
     use super::{FillVec2, HoleVec};
-    // enable logs in tests
-    use tracing_test::traced_test;
+    use tracing_test::traced_test; // enable logs in tests
 
     #[test]
     #[traced_test]

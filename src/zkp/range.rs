@@ -237,8 +237,7 @@ pub mod tests {
     use paillier::{
         EncryptWithChosenRandomness, KeyGeneration, Paillier, Randomness, RawPlaintext,
     };
-    // enable logs in tests
-    use tracing_test::traced_test;
+    use tracing_test::traced_test; // enable logs in tests
 
     #[test]
     #[traced_test]

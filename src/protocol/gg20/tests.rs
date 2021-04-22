@@ -7,8 +7,7 @@ pub mod keygen {
         = vec![(5, 0), (5, 1), (5, 3), (5, 4)];
         pub static ref TEST_CASES_INVALID: Vec<(usize,usize)> = vec![(5, 5), (5, 6), (2, 4)];
     }
-    // enable logs in tests
-    use tracing_test::traced_test;
+    use tracing_test::traced_test; // enable logs in tests
 
     #[test]
     #[traced_test]
@@ -52,8 +51,7 @@ pub mod sign {
         tests::execute_protocol_vec,
         Protocol,
     };
-    // enable logs in tests
-    use tracing_test::traced_test;
+    use tracing_test::traced_test; // enable logs in tests
 
     lazy_static::lazy_static! {
         pub static ref MSG_TO_SIGN: Vec<u8> = vec![42];

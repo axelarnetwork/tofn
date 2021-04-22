@@ -9,8 +9,7 @@ use crate::{
     },
     zkp::range,
 };
-// enable logs in tests
-use tracing_test::traced_test;
+use tracing_test::traced_test; // enable logs in tests
 
 #[test]
 #[traced_test]

@@ -279,8 +279,7 @@ pub(crate) mod tests {
         Add, EncryptWithChosenRandomness, KeyGeneration, Mul, Paillier, Randomness, RawCiphertext,
         RawPlaintext,
     };
-    // enable logs in tests
-    use tracing_test::traced_test;
+    use tracing_test::traced_test; // enable logs in tests
 
     #[test]
     #[traced_test]
