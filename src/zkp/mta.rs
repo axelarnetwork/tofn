@@ -237,7 +237,7 @@ impl Zkp {
     }
 }
 
-// in constrast with the rest of malicious modules in tofn, we include the
+// in contrast with the rest of malicious modules in tofn, we include the
 // malicious module of
 // 1. zkp::mta
 // 2. zkp::pedersen
