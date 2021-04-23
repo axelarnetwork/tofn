@@ -63,30 +63,6 @@ pub mod sign {
             (1,0,vec![0]),
         ];
         // TODO add TEST_CASES_INVALID
-        pub static ref ONE_CRIMINAL_TEST_CASES: Vec<OneCrimeTestCase> = vec![
-            OneCrimeTestCase{
-                share_count: 5,
-                threshold: 2,
-                participant_indices: vec![4,1,2],
-                criminal: 1,
-                victim: 0,
-            },
-            OneCrimeTestCase{
-                share_count: 7,
-                threshold: 4,
-                participant_indices: vec![6,4,2,0,3],
-                criminal: 2,
-                victim: 4,
-            },
-        ];
-    }
-
-    pub struct OneCrimeTestCase {
-        pub share_count: usize,
-        pub threshold: usize,
-        pub participant_indices: Vec<usize>,
-        pub criminal: usize,
-        pub victim: usize,
     }
 
     #[test]

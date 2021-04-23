@@ -1,15 +1,40 @@
-use super::super::*;
-use super::{MaliciousType::*, *};
+use super::{super::*, *};
 use crate::{
     protocol::{
         gg20::keygen::{tests::execute_keygen, SecretKeyShare},
-        gg20::tests::sign::{OneCrimeTestCase, MSG_TO_SIGN, ONE_CRIMINAL_TEST_CASES},
         tests::execute_protocol_vec,
         CrimeType, Criminal, Protocol,
     },
     zkp::range,
 };
 use tracing_test::traced_test; // enable logs in tests
+
+lazy_static::lazy_static! {
+    pub static ref ONE_CRIMINAL_TEST_CASES: Vec<OneCrimeTestCase> = vec![
+        OneCrimeTestCase{
+            share_count: 5,
+            threshold: 2,
+            participant_indices: vec![4,1,2],
+            criminal: 1,
+            victim: 0,
+        },
+        OneCrimeTestCase{
+            share_count: 7,
+            threshold: 4,
+            participant_indices: vec![6,4,2,0,3],
+            criminal: 2,
+            victim: 4,
+        },
+    ];
+}
+
+pub struct OneCrimeTestCase {
+    pub share_count: usize,
+    pub threshold: usize,
+    pub participant_indices: Vec<usize>,
+    pub criminal: usize,
+    pub victim: usize,
+}
 
 #[test]
 #[traced_test]
@@ -158,7 +183,7 @@ fn malicious_behaviour_protocol(
     let mut bad_guy = BadSign::new(
         &key_shares[t.participant_indices[t.criminal]],
         &t.participant_indices,
-        &MSG_TO_SIGN,
+        &MESSAGE_TO_SIGN,
         malicious_type,
     )
     .unwrap();
@@ -168,7 +193,7 @@ fn malicious_behaviour_protocol(
         .iter()
         .enumerate()
         .filter(|(p, _)| *p != t.criminal)
-        .map(|(_, i)| Sign::new(&key_shares[*i], &t.participant_indices, &MSG_TO_SIGN).unwrap())
+        .map(|(_, i)| Sign::new(&key_shares[*i], &t.participant_indices, &MESSAGE_TO_SIGN).unwrap())
         .collect();
 
     let mut protocols: Vec<&mut dyn Protocol> = good_guys
@@ -196,6 +221,78 @@ fn malicious_behaviour_protocol(
     }
 }
 
+lazy_static::lazy_static! {
+    static ref TEST_CASES: Vec<TestCase> = vec![
+        TestCase{
+            share_count: 5,
+            threshold: 2,
+            allow_self_delivery: true,
+            sign_participants: vec![
+                SignParticipant{party_index: 4, behaviour: Honest},
+                SignParticipant{party_index: 2, behaviour: Honest},
+                SignParticipant{party_index: 1, behaviour: R1BadProof{victim:0}},
+            ],
+            sign_expected_criminals: vec![Criminal{index: 2, crime_type: CrimeType::Malicious}]
+        },
+    ];
+}
+
+static MESSAGE_TO_SIGN: [u8; 2] = [42, 24];
+
+struct SignParticipant {
+    party_index: usize,
+    behaviour: MaliciousType,
+}
+
+struct TestCase {
+    share_count: usize,
+    threshold: usize,
+    allow_self_delivery: bool,
+    sign_participants: Vec<SignParticipant>,
+    sign_expected_criminals: Vec<Criminal>,
+}
+
+#[test]
+#[traced_test]
+fn new_r1_bad_proof() {
+    for t in TEST_CASES.iter() {
+        execute_test_case(t);
+    }
+}
+
+fn execute_test_case(t: &TestCase) {
+    let participant_indices: Vec<usize> =
+        t.sign_participants.iter().map(|p| p.party_index).collect();
+    let key_shares = execute_keygen(t.share_count, t.threshold);
+
+    let mut signers: Vec<BadSign> = t
+        .sign_participants
+        .iter()
+        .map(|p| {
+            BadSign::new(
+                &key_shares[p.party_index],
+                &participant_indices,
+                &MESSAGE_TO_SIGN,
+                p.behaviour.clone(),
+            )
+            .unwrap()
+        })
+        .collect();
+
+    let mut protocols: Vec<&mut dyn Protocol> =
+        signers.iter_mut().map(|p| p as &mut dyn Protocol).collect();
+
+    execute_protocol_vec(&mut protocols, t.allow_self_delivery);
+
+    // TEST: everyone correctly computed the culprit list
+    for signer in signers {
+        assert_eq!(
+            signer.clone_output().unwrap().unwrap_err(),
+            t.sign_expected_criminals
+        );
+    }
+}
+
 /// lower level tests
 // TODO delete these? they are redundant
 #[test]
@@ -206,7 +303,7 @@ fn one_bad_proof() {
             continue; // need at least 2 participants for this test
         }
         let key_shares = execute_keygen(test.share_count, test.threshold);
-        one_bad_proof_inner(&key_shares, &test, &MSG_TO_SIGN);
+        one_bad_proof_inner(&key_shares, &test, &MESSAGE_TO_SIGN);
     }
 }
 
@@ -303,7 +400,7 @@ fn one_bad_proof_inner(key_shares: &[SecretKeyShare], t: &OneCrimeTestCase, msg_
 fn one_false_accusation() {
     for test in ONE_CRIMINAL_TEST_CASES.iter() {
         let key_shares = execute_keygen(test.share_count, test.threshold);
-        one_false_accusation_inner(&key_shares, test, &MSG_TO_SIGN);
+        one_false_accusation_inner(&key_shares, test, &MESSAGE_TO_SIGN);
     }
 }
 
