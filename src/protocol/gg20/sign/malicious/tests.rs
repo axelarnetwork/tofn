@@ -229,6 +229,19 @@ lazy_static::lazy_static! {
             ],
             sign_expected_criminals: vec![Criminal{index: 2, crime_type: CrimeType::Malicious}]
         },
+        TestCase{
+            share_count: 5,
+            threshold: 4,
+            allow_self_delivery: false,
+            sign_participants: vec![
+                SignParticipant{party_index: 0, behaviour: Honest},
+                SignParticipant{party_index: 1, behaviour: R1BadProof{victim:2}},
+                SignParticipant{party_index: 2, behaviour: Honest},
+                SignParticipant{party_index: 3, behaviour: R3BadProof},
+                SignParticipant{party_index: 4, behaviour: Honest},
+            ],
+            sign_expected_criminals: vec![Criminal{index: 1, crime_type: CrimeType::Malicious}]
+        },
     ];
 }
 
@@ -249,8 +262,17 @@ struct TestCase {
 
 #[test]
 #[traced_test]
-fn new_r1_bad_proof() {
+fn multiple_faults() {
     for t in TEST_CASES.iter() {
+        let malicious_count = t
+            .sign_participants
+            .iter()
+            .filter(|p| !matches!(p.behaviour, Honest))
+            .count();
+        info!(
+            "malicious_count [{}] share_count [{}] threshold [{}]",
+            malicious_count, t.share_count, t.threshold
+        );
         execute_test_case(t);
     }
 }

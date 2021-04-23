@@ -95,8 +95,8 @@ impl Sign {
                 .verify_range_proof(stmt, proof)
                 .unwrap_or_else(|e| {
                     info!(
-                        "party {} says: range proof failed to verify for party {} because [{}]",
-                        self.my_secret_key_share.my_index, participant_index, e
+                        "participant {} says: range proof from {} failed to verify because [{}]",
+                        self.my_participant_index, i, e
                     );
                     culprits.push(Culprit {
                         participant_index: i,
