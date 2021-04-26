@@ -142,7 +142,7 @@ pub struct Sign {
     in_r3bcasts_fail: FillVec<r3::FailBcast>,
     in_r4bcasts_fail: FillVec<r4::FailBcast>,
     in_r5bcasts_fail: FillVec<r5::FailBcast>,
-    in_r6bcasts_fail: FillVec<r6::FailBcast>,
+    in_r6bcasts_fail: FillVec<r6::BcastCulprits>,
     in_r7bcasts_fail: FillVec<r7::FailBcast>,
 
     // TODO currently I do not store my own deserialized output messages

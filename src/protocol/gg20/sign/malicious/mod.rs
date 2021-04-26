@@ -349,7 +349,7 @@ impl Protocol for BadSign {
                     "malicious participant {} r5 falsely accuse {}",
                     self.sign.my_participant_index, victim
                 );
-                self.sign.update_state_r6fail(r6::FailBcast {
+                self.sign.update_state_r6fail(r6::BcastCulprits {
                     culprits: vec![r6::Culprit {
                         participant_index: victim,
                         crime: r6::Crime::RangeProofWc,
@@ -374,7 +374,7 @@ impl Protocol for BadSign {
 
                         self.sign.update_state_r6(state, out_bcast)
                     }
-                    r6::Output::Fail { out_bcast } => {
+                    r6::Output::FailRangeProofWc { out_bcast } => {
                         warn!(
                             "malicious participant {} instructed to corrupt r6 pedersen proof wc but r6 has already failed so reverting to honesty",
                             self.sign.my_participant_index

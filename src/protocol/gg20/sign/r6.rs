@@ -28,12 +28,12 @@ pub enum Crime {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FailBcast {
+pub struct BcastCulprits {
     pub culprits: Vec<Culprit>,
 }
 pub enum Output {
     Success { state: State, out_bcast: Bcast },
-    Fail { out_bcast: FailBcast },
+    FailRangeProofWc { out_bcast: BcastCulprits },
 }
 
 impl Sign {
@@ -93,8 +93,8 @@ impl Sign {
         }
 
         if !culprits.is_empty() {
-            return Output::Fail {
-                out_bcast: FailBcast { culprits },
+            return Output::FailRangeProofWc {
+                out_bcast: BcastCulprits { culprits },
             };
         }
 

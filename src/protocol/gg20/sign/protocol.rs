@@ -98,7 +98,7 @@ impl Protocol for Sign {
                 r6::Output::Success { state, out_bcast } => {
                     self.update_state_r6(state, out_bcast)?;
                 }
-                r6::Output::Fail { out_bcast } => {
+                r6::Output::FailRangeProofWc { out_bcast } => {
                     self.update_state_r6fail(out_bcast)?;
                 }
             },
@@ -689,7 +689,7 @@ impl Sign {
     }
 
     // TODO refactor copied code from update_state_r2fail
-    pub(super) fn update_state_r6fail(&mut self, bcast: r6::FailBcast) -> ProtocolResult {
+    pub(super) fn update_state_r6fail(&mut self, bcast: r6::BcastCulprits) -> ProtocolResult {
         self.out_r6bcast_fail_serialized = Some(bincode::serialize(&MsgMeta {
             msg_type: MsgType::R6FailBcast,
             from: self.my_participant_index,
