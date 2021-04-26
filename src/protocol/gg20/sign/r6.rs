@@ -1,6 +1,6 @@
 use super::{Sign, Status};
 use crate::zkp::{pedersen, range};
-use curv::{elliptic::curves::traits::ECPoint, GE};
+use curv::{elliptic::curves::traits::ECPoint, FE, GE};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
@@ -31,9 +31,15 @@ pub enum Crime {
 pub struct BcastCulprits {
     pub culprits: Vec<Culprit>,
 }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BcastRandomizer {
+    pub ecdsa_nonce_summand: FE,
+    // more...
+}
 pub enum Output {
     Success { state: State, out_bcast: Bcast },
     FailRangeProofWc { out_bcast: BcastCulprits },
+    FailRandomizer { out_bcast: BcastRandomizer },
 }
 
 impl Sign {

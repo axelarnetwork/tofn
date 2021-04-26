@@ -101,6 +101,9 @@ impl Protocol for Sign {
                 r6::Output::FailRangeProofWc { out_bcast } => {
                     self.update_state_r6fail(out_bcast)?;
                 }
+                r6::Output::FailRandomizer { out_bcast: _ } => {
+                    todo!();
+                }
             },
             R5Fail => {
                 self.final_output = Some(Output::Err(self.r6_fail()));

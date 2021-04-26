@@ -223,6 +223,9 @@ fn basic_correctness_inner(
                     participant.my_secret_key_share.my_index, out_bcast
                 );
             }
+            r6::Output::FailRandomizer { out_bcast: _ } => {
+                todo!();
+            }
         }
     }
 
