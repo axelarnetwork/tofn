@@ -1,7 +1,7 @@
 use super::{Sign, Status};
 use crate::fillvec::FillVec;
 use crate::zkp::{mta, range};
-use curv::{elliptic::curves::traits::ECPoint, FE, GE};
+use curv::{elliptic::curves::traits::ECPoint, BigInt, FE, GE};
 use multi_party_ecdsa::utilities::mta as mta_zengo;
 use serde::{Deserialize, Serialize};
 use tracing::info;
@@ -18,6 +18,7 @@ pub struct P2p {
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub struct State {
     pub(super) my_mta_blind_summands_rhs: Vec<Option<FE>>,
+    pub(super) my_mta_blind_summands_rhs_randomness: Vec<Option<BigInt>>, // needed only in r6 fail mode
     pub(super) my_mta_keyshare_summands_rhs: Vec<Option<FE>>,
 }
 
@@ -62,6 +63,8 @@ impl Sign {
 
         let mut out_p2ps = FillVec::with_len(self.participant_indices.len());
         let mut my_mta_blind_summands_rhs = FillVec::with_len(self.participant_indices.len());
+        let mut my_mta_blind_summands_rhs_randomness =
+            FillVec::with_len(self.participant_indices.len());
         let mut my_mta_keyshare_summands_rhs = FillVec::with_len(self.participant_indices.len());
         let mut culprits = Vec::new();
 
@@ -121,6 +124,9 @@ impl Sign {
                     randomness: &randomness,
                 },
             );
+            my_mta_blind_summands_rhs_randomness
+                .insert(i, randomness)
+                .unwrap();
 
             // MtAwc for nonce * keyshare
             let (mta_response_keyshare, my_mta_keyshare_summand_rhs, randomness_wc, beta_prime_wc) = // (m_b_w, beta_wi)
@@ -166,8 +172,9 @@ impl Sign {
             Output::Success {
                 state: State {
                     my_mta_blind_summands_rhs: my_mta_blind_summands_rhs.into_vec(),
+                    my_mta_blind_summands_rhs_randomness: my_mta_blind_summands_rhs_randomness
+                        .into_vec(),
                     my_mta_keyshare_summands_rhs: my_mta_keyshare_summands_rhs.into_vec(),
-                    // my_public_key_summand,
                 },
                 out_p2ps,
             }

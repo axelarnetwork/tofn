@@ -1,6 +1,6 @@
 use super::{Sign, Status};
 use crate::zkp::{pedersen, range};
-use curv::{elliptic::curves::traits::ECPoint, FE, GE};
+use curv::{elliptic::curves::traits::ECPoint, BigInt, FE, GE};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
@@ -33,8 +33,13 @@ pub struct BcastCulprits {
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BcastRandomizer {
-    pub ecdsa_nonce_summand: FE,
-    // more...
+    pub ecdsa_nonce_summand: FE,                                // k_i
+    pub ecdsa_nonce_summand_randomness: BigInt,                 // k_i encryption randomness
+    pub secret_blind_summand: FE,                               // gamma_i
+    pub mta_blind_summands_rhs: Vec<Option<FE>>,                // beta_ji
+    pub mta_blind_summands_rhs_randomness: Vec<Option<BigInt>>, // beta_ji encryption randomness
+    pub mta_blind_summands_lhs: Vec<Option<FE>>,                // alpha_ij
+                                                                // TODO do I also need randomness from r3 call to verify_proofs_get_alpha ?
 }
 pub enum Output {
     Success { state: State, out_bcast: Bcast },
@@ -88,8 +93,8 @@ impl Sign {
                 )
                 .unwrap_or_else(|e| {
                     warn!(
-                        "party {} says: range proof wc failed to verify for party {} because [{}]",
-                        self.my_secret_key_share.my_index, participant_index, e
+                        "participant {} says: range proof wc failed to verify for participant {} because [{}]",
+                        self.my_participant_index, i, e
                     );
                     culprits.push(Culprit {
                         participant_index: i,
@@ -104,7 +109,31 @@ impl Sign {
             };
         }
 
-        assert_eq!(ecdsa_randomizer_x_nonce, GE::generator()); // TODO panic
+        // check for failure of type 5 from section 4.2 of https://eprint.iacr.org/2020/540.pdf
+        if ecdsa_randomizer_x_nonce != GE::generator() {
+            // execute blame protocol from section 4.3 of https://eprint.iacr.org/2020/540.pdf
+            warn!(
+                "participant {} says: randomizer check failed, begin randomizer fault attribution",
+                self.my_participant_index
+            );
+            let r1state = self.r1state.as_ref().unwrap();
+            let r2state = self.r2state.as_ref().unwrap();
+            let r3state = self.r3state.as_ref().unwrap();
+            return Output::FailRandomizer {
+                out_bcast: BcastRandomizer {
+                    ecdsa_nonce_summand: r1state.my_ecdsa_nonce_summand,
+                    ecdsa_nonce_summand_randomness: r1state
+                        .my_encrypted_ecdsa_nonce_summand_randomness
+                        .clone(),
+                    secret_blind_summand: r1state.my_secret_blind_summand,
+                    mta_blind_summands_rhs: r2state.my_mta_blind_summands_rhs.clone(),
+                    mta_blind_summands_rhs_randomness: r2state
+                        .my_mta_blind_summands_rhs_randomness
+                        .clone(),
+                    mta_blind_summands_lhs: r3state.my_mta_blind_summands_lhs.clone(),
+                },
+            };
+        }
 
         // compute S_i (aka ecdsa_public_key_check) and zk proof as per phase 6 of 2020/540
         let r3state = self.r3state.as_ref().unwrap();

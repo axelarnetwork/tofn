@@ -20,6 +20,7 @@ pub struct State {
     pub(super) my_nonce_x_keyshare_summand: FE,
     pub(super) my_nonce_x_keyshare_summand_commit: GE,
     pub(super) my_nonce_x_keyshare_summand_commit_randomness: FE,
+    pub(super) my_mta_blind_summands_lhs: Vec<Option<FE>>, // alpha_ij, needed only in r6 fail mode
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -213,6 +214,7 @@ impl Sign {
                 my_nonce_x_keyshare_summand,
                 my_nonce_x_keyshare_summand_commit: *commit,
                 my_nonce_x_keyshare_summand_commit_randomness: *randomness,
+                my_mta_blind_summands_lhs,
             },
             out_bcast: Bcast {
                 nonce_x_blind_summand: my_nonce_x_blind_summand,
