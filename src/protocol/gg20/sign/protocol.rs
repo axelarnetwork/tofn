@@ -19,6 +19,7 @@ enum MsgType {
     R5FailBcast,
     R6Bcast,
     R6FailBcast,
+    R6FailBcastRandomizer,
     R7Bcast,
     R7FailBcast,
 }
@@ -101,8 +102,8 @@ impl Protocol for Sign {
                 r6::Output::FailRangeProofWc { out_bcast } => {
                     self.update_state_r6fail(out_bcast)?;
                 }
-                r6::Output::FailRandomizer { out_bcast: _ } => {
-                    todo!();
+                r6::Output::FailRandomizer { out_bcast } => {
+                    self.update_state_r6fail_randomizer(out_bcast)?;
                 }
             },
             R5Fail => {
@@ -274,6 +275,16 @@ impl Protocol for Sign {
                     );
                 }
                 self.in_r6bcasts_fail
+                    .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
+            }
+            MsgType::R6FailBcastRandomizer => {
+                if !self.in_r6bcasts_fail_randomizer.is_none(msg_meta.from) {
+                    warn!(
+                        "participant {} overwrite existing R6FailBcastRandomizer msg from {}",
+                        self.my_participant_index, msg_meta.from
+                    );
+                }
+                self.in_r6bcasts_fail_randomizer
                     .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
             }
             MsgType::R7Bcast => {
@@ -701,6 +712,23 @@ impl Sign {
         self.in_r6bcasts_fail
             .insert(self.my_participant_index, bcast)?; // self delivery
         self.status = R6Fail;
+        Ok(())
+    }
+
+    // TODO refactor copied code from update_state_r2fail
+    pub(super) fn update_state_r6fail_randomizer(
+        &mut self,
+        bcast: r6::BcastRandomizer,
+    ) -> ProtocolResult {
+        self.out_r6bcast_fail_randomizer_serialized = Some(bincode::serialize(&MsgMeta {
+            msg_type: MsgType::R6FailBcastRandomizer,
+            from: self.my_participant_index,
+            payload: bincode::serialize(&bcast)?,
+        })?);
+        self.in_r6bcasts_fail_randomizer
+            .insert(self.my_participant_index, bcast)?; // self delivery
+        todo!();
+        // self.status = R6Fail;
         Ok(())
     }
 

@@ -143,6 +143,7 @@ pub struct Sign {
     in_r4bcasts_fail: FillVec<r4::FailBcast>,
     in_r5bcasts_fail: FillVec<r5::FailBcast>,
     in_r6bcasts_fail: FillVec<r6::BcastCulprits>,
+    in_r6bcasts_fail_randomizer: FillVec<r6::BcastRandomizer>,
     in_r7bcasts_fail: FillVec<r7::FailBcast>,
 
     // TODO currently I do not store my own deserialized output messages
@@ -173,6 +174,7 @@ pub struct Sign {
     out_r4bcast_fail_serialized: Option<MsgBytes>,
     out_r5bcast_fail_serialized: Option<MsgBytes>,
     out_r6bcast_fail_serialized: Option<MsgBytes>,
+    out_r6bcast_fail_randomizer_serialized: Option<MsgBytes>,
     out_r7bcast_fail_serialized: Option<MsgBytes>,
 
     final_output: Option<SignOutput>, // T is serialized asn1 sig
@@ -214,6 +216,7 @@ impl Sign {
             in_r4bcasts_fail: FillVec::with_len(participant_count),
             in_r5bcasts_fail: FillVec::with_len(participant_count),
             in_r6bcasts_fail: FillVec::with_len(participant_count),
+            in_r6bcasts_fail_randomizer: FillVec::with_len(participant_count),
             in_r7bcasts_fail: FillVec::with_len(participant_count),
             out_r1bcast: None,
             out_r1p2ps: None,
@@ -229,6 +232,7 @@ impl Sign {
             out_r4bcast_fail_serialized: None,
             out_r5bcast_fail_serialized: None,
             out_r6bcast_fail_serialized: None,
+            out_r6bcast_fail_randomizer_serialized: None,
             out_r7bcast_fail_serialized: None,
             final_output: None,
         })
