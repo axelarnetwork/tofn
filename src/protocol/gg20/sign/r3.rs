@@ -68,7 +68,12 @@ impl Sign {
             }
             let in_p2p = self.in_all_r2p2ps[i].vec_ref()[self.my_participant_index]
                 .as_ref()
-                .unwrap();
+                .unwrap_or_else(|| {
+                    panic!(
+                        "r3 participant {} says: missing r2p2p from {}",
+                        self.my_participant_index, i
+                    )
+                });
 
             // verify zk proofs from MtA, MtAwc
             self.my_secret_key_share

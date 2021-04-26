@@ -51,6 +51,13 @@ impl BadSign {
 
 impl Protocol for BadSign {
     fn next_round(&mut self) -> ProtocolResult {
+        // TODO refactor copied code from Sign::next_round():
+        // expecting_more_msgs_this_round() and move_to_sad_path()
+        if self.expecting_more_msgs_this_round() {
+            return Err(From::from("can't prceed yet"));
+        }
+        self.sign.move_to_sad_path();
+
         match self.malicious_type {
             Honest => self.sign.next_round(),
             R1BadProof { victim } => {
