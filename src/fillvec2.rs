@@ -178,7 +178,6 @@ mod tests {
     }
 
     #[test]
-    #[traced_test]
     #[should_panic]
     fn override_enumerate() {
         let hole_vec = init_hole_vec().unwrap();
