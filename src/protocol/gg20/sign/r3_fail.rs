@@ -4,7 +4,7 @@ use crate::{
     protocol::{CrimeType, Criminal},
     zkp::range,
 };
-use tracing::info;
+use tracing::{info, warn};
 
 impl Sign {
     pub(super) fn r3_fail(&self) -> Vec<Criminal> {
@@ -16,6 +16,12 @@ impl Sign {
         for accuser in 0..self.participant_indices.len() {
             if let Some(fail_bcast) = self.in_r2bcasts_fail.vec_ref()[accuser].as_ref() {
                 for accused in fail_bcast.culprits.iter() {
+                    // Skip round if accuser is targeting himself; R1FalseAccusation is causing that
+                    if accuser == accused.participant_index {
+                        warn!("Accuser is targeting self. Skipping ...");
+                        continue;
+                    }
+
                     // TODO clarify confusion: participant vs party indices
                     let prover_ek = &self.my_secret_key_share.all_eks
                         [self.participant_indices[accused.participant_index]];

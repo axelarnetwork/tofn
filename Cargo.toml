@@ -22,6 +22,10 @@ curv = { git = "https://github.com/KZen-networks/curv", tag = "v0.2.6", features
 paillier = { git = "https://github.com/KZen-networks/rust-paillier", tag = "v0.3.4"}
 zk-paillier = { git = "https://github.com/KZen-networks/zk-paillier", tag = "v0.2.9"}
 
+# iterate enums
+strum = "0.20"
+strum_macros = "0.20"
+
 [dev-dependencies]
 lazy_static = "1.4"
 # enable logging for tests

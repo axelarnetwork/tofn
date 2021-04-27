@@ -2,9 +2,10 @@ use super::{r2, r3, r4, r5, r6, r7, ParamsError, Sign, SignOutput, Status};
 use crate::protocol::{gg20::keygen::SecretKeyShare, MsgBytes, Protocol, ProtocolResult};
 use crate::zkp::{mta, pedersen, range};
 use curv::{elliptic::curves::traits::ECScalar, BigInt, FE};
+use strum_macros::EnumIter;
 use tracing::{info, warn};
 
-#[derive(Clone)]
+#[derive(Clone, EnumIter)]
 pub enum MaliciousType {
     // TODO R1BadCommit,
     Honest,
@@ -70,10 +71,21 @@ impl Protocol for BadSign {
                     "malicious participant {} r1 corrupt proof to {}",
                     self.sign.my_participant_index, victim
                 );
-                let proof = &mut p2ps.vec_ref_mut()[victim].as_mut().unwrap().range_proof;
-                *proof = range::malicious::corrupt_proof(proof);
-
-                self.sign.update_state_r1(state, bcast, p2ps)
+                let proof = p2ps.vec_ref_mut()[victim].as_mut();
+                // The proof of the criminal is None.
+                // To prevent tofn from unwraping a None proof, we skip
+                // the corruction if a criminal targets himself.
+                match proof {
+                    Some(proof) => {
+                        let proof = &mut proof.range_proof;
+                        *proof = range::malicious::corrupt_proof(proof);
+                        self.sign.update_state_r1(state, bcast, p2ps)
+                    }
+                    None => {
+                        warn!("Criminal attempted to corrupt None proof (are you targeting yourself?). Skipping...");
+                        self.sign.next_round()
+                    }
+                }
             }
             R1FalseAccusation { victim } => {
                 if !matches!(self.sign.status, Status::R1) {
@@ -104,10 +116,22 @@ impl Protocol for BadSign {
                             "malicious participant {} r2 corrupt mta proof to {}",
                             self.sign.my_participant_index, victim
                         );
-                        let proof = &mut out_p2ps.vec_ref_mut()[victim].as_mut().unwrap().mta_proof;
-                        *proof = mta::malicious::corrupt_proof(proof);
 
-                        self.sign.update_state_r2(state, out_p2ps)
+                        let proof = out_p2ps.vec_ref_mut()[victim].as_mut();
+                        // The proof of the criminal is None.
+                        // To prevent tofn from unwraping a None proof, we skip
+                        // the corruction if a criminal targets himself.
+                        match proof {
+                            Some(proof) => {
+                                let proof = &mut proof.mta_proof;
+                                *proof = mta::malicious::corrupt_proof(proof);
+                                self.sign.update_state_r2(state, out_p2ps)
+                            }
+                            None => {
+                                warn!("Criminal attempted to corrupt None proof (are you targeting yourself?). Skipping...");
+                                self.sign.next_round()
+                            }
+                        }
                     }
                     r2::Output::Fail { out_bcast } => {
                         warn!(
@@ -131,13 +155,22 @@ impl Protocol for BadSign {
                             "malicious participant {} r2 corrupt mta_wc proof to {}",
                             self.sign.my_participant_index, victim
                         );
-                        let proof = &mut out_p2ps.vec_ref_mut()[victim]
-                            .as_mut()
-                            .unwrap()
-                            .mta_proof_wc;
-                        *proof = mta::malicious::corrupt_proof_wc(proof);
 
-                        self.sign.update_state_r2(state, out_p2ps)
+                        let proof = &mut out_p2ps.vec_ref_mut()[victim].as_mut();
+                        // The proof of the criminal is None.
+                        // To prevent tofn from unwraping a None proof, we skip
+                        // the corruction if a criminal targets himself.
+                        match proof {
+                            Some(proof) => {
+                                let proof = &mut proof.mta_proof_wc;
+                                *proof = mta::malicious::corrupt_proof_wc(proof);
+                                self.sign.update_state_r2(state, out_p2ps)
+                            }
+                            None => {
+                                warn!("Criminal attempted to corrupt None proof (are you targeting yourself?). Skipping...");
+                                self.sign.next_round()
+                            }
+                        }
                     }
                     r2::Output::Fail { out_bcast } => {
                         warn!(
@@ -281,13 +314,22 @@ impl Protocol for BadSign {
                             "malicious participant {} r5 corrupt range proof wc",
                             self.sign.my_participant_index
                         );
-                        let proof = &mut out_p2ps.vec_ref_mut()[victim]
-                            .as_mut()
-                            .unwrap()
-                            .ecdsa_randomizer_x_nonce_summand_proof;
-                        *proof = range::malicious::corrupt_proof_wc(proof);
 
-                        self.sign.update_state_r5(state, out_bcast, out_p2ps)
+                        let proof = &mut out_p2ps.vec_ref_mut()[victim].as_mut();
+                        // The proof of the criminal is None.
+                        // To prevent tofn from unwraping a None proof, we skip
+                        // the corruction if a criminal targets himself.
+                        match proof {
+                            Some(proof) => {
+                                let proof = &mut proof.ecdsa_randomizer_x_nonce_summand_proof;
+                                *proof = range::malicious::corrupt_proof_wc(proof);
+                                self.sign.update_state_r5(state, out_bcast, out_p2ps)
+                            }
+                            None => {
+                                warn!("Criminal attempted to corrupt None proof (are you targeting yourself?). Skipping...");
+                                self.sign.next_round()
+                            }
+                        }
                     }
                     r5::Output::Fail { out_bcast } => {
                         warn!(
