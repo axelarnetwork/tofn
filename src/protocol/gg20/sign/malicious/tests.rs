@@ -351,9 +351,12 @@ fn execute_test_case(t: &TestCase) {
 
     // TEST: everyone correctly computed the culprit list
     for signer in signers {
-        assert_eq!(
-            signer.clone_output().unwrap().unwrap_err(),
-            t.sign_expected_criminals
-        );
+        // We also need to take valid output into account because we skip some
+        // self-targetting malicious behaviours, resulting to valid SignOutput
+        let criminals = match signer.clone_output().unwrap() {
+            Ok(_) => vec![],
+            Err(criminals) => criminals,
+        };
+        assert_eq!(criminals, t.sign_expected_criminals);
     }
 }
