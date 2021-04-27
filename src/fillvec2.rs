@@ -178,6 +178,7 @@ mod tests {
     }
 
     #[test]
+    // #[traced_test] // doesn't play nice with #[should_panic] https://github.com/axelarnetwork/tofn/issues/34
     #[should_panic]
     fn override_enumerate() {
         let hole_vec = init_hole_vec().unwrap();
