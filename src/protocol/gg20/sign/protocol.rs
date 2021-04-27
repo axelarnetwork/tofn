@@ -122,6 +122,7 @@ impl Protocol for Sign {
                 self.final_output = Some(Output::Err(self.r7_fail()));
                 self.status = Fail;
             }
+            R6FailRandomizer => todo!(),
             R7 => match self.r8() {
                 r8::Output::Success { sig } => {
                     self.final_output = Some(Output::Ok(sig.as_bytes().to_vec()));
@@ -325,6 +326,7 @@ impl Protocol for Sign {
             R5Fail => &self.out_r5bcast_fail_serialized,
             R6 => &self.out_r6bcast,
             R6Fail => &self.out_r6bcast_fail_serialized,
+            R6FailRandomizer => &self.out_r6bcast_fail_randomizer_serialized,
             R7 => &self.out_r7bcast,
             R7Fail => &self.out_r7bcast_fail_serialized,
             Done => &None,
@@ -346,6 +348,7 @@ impl Protocol for Sign {
             R5Fail => &None,
             R6 => &None,
             R6Fail => &None,
+            R6FailRandomizer => &None,
             R7 => &None,
             R7Fail => &None,
             Done => &None,
@@ -423,12 +426,15 @@ impl Protocol for Sign {
                 }
                 false
             }
-            R6 | R6Fail => {
+            R6 | R6Fail | R6FailRandomizer => {
                 for i in 0..self.participant_indices.len() {
                     if i == me {
                         continue;
                     }
-                    if self.in_r6bcasts.is_none(i) && self.in_r6bcasts_fail.is_none(i) {
+                    if self.in_r6bcasts.is_none(i)
+                        && self.in_r6bcasts_fail.is_none(i)
+                        && self.in_r6bcasts_fail_randomizer.is_none(i)
+                    {
                         return true;
                     }
                 }
@@ -480,8 +486,12 @@ impl Sign {
                 }
             }
             R6 => {
+                // prioritize R6Fail over R6FailRandomizer
                 if self.in_r6bcasts_fail.some_count() > 0 {
                     self.status = R6Fail;
+                }
+                if self.in_r6bcasts_fail_randomizer.some_count() > 0 {
+                    self.status = R6FailRandomizer;
                 }
             }
             R7 => {
@@ -489,7 +499,11 @@ impl Sign {
                     self.status = R7Fail;
                 }
             }
-            _ => (),
+            // do not use catch-all pattern `_ => (),`
+            // instead, list all variants explicity
+            // because otherwise you'll forget to update this match statement when you add a variant
+            R1 | R2Fail | R3Fail | R4Fail | R5Fail | R6Fail | R6FailRandomizer | R7Fail | New
+            | Done | Fail => (),
         }
     }
 
@@ -727,8 +741,7 @@ impl Sign {
         })?);
         self.in_r6bcasts_fail_randomizer
             .insert(self.my_participant_index, bcast)?; // self delivery
-        todo!();
-        // self.status = R6Fail;
+        self.status = R6FailRandomizer;
         Ok(())
     }
 
