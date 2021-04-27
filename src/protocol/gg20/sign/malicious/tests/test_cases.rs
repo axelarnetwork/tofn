@@ -228,3 +228,37 @@ pub(super) fn generate_multiple_faults() -> Vec<TestCase> {
         },
     ]
 }
+
+// particants == threshold
+#[rustfmt::skip] // skip formatting to make file more readable
+pub(super) fn generate_small_threshold() -> Vec<TestCase> {
+    vec![
+        TestCase {
+            share_count: 5, threshold: 4, allow_self_delivery: false,
+            sign_participants: vec![
+                SignParticipant { party_index: 0, behaviour: Honest, },
+                SignParticipant { party_index: 1, behaviour: Honest, },
+                SignParticipant { party_index: 2, behaviour: Honest, },
+                SignParticipant { party_index: 3, behaviour: Honest, },
+            ],
+            sign_expected_criminals: vec![],
+        },
+    ]
+}
+
+// out of index
+#[rustfmt::skip] // skip formatting to make file more readable
+pub(super) fn generate_out_of_index() -> Vec<TestCase> {
+    vec![
+        TestCase {
+            share_count: 5, threshold: 4, allow_self_delivery: false,
+            sign_participants: vec![
+                SignParticipant { party_index: 0, behaviour: Honest, },
+                SignParticipant { party_index: 1, behaviour: Honest, },
+                SignParticipant { party_index: 2, behaviour: Honest, },
+                SignParticipant { party_index: 5, behaviour: Honest, }, // panic: index is equal to share_counts
+            ],
+            sign_expected_criminals: vec![],
+        },
+    ]
+}
