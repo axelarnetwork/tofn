@@ -98,6 +98,7 @@ mod r6;
 mod r6_fail;
 mod r7;
 mod r7_fail;
+mod r7_fail_randomizer;
 mod r8;
 mod r8_fail;
 

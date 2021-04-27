@@ -2,7 +2,7 @@ use super::{Status::*, *};
 use crate::protocol::{MsgBytes, Protocol, ProtocolResult};
 use serde::{Deserialize, Serialize};
 
-use tracing::warn;
+use tracing::{error, warn};
 
 #[derive(Serialize, Deserialize)]
 enum MsgType {
@@ -122,7 +122,10 @@ impl Protocol for Sign {
                 self.final_output = Some(Output::Err(self.r7_fail()));
                 self.status = Fail;
             }
-            R6FailRandomizer => todo!(),
+            R6FailRandomizer => {
+                self.final_output = Some(Output::Err(self.r7_fail_randomizer()));
+                self.status = Fail;
+            }
             R7 => match self.r8() {
                 r8::Output::Success { sig } => {
                     self.final_output = Some(Output::Ok(sig.as_bytes().to_vec()));
@@ -491,6 +494,7 @@ impl Sign {
                     self.status = R6Fail;
                 }
                 if self.in_r6bcasts_fail_randomizer.some_count() > 0 {
+                    warn!("participant {} says: somebody kicked us into R6FailRandomizer status, but I did not observe a problem", self.my_participant_index);
                     self.status = R6FailRandomizer;
                 }
             }

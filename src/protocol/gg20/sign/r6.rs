@@ -33,13 +33,19 @@ pub struct BcastCulprits {
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BcastRandomizer {
-    pub ecdsa_nonce_summand: FE,                                // k_i
-    pub ecdsa_nonce_summand_randomness: BigInt,                 // k_i encryption randomness
-    pub secret_blind_summand: FE,                               // gamma_i
-    pub mta_blind_summands_rhs: Vec<Option<FE>>,                // beta_ji
+    // TODO do I also need encryption randomness for alpha_ij ?  Yes.
+    // get encryption randomness for alpha_ij from Paillier::open
+    // how to verify integrity of alpha_ij, beta_ji:
+    // 1. call MessageB::b_with_predefined_randomness to get enc(alpha_ji) and beta_ji
+    // 2. call Paillier::encrypt_with_chosen_randomness to get enc(alpha_ji)
+    pub ecdsa_nonce_summand: FE,                // k_i
+    pub ecdsa_nonce_summand_randomness: BigInt, // k_i encryption randomness
+    pub secret_blind_summand: FE,               // gamma_i
+
+    // make this one vec of a struct
+    pub mta_blind_summands_rhs: Vec<Option<FE>>, // beta_ji
     pub mta_blind_summands_rhs_randomness: Vec<Option<BigInt>>, // beta_ji encryption randomness
-    pub mta_blind_summands_lhs: Vec<Option<FE>>,                // alpha_ij
-                                                                // TODO do I also need randomness from r3 call to verify_proofs_get_alpha ?
+    pub mta_blind_summands_lhs: Vec<Option<FE>>, // alpha_ij
 }
 pub enum Output {
     Success { state: State, out_bcast: Bcast },

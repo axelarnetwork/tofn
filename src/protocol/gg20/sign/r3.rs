@@ -129,6 +129,7 @@ impl Sign {
                 });
 
             // decrypt my portion of the additive share
+            // TODO may need to use Paillier::open here to recover encryption randomness
             let (my_mta_blind_summand_lhs, _) = in_p2p
                 .mta_response_blind
                 .verify_proofs_get_alpha(my_dk, &r1state.my_ecdsa_nonce_summand)
@@ -165,8 +166,6 @@ impl Sign {
         // my_ecdsa_nonce_summand -> k_i
         // my_secret_blind_summand -> gamma_i
         // my_secret_key_summand -> w_i
-        // my_nonce_x_blind_summand -> ki_gamma_i -> delta_i
-        // my_nonce_x_keyshare_summand -> ki_w_i -> sigma_i
         let r2state = self.r2state.as_ref().unwrap();
         let my_mta_blind_summands_lhs = my_mta_blind_summands_lhs.into_vec();
         let my_mta_keyshare_summands_lhs = my_mta_keyshare_summands_lhs.into_vec();
