@@ -221,7 +221,7 @@ use test_cases::*;
 
 lazy_static::lazy_static! {
     static ref SIMPLE_TEST_CASES: Vec<TestCase> = generate_simple_test_cases();
-    static ref SELF_TARGET_TEST_CASES: Vec<TestCase> = generate_self_targeting_signers();
+    static ref SELF_TARGET_TEST_CASES: Vec<TestCase> = generate_skipping_cases();
     static ref TEST_CASES: Vec<TestCase> = generate_multiple_faults();
 }
 

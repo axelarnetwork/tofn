@@ -45,7 +45,7 @@ pub fn generate_simple_test_cases() -> Vec<TestCase> {
 
 // The conention we make is that self-targeting corruptions are skipped
 #[rustfmt::skip] // skip formatting to make file more readable
-pub fn generate_self_targeting_signers() -> Vec<TestCase> {
+pub fn generate_skipping_cases() -> Vec<TestCase> {
     let self_targeting_types = vec![
         R1BadProof { victim: 2 },
         R1FalseAccusation { victim: 2 },
