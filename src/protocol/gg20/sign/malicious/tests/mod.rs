@@ -222,7 +222,11 @@ use test_cases::*;
 lazy_static::lazy_static! {
     static ref SIMPLE_TEST_CASES: Vec<TestCase> = generate_simple_test_cases();
     static ref SELF_TARGET_TEST_CASES: Vec<TestCase> = generate_skipping_cases();
+    static ref MULTIPLE_IN_SAME_ROUND: Vec<TestCase> = generate_multiple_faults_in_same_round();
     static ref TEST_CASES: Vec<TestCase> = generate_multiple_faults();
+    static ref TARGET_MULTIPLE: Vec<TestCase> = generate_target_multiple_parties();
+    static ref PANIC_THRESHOLD: Vec<TestCase> = generate_small_threshold();
+    static ref PANIC_INDEX: Vec<TestCase> = generate_out_of_index();
 }
 
 static MESSAGE_TO_SIGN: [u8; 2] = [42, 24];
@@ -241,8 +245,31 @@ fn simple_cases() {
 
 #[test]
 #[traced_test]
+fn multiple_faults_in_same_round() {
+    execute_test_case_list(&MULTIPLE_IN_SAME_ROUND);
+}
+
+#[test]
+#[traced_test]
 fn multiple_faults() {
     execute_test_case_list(&TEST_CASES);
+}
+
+#[test]
+#[traced_test]
+fn target_multiple_parties() {
+    execute_test_case_list(&TARGET_MULTIPLE);
+}
+#[test]
+#[should_panic]
+fn panic_small_threshold() {
+    execute_test_case_list(&PANIC_THRESHOLD);
+}
+
+#[test]
+#[should_panic]
+fn panic_out_of_index() {
+    execute_test_case_list(&PANIC_INDEX);
 }
 
 fn execute_test_case_list(test_cases: &[TestCase]) {
