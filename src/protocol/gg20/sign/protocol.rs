@@ -2,7 +2,7 @@ use super::{Status::*, *};
 use crate::protocol::{MsgBytes, Protocol, ProtocolResult};
 use serde::{Deserialize, Serialize};
 
-use tracing::{debug, warn};
+use tracing::{debug, error, warn};
 
 #[derive(Serialize, Deserialize)]
 enum MsgType {
@@ -125,8 +125,7 @@ impl Protocol for Sign {
             }
             R6FailRandomizer => {
                 let bcast = self.r7_fail_randomizer();
-                todo!()
-                // self.update_state
+                self.update_state_r7fail_randomizer(bcast)?;
             }
             R7 => match self.r8() {
                 r8::Output::Success { sig } => {
@@ -141,6 +140,9 @@ impl Protocol for Sign {
             R7Fail => {
                 self.final_output = Some(Output::Err(self.r8_fail()));
                 self.status = Fail;
+            }
+            R7FailRandomizer => {
+                todo!()
             }
             Done => return Err(From::from("already done")),
             Fail => return Err(From::from("already failed")),
@@ -344,6 +346,7 @@ impl Protocol for Sign {
             R6FailRandomizer => &self.out_r6bcast_fail_randomizer_serialized,
             R7 => &self.out_r7bcast,
             R7Fail => &self.out_r7bcast_fail_serialized,
+            R7FailRandomizer => &self.out_r7bcast_fail_randomizer_serialized,
             Done => &None,
             Fail => &None,
         }
@@ -366,6 +369,7 @@ impl Protocol for Sign {
             R6FailRandomizer => &None,
             R7 => &None,
             R7Fail => &None,
+            R7FailRandomizer => &None,
             Done => &None,
             Fail => &None,
         }
@@ -455,12 +459,15 @@ impl Protocol for Sign {
                 }
                 false
             }
-            R7 | R7Fail => {
+            R7 | R7Fail | R7FailRandomizer => {
                 for i in 0..self.participant_indices.len() {
                     if i == me {
                         continue;
                     }
-                    if self.in_r7bcasts.is_none(i) && self.in_r7bcasts_fail.is_none(i) {
+                    if self.in_r7bcasts.is_none(i)
+                        && self.in_r7bcasts_fail.is_none(i)
+                        && self.in_r7bcasts_fail_randomizer.is_none(i)
+                    {
                         return true;
                     }
                 }
@@ -521,12 +528,22 @@ impl Sign {
                 if self.in_r7bcasts_fail.some_count() > 0 {
                     self.status = R7Fail;
                 }
+                if self.in_r7bcasts_fail_randomizer.some_count() > 0 {
+                    let senders_of_wrong_messages: Vec<usize> = self
+                        .in_r7bcasts_fail_randomizer
+                        .vec_ref()
+                        .iter()
+                        .enumerate()
+                        .filter_map(|x| if x.1.is_some() { Some(x.0) } else { None })
+                        .collect();
+                    error!("participant {} says: in state R7 but received a message of type R7FailRandomizerBcast from participants {:?}", self.my_participant_index, senders_of_wrong_messages);
+                }
             }
             // do not use catch-all pattern `_ => (),`
             // instead, list all variants explicity
             // because otherwise you'll forget to update this match statement when you add a variant
-            R1 | R2Fail | R3Fail | R4Fail | R5Fail | R6Fail | R6FailRandomizer | R7Fail | New
-            | Done | Fail => (),
+            R1 | R2Fail | R3Fail | R4Fail | R5Fail | R6Fail | R6FailRandomizer | R7Fail
+            | R7FailRandomizer | New | Done | Fail => (),
         }
     }
 
@@ -808,8 +825,7 @@ impl Sign {
         })?);
         self.in_r7bcasts_fail_randomizer
             .insert(self.my_participant_index, bcast)?; // self delivery
-        todo!()
-        // self.status = R7FailRandomizer;
-        // Ok(())
+        self.status = R7FailRandomizer;
+        Ok(())
     }
 }

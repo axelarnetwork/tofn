@@ -382,7 +382,11 @@ impl Protocol for BadSign {
                         self.sign.update_state_r6fail(out_bcast)
                     }
                     r6::Output::FailRandomizer => {
-                        todo!();
+                        warn!(
+                            "malicious participant {} instructed to corrupt r6 pedersen proof wc but r6 has already failed so reverting to honesty",
+                            self.sign.my_participant_index
+                        );
+                        self.sign.update_state_r6fail_randomizer()
                     }
                 }
             }

@@ -67,6 +67,7 @@ enum Status {
     R6FailRandomizer,
     R7,
     R7Fail,
+    R7FailRandomizer,
     Done,
     Fail,
 }
