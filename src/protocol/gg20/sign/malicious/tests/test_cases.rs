@@ -1,18 +1,17 @@
-// TODO: is there any way to avoid making everything pub?
 use super::*;
 use crate::protocol::{CrimeType, Criminal};
 
-pub struct SignParticipant {
-    pub party_index: usize,
-    pub behaviour: MaliciousType,
+pub(super) struct SignParticipant {
+    pub(super) party_index: usize,
+    pub(super) behaviour: MaliciousType,
 }
 
-pub struct TestCase {
-    pub share_count: usize,
-    pub threshold: usize,
-    pub allow_self_delivery: bool,
-    pub sign_participants: Vec<SignParticipant>,
-    pub sign_expected_criminals: Vec<Criminal>,
+pub(super) struct TestCase {
+    pub(super) share_count: usize,
+    pub(super) threshold: usize,
+    pub(super) allow_self_delivery: bool,
+    pub(super) sign_participants: Vec<SignParticipant>,
+    pub(super) sign_expected_criminals: Vec<Criminal>,
 }
 
 use strum::IntoEnumIterator;
@@ -21,7 +20,7 @@ use strum::IntoEnumIterator;
 // https://docs.rs/strum_macros/0.20.1/strum_macros/derive.EnumIter.html
 // this means that all criminals in these test cases target index 0
 #[rustfmt::skip] // skip formatting to make file more readable
-pub fn generate_simple_test_cases() -> Vec<TestCase> {
+pub(super) fn generate_simple_test_cases() -> Vec<TestCase> {
     let mut test_cases = Vec::new();
     let share_count = 5;
     let threshold = 2;
@@ -45,7 +44,7 @@ pub fn generate_simple_test_cases() -> Vec<TestCase> {
 
 // Test all cases where malicious behaviours are skipped due to self-targeting
 #[rustfmt::skip] // skip formatting to make file more readable
-pub fn generate_skipping_cases() -> Vec<TestCase> {
+pub(super) fn generate_skipping_cases() -> Vec<TestCase> {
     let victim = 2; // all victims are at index 2
     let self_targeting_types = vec![
         R1BadProof { victim },
@@ -82,7 +81,7 @@ pub fn generate_skipping_cases() -> Vec<TestCase> {
 
 // TODO: Add more cases here
 #[rustfmt::skip] // skip formatting to make file more readable
-pub fn generate_multiple_faults() -> Vec<TestCase> {
+pub(super) fn generate_multiple_faults() -> Vec<TestCase> {
     vec![
         TestCase {
             share_count: 5, threshold: 2, allow_self_delivery: true, 
