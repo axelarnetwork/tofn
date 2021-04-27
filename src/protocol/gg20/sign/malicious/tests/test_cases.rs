@@ -224,17 +224,17 @@ pub(super) fn generate_multiple_faults() -> Vec<TestCase> {
         TestCase {
             share_count: 10, threshold: 4, allow_self_delivery: false,
             sign_participants: vec![
-                SignParticipant { party_index: 0, behaviour: Honest, },
-                SignParticipant { party_index: 1, behaviour: R1BadProof { victim: 0 }, },
-                SignParticipant { party_index: 2, behaviour: R2BadMta{victim: 0}, },
-                SignParticipant { party_index: 3, behaviour: R3BadProof, },
+                SignParticipant { party_index: 0, behaviour: R1BadProof { victim: 3 }, },
+                SignParticipant { party_index: 1, behaviour: R2BadMta{victim: 3}, },
+                SignParticipant { party_index: 2, behaviour: R3BadProof, },
+                SignParticipant { party_index: 3, behaviour: Honest, },
                 SignParticipant { party_index: 4, behaviour: R4BadReveal, },
-                SignParticipant { party_index: 5, behaviour: R5BadProof{victim: 0}, },
+                SignParticipant { party_index: 5, behaviour: R5BadProof{victim: 3}, },
                 SignParticipant { party_index: 6, behaviour: R6BadProof, },
                 SignParticipant { party_index: 7, behaviour: R7BadSigSummand, },
             ],
             sign_expected_criminals: vec![
-                Criminal { index: 1, crime_type: CrimeType::Malicious, },
+                Criminal { index: 0, crime_type: CrimeType::Malicious, },
             ],
         },
         TestCase {
