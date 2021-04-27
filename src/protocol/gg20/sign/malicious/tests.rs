@@ -255,8 +255,55 @@ fn generate_simple_test_cases() -> Vec<TestCase> {
     test_cases
 }
 
+// The conention we make is that self-targetting corruptions are skipped
+// TODO: Ask @Gus why some FalseAccusations still produce criminals. Is is because they broadcast?
+fn generate_self_targetting_signers() -> Vec<TestCase> {
+    let self_targetting_types = vec![
+        R1BadProof { victim: 2 },
+        R1FalseAccusation { victim: 2 },
+        R2BadMta { victim: 2 },
+        R2BadMtaWc { victim: 2 },
+        R2FalseAccusationMta { victim: 2 },
+        R2FalseAccusationMtaWc { victim: 2 },
+        // R3FalseAccusation { victim: 2 }, // this produces criminals
+        // R4FalseAccusation { victim: 2 }, // this produces criminals
+        R5BadProof { victim: 2 },
+        R5FalseAccusation { victim: 2 },
+        // R6FalseAccusation { victim: 2 }, // this produces criminals
+    ];
+
+    let mut test_cases = Vec::new();
+    let share_count = 5;
+    let threshold = 2;
+    let allow_self_delivery = true;
+    for malicous_type in self_targetting_types {
+        test_cases.push(TestCase {
+            share_count,
+            threshold,
+            allow_self_delivery,
+            sign_participants: vec![
+                SignParticipant {
+                    party_index: 1,
+                    behaviour: Honest,
+                },
+                SignParticipant {
+                    party_index: 2,
+                    behaviour: Honest,
+                },
+                SignParticipant {
+                    party_index: 3,
+                    behaviour: malicous_type,
+                },
+            ],
+            sign_expected_criminals: vec![],
+        })
+    }
+    test_cases
+}
+
 lazy_static::lazy_static! {
     static ref SIMPLE_TEST_CASES: Vec<TestCase> = generate_simple_test_cases();
+    static ref SELF_TARGET_TEST_CASES: Vec<TestCase> = generate_self_targetting_signers();
     static ref TEST_CASES: Vec<TestCase> = vec![
         TestCase{
             share_count: 5,
@@ -298,6 +345,12 @@ struct TestCase {
     allow_self_delivery: bool,
     sign_participants: Vec<SignParticipant>,
     sign_expected_criminals: Vec<Criminal>,
+}
+
+#[test]
+#[traced_test]
+fn self_targetting() {
+    test_cases(&SELF_TARGET_TEST_CASES);
 }
 
 #[test]
