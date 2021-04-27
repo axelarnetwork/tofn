@@ -179,6 +179,33 @@ pub(super) fn generate_multiple_faults_in_same_round() -> Vec<TestCase> {
 }
 
 #[rustfmt::skip] // skip formatting to make file more readable
+pub(super) fn generate_target_multiple_parties() -> Vec<TestCase> {
+    vec![
+        TestCase {
+            share_count: 9, threshold: 6, allow_self_delivery: true, 
+            sign_participants: vec![
+                SignParticipant { party_index: 0, behaviour: Honest, },
+                SignParticipant { party_index: 1, behaviour: Honest, },
+                SignParticipant { party_index: 2, behaviour: Honest, },
+                SignParticipant { party_index: 3, behaviour: R1BadProof { victim: 0 }, },
+                SignParticipant { party_index: 4, behaviour: R1FalseAccusation{ victim: 0}, },
+                SignParticipant { party_index: 5, behaviour: R1BadProof { victim: 1 }, },
+                SignParticipant { party_index: 6, behaviour: R1FalseAccusation{ victim: 1}, },
+                // R5 should not be registered because they happen after R1 crimes
+                SignParticipant { party_index: 7, behaviour: R5BadProof { victim: 2 }, },       
+                SignParticipant { party_index: 8, behaviour: R5FalseAccusation{ victim: 2}, },
+            ],
+            sign_expected_criminals: vec![
+                Criminal { index: 3, crime_type: CrimeType::Malicious, },
+                Criminal { index: 4, crime_type: CrimeType::Malicious, },
+                Criminal { index: 5, crime_type: CrimeType::Malicious, },
+                Criminal { index: 6, crime_type: CrimeType::Malicious, },
+            ],
+        },
+    ]
+}
+
+#[rustfmt::skip] // skip formatting to make file more readable
 pub(super) fn generate_multiple_faults() -> Vec<TestCase> {
     vec![
         TestCase {
