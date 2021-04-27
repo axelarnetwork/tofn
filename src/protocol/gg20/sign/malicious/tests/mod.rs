@@ -222,6 +222,7 @@ use test_cases::*;
 lazy_static::lazy_static! {
     static ref SIMPLE_TEST_CASES: Vec<TestCase> = generate_simple_test_cases();
     static ref SELF_TARGET_TEST_CASES: Vec<TestCase> = generate_skipping_cases();
+    static ref MULTIPLE_IN_SAME_ROUND: Vec<TestCase> = generate_multiple_faults_in_same_round();
     static ref TEST_CASES: Vec<TestCase> = generate_multiple_faults();
 }
 
@@ -237,6 +238,12 @@ fn self_targeting() {
 #[traced_test]
 fn simple_cases() {
     execute_test_case_list(&SIMPLE_TEST_CASES);
+}
+
+#[test]
+#[traced_test]
+fn multiple_faults_in_same_round() {
+    execute_test_case_list(&MULTIPLE_IN_SAME_ROUND);
 }
 
 #[test]

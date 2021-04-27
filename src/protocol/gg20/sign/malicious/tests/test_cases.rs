@@ -79,21 +79,108 @@ pub(super) fn generate_skipping_cases() -> Vec<TestCase> {
     test_cases
 }
 
-// TODO: Add more cases here
 #[rustfmt::skip] // skip formatting to make file more readable
-pub(super) fn generate_multiple_faults() -> Vec<TestCase> {
+pub(super) fn generate_multiple_faults_in_same_round() -> Vec<TestCase> {
     vec![
+        // multiple faults in round 1
         TestCase {
             share_count: 5, threshold: 2, allow_self_delivery: true, 
             sign_participants: vec![
                 SignParticipant { party_index: 4, behaviour: Honest, },
-                SignParticipant { party_index: 2, behaviour: Honest, },
-                SignParticipant { party_index: 1, behaviour: R1BadProof { victim: 0 }, },
+                SignParticipant { party_index: 3, behaviour: R1BadProof { victim: 0 }, },
+                SignParticipant { party_index: 2, behaviour: R1FalseAccusation{ victim: 0}, },
             ],
             sign_expected_criminals: vec![
-                Criminal { index: 2, crime_type: CrimeType::Malicious, }
+                Criminal { index: 1, crime_type: CrimeType::Malicious, },
+                Criminal { index: 2, crime_type: CrimeType::Malicious, },
             ],
         },
+        // multiple faults in round 2
+        TestCase {
+            share_count: 5, threshold: 4, allow_self_delivery: false,
+            sign_participants: vec![
+                SignParticipant { party_index: 0, behaviour: Honest, },
+                SignParticipant { party_index: 1, behaviour: R2BadMta{victim: 0}, },
+                SignParticipant { party_index: 2, behaviour: R2BadMtaWc{victim: 0}, },
+                SignParticipant { party_index: 3, behaviour: R2FalseAccusationMta{victim: 0}, },
+                SignParticipant { party_index: 4, behaviour: R2FalseAccusationMtaWc{victim: 0}, },
+            ],
+            sign_expected_criminals: vec![
+                Criminal { index: 1, crime_type: CrimeType::Malicious, },
+                Criminal { index: 2, crime_type: CrimeType::Malicious, },
+                Criminal { index: 3, crime_type: CrimeType::Malicious, },
+                Criminal { index: 4, crime_type: CrimeType::Malicious, },
+            ],
+        },
+        // multiple faults in round 3
+        TestCase {
+            share_count: 5, threshold: 2, allow_self_delivery: false,
+            sign_participants: vec![
+                SignParticipant { party_index: 0, behaviour: Honest, },
+                SignParticipant { party_index: 1, behaviour: R3BadProof, },
+                SignParticipant { party_index: 2, behaviour: R3FalseAccusation{victim: 0}, },
+            ],
+            sign_expected_criminals: vec![
+                Criminal { index: 1, crime_type: CrimeType::Malicious, },
+                Criminal { index: 2, crime_type: CrimeType::Malicious, },
+            ],
+        },
+        // multiple faults in round 4
+        TestCase {
+            share_count: 5, threshold: 2, allow_self_delivery: false,
+            sign_participants: vec![
+                SignParticipant { party_index: 0, behaviour: Honest, },
+                SignParticipant { party_index: 1, behaviour: R4BadReveal, },
+                SignParticipant { party_index: 2, behaviour: R4FalseAccusation{victim: 0}, },
+            ],
+            sign_expected_criminals: vec![
+                Criminal { index: 1, crime_type: CrimeType::Malicious, },
+                Criminal { index: 2, crime_type: CrimeType::Malicious, },
+            ],
+        },
+        // multiple faults in round 5
+        TestCase {
+            share_count: 5, threshold: 2, allow_self_delivery: false,
+            sign_participants: vec![
+                SignParticipant { party_index: 0, behaviour: Honest, },
+                SignParticipant { party_index: 1, behaviour: R5BadProof{victim: 0}, },
+                SignParticipant { party_index: 2, behaviour: R5FalseAccusation{victim: 0}, },
+            ],
+            sign_expected_criminals: vec![
+                Criminal { index: 1, crime_type: CrimeType::Malicious, },
+                Criminal { index: 2, crime_type: CrimeType::Malicious, },
+            ],
+        },
+        // multiple faults in round 6
+        TestCase {
+            share_count: 5, threshold: 2, allow_self_delivery: false,
+            sign_participants: vec![
+                SignParticipant { party_index: 0, behaviour: Honest, },
+                SignParticipant { party_index: 1, behaviour: R6BadProof, },
+                SignParticipant { party_index: 2, behaviour: R6FalseAccusation{victim: 0}, },
+            ],
+            sign_expected_criminals: vec![
+                Criminal { index: 1, crime_type: CrimeType::Malicious, },
+                Criminal { index: 2, crime_type: CrimeType::Malicious, },
+            ],
+        },
+        // multiple faults in round 7
+        TestCase {
+            share_count: 5, threshold: 1, allow_self_delivery: false,
+            sign_participants: vec![
+                SignParticipant { party_index: 0, behaviour: Honest, },
+                SignParticipant { party_index: 1, behaviour: R7BadSigSummand, },
+            ],
+            sign_expected_criminals: vec![
+                Criminal { index: 1, crime_type: CrimeType::Malicious, },
+            ],
+        },
+    ]
+}
+
+#[rustfmt::skip] // skip formatting to make file more readable
+pub(super) fn generate_multiple_faults() -> Vec<TestCase> {
+    vec![
         TestCase {
             share_count: 5, threshold: 4, allow_self_delivery: false,
             sign_participants: vec![
@@ -102,6 +189,38 @@ pub(super) fn generate_multiple_faults() -> Vec<TestCase> {
                 SignParticipant { party_index: 2, behaviour: Honest, },
                 SignParticipant { party_index: 3, behaviour: R3BadProof, },
                 SignParticipant { party_index: 4, behaviour: Honest, },
+            ],
+            sign_expected_criminals: vec![
+                Criminal { index: 1, crime_type: CrimeType::Malicious, },
+            ],
+        },
+        TestCase {
+            share_count: 10, threshold: 4, allow_self_delivery: false,
+            sign_participants: vec![
+                SignParticipant { party_index: 0, behaviour: Honest, },
+                SignParticipant { party_index: 1, behaviour: R1BadProof { victim: 0 }, },
+                SignParticipant { party_index: 2, behaviour: R2BadMta{victim: 0}, },
+                SignParticipant { party_index: 3, behaviour: R3BadProof, },
+                SignParticipant { party_index: 4, behaviour: R4BadReveal, },
+                SignParticipant { party_index: 5, behaviour: R5BadProof{victim: 0}, },
+                SignParticipant { party_index: 6, behaviour: R6BadProof, },
+                SignParticipant { party_index: 7, behaviour: R7BadSigSummand, },
+            ],
+            sign_expected_criminals: vec![
+                Criminal { index: 1, crime_type: CrimeType::Malicious, },
+            ],
+        },
+        TestCase {
+            share_count: 10, threshold: 4, allow_self_delivery: false,
+            sign_participants: vec![
+                SignParticipant { party_index: 0, behaviour: Honest, },
+                SignParticipant { party_index: 1, behaviour: R1BadProof { victim: 0 }, },
+                SignParticipant { party_index: 2, behaviour: R2BadMta{victim: 1}, },
+                SignParticipant { party_index: 3, behaviour: R3BadProof, },
+                SignParticipant { party_index: 4, behaviour: R4BadReveal, },
+                SignParticipant { party_index: 5, behaviour: R5BadProof{victim: 3}, },
+                SignParticipant { party_index: 6, behaviour: R6BadProof, },
+                SignParticipant { party_index: 7, behaviour: R7BadSigSummand, },
             ],
             sign_expected_criminals: vec![
                 Criminal { index: 1, crime_type: CrimeType::Malicious, },
