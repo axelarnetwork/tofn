@@ -229,12 +229,12 @@ pub(super) fn generate_multiple_faults() -> Vec<TestCase> {
     ]
 }
 
-// particants == threshold
+// Threshold is equal to the number of participants
 #[rustfmt::skip] // skip formatting to make file more readable
 pub(super) fn generate_small_threshold() -> Vec<TestCase> {
     vec![
         TestCase {
-            share_count: 5, threshold: 4, allow_self_delivery: false,
+            share_count: 5, threshold: 4, allow_self_delivery: false, // panic: threashold is 4, signers are 4
             sign_participants: vec![
                 SignParticipant { party_index: 0, behaviour: Honest, },
                 SignParticipant { party_index: 1, behaviour: Honest, },
@@ -246,7 +246,7 @@ pub(super) fn generate_small_threshold() -> Vec<TestCase> {
     ]
 }
 
-// out of index
+// Target a party that does not exist
 #[rustfmt::skip] // skip formatting to make file more readable
 pub(super) fn generate_out_of_index() -> Vec<TestCase> {
     vec![
