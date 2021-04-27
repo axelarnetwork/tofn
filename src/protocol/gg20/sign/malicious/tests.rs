@@ -255,10 +255,10 @@ fn generate_simple_test_cases() -> Vec<TestCase> {
     test_cases
 }
 
-// The conention we make is that self-targetting corruptions are skipped
+// The conention we make is that self-targeting corruptions are skipped
 // TODO: Ask @Gus why some FalseAccusations still produce criminals. Is is because they broadcast?
-fn generate_self_targetting_signers() -> Vec<TestCase> {
-    let self_targetting_types = vec![
+fn generate_self_targeting_signers() -> Vec<TestCase> {
+    let self_targeting_types = vec![
         R1BadProof { victim: 2 },
         R1FalseAccusation { victim: 2 },
         R2BadMta { victim: 2 },
@@ -276,7 +276,7 @@ fn generate_self_targetting_signers() -> Vec<TestCase> {
     let share_count = 5;
     let threshold = 2;
     let allow_self_delivery = true;
-    for malicous_type in self_targetting_types {
+    for malicous_type in self_targeting_types {
         test_cases.push(TestCase {
             share_count,
             threshold,
@@ -363,7 +363,7 @@ fn generate_multiple_faults() -> Vec<TestCase> {
 
 lazy_static::lazy_static! {
     static ref SIMPLE_TEST_CASES: Vec<TestCase> = generate_simple_test_cases();
-    static ref SELF_TARGET_TEST_CASES: Vec<TestCase> = generate_self_targetting_signers();
+    static ref SELF_TARGET_TEST_CASES: Vec<TestCase> = generate_self_targeting_signers();
     static ref TEST_CASES: Vec<TestCase> = generate_multiple_faults();
 }
 
@@ -384,7 +384,7 @@ struct TestCase {
 
 #[test]
 #[traced_test]
-fn self_targetting() {
+fn self_targeting() {
     test_cases(&SELF_TARGET_TEST_CASES);
 }
 
@@ -442,7 +442,7 @@ fn execute_test_case(t: &TestCase) {
     // TEST: everyone correctly computed the culprit list
     for signer in signers {
         // We also need to take valid output into account because we skip some
-        // self-targetting malicious behaviours, resulting to valid SignOutput
+        // self-targeting malicious behaviours, resulting to valid SignOutput
         let criminals = match signer.clone_output().unwrap() {
             Ok(_) => vec![],
             Err(criminals) => criminals,

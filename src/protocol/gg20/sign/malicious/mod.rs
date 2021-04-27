@@ -82,7 +82,7 @@ impl Protocol for BadSign {
                         self.sign.update_state_r1(state, bcast, p2ps)
                     }
                     None => {
-                        warn!("Criminal attempted to corrupt None proof (are you targetting yourself?). Skipping...");
+                        warn!("Criminal attempted to corrupt None proof (are you targeting yourself?). Skipping...");
                         self.sign.next_round()
                     }
                 }
@@ -128,7 +128,7 @@ impl Protocol for BadSign {
                                 self.sign.update_state_r2(state, out_p2ps)
                             }
                             None => {
-                                warn!("Criminal attempted to corrupt None proof (are you targetting yourself?). Skipping...");
+                                warn!("Criminal attempted to corrupt None proof (are you targeting yourself?). Skipping...");
                                 self.sign.next_round()
                             }
                         }
@@ -167,7 +167,7 @@ impl Protocol for BadSign {
                                 self.sign.update_state_r2(state, out_p2ps)
                             }
                             None => {
-                                warn!("Criminal attempted to corrupt None proof (are you targetting yourself?). Skipping...");
+                                warn!("Criminal attempted to corrupt None proof (are you targeting yourself?). Skipping...");
                                 self.sign.next_round()
                             }
                         }
@@ -326,7 +326,7 @@ impl Protocol for BadSign {
                                 self.sign.update_state_r5(state, out_bcast, out_p2ps)
                             }
                             None => {
-                                warn!("Criminal attempted to corrupt None proof (are you targetting yourself?). Skipping...");
+                                warn!("Criminal attempted to corrupt None proof (are you targeting yourself?). Skipping...");
                                 self.sign.next_round()
                             }
                         }

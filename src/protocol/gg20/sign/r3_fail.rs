@@ -16,9 +16,9 @@ impl Sign {
         for accuser in 0..self.participant_indices.len() {
             if let Some(fail_bcast) = self.in_r2bcasts_fail.vec_ref()[accuser].as_ref() {
                 for accused in fail_bcast.culprits.iter() {
-                    // Skip round if accuser is targetting himself; R1FalseAccusation is causing that
+                    // Skip round if accuser is targeting himself; R1FalseAccusation is causing that
                     if accuser == accused.participant_index {
-                        warn!("Accuser is targetting self. Skipping ...");
+                        warn!("Accuser is targeting self. Skipping ...");
                         continue;
                     }
 

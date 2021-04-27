@@ -18,9 +18,9 @@ impl Sign {
         for accuser in 0..self.participant_indices.len() {
             if let Some(fail_bcast) = self.in_r3bcasts_fail.vec_ref()[accuser].as_ref() {
                 for accused in fail_bcast.culprits.iter() {
-                    // Skip round if accuser is targetting himself; R2FalseAccusationMta is causing that
+                    // Skip round if accuser is targeting himself; R2FalseAccusationMta is causing that
                     if accuser == accused.participant_index {
-                        warn!("Accuser is targetting self. Skipping ...");
+                        warn!("Accuser is targeting self. Skipping ...");
                         continue;
                     }
                     let verifier_encrypted_ecdsa_nonce_summand = &self.in_r1bcasts.vec_ref()
