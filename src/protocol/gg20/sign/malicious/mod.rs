@@ -72,9 +72,9 @@ impl Protocol for BadSign {
                     self.sign.my_participant_index, victim
                 );
                 let proof = p2ps.vec_ref_mut()[victim].as_mut();
-                // this proof is None in case of self-referencing
-                // To prevent tofn from dereferencing a None proof, we skip
-                // the corruction in this case.
+                // The proof of the criminal is None.
+                // To prevent tofn from unwraping a None proof, we skip
+                // the corruction if a criminal targets himself.
                 match proof {
                     Some(proof) => {
                         let proof = &mut proof.range_proof;
@@ -118,9 +118,9 @@ impl Protocol for BadSign {
                         );
 
                         let proof = out_p2ps.vec_ref_mut()[victim].as_mut();
-                        // this proof is None in case of self-referencing
-                        // To prevent tofn from dereferencing a None proof, we skip
-                        // the corruction in this case.
+                        // The proof of the criminal is None.
+                        // To prevent tofn from unwraping a None proof, we skip
+                        // the corruction if a criminal targets himself.
                         match proof {
                             Some(proof) => {
                                 let proof = &mut proof.mta_proof;
@@ -157,9 +157,9 @@ impl Protocol for BadSign {
                         );
 
                         let proof = &mut out_p2ps.vec_ref_mut()[victim].as_mut();
-                        // this proof is None in case of self-referencing
-                        // To prevent tofn from dereferencing a None proof, we skip
-                        // the corruction in this case.
+                        // The proof of the criminal is None.
+                        // To prevent tofn from unwraping a None proof, we skip
+                        // the corruction if a criminal targets himself.
                         match proof {
                             Some(proof) => {
                                 let proof = &mut proof.mta_proof_wc;
@@ -316,9 +316,9 @@ impl Protocol for BadSign {
                         );
 
                         let proof = &mut out_p2ps.vec_ref_mut()[victim].as_mut();
-                        // this proof is None in case of self-referencing
-                        // To prevent tofn from dereferencing a None proof, we skip
-                        // the corruction in this case.
+                        // The proof of the criminal is None.
+                        // To prevent tofn from unwraping a None proof, we skip
+                        // the corruction if a criminal targets himself.
                         match proof {
                             Some(proof) => {
                                 let proof = &mut proof.ecdsa_randomizer_x_nonce_summand_proof;
