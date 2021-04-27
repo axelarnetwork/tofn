@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use tracing::info;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BcastRandomizer {
+pub struct Bcast {
     // TODO do I also need encryption randomness for alpha_ij ?  Yes.
     // get encryption randomness for alpha_ij from Paillier::open
     // how to verify integrity of alpha_ij, beta_ji:
@@ -28,11 +28,9 @@ pub struct BcastRandomizer {
 
 impl Sign {
     // execute blame protocol from section 4.3 of https://eprint.iacr.org/2020/540.pdf
-    pub(super) fn r7_fail_randomizer(&self) -> Vec<Criminal> {
+    pub(super) fn r7_fail_randomizer(&self) -> Bcast {
         assert!(matches!(self.status, Status::R6FailRandomizer));
         assert!(self.in_r6bcasts_fail_randomizer.some_count() > 0);
-
-        let mut culprits = FillVec::with_len(self.participant_indices.len());
 
         for (i, r6_participant_data) in self
             .in_r6bcasts_fail_randomizer
@@ -41,6 +39,8 @@ impl Sign {
             .enumerate()
         {
             if r6_participant_data.is_none() {
+                // we took an extra round to ensure all other parties know to switch to blame mode
+                // thus, any party that did not send abort data must be a criminal
                 warn!(
                     "participant {} says: missing R6FailRandomizer data from participant {}",
                     self.my_participant_index, i
@@ -65,11 +65,6 @@ impl Sign {
         //         .clone(),
         //     mta_blind_summands_lhs: r3state.my_mta_blind_summands_lhs.clone(),
         // },
-
-        culprits
-            .into_vec()
-            .into_iter()
-            .filter_map(|opt| opt)
-            .collect()
+        todo!()
     }
 }

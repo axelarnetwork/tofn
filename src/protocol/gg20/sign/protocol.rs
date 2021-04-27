@@ -22,6 +22,7 @@ enum MsgType {
     R6FailBcastRandomizer,
     R7Bcast,
     R7FailBcast,
+    R7FailRandomizerBcast,
 }
 
 // TODO identical to keygen::MsgMeta except for MsgType---use generic
@@ -123,8 +124,9 @@ impl Protocol for Sign {
                 self.status = Fail;
             }
             R6FailRandomizer => {
-                self.final_output = Some(Output::Err(self.r7_fail_randomizer()));
-                self.status = Fail;
+                let bcast = self.r7_fail_randomizer();
+                todo!()
+                // self.update_state
             }
             R7 => match self.r8() {
                 r8::Output::Success { sig } => {
@@ -311,6 +313,16 @@ impl Protocol for Sign {
                 self.in_r7bcasts_fail
                     .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
             }
+            MsgType::R7FailRandomizerBcast => {
+                if !self.in_r7bcasts_fail_randomizer.is_none(msg_meta.from) {
+                    debug!(
+                        "participant {} overwrite existing R7FailRandomizerBcast msg from {}",
+                        self.my_participant_index, msg_meta.from
+                    );
+                }
+                self.in_r7bcasts_fail_randomizer
+                    .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
+            }
         };
         Ok(())
     }
@@ -494,7 +506,14 @@ impl Sign {
                     self.status = R6Fail;
                 }
                 if self.in_r6bcasts_fail_randomizer.some_count() > 0 {
-                    warn!("participant {} says: somebody kicked us into R6FailRandomizer status, but I did not observe a problem", self.my_participant_index);
+                    let complainers: Vec<usize> = self
+                        .in_r6bcasts_fail_randomizer
+                        .vec_ref()
+                        .iter()
+                        .enumerate()
+                        .filter_map(|x| if x.1.is_some() { Some(x.0) } else { None })
+                        .collect();
+                    warn!("participant {} says: my check passed yet participants {:?} kicked us into R6FailRandomizer status", self.my_participant_index, complainers);
                     self.status = R6FailRandomizer;
                 }
             }
@@ -775,5 +794,22 @@ impl Sign {
             .insert(self.my_participant_index, bcast)?; // self delivery
         self.status = R7Fail;
         Ok(())
+    }
+
+    // TODO refactor copied code from update_state_r2
+    pub(super) fn update_state_r7fail_randomizer(
+        &mut self,
+        bcast: r7_fail_randomizer::Bcast,
+    ) -> ProtocolResult {
+        self.out_r7bcast_fail_randomizer_serialized = Some(bincode::serialize(&MsgMeta {
+            msg_type: MsgType::R7FailRandomizerBcast,
+            from: self.my_participant_index,
+            payload: bincode::serialize(&bcast)?,
+        })?);
+        self.in_r7bcasts_fail_randomizer
+            .insert(self.my_participant_index, bcast)?; // self delivery
+        todo!()
+        // self.status = R7FailRandomizer;
+        // Ok(())
     }
 }
