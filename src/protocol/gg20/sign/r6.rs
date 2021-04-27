@@ -1,6 +1,6 @@
 use super::{Sign, Status};
 use crate::zkp::{pedersen, range};
-use curv::{elliptic::curves::traits::ECPoint, BigInt, FE, GE};
+use curv::{elliptic::curves::traits::ECPoint, GE};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
@@ -31,26 +31,11 @@ pub enum Crime {
 pub struct BcastCulprits {
     pub culprits: Vec<Culprit>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BcastRandomizer {
-    // TODO do I also need encryption randomness for alpha_ij ?  Yes.
-    // get encryption randomness for alpha_ij from Paillier::open
-    // how to verify integrity of alpha_ij, beta_ji:
-    // 1. call MessageB::b_with_predefined_randomness to get enc(alpha_ji) and beta_ji
-    // 2. call Paillier::encrypt_with_chosen_randomness to get enc(alpha_ji)
-    pub ecdsa_nonce_summand: FE,                // k_i
-    pub ecdsa_nonce_summand_randomness: BigInt, // k_i encryption randomness
-    pub secret_blind_summand: FE,               // gamma_i
 
-    // make this one vec of a struct
-    pub mta_blind_summands_rhs: Vec<Option<FE>>, // beta_ji
-    pub mta_blind_summands_rhs_randomness: Vec<Option<BigInt>>, // beta_ji encryption randomness
-    pub mta_blind_summands_lhs: Vec<Option<FE>>, // alpha_ij
-}
 pub enum Output {
     Success { state: State, out_bcast: Bcast },
     FailRangeProofWc { out_bcast: BcastCulprits },
-    FailRandomizer { out_bcast: BcastRandomizer },
+    FailRandomizer,
 }
 
 impl Sign {
@@ -117,28 +102,13 @@ impl Sign {
 
         // check for failure of type 5 from section 4.2 of https://eprint.iacr.org/2020/540.pdf
         if ecdsa_randomizer_x_nonce != GE::generator() {
-            // execute blame protocol from section 4.3 of https://eprint.iacr.org/2020/540.pdf
+            // need an extra round to ensure all other parties know to switch to blame mode
+            // otherwise, some parties might claim this check has passed and not broadcast their abort data
             warn!(
-                "participant {} says: randomizer check failed, begin randomizer fault attribution",
+                "participant {} says: randomizer check failed; begin randomizer fault attribution",
                 self.my_participant_index
             );
-            let r1state = self.r1state.as_ref().unwrap();
-            let r2state = self.r2state.as_ref().unwrap();
-            let r3state = self.r3state.as_ref().unwrap();
-            return Output::FailRandomizer {
-                out_bcast: BcastRandomizer {
-                    ecdsa_nonce_summand: r1state.my_ecdsa_nonce_summand,
-                    ecdsa_nonce_summand_randomness: r1state
-                        .my_encrypted_ecdsa_nonce_summand_randomness
-                        .clone(),
-                    secret_blind_summand: r1state.my_secret_blind_summand,
-                    mta_blind_summands_rhs: r2state.my_mta_blind_summands_rhs.clone(),
-                    mta_blind_summands_rhs_randomness: r2state
-                        .my_mta_blind_summands_rhs_randomness
-                        .clone(),
-                    mta_blind_summands_lhs: r3state.my_mta_blind_summands_lhs.clone(),
-                },
-            };
+            return Output::FailRandomizer;
         }
 
         // compute S_i (aka ecdsa_public_key_check) and zk proof as per phase 6 of 2020/540

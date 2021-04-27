@@ -145,7 +145,7 @@ pub struct Sign {
     in_r4bcasts_fail: FillVec<r4::FailBcast>,
     in_r5bcasts_fail: FillVec<r5::FailBcast>,
     in_r6bcasts_fail: FillVec<r6::BcastCulprits>,
-    in_r6bcasts_fail_randomizer: FillVec<r6::BcastRandomizer>,
+    in_r6bcasts_fail_randomizer: FillVec<()>,
     in_r7bcasts_fail: FillVec<r7::FailBcast>,
 
     // TODO currently I do not store my own deserialized output messages

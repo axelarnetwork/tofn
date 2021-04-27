@@ -381,7 +381,7 @@ impl Protocol for BadSign {
                         );
                         self.sign.update_state_r6fail(out_bcast)
                     }
-                    r6::Output::FailRandomizer { out_bcast: _ } => {
+                    r6::Output::FailRandomizer => {
                         todo!();
                     }
                 }
