@@ -102,6 +102,7 @@ mod r7_fail;
 mod r7_fail_randomizer;
 mod r8;
 mod r8_fail;
+mod r8_fail_randomizer;
 
 pub struct Sign {
     status: Status,
