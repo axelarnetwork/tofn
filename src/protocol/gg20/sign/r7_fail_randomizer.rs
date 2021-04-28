@@ -1,6 +1,6 @@
 use super::{Sign, Status};
 use crate::fillvec::FillVec;
-use curv::{elliptic::curves::traits::ECPoint, BigInt, FE, GE};
+use curv::{BigInt, FE};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -18,9 +18,9 @@ pub struct Bcast {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MtaBlindSummandsData {
-    rhs: FE,                // beta_ji
-    rhs_randomness: BigInt, // beta_ji encryption randomness
-    lhs: FE,                // alpha_ij
+    pub(super) rhs: FE,                // beta_ji
+    pub(super) rhs_randomness: BigInt, // beta_ji encryption randomness
+    pub(super) lhs: FE,                // alpha_ij
 }
 
 impl Sign {
