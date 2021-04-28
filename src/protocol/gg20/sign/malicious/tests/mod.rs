@@ -185,11 +185,21 @@ fn r6_false_fail_randomizer() {
     }
 }
 
+#[test]
+#[traced_test]
+fn r3_bad_nonce_x_blind_summand_via_ecdsa_nonce_summand() {
+    for t in ONE_CRIMINAL_TEST_CASES.iter() {
+        malicious_behaviour_protocol(t, true, R3BadNonceXBlindSummandViaEcdsaNonceSummand);
+        malicious_behaviour_protocol(t, false, R3BadNonceXBlindSummandViaEcdsaNonceSummand);
+    }
+}
+
 // generic malicious behaviour test
 fn malicious_behaviour_protocol(
     t: &OneCrimeTestCase,
     allow_self_delivery: bool,
     malicious_type: MaliciousType,
+    // TODO expected failure round?
 ) {
     info!(
         "{:?}, allow_self_delivery: {}, malicious_type: {:?}",
