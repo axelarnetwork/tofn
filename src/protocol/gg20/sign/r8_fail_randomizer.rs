@@ -139,6 +139,7 @@ impl Sign {
                 "participant {} detect no fault in R7FailRandomizer; accusing complainers {:?}",
                 self.my_participant_index, complainers
             );
+            // TODO CAREFUL!  If we missed a check then a single malicious actor can cause everyone to blame everyone!
             for c in complainers {
                 criminals.overwrite(
                     c,
