@@ -5,7 +5,7 @@ use curv::{elliptic::curves::traits::ECScalar, BigInt, FE};
 use strum_macros::EnumIter;
 use tracing::{info, warn};
 
-#[derive(Clone, EnumIter)]
+#[derive(Clone, Debug, EnumIter)]
 pub enum MaliciousType {
     // TODO R1BadCommit,
     Honest,
@@ -23,6 +23,7 @@ pub enum MaliciousType {
     R5BadProof { victim: usize },
     R5FalseAccusation { victim: usize },
     R6BadProof,
+    R6FalseFailRandomizer,
     R6FalseAccusation { victim: usize },
     R7BadSigSummand,
 }
@@ -422,6 +423,17 @@ impl Protocol for BadSign {
                         self.sign.update_state_r6fail_randomizer()
                     }
                 }
+            }
+            R6FalseFailRandomizer => {
+                if !matches!(self.sign.status, Status::R5) {
+                    return self.sign.next_round();
+                };
+                // no need to execute self.s.r6()
+                info!(
+                    "malicious participant {} r6 kick the protocol into FailRandomizer mode",
+                    self.sign.my_participant_index
+                );
+                self.sign.update_state_r6fail_randomizer()
             }
             R6FalseAccusation { victim } => {
                 if !matches!(self.sign.status, Status::R6) {

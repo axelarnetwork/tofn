@@ -7,6 +7,7 @@ use curv::elliptic::curves::traits::ECScalar;
 // use curv::{elliptic::curves::traits::ECPoint, BigInt, FE, GE};
 // use log::warn;
 // use serde::{Deserialize, Serialize};
+use paillier::{EncryptWithChosenRandomness, Paillier, Randomness, RawPlaintext};
 use tracing::warn;
 
 impl Sign {
@@ -79,6 +80,63 @@ impl Sign {
                     i,
                     Criminal {
                         index: i,
+                        crime_type: CrimeType::Malicious,
+                    },
+                );
+            }
+
+            // verify r7_participant_data is consistent with earlier messages:
+            // 1. ecdsa_nonce_summand
+            // TODO...
+
+            // 1. ecdsa_nonce_summand
+            let ek = &self.my_secret_key_share.all_eks[self.participant_indices[i]];
+            let encrypted_ecdsa_nonce_summand = Paillier::encrypt_with_chosen_randomness(
+                ek,
+                RawPlaintext::from(r7_participant_data.ecdsa_nonce_summand.to_big_int()),
+                &Randomness::from(&r7_participant_data.ecdsa_nonce_summand_randomness),
+            );
+            let in_r1bcast = self.in_r1bcasts.vec_ref()[i].as_ref().unwrap_or_else(|| {
+                panic!(
+                    // TODO these checks should be unnecessary after refactoring
+                    "r8_fail_randomizer participant {} missing in_r1bcast from {}",
+                    self.my_participant_index, i
+                )
+            });
+            if *encrypted_ecdsa_nonce_summand.0 != in_r1bcast.encrypted_ecdsa_nonce_summand.c {
+                warn!(
+                    "participant {} detect failed encryption of ecdsa_nonce_summand from {}",
+                    self.my_participant_index, i
+                );
+                criminals.overwrite(
+                    i,
+                    Criminal {
+                        index: i,
+                        crime_type: CrimeType::Malicious,
+                    },
+                );
+            }
+        }
+
+        // if no criminals were found then everyone who sent r6::Output::FailRandomizer is a criminal
+        if criminals.some_count() <= 0 {
+            // TODO code copied from move_to_sad_path
+            let complainers: Vec<usize> = self
+                .in_r6bcasts_fail_randomizer
+                .vec_ref()
+                .iter()
+                .enumerate()
+                .filter_map(|x| if x.1.is_some() { Some(x.0) } else { None })
+                .collect();
+            warn!(
+                "participant {} detect no fault in R7FailRandomizer; accusing complainers {:?}",
+                self.my_participant_index, complainers
+            );
+            for c in complainers {
+                criminals.overwrite(
+                    c,
+                    Criminal {
+                        index: c,
                         crime_type: CrimeType::Malicious,
                     },
                 );

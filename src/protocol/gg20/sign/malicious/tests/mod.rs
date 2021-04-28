@@ -23,6 +23,7 @@ lazy_static::lazy_static! {
     ];
 }
 
+#[derive(Debug)]
 pub struct OneCrimeTestCase {
     pub share_count: usize,
     pub threshold: usize,
@@ -175,12 +176,25 @@ fn r3_bad_nonce_x_blind_summand() {
     }
 }
 
+#[test]
+#[traced_test]
+fn r6_false_fail_randomizer() {
+    for t in ONE_CRIMINAL_TEST_CASES.iter() {
+        malicious_behaviour_protocol(t, true, R6FalseFailRandomizer);
+        malicious_behaviour_protocol(t, false, R6FalseFailRandomizer);
+    }
+}
+
 // generic malicious behaviour test
 fn malicious_behaviour_protocol(
     t: &OneCrimeTestCase,
     allow_self_delivery: bool,
     malicious_type: MaliciousType,
 ) {
+    info!(
+        "{:?}, allow_self_delivery: {}, malicious_type: {:?}",
+        t, allow_self_delivery, malicious_type
+    );
     assert!(t.participant_indices.len() >= 2);
     let key_shares = execute_keygen(t.share_count, t.threshold);
 
