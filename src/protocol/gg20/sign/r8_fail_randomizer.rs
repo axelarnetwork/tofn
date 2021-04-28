@@ -83,6 +83,9 @@ impl Sign {
                         crime_type: CrimeType::Malicious,
                     },
                 );
+                // TODO continue to next participant or check for more faults form this participant?
+                // it's easier to test subsequent fault types if we do not continue here
+                continue;
             }
 
             // verify r7_participant_data is consistent with earlier messages:
@@ -116,6 +119,9 @@ impl Sign {
                         crime_type: CrimeType::Malicious,
                     },
                 );
+                // TODO continue to next participant or check for more faults form this participant?
+                // it's easier to test subsequent fault types if we do not continue here
+                continue;
             }
         }
 
