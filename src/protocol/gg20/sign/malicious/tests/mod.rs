@@ -166,6 +166,15 @@ fn r7_bad_sig_share() {
     }
 }
 
+#[test]
+#[traced_test]
+fn r3_bad_nonce_x_blind_summand() {
+    for t in ONE_CRIMINAL_TEST_CASES.iter() {
+        malicious_behaviour_protocol(t, true, R3BadNonceXBlindSummand);
+        malicious_behaviour_protocol(t, false, R3BadNonceXBlindSummand);
+    }
+}
+
 // generic malicious behaviour test
 fn malicious_behaviour_protocol(
     t: &OneCrimeTestCase,

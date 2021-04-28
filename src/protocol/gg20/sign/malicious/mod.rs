@@ -16,6 +16,7 @@ pub enum MaliciousType {
     R2FalseAccusationMta { victim: usize },
     R2FalseAccusationMtaWc { victim: usize },
     R3BadProof,
+    R3BadNonceXBlindSummand, // triggers r6::Output::FailRandomizer
     R3FalseAccusation { victim: usize },
     R4BadReveal,
     R4FalseAccusation { victim: usize },
@@ -235,6 +236,38 @@ impl Protocol for BadSign {
                     r3::Output::Fail { out_bcast } => {
                         warn!(
                             "malicious participant {} instructed to corrupt r3 pedersen proof but r3 has already failed so reverting to honesty",
+                            self.sign.my_participant_index
+                        );
+                        self.sign.update_state_r3fail(out_bcast)
+                    }
+                }
+            }
+            R3BadNonceXBlindSummand => {
+                if !matches!(self.sign.status, Status::R2) {
+                    return self.sign.next_round();
+                };
+                match self.sign.r3() {
+                    r3::Output::Success {
+                        mut state,
+                        mut out_bcast,
+                    } => {
+                        info!(
+                            "malicious participant {} r3 corrupt nonce_x_blind_summand (delta_i)",
+                            self.sign.my_participant_index
+                        );
+                        let one: FE = ECScalar::from(&BigInt::from(1));
+                        // need to corrupt both state and out_bcast
+                        // because they both contain a copy of nonce_x_blind_summand
+                        let nonce_x_blind_summand = &mut out_bcast.nonce_x_blind_summand;
+                        *nonce_x_blind_summand = *nonce_x_blind_summand + one;
+                        let nonce_x_blind_summand_state = &mut state.my_nonce_x_blind_summand;
+                        *nonce_x_blind_summand_state = *nonce_x_blind_summand_state + one;
+
+                        self.sign.update_state_r3(state, out_bcast)
+                    }
+                    r3::Output::Fail { out_bcast } => {
+                        warn!(
+                            "malicious participant {} instructed to corrupt r3 nonce_x_blind_summand but r3 has already failed so reverting to honesty",
                             self.sign.my_participant_index
                         );
                         self.sign.update_state_r3fail(out_bcast)
