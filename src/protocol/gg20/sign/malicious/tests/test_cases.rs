@@ -53,6 +53,7 @@ pub(super) fn generate_skipping_cases() -> Vec<TestCase> {
         R2BadMtaWc { victim },
         R2FalseAccusationMta { victim },
         R2FalseAccusationMtaWc { victim },
+        R3BadMtaBlindSummandLhs { victim },
         // R3FalseAccusation { victim }, // this produces criminals
         // R4FalseAccusation { victim }, // this produces criminals
         R5BadProof { victim },
@@ -63,7 +64,7 @@ pub(super) fn generate_skipping_cases() -> Vec<TestCase> {
     let mut test_cases = Vec::new();
     let share_count = 5;
     let threshold = 2;
-    let allow_self_delivery = true;
+    let allow_self_delivery = false;
     for malicous_type in self_targeting_types {
         test_cases.push(TestCase {
             share_count, threshold, allow_self_delivery,

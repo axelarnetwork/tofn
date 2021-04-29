@@ -19,6 +19,7 @@ pub enum MaliciousType {
     R3BadProof,
     R3BadNonceXBlindSummand, // triggers r6::Output::FailRandomizer
     R3BadEcdsaNonceSummand,  // triggers r6::Output::FailRandomizer
+    R3BadMtaBlindSummandLhs { victim: usize }, // triggers r6::Output::FailRandomizer
     R3FalseAccusation { victim: usize },
     R4BadReveal,
     R4FalseAccusation { victim: usize },
@@ -328,6 +329,10 @@ impl Protocol for BadSign {
                         }
                     }
                     Status::R6FailRandomizer => {
+                        info!(
+                            "malicious participant {} r7_fail_randomizer corrupt ecdsa_nonce_summand (k_i)",
+                            self.sign.my_participant_index
+                        );
                         let mut bcast = self.sign.r7_fail_randomizer();
                         let ecdsa_nonce_summand = &mut bcast.ecdsa_nonce_summand;
                         let one: FE = ECScalar::from(&BigInt::from(1));
@@ -335,6 +340,47 @@ impl Protocol for BadSign {
                         self.sign.update_state_r7fail_randomizer(bcast)
                     }
                     _ => return self.sign.next_round(),
+                }
+            }
+            R3BadMtaBlindSummandLhs { victim } => {
+                if !matches!(self.sign.status, Status::R2) {
+                    return self.sign.next_round();
+                };
+                match self.sign.r3() {
+                    r3::Output::Success {
+                        mut state,
+                        mut out_bcast,
+                    } => {
+                        info!(
+                            "malicious participant {} r3 corrupt my_mta_blind_summands_lhs[{}] (alpha_ij)",
+                            self.sign.my_participant_index, victim
+                        );
+
+                        // can't corrupt alpha_ij if i==j
+                        let mta_blind_summand = state.my_mta_blind_summands_lhs[victim].as_mut();
+                        if let Some(mta_blind_summand) = mta_blind_summand {
+                            let one: FE = ECScalar::from(&BigInt::from(1));
+                            // corrupt my_mta_blind_summands_lhs[victim]
+                            *mta_blind_summand = *mta_blind_summand + one;
+                            // corrupt nonce_x_blind_summand to maintain consistency
+                            let nonce_x_blind_summand = &mut out_bcast.nonce_x_blind_summand;
+                            *nonce_x_blind_summand = *nonce_x_blind_summand + one;
+                            // need to corrupt both state and out_bcast because they both contain a copy of nonce_x_blind_summand
+                            let nonce_x_blind_summand_state = &mut state.my_nonce_x_blind_summand;
+                            *nonce_x_blind_summand_state = *nonce_x_blind_summand_state + one;
+                        } else {
+                            warn!("malicious participant {} missing my_mta_blind_summands_lhs[{}] (are you targeting yourself?) Skipping...", self.sign.my_participant_index, victim);
+                        }
+
+                        self.sign.update_state_r3(state, out_bcast)
+                    }
+                    r3::Output::Fail { out_bcast } => {
+                        warn!(
+                                    "malicious participant {} instructed to corrupt r3 nonce_x_blind_summand but r3 has already failed so reverting to honesty",
+                                    self.sign.my_participant_index
+                                );
+                        self.sign.update_state_r3fail(out_bcast)
+                    }
                 }
             }
             R3FalseAccusation { victim } => {
