@@ -383,15 +383,14 @@ impl Protocol for BadSign {
                     }
                     Status::R6FailRandomizer => {
                         info!(
-                            "malicious participant {} r7_fail_randomizer corrupt my_mta_blind_summands_lhs[{}] (alpha_ij)",
+                            "malicious participant {} r7_fail_randomizer corrupt my_mta_blind_summands[{}].lhs_plaintext (alpha_ij)",
                             self.sign.my_participant_index, victim
                         );
                         let mut bcast = self.sign.r7_fail_randomizer();
-
                         let mta_blind_summand = bcast.mta_blind_summands[victim].as_mut();
                         if let Some(mta_blind_summand) = mta_blind_summand {
-                            let one: FE = ECScalar::from(&BigInt::from(1));
-                            mta_blind_summand.lhs = mta_blind_summand.lhs + one;
+                            mta_blind_summand.lhs_plaintext =
+                                &mta_blind_summand.lhs_plaintext + BigInt::from(1);
                         } else {
                             error!("malicious participant {} missing my_mta_blind_summands_lhs[{}] should have been detected in r3 (are you targeting yourself?) Skipping...", self.sign.my_participant_index, victim);
                         }

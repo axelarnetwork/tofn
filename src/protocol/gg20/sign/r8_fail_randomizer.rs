@@ -5,11 +5,11 @@ use crate::{
 };
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
-    GE,
+    FE, GE,
 };
 use multi_party_ecdsa::utilities::mta as mta_zengo;
 use paillier::{EncryptWithChosenRandomness, Paillier, Randomness, RawPlaintext};
-use tracing::warn;
+use tracing::{info, warn};
 
 impl Sign {
     // execute blame protocol from section 4.3 of https://eprint.iacr.org/2020/540.pdf
@@ -61,8 +61,10 @@ impl Sign {
                         self.my_participant_index, i, j
                     )
                 });
+                let my_mta_blind_summand_lhs_mod_q: FE =
+                    ECScalar::from(&mta_blind_summand.lhs_plaintext);
                 nonce_x_blind_summand =
-                    nonce_x_blind_summand + mta_blind_summand.lhs + mta_blind_summand.rhs;
+                    nonce_x_blind_summand + my_mta_blind_summand_lhs_mod_q + mta_blind_summand.rhs;
                 // alpha_ij + beta_ji
             }
             let in_r3bcast = self.in_r3bcasts.vec_ref()[i].as_ref().unwrap_or_else(|| {
@@ -73,7 +75,7 @@ impl Sign {
                 )
             });
             if nonce_x_blind_summand != in_r3bcast.nonce_x_blind_summand {
-                warn!(
+                info!(
                     "participant {} detect bad nonce_x_blind_summand from {}",
                     self.my_participant_index, i
                 );
@@ -109,7 +111,7 @@ impl Sign {
             });
             if *encrypted_ecdsa_nonce_summand.0 != in_r1bcast.encrypted_ecdsa_nonce_summand.c {
                 // this code path triggered by R3BadEcdsaNonceSummand
-                warn!(
+                info!(
                     "participant {} detect inconsistent encryption of ecdsa_nonce_summand from {}",
                     self.my_participant_index, i
                 );
@@ -134,7 +136,7 @@ impl Sign {
             });
             if public_blind_summand != in_r4bcast.public_blind_summand {
                 // this code path triggered by R1BadSecretBlindSummand
-                warn!(
+                info!(
                     "participant {} detect inconsistent secret_blind_summand from {}",
                     self.my_participant_index, i
                 );
@@ -158,16 +160,19 @@ impl Sign {
                 let mta_blind_summand = mta_blind_summand.as_ref().unwrap_or_else(|| {
                     panic!(
                         // TODO these checks should be unnecessary after refactoring
-                        "r8_fail_randomizer participant {} missing mta_blind_summand from {} for {}",
+                        "r8_fail_randomizer participant {} missing mta_blind_summand belonging to {} from {}",
                         self.my_participant_index, i, j
                     )
                 });
+
+                // 3. mta_blind_summands.rhs (beta_ij)
                 let other_ek = &self.my_secret_key_share.all_eks[self.participant_indices[j]];
                 let other_encrypted_ecdsa_nonce_summand = &self.in_r1bcasts.vec_ref()[j]
                     .as_ref()
                     .unwrap()
                     .encrypted_ecdsa_nonce_summand;
-                let (mta_response_blind, _my_mta_blind_summand_rhs) =
+                // TODO better variable names: switch to greek letters used in GG20 paper
+                let (mta_response_blind, mta_blind_summand_rhs) = // (enc(alpha_ij), beta_ji)
                     mta_zengo::MessageB::b_with_predefined_randomness(
                         &r7_participant_data.secret_blind_summand,
                         other_ek,
@@ -175,16 +180,17 @@ impl Sign {
                         &mta_blind_summand.rhs_randomness.randomness,
                         &mta_blind_summand.rhs_randomness.beta_prime,
                     );
-                if mta_response_blind.c
-                    != self.in_all_r2p2ps[i].vec_ref()[j]
-                        .as_ref()
-                        .unwrap()
-                        .mta_response_blind
-                        .c
+                if mta_blind_summand_rhs != mta_blind_summand.rhs
+                    || mta_response_blind.c
+                        != self.in_all_r2p2ps[i].vec_ref()[j]
+                            .as_ref()
+                            .unwrap()
+                            .mta_response_blind
+                            .c
                 {
                     // TODO this code path triggered by <test>
-                    warn!(
-                        "participant {} detect inconsistent mta_response_blind from {} to {}",
+                    info!(
+                        "participant {} detect inconsistent mta_blind_summand_rhs (beta_ji) from {} to {}",
                         self.my_participant_index, i, j
                     );
                     criminals.overwrite(
@@ -196,7 +202,34 @@ impl Sign {
                     );
                     continue 'outer; // participant i is known to be criminal, continue to next participant
                 }
-                // TODO can't do alpha_ij until I do beta_ji first
+
+                // 4. mta_blind_summands.lhs (alpha_ij)
+                let mta_blind_summand_lhs_ciphertext = Paillier::encrypt_with_chosen_randomness(
+                    ek,
+                    RawPlaintext::from(&mta_blind_summand.lhs_plaintext),
+                    &Randomness::from(&mta_blind_summand.lhs_randomness),
+                );
+                if *mta_blind_summand_lhs_ciphertext.0
+                    != self.in_all_r2p2ps[j].vec_ref()[i]
+                        .as_ref()
+                        .unwrap()
+                        .mta_response_blind
+                        .c
+                {
+                    // this code path triggered by R3BadMtaBlindSummandLhs
+                    info!(
+                        "participant {} detect inconsistent mta_blind_summand_lhs (alpha_ij) from {} to {}",
+                        self.my_participant_index, j, i
+                    );
+                    criminals.overwrite(
+                        i,
+                        Criminal {
+                            index: i,
+                            crime_type: CrimeType::Malicious,
+                        },
+                    );
+                    continue 'outer; // participant i is known to be criminal, continue to next participant
+                }
             }
         }
 

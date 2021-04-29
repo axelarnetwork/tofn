@@ -25,7 +25,7 @@ pub struct Bcast {
 pub struct MtaBlindSummandsData {
     pub(super) rhs: FE,                           // beta_ji
     pub(super) rhs_randomness: r2::RhsRandomness, // beta_ji encryption randomness
-    pub(super) lhs: FE,                           // alpha_ij
+    pub(super) lhs_plaintext: BigInt,             // alpha_ij Paillier plaintext
     pub(super) lhs_randomness: BigInt,            // alpha_ij encryption randomness
 }
 
@@ -56,16 +56,26 @@ impl Sign {
                         self.my_participant_index, i
                     )
                 });
-            let (my_mta_blind_summand_lhs, my_mta_blind_summand_lhs_randomness) = Paillier::open(
-                &self.my_secret_key_share.my_dk,
-                &RawCiphertext::from(&in_p2p.mta_response_blind.c),
-            );
-            let my_mta_blind_summand_lhs: FE = ECScalar::from(&my_mta_blind_summand_lhs.0);
-            assert_eq!(
-                my_mta_blind_summand_lhs,
-                r3state.my_mta_blind_summands_lhs[i].unwrap(),
-                "participant {}: decryption of mta_response_blind from {} in r7_fail_randomizer differs from r3", self.my_participant_index, i
-            ); // TODO panic
+            let (my_mta_blind_summand_lhs_plaintext, my_mta_blind_summand_lhs_randomness) =
+                Paillier::open(
+                    &self.my_secret_key_share.my_dk,
+                    &RawCiphertext::from(&in_p2p.mta_response_blind.c),
+                );
+
+            // sanity check: we should recover the value we computed in r3
+            {
+                let my_mta_blind_summand_lhs_mod_q: FE =
+                    ECScalar::from(&my_mta_blind_summand_lhs_plaintext.0);
+                assert_eq!(
+                    my_mta_blind_summand_lhs_mod_q,
+                    r3state.my_mta_blind_summands_lhs[i].unwrap(),
+                    "participant {}: decryption of mta_response_blind from {} in r7_fail_randomizer differs from r3", self.my_participant_index, i
+                ); // TODO panic
+
+                // do not return my_mta_blind_summand_lhs_mod_q
+                // need my_mta_blind_summand_lhs_plaintext because it may differ from my_mta_blind_summand_lhs_mod_q
+                // why? because the ciphertext was formed from homomorphic Paillier operations, not just encrypting my_mta_blind_summand_lhs_mod_q
+            }
 
             mta_blind_summands
                 .insert(
@@ -76,7 +86,7 @@ impl Sign {
                             .as_ref()
                             .unwrap()
                             .clone(),
-                        lhs: my_mta_blind_summand_lhs,
+                        lhs_plaintext: (*my_mta_blind_summand_lhs_plaintext.0).clone(),
                         lhs_randomness: my_mta_blind_summand_lhs_randomness.0,
                     },
                 )
