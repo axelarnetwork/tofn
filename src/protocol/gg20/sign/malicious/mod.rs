@@ -3,7 +3,7 @@ use crate::protocol::{gg20::keygen::SecretKeyShare, MsgBytes, Protocol, Protocol
 use crate::zkp::{mta, pedersen, range};
 use curv::{elliptic::curves::traits::ECScalar, BigInt, FE};
 use strum_macros::EnumIter;
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
 #[derive(Clone, Debug, EnumIter)]
 pub enum MaliciousType {
@@ -343,44 +343,61 @@ impl Protocol for BadSign {
                 }
             }
             R3BadMtaBlindSummandLhs { victim } => {
-                if !matches!(self.sign.status, Status::R2) {
-                    return self.sign.next_round();
-                };
-                match self.sign.r3() {
-                    r3::Output::Success {
-                        mut state,
-                        mut out_bcast,
-                    } => {
-                        info!(
-                            "malicious participant {} r3 corrupt my_mta_blind_summands_lhs[{}] (alpha_ij)",
-                            self.sign.my_participant_index, victim
-                        );
-
-                        // can't corrupt alpha_ij if i==j
-                        let mta_blind_summand = state.my_mta_blind_summands_lhs[victim].as_mut();
-                        if let Some(mta_blind_summand) = mta_blind_summand {
-                            let one: FE = ECScalar::from(&BigInt::from(1));
-                            // corrupt my_mta_blind_summands_lhs[victim]
-                            *mta_blind_summand = *mta_blind_summand + one;
-                            // corrupt nonce_x_blind_summand to maintain consistency
-                            let nonce_x_blind_summand = &mut out_bcast.nonce_x_blind_summand;
-                            *nonce_x_blind_summand = *nonce_x_blind_summand + one;
-                            // need to corrupt both state and out_bcast because they both contain a copy of nonce_x_blind_summand
-                            let nonce_x_blind_summand_state = &mut state.my_nonce_x_blind_summand;
-                            *nonce_x_blind_summand_state = *nonce_x_blind_summand_state + one;
-                        } else {
-                            warn!("malicious participant {} missing my_mta_blind_summands_lhs[{}] (are you targeting yourself?) Skipping...", self.sign.my_participant_index, victim);
-                        }
-
-                        self.sign.update_state_r3(state, out_bcast)
-                    }
-                    r3::Output::Fail { out_bcast } => {
-                        warn!(
-                                    "malicious participant {} instructed to corrupt r3 nonce_x_blind_summand but r3 has already failed so reverting to honesty",
+                match self.sign.status {
+                    Status::R2 => {
+                        match self.sign.r3() {
+                            r3::Output::Success {
+                                mut state,
+                                mut out_bcast,
+                            } => {
+                                info!(
+                                    "malicious participant {} r3 corrupt nonce_x_blind_summand (delta_i)",
                                     self.sign.my_participant_index
                                 );
-                        self.sign.update_state_r3fail(out_bcast)
+                                if state.my_mta_blind_summands_lhs[victim].is_some() {
+                                    // later we will corrupt mta_blind_summands_lhs[victim] by adding 1
+                                    // => need to add 1  to nonce_x_blind_summand to maintain consistency
+                                    let one: FE = ECScalar::from(&BigInt::from(1));
+                                    let nonce_x_blind_summand =
+                                        &mut out_bcast.nonce_x_blind_summand;
+                                    *nonce_x_blind_summand = *nonce_x_blind_summand + one;
+                                    // need to corrupt both state and out_bcast because they both contain a copy of nonce_x_blind_summand
+                                    let nonce_x_blind_summand_state =
+                                        &mut state.my_nonce_x_blind_summand;
+                                    *nonce_x_blind_summand_state =
+                                        *nonce_x_blind_summand_state + one;
+                                } else {
+                                    warn!("malicious participant {} missing my_mta_blind_summands_lhs[{}] (are you targeting yourself?) Skipping...", self.sign.my_participant_index, victim);
+                                }
+
+                                self.sign.update_state_r3(state, out_bcast)
+                            }
+                            r3::Output::Fail { out_bcast } => {
+                                warn!(
+                                        "malicious participant {} instructed to corrupt r3 nonce_x_blind_summand but r3 has already failed so reverting to honesty",
+                                        self.sign.my_participant_index
+                                    );
+                                self.sign.update_state_r3fail(out_bcast)
+                            }
+                        }
                     }
+                    Status::R6FailRandomizer => {
+                        info!(
+                            "malicious participant {} r7_fail_randomizer corrupt my_mta_blind_summands_lhs[{}] (alpha_ij)",
+                            self.sign.my_participant_index, victim
+                        );
+                        let mut bcast = self.sign.r7_fail_randomizer();
+
+                        let mta_blind_summand = bcast.mta_blind_summands[victim].as_mut();
+                        if let Some(mta_blind_summand) = mta_blind_summand {
+                            let one: FE = ECScalar::from(&BigInt::from(1));
+                            mta_blind_summand.lhs = mta_blind_summand.lhs + one;
+                        } else {
+                            error!("malicious participant {} missing my_mta_blind_summands_lhs[{}] should have been detected in r3 (are you targeting yourself?) Skipping...", self.sign.my_participant_index, victim);
+                        }
+                        self.sign.update_state_r7fail_randomizer(bcast)
+                    }
+                    _ => return self.sign.next_round(),
                 }
             }
             R3FalseAccusation { victim } => {
