@@ -105,7 +105,7 @@ impl Sign {
                 )
             });
             if *encrypted_ecdsa_nonce_summand.0 != in_r1bcast.encrypted_ecdsa_nonce_summand.c {
-                // this code path triggered by R3BadNonceXBlindSummandViaEcdsaNonceSummand
+                // this code path triggered by R3BadEcdsaNonceSummand
                 warn!(
                     "participant {} detect inconsistent encryption of ecdsa_nonce_summand from {}",
                     self.my_participant_index, i

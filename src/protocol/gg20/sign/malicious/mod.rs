@@ -18,7 +18,7 @@ pub enum MaliciousType {
     R2FalseAccusationMtaWc { victim: usize },
     R3BadProof,
     R3BadNonceXBlindSummand, // triggers r6::Output::FailRandomizer
-    R3BadNonceXBlindSummandViaEcdsaNonceSummand, // triggers r6::Output::FailRandomizer
+    R3BadEcdsaNonceSummand,  // triggers r6::Output::FailRandomizer
     R3FalseAccusation { victim: usize },
     R4BadReveal,
     R4FalseAccusation { victim: usize },
@@ -292,7 +292,7 @@ impl Protocol for BadSign {
                     }
                 }
             }
-            R3BadNonceXBlindSummandViaEcdsaNonceSummand => {
+            R3BadEcdsaNonceSummand => {
                 match self.sign.status {
                     Status::R2 => {
                         match self.sign.r3() {
