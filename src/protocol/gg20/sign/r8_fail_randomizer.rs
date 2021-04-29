@@ -76,7 +76,7 @@ impl Sign {
             });
             if nonce_x_blind_summand != in_r3bcast.nonce_x_blind_summand {
                 info!(
-                    "participant {} detect bad nonce_x_blind_summand from {}",
+                    "participant {} detect bad nonce_x_blind_summand claimed by {}",
                     self.my_participant_index, i
                 );
                 criminals.overwrite(
@@ -112,7 +112,7 @@ impl Sign {
             if *encrypted_ecdsa_nonce_summand.0 != in_r1bcast.encrypted_ecdsa_nonce_summand.c {
                 // this code path triggered by R3BadEcdsaNonceSummand
                 info!(
-                    "participant {} detect inconsistent encryption of ecdsa_nonce_summand from {}",
+                    "participant {} detect inconsistent encryption of ecdsa_nonce_summand claimed by {}",
                     self.my_participant_index, i
                 );
                 criminals.overwrite(
@@ -137,7 +137,7 @@ impl Sign {
             if public_blind_summand != in_r4bcast.public_blind_summand {
                 // this code path triggered by R1BadSecretBlindSummand
                 info!(
-                    "participant {} detect inconsistent secret_blind_summand from {}",
+                    "participant {} detect inconsistent secret_blind_summand claimed by {}",
                     self.my_participant_index, i
                 );
                 criminals.overwrite(
@@ -188,9 +188,9 @@ impl Sign {
                             .mta_response_blind
                             .c
                 {
-                    // TODO this code path triggered by <test>
+                    // this code path triggered by R3BadMtaBlindSummandRhs
                     info!(
-                        "participant {} detect inconsistent mta_blind_summand_rhs (beta_ji) from {} to {}",
+                        "participant {} detect inconsistent mta_blind_summand_rhs (beta_ji) claimed by {} from {}",
                         self.my_participant_index, i, j
                     );
                     criminals.overwrite(
@@ -218,8 +218,8 @@ impl Sign {
                 {
                     // this code path triggered by R3BadMtaBlindSummandLhs
                     info!(
-                        "participant {} detect inconsistent mta_blind_summand_lhs (alpha_ij) from {} to {}",
-                        self.my_participant_index, j, i
+                        "participant {} detect inconsistent mta_blind_summand_lhs (alpha_ij) claimed by {} from {}",
+                        self.my_participant_index, i, j
                     );
                     criminals.overwrite(
                         i,

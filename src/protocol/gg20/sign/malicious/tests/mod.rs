@@ -212,6 +212,15 @@ fn r3_bad_mta_blind_summand_lhs() {
     }
 }
 
+#[test]
+#[traced_test]
+fn r3_bad_mta_blind_summand_rhs() {
+    for t in ONE_CRIMINAL_TEST_CASES.iter() {
+        malicious_behaviour_protocol(t, true, R3BadMtaBlindSummandRhs { victim: t.victim });
+        malicious_behaviour_protocol(t, false, R3BadMtaBlindSummandRhs { victim: t.victim });
+    }
+}
+
 // generic malicious behaviour test
 fn malicious_behaviour_protocol(
     t: &OneCrimeTestCase,
