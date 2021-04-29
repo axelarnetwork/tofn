@@ -45,8 +45,8 @@ fn r1_bad_proof() {
 #[traced_test]
 fn r1_false_accusation() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
-        malicious_behaviour_protocol(t, true, R1FalseAccusation { victim: t.victim });
-        malicious_behaviour_protocol(t, false, R1FalseAccusation { victim: t.victim });
+        malicious_behaviour_protocol(t, true, R2FalseAccusation { victim: t.victim });
+        malicious_behaviour_protocol(t, false, R2FalseAccusation { victim: t.victim });
     }
 }
 
@@ -72,8 +72,8 @@ fn r2_bad_mta_wc_proof() {
 #[traced_test]
 fn r2_false_accusation_mta() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
-        malicious_behaviour_protocol(t, true, R2FalseAccusationMta { victim: t.victim });
-        malicious_behaviour_protocol(t, false, R2FalseAccusationMta { victim: t.victim });
+        malicious_behaviour_protocol(t, true, R3FalseAccusationMta { victim: t.victim });
+        malicious_behaviour_protocol(t, false, R3FalseAccusationMta { victim: t.victim });
     }
 }
 
@@ -81,8 +81,8 @@ fn r2_false_accusation_mta() {
 #[traced_test]
 fn r2_false_accusation_mta_wc() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
-        malicious_behaviour_protocol(t, true, R2FalseAccusationMtaWc { victim: t.victim });
-        malicious_behaviour_protocol(t, false, R2FalseAccusationMtaWc { victim: t.victim });
+        malicious_behaviour_protocol(t, true, R3FalseAccusationMtaWc { victim: t.victim });
+        malicious_behaviour_protocol(t, false, R3FalseAccusationMtaWc { victim: t.victim });
     }
 }
 
@@ -99,8 +99,8 @@ fn r3_bad_proof() {
 #[traced_test]
 fn r3_false_accusation() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
-        malicious_behaviour_protocol(t, true, R3FalseAccusation { victim: t.victim });
-        malicious_behaviour_protocol(t, false, R3FalseAccusation { victim: t.victim });
+        malicious_behaviour_protocol(t, true, R4FalseAccusation { victim: t.victim });
+        malicious_behaviour_protocol(t, false, R4FalseAccusation { victim: t.victim });
     }
 }
 
@@ -117,8 +117,8 @@ fn r4_bad_reveal() {
 #[traced_test]
 fn r4_false_accusation() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
-        malicious_behaviour_protocol(t, true, R4FalseAccusation { victim: t.victim });
-        malicious_behaviour_protocol(t, false, R4FalseAccusation { victim: t.victim });
+        malicious_behaviour_protocol(t, true, R5FalseAccusation { victim: t.victim });
+        malicious_behaviour_protocol(t, false, R5FalseAccusation { victim: t.victim });
     }
 }
 
@@ -135,8 +135,8 @@ fn r5_bad_proof() {
 #[traced_test]
 fn r5_false_accusation() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
-        malicious_behaviour_protocol(t, true, R5FalseAccusation { victim: t.victim });
-        malicious_behaviour_protocol(t, false, R5FalseAccusation { victim: t.victim });
+        malicious_behaviour_protocol(t, true, R6FalseAccusation { victim: t.victim });
+        malicious_behaviour_protocol(t, false, R6FalseAccusation { victim: t.victim });
     }
 }
 
@@ -153,8 +153,8 @@ fn r6_bad_proof() {
 #[traced_test]
 fn r6_false_accusation() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
-        malicious_behaviour_protocol(t, true, R6FalseAccusation { victim: t.victim });
-        malicious_behaviour_protocol(t, false, R6FalseAccusation { victim: t.victim });
+        malicious_behaviour_protocol(t, true, R7FalseAccusation { victim: t.victim });
+        malicious_behaviour_protocol(t, false, R7FalseAccusation { victim: t.victim });
     }
 }
 

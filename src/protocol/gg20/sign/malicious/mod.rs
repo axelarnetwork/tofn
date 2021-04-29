@@ -11,23 +11,23 @@ pub enum MaliciousType {
     Honest,
     R1BadProof { victim: usize },
     R1BadSecretBlindSummand, // triggers r6::Output::FailRandomizer
-    R1FalseAccusation { victim: usize },
+    R2FalseAccusation { victim: usize },
     R2BadMta { victim: usize },
     R2BadMtaWc { victim: usize },
-    R2FalseAccusationMta { victim: usize },
-    R2FalseAccusationMtaWc { victim: usize },
+    R3FalseAccusationMta { victim: usize },
+    R3FalseAccusationMtaWc { victim: usize },
     R3BadProof,
     R3BadNonceXBlindSummand, // triggers r6::Output::FailRandomizer
     R3BadEcdsaNonceSummand,  // triggers r6::Output::FailRandomizer
     R3BadMtaBlindSummandLhs { victim: usize }, // triggers r6::Output::FailRandomizer
-    R3FalseAccusation { victim: usize },
-    R4BadReveal,
     R4FalseAccusation { victim: usize },
-    R5BadProof { victim: usize },
+    R4BadReveal,
     R5FalseAccusation { victim: usize },
+    R5BadProof { victim: usize },
+    R6FalseAccusation { victim: usize },
     R6BadProof,
     R6FalseFailRandomizer,
-    R6FalseAccusation { victim: usize },
+    R7FalseAccusation { victim: usize },
     R7BadSigSummand,
 }
 use MaliciousType::*;
@@ -107,7 +107,7 @@ impl Protocol for BadSign {
                 *my_secret_blind_summand = *my_secret_blind_summand + one;
                 self.sign.update_state_r1(state, bcast, p2ps)
             }
-            R1FalseAccusation { victim } => {
+            R2FalseAccusation { victim } => {
                 if !matches!(self.sign.status, Status::R1) {
                     return self.sign.next_round();
                 };
@@ -201,7 +201,7 @@ impl Protocol for BadSign {
                     }
                 }
             }
-            R2FalseAccusationMta { victim } => {
+            R3FalseAccusationMta { victim } => {
                 if !matches!(self.sign.status, Status::R2) {
                     return self.sign.next_round();
                 };
@@ -217,7 +217,7 @@ impl Protocol for BadSign {
                     }],
                 })
             }
-            R2FalseAccusationMtaWc { victim } => {
+            R3FalseAccusationMtaWc { victim } => {
                 // TODO refactor copied code from R2FalseAccusationMta
                 if !matches!(self.sign.status, Status::R2) {
                     return self.sign.next_round();
@@ -399,7 +399,7 @@ impl Protocol for BadSign {
                     _ => return self.sign.next_round(),
                 }
             }
-            R3FalseAccusation { victim } => {
+            R4FalseAccusation { victim } => {
                 if !matches!(self.sign.status, Status::R3) {
                     return self.sign.next_round();
                 };
@@ -442,7 +442,7 @@ impl Protocol for BadSign {
                     }
                 }
             }
-            R4FalseAccusation { victim } => {
+            R5FalseAccusation { victim } => {
                 if !matches!(self.sign.status, Status::R4) {
                     return self.sign.next_round();
                 };
@@ -498,7 +498,7 @@ impl Protocol for BadSign {
                     }
                 }
             }
-            R5FalseAccusation { victim } => {
+            R6FalseAccusation { victim } => {
                 if !matches!(self.sign.status, Status::R5) {
                     return self.sign.next_round();
                 };
@@ -559,7 +559,7 @@ impl Protocol for BadSign {
                 );
                 self.sign.update_state_r6fail_randomizer()
             }
-            R6FalseAccusation { victim } => {
+            R7FalseAccusation { victim } => {
                 if !matches!(self.sign.status, Status::R6) {
                     return self.sign.next_round();
                 };
