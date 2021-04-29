@@ -7,6 +7,7 @@ use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     GE,
 };
+use multi_party_ecdsa::utilities::mta as mta_zengo;
 use paillier::{EncryptWithChosenRandomness, Paillier, Randomness, RawPlaintext};
 use tracing::warn;
 
@@ -18,7 +19,7 @@ impl Sign {
 
         let mut criminals = FillVec::with_len(self.participant_indices.len());
 
-        for (i, r7_participant_data) in self
+        'outer: for (i, r7_participant_data) in self
             .in_r7bcasts_fail_randomizer
             .vec_ref()
             .iter()
@@ -89,6 +90,8 @@ impl Sign {
             // verify r7_participant_data is consistent with earlier messages:
             // 1. ecdsa_nonce_summand (k_i)
             // 2. secret_blind_summand (gamma_i)
+            // 3. mta_blind_summands.rhs (beta_ij)
+            // 4. mta_blind_summands.lhs (alpha_ij)
 
             // 1. ecdsa_nonce_summand (k_i)
             let ek = &self.my_secret_key_share.all_eks[self.participant_indices[i]];
@@ -143,6 +146,57 @@ impl Sign {
                     },
                 );
                 continue; // participant i is known to be criminal, continue to next participant
+            }
+
+            // 3. mta_blind_summands.rhs (beta_ij)
+            // 4. mta_blind_summands.lhs (alpha_ij)
+            for (j, mta_blind_summand) in r7_participant_data.mta_blind_summands.iter().enumerate()
+            {
+                if j == i {
+                    continue;
+                }
+                let mta_blind_summand = mta_blind_summand.as_ref().unwrap_or_else(|| {
+                    panic!(
+                        // TODO these checks should be unnecessary after refactoring
+                        "r8_fail_randomizer participant {} missing mta_blind_summand from {} for {}",
+                        self.my_participant_index, i, j
+                    )
+                });
+                let other_ek = &self.my_secret_key_share.all_eks[self.participant_indices[j]];
+                let other_encrypted_ecdsa_nonce_summand = &self.in_r1bcasts.vec_ref()[j]
+                    .as_ref()
+                    .unwrap()
+                    .encrypted_ecdsa_nonce_summand;
+                let (mta_response_blind, _my_mta_blind_summand_rhs) =
+                    mta_zengo::MessageB::b_with_predefined_randomness(
+                        &r7_participant_data.secret_blind_summand,
+                        other_ek,
+                        other_encrypted_ecdsa_nonce_summand.clone(),
+                        &mta_blind_summand.rhs_randomness.randomness,
+                        &mta_blind_summand.rhs_randomness.beta_prime,
+                    );
+                if mta_response_blind.c
+                    != self.in_all_r2p2ps[i].vec_ref()[j]
+                        .as_ref()
+                        .unwrap()
+                        .mta_response_blind
+                        .c
+                {
+                    // TODO this code path triggered by <test>
+                    warn!(
+                        "participant {} detect inconsistent mta_response_blind from {} to {}",
+                        self.my_participant_index, i, j
+                    );
+                    criminals.overwrite(
+                        i,
+                        Criminal {
+                            index: i,
+                            crime_type: CrimeType::Malicious,
+                        },
+                    );
+                    continue 'outer; // participant i is known to be criminal, continue to next participant
+                }
+                // TODO can't do alpha_ij until I do beta_ji first
             }
         }
 

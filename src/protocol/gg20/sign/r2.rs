@@ -18,8 +18,14 @@ pub struct P2p {
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub struct State {
     pub(super) my_mta_blind_summands_rhs: Vec<Option<FE>>,
-    pub(super) my_mta_blind_summands_rhs_randomness: Vec<Option<BigInt>>, // needed only in r6 fail mode
+    pub(super) my_mta_blind_summands_rhs_randomness: Vec<Option<RhsRandomness>>, // needed only in r6 fail mode
     pub(super) my_mta_keyshare_summands_rhs: Vec<Option<FE>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RhsRandomness {
+    pub(super) randomness: BigInt,
+    pub(super) beta_prime: BigInt,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -125,7 +131,13 @@ impl Sign {
                 },
             );
             my_mta_blind_summands_rhs_randomness
-                .insert(i, randomness)
+                .insert(
+                    i,
+                    RhsRandomness {
+                        randomness,
+                        beta_prime,
+                    },
+                )
                 .unwrap();
 
             // MtAwc for nonce * keyshare

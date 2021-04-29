@@ -1,4 +1,4 @@
-use super::{Sign, Status};
+use super::{r2, Sign, Status};
 use crate::fillvec::FillVec;
 use curv::{elliptic::curves::traits::ECScalar, BigInt, FE};
 use paillier::{
@@ -23,10 +23,10 @@ pub struct Bcast {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MtaBlindSummandsData {
-    pub(super) rhs: FE,                // beta_ji
-    pub(super) rhs_randomness: BigInt, // beta_ji encryption randomness
-    pub(super) lhs: FE,                // alpha_ij
-    pub(super) lhs_randomness: BigInt, // alpha_ij encryption randomness
+    pub(super) rhs: FE,                           // beta_ji
+    pub(super) rhs_randomness: r2::RhsRandomness, // beta_ji encryption randomness
+    pub(super) lhs: FE,                           // alpha_ij
+    pub(super) lhs_randomness: BigInt,            // alpha_ij encryption randomness
 }
 
 impl Sign {
