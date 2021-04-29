@@ -235,7 +235,7 @@ impl Sign {
 
         // if no criminals were found then everyone who sent r6::Output::FailRandomizer is a criminal
         // TODO CAREFUL!  If we missed a check then a single malicious actor can cause everyone to blame everyone!
-        if criminals.some_count() <= 0 {
+        if criminals.some_count() == 0 {
             // TODO code copied from move_to_sad_path
             let complainers: Vec<usize> = self
                 .in_r6bcasts_fail_randomizer

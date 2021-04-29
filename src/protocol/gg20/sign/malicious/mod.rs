@@ -340,7 +340,7 @@ impl Protocol for BadSign {
                         *ecdsa_nonce_summand = *ecdsa_nonce_summand + one;
                         self.sign.update_state_r7fail_randomizer(bcast)
                     }
-                    _ => return self.sign.next_round(),
+                    _ => self.sign.next_round(),
                 }
             }
             R3BadMtaBlindSummandLhs { victim } => {
@@ -397,7 +397,7 @@ impl Protocol for BadSign {
                         }
                         self.sign.update_state_r7fail_randomizer(bcast)
                     }
-                    _ => return self.sign.next_round(),
+                    _ => self.sign.next_round(),
                 }
             }
             R3BadMtaBlindSummandRhs { victim } => {
@@ -461,7 +461,7 @@ impl Protocol for BadSign {
                         }
                         self.sign.update_state_r7fail_randomizer(bcast)
                     }
-                    _ => return self.sign.next_round(),
+                    _ => self.sign.next_round(),
                 }
             }
             R4FalseAccusation { victim } => {
