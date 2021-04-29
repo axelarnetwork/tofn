@@ -28,12 +28,14 @@ pub enum Crime {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FailBcast {
+pub struct BcastCulprits {
     pub culprits: Vec<Culprit>,
 }
+
 pub enum Output {
     Success { state: State, out_bcast: Bcast },
-    Fail { out_bcast: FailBcast },
+    FailRangeProofWc { out_bcast: BcastCulprits },
+    FailRandomizer,
 }
 
 impl Sign {
@@ -82,8 +84,8 @@ impl Sign {
                 )
                 .unwrap_or_else(|e| {
                     warn!(
-                        "party {} says: range proof wc failed to verify for party {} because [{}]",
-                        self.my_secret_key_share.my_index, participant_index, e
+                        "participant {} says: range proof wc failed to verify for participant {} because [{}]",
+                        self.my_participant_index, i, e
                     );
                     culprits.push(Culprit {
                         participant_index: i,
@@ -93,12 +95,21 @@ impl Sign {
         }
 
         if !culprits.is_empty() {
-            return Output::Fail {
-                out_bcast: FailBcast { culprits },
+            return Output::FailRangeProofWc {
+                out_bcast: BcastCulprits { culprits },
             };
         }
 
-        assert_eq!(ecdsa_randomizer_x_nonce, GE::generator()); // TODO panic
+        // check for failure of type 5 from section 4.2 of https://eprint.iacr.org/2020/540.pdf
+        if ecdsa_randomizer_x_nonce != GE::generator() {
+            // need an extra round to ensure all other parties know to switch to blame mode
+            // otherwise, some parties might claim this check has passed and not broadcast their abort data
+            warn!(
+                "participant {} says: randomizer check failed; begin randomizer fault attribution",
+                self.my_participant_index
+            );
+            return Output::FailRandomizer;
+        }
 
         // compute S_i (aka ecdsa_public_key_check) and zk proof as per phase 6 of 2020/540
         let r3state = self.r3state.as_ref().unwrap();

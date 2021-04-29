@@ -23,6 +23,7 @@ lazy_static::lazy_static! {
     ];
 }
 
+#[derive(Debug)]
 pub struct OneCrimeTestCase {
     pub share_count: usize,
     pub threshold: usize,
@@ -44,8 +45,8 @@ fn r1_bad_proof() {
 #[traced_test]
 fn r1_false_accusation() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
-        malicious_behaviour_protocol(t, true, R1FalseAccusation { victim: t.victim });
-        malicious_behaviour_protocol(t, false, R1FalseAccusation { victim: t.victim });
+        malicious_behaviour_protocol(t, true, R2FalseAccusation { victim: t.victim });
+        malicious_behaviour_protocol(t, false, R2FalseAccusation { victim: t.victim });
     }
 }
 
@@ -71,8 +72,8 @@ fn r2_bad_mta_wc_proof() {
 #[traced_test]
 fn r2_false_accusation_mta() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
-        malicious_behaviour_protocol(t, true, R2FalseAccusationMta { victim: t.victim });
-        malicious_behaviour_protocol(t, false, R2FalseAccusationMta { victim: t.victim });
+        malicious_behaviour_protocol(t, true, R3FalseAccusationMta { victim: t.victim });
+        malicious_behaviour_protocol(t, false, R3FalseAccusationMta { victim: t.victim });
     }
 }
 
@@ -80,8 +81,8 @@ fn r2_false_accusation_mta() {
 #[traced_test]
 fn r2_false_accusation_mta_wc() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
-        malicious_behaviour_protocol(t, true, R2FalseAccusationMtaWc { victim: t.victim });
-        malicious_behaviour_protocol(t, false, R2FalseAccusationMtaWc { victim: t.victim });
+        malicious_behaviour_protocol(t, true, R3FalseAccusationMtaWc { victim: t.victim });
+        malicious_behaviour_protocol(t, false, R3FalseAccusationMtaWc { victim: t.victim });
     }
 }
 
@@ -98,8 +99,8 @@ fn r3_bad_proof() {
 #[traced_test]
 fn r3_false_accusation() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
-        malicious_behaviour_protocol(t, true, R3FalseAccusation { victim: t.victim });
-        malicious_behaviour_protocol(t, false, R3FalseAccusation { victim: t.victim });
+        malicious_behaviour_protocol(t, true, R4FalseAccusation { victim: t.victim });
+        malicious_behaviour_protocol(t, false, R4FalseAccusation { victim: t.victim });
     }
 }
 
@@ -116,8 +117,8 @@ fn r4_bad_reveal() {
 #[traced_test]
 fn r4_false_accusation() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
-        malicious_behaviour_protocol(t, true, R4FalseAccusation { victim: t.victim });
-        malicious_behaviour_protocol(t, false, R4FalseAccusation { victim: t.victim });
+        malicious_behaviour_protocol(t, true, R5FalseAccusation { victim: t.victim });
+        malicious_behaviour_protocol(t, false, R5FalseAccusation { victim: t.victim });
     }
 }
 
@@ -134,8 +135,8 @@ fn r5_bad_proof() {
 #[traced_test]
 fn r5_false_accusation() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
-        malicious_behaviour_protocol(t, true, R5FalseAccusation { victim: t.victim });
-        malicious_behaviour_protocol(t, false, R5FalseAccusation { victim: t.victim });
+        malicious_behaviour_protocol(t, true, R6FalseAccusation { victim: t.victim });
+        malicious_behaviour_protocol(t, false, R6FalseAccusation { victim: t.victim });
     }
 }
 
@@ -152,8 +153,8 @@ fn r6_bad_proof() {
 #[traced_test]
 fn r6_false_accusation() {
     for t in ONE_CRIMINAL_TEST_CASES.iter() {
-        malicious_behaviour_protocol(t, true, R6FalseAccusation { victim: t.victim });
-        malicious_behaviour_protocol(t, false, R6FalseAccusation { victim: t.victim });
+        malicious_behaviour_protocol(t, true, R7FalseAccusation { victim: t.victim });
+        malicious_behaviour_protocol(t, false, R7FalseAccusation { victim: t.victim });
     }
 }
 
@@ -166,12 +167,71 @@ fn r7_bad_sig_share() {
     }
 }
 
+#[test]
+#[traced_test]
+fn r3_bad_nonce_x_blind_summand() {
+    for t in ONE_CRIMINAL_TEST_CASES.iter() {
+        malicious_behaviour_protocol(t, true, R3BadNonceXBlindSummand);
+        malicious_behaviour_protocol(t, false, R3BadNonceXBlindSummand);
+    }
+}
+
+#[test]
+#[traced_test]
+fn r6_false_fail_randomizer() {
+    for t in ONE_CRIMINAL_TEST_CASES.iter() {
+        malicious_behaviour_protocol(t, true, R6FalseFailRandomizer);
+        malicious_behaviour_protocol(t, false, R6FalseFailRandomizer);
+    }
+}
+
+#[test]
+#[traced_test]
+fn r3_bad_ecdsa_nonce_summand() {
+    for t in ONE_CRIMINAL_TEST_CASES.iter() {
+        malicious_behaviour_protocol(t, true, R3BadEcdsaNonceSummand);
+        malicious_behaviour_protocol(t, false, R3BadEcdsaNonceSummand);
+    }
+}
+
+#[test]
+#[traced_test]
+fn r1_bad_secret_blind_summand() {
+    for t in ONE_CRIMINAL_TEST_CASES.iter() {
+        malicious_behaviour_protocol(t, true, R1BadSecretBlindSummand);
+        malicious_behaviour_protocol(t, false, R1BadSecretBlindSummand);
+    }
+}
+
+#[test]
+#[traced_test]
+fn r3_bad_mta_blind_summand_lhs() {
+    for t in ONE_CRIMINAL_TEST_CASES.iter() {
+        malicious_behaviour_protocol(t, true, R3BadMtaBlindSummandLhs { victim: t.victim });
+        malicious_behaviour_protocol(t, false, R3BadMtaBlindSummandLhs { victim: t.victim });
+    }
+}
+
+#[test]
+#[traced_test]
+fn r3_bad_mta_blind_summand_rhs() {
+    for t in ONE_CRIMINAL_TEST_CASES.iter() {
+        malicious_behaviour_protocol(t, true, R3BadMtaBlindSummandRhs { victim: t.victim });
+        malicious_behaviour_protocol(t, false, R3BadMtaBlindSummandRhs { victim: t.victim });
+    }
+}
+
 // generic malicious behaviour test
 fn malicious_behaviour_protocol(
     t: &OneCrimeTestCase,
     allow_self_delivery: bool,
     malicious_type: MaliciousType,
+    // TODO expected failure round?
 ) {
+    info!(
+        "{:?}, allow_self_delivery: {}, malicious_type: {:?}",
+        t, allow_self_delivery, malicious_type
+    );
     assert!(t.participant_indices.len() >= 2);
     let key_shares = execute_keygen(t.share_count, t.threshold);
 
