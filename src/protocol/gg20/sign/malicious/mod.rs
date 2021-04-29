@@ -10,6 +10,7 @@ pub enum MaliciousType {
     // TODO R1BadCommit,
     Honest,
     R1BadProof { victim: usize },
+    R1BadSecretBlindSummand, // triggers r6::Output::FailRandomizer
     R1FalseAccusation { victim: usize },
     R2BadMta { victim: usize },
     R2BadMtaWc { victim: usize },
@@ -89,6 +90,21 @@ impl Protocol for BadSign {
                         self.sign.next_round()
                     }
                 }
+            }
+            R1BadSecretBlindSummand => {
+                if !matches!(self.sign.status, Status::New) {
+                    return self.sign.next_round();
+                };
+                let (mut state, bcast, p2ps) = self.sign.r1();
+
+                info!(
+                    "malicious participant {} r1 corrupt my_secret_blind_summand",
+                    self.sign.my_participant_index
+                );
+                let one: FE = ECScalar::from(&BigInt::from(1));
+                let my_secret_blind_summand = &mut state.my_secret_blind_summand;
+                *my_secret_blind_summand = *my_secret_blind_summand + one;
+                self.sign.update_state_r1(state, bcast, p2ps)
             }
             R1FalseAccusation { victim } => {
                 if !matches!(self.sign.status, Status::R1) {

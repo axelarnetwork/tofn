@@ -3,10 +3,10 @@ use crate::{
     fillvec::FillVec,
     protocol::{CrimeType, Criminal},
 };
-use curv::elliptic::curves::traits::ECScalar;
-// use curv::{elliptic::curves::traits::ECPoint, BigInt, FE, GE};
-// use log::warn;
-// use serde::{Deserialize, Serialize};
+use curv::{
+    elliptic::curves::traits::{ECPoint, ECScalar},
+    GE,
+};
 use paillier::{EncryptWithChosenRandomness, Paillier, Randomness, RawPlaintext};
 use tracing::warn;
 
@@ -39,7 +39,7 @@ impl Sign {
                         crime_type: CrimeType::Malicious,
                     },
                 );
-                continue;
+                continue; // participant i is known to be criminal, continue to next participant
             }
             let r7_participant_data = r7_participant_data.as_ref().unwrap();
 
@@ -83,16 +83,14 @@ impl Sign {
                         crime_type: CrimeType::Malicious,
                     },
                 );
-                // TODO continue to next participant or check for more faults form this participant?
-                // it's easier to test subsequent fault types if we do not continue here
-                continue;
+                continue; // participant i is known to be criminal, continue to next participant
             }
 
             // verify r7_participant_data is consistent with earlier messages:
-            // 1. ecdsa_nonce_summand
-            // TODO...
+            // 1. ecdsa_nonce_summand (k_i)
+            // 2. secret_blind_summand (gamma_i)
 
-            // 1. ecdsa_nonce_summand
+            // 1. ecdsa_nonce_summand (k_i)
             let ek = &self.my_secret_key_share.all_eks[self.participant_indices[i]];
             let encrypted_ecdsa_nonce_summand = Paillier::encrypt_with_chosen_randomness(
                 ek,
@@ -109,7 +107,7 @@ impl Sign {
             if *encrypted_ecdsa_nonce_summand.0 != in_r1bcast.encrypted_ecdsa_nonce_summand.c {
                 // this code path triggered by R3BadNonceXBlindSummandViaEcdsaNonceSummand
                 warn!(
-                    "participant {} detect failed encryption of ecdsa_nonce_summand from {}",
+                    "participant {} detect inconsistent encryption of ecdsa_nonce_summand from {}",
                     self.my_participant_index, i
                 );
                 criminals.overwrite(
@@ -119,13 +117,37 @@ impl Sign {
                         crime_type: CrimeType::Malicious,
                     },
                 );
-                // TODO continue to next participant or check for more faults form this participant?
-                // it's easier to test subsequent fault types if we do not continue here
-                continue;
+                continue; // participant i is known to be criminal, continue to next participant
+            }
+
+            // 2. secret_blind_summand (gamma_i)
+            let public_blind_summand = GE::generator() * r7_participant_data.secret_blind_summand;
+            let in_r4bcast = self.in_r4bcasts.vec_ref()[i].as_ref().unwrap_or_else(|| {
+                panic!(
+                    // TODO these checks should be unnecessary after refactoring
+                    "r8_fail_randomizer participant {} missing in_r4bcast from {}",
+                    self.my_participant_index, i
+                )
+            });
+            if public_blind_summand != in_r4bcast.public_blind_summand {
+                // this code path triggered by R1BadSecretBlindSummand
+                warn!(
+                    "participant {} detect inconsistent secret_blind_summand from {}",
+                    self.my_participant_index, i
+                );
+                criminals.overwrite(
+                    i,
+                    Criminal {
+                        index: i,
+                        crime_type: CrimeType::Malicious,
+                    },
+                );
+                continue; // participant i is known to be criminal, continue to next participant
             }
         }
 
         // if no criminals were found then everyone who sent r6::Output::FailRandomizer is a criminal
+        // TODO CAREFUL!  If we missed a check then a single malicious actor can cause everyone to blame everyone!
         if criminals.some_count() <= 0 {
             // TODO code copied from move_to_sad_path
             let complainers: Vec<usize> = self
@@ -139,7 +161,6 @@ impl Sign {
                 "participant {} detect no fault in R7FailRandomizer; accusing complainers {:?}",
                 self.my_participant_index, complainers
             );
-            // TODO CAREFUL!  If we missed a check then a single malicious actor can cause everyone to blame everyone!
             for c in complainers {
                 criminals.overwrite(
                     c,
