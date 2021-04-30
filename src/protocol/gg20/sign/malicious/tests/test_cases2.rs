@@ -169,9 +169,7 @@ pub(super) fn generate_some_test_cases() -> Vec<TestCase> {
                 SignParticipant {
                     party_index: 3,
                     behaviour: R3BadProof,
-                    expected_crimes: vec![
-                        Crime::R5BadRangeProof,
-                    ],
+                    expected_crimes: vec![Crime::R5BadRangeProof],
                 },
                 SignParticipant {
                     party_index: 2,
@@ -217,9 +215,7 @@ pub(super) fn generate_some_test_cases() -> Vec<TestCase> {
                 SignParticipant {
                     party_index: 3,
                     behaviour: R4BadReveal,
-                    expected_crimes: vec![
-                        Crime::R6BadHashCommit,
-                    ],
+                    expected_crimes: vec![Crime::R6BadHashCommit],
                 },
                 SignParticipant {
                     party_index: 2,
@@ -311,9 +307,7 @@ pub(super) fn generate_some_test_cases() -> Vec<TestCase> {
                 SignParticipant {
                     party_index: 3,
                     behaviour: R6BadProof,
-                    expected_crimes: vec![
-                        Crime::R8BadRangeProof,
-                    ],
+                    expected_crimes: vec![Crime::R8BadRangeProof],
                 },
                 SignParticipant {
                     party_index: 2,
