@@ -1,4 +1,4 @@
-use super::{crimes::into_criminals, Status::*, *};
+use super::{crimes::to_criminals, Status::*, *};
 use crate::protocol::{MsgBytes, Protocol, ProtocolResult};
 use serde::{Deserialize, Serialize};
 
@@ -65,7 +65,9 @@ impl Protocol for Sign {
                 }
             },
             R2Fail => {
-                self.final_output = Some(Output::Err(into_criminals(self.r3_fail())));
+                let bad_guys = self.r3_fail();
+                self.final_output = Some(Output::Err(to_criminals(&bad_guys)));
+                self.final_output2 = Some(Err(bad_guys));
                 self.status = Fail;
             }
             R3 => match self.r4() {

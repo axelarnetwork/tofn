@@ -1,7 +1,5 @@
-use super::{super::*, *};
-use crate::protocol::{
-    gg20::keygen::tests::execute_keygen, tests::execute_protocol_vec, CrimeType, Criminal, Protocol,
-};
+use super::*;
+use crate::protocol::{gg20::keygen::tests::execute_keygen, tests::execute_protocol_vec, Protocol};
 use tracing_test::traced_test; // enable logs in tests
 
 mod test_cases;
@@ -108,5 +106,79 @@ fn execute_test_case(t: &TestCase) {
             Err(criminals) => criminals,
         };
         assert_eq!(criminals, t.sign_expected_criminals);
+    }
+}
+
+mod test_cases2;
+use crate::protocol::gg20::sign::crimes::Crime;
+
+lazy_static::lazy_static! {
+    static ref SOME_TEST_CASES: Vec<test_cases2::TestCase> = test_cases2::generate_some_test_cases();
+}
+
+#[test]
+#[traced_test]
+fn some_cases() {
+    execute_test_case_list2(&SOME_TEST_CASES);
+}
+
+fn execute_test_case_list2(test_cases: &[test_cases2::TestCase]) {
+    for t in test_cases {
+        let malicious_count = t
+            .sign_participants
+            .iter()
+            .filter(|p| !matches!(p.behaviour, Honest))
+            .count();
+        info!(
+            "malicious_count [{}] share_count [{}] threshold [{}]",
+            malicious_count, t.share_count, t.threshold
+        );
+        execute_test_case2(t);
+    }
+}
+
+fn execute_test_case2(t: &test_cases2::TestCase) {
+    let participant_indices: Vec<usize> =
+        t.sign_participants.iter().map(|p| p.party_index).collect();
+    let key_shares = execute_keygen(t.share_count, t.threshold);
+
+    let mut signers: Vec<BadSign> = t
+        .sign_participants
+        .iter()
+        .map(|p| {
+            BadSign::new(
+                &key_shares[p.party_index],
+                &participant_indices,
+                &MESSAGE_TO_SIGN,
+                p.behaviour.clone(),
+            )
+            .unwrap()
+        })
+        .collect();
+
+    let mut protocols: Vec<&mut dyn Protocol> =
+        signers.iter_mut().map(|p| p as &mut dyn Protocol).collect();
+
+    execute_protocol_vec(&mut protocols, t.allow_self_delivery);
+
+    // TEST: everyone correctly computed the culprit list
+    let expected_crime_lists: Vec<&Vec<Crime>> = t
+        .sign_participants
+        .iter()
+        .map(|p| &p.expected_crimes)
+        .collect();
+    for signer in signers {
+        // lots of cruft needed to get a Vec<&Vec<Crime>> to compare against expected_crime_lists
+        let actual_crime_lists: Vec<&Vec<Crime>> = signer
+            .sign
+            .final_output2
+            .as_ref()
+            .unwrap()
+            .as_ref()
+            .unwrap_err()
+            .iter()
+            .map(|v| v)
+            .collect();
+        assert_eq!(actual_crime_lists, expected_crime_lists);
     }
 }
