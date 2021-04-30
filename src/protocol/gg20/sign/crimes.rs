@@ -13,6 +13,8 @@ pub(super) enum Crime {
     R5FalseAccusation { victim: usize },
     R6BadHashCommit { victim: usize },
     R6FalseAccusation { victim: usize },
+    R7BadRangeProof { victim: usize },
+    R7FalseAccusation { victim: usize },
     R8BadNonceXBlindSummand,
     R8BadNonceSummand,
     R8BadBlindSummand,

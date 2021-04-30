@@ -128,7 +128,9 @@ impl Protocol for Sign {
                 }
             },
             R6Fail => {
-                self.final_output = Some(Output::Err(self.r7_fail()));
+                let bad_guys = self.r7_fail();
+                self.final_output = Some(Output::Err(to_criminals(&bad_guys)));
+                self.final_output2 = Some(Err(bad_guys));
                 self.status = Fail;
             }
             R6FailRandomizer => {
