@@ -13,9 +13,7 @@ impl Sign {
         assert!(matches!(self.status, Status::R7FailRandomizer));
         assert!(self.in_r7bcasts_fail_randomizer.some_count() > 0);
 
-        let mut criminals: Vec<Vec<Crime>> = (0..self.participant_indices.len())
-            .map(|_| Vec::new())
-            .collect(); // can't use vec![Vec::new(); capacity] https://users.rust-lang.org/t/how-to-initialize-vec-option-t-with-none/30580/2
+        let mut criminals = vec![Vec::new(); self.participant_indices.len()];
 
         // 'outer: for (i, r7_participant_data) in self
         for (i, r7_participant_data) in self

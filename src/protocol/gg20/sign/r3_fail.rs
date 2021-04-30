@@ -7,9 +7,7 @@ impl Sign {
         assert!(matches!(self.status, Status::R2Fail));
         assert!(self.in_r2bcasts_fail.some_count() > 0);
 
-        let mut criminals: Vec<Vec<Crime>> = (0..self.participant_indices.len())
-            .map(|_| Vec::new())
-            .collect(); // can't use vec![Vec::new(); capacity] https://users.rust-lang.org/t/how-to-initialize-vec-option-t-with-none/30580/2
+        let mut criminals = vec![Vec::new(); self.participant_indices.len()];
 
         for accuser in 0..self.participant_indices.len() {
             if let Some(fail_bcast) = self.in_r2bcasts_fail.vec_ref()[accuser].as_ref() {
