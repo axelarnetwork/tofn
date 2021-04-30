@@ -183,11 +183,13 @@ fn execute_test_case2(t: &test_cases2::TestCase) {
                 .as_ref()
                 .unwrap_err()
                 .iter()
-                .map(|v| v)
                 .collect();
             assert_eq!(actual_crime_lists, expected_crime_lists);
         } else {
-            println!("skipping {:?} because final_output2 is not ready yet", signer.malicious_type);
+            println!(
+                "skipping {:?} because final_output2 is not ready yet",
+                signer.malicious_type
+            );
         }
     }
 }
