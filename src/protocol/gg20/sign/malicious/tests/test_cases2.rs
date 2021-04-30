@@ -17,7 +17,7 @@ pub(super) struct TestCase {
 // #[rustfmt::skip] // skip formatting to make file more readable
 pub(super) fn generate_some_test_cases() -> Vec<TestCase> {
     vec![
-        // r3_fail
+        // r3_fail_bad_proof
         TestCase {
             share_count: 5,
             threshold: 2,
@@ -40,6 +40,237 @@ pub(super) fn generate_some_test_cases() -> Vec<TestCase> {
                 },
             ],
         },
+        // r3_fail_false_accusation
+        TestCase {
+            share_count: 5,
+            threshold: 2,
+            allow_self_delivery: false,
+            sign_participants: vec![
+                SignParticipant {
+                    party_index: 4,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+                SignParticipant {
+                    party_index: 3,
+                    behaviour: R2FalseAccusation{victim: 0},
+                    expected_crimes: vec![Crime::R3FalseAccusation{ victim: 0 }],
+                },
+                SignParticipant {
+                    party_index: 2,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+            ],
+        },
+        // r5_fail_bad_proof
+        TestCase {
+            share_count: 5,
+            threshold: 2,
+            allow_self_delivery: false,
+            sign_participants: vec![
+                SignParticipant {
+                    party_index: 4,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+                SignParticipant {
+                    party_index: 3,
+                    behaviour: R3BadProof,
+                    expected_crimes: vec![Crime::R5BadRangeProof { victim: 0 }, Crime::R5BadRangeProof { victim: 2}],
+                },
+                SignParticipant {
+                    party_index: 2,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+            ],
+        },
+        // r5_fail_false_accusation
+        TestCase {
+            share_count: 5,
+            threshold: 2,
+            allow_self_delivery: false,
+            sign_participants: vec![
+                SignParticipant {
+                    party_index: 4,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+                SignParticipant {
+                    party_index: 3,
+                    behaviour: R4FalseAccusation{victim: 0},
+                    expected_crimes: vec![Crime::R5FalseAccusation { victim: 0 }],
+                },
+                SignParticipant {
+                    party_index: 2,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+            ],
+        },
+        // r6_fail_bad_hash_commit
+        TestCase {
+            share_count: 5,
+            threshold: 2,
+            allow_self_delivery: false,
+            sign_participants: vec![
+                SignParticipant {
+                    party_index: 4,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+                SignParticipant {
+                    party_index: 3,
+                    behaviour: R4BadReveal,
+                    expected_crimes: vec![Crime::R6BadHashCommit { victim: 0 }, Crime::R6BadHashCommit { victim: 2 }],
+                },
+                SignParticipant {
+                    party_index: 2,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+            ],
+        },
+        // r6_fail_false_accusation
+        TestCase {
+            share_count: 5,
+            threshold: 2,
+            allow_self_delivery: false,
+            sign_participants: vec![
+                SignParticipant {
+                    party_index: 4,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+                SignParticipant {
+                    party_index: 3,
+                    behaviour: R5FalseAccusation{victim: 0},
+                    expected_crimes: vec![Crime::R6FalseAccusation { victim: 0 }],
+                },
+                SignParticipant {
+                    party_index: 2,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+            ],
+        },
+        // r7_fail_bad_proof
+        TestCase {
+            share_count: 5,
+            threshold: 2,
+            allow_self_delivery: false,
+            sign_participants: vec![
+                SignParticipant {
+                    party_index: 4,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+                SignParticipant {
+                    party_index: 3,
+                    behaviour: R5BadProof{victim: 0},
+                    expected_crimes: vec![Crime::R7BadRangeProof{ victim: 0 }],
+                },
+                SignParticipant {
+                    party_index: 2,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+            ],
+        },
+        // r7_fail_false_accusation
+        TestCase {
+            share_count: 5,
+            threshold: 2,
+            allow_self_delivery: false,
+            sign_participants: vec![
+                SignParticipant {
+                    party_index: 4,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+                SignParticipant {
+                    party_index: 3,
+                    behaviour: R6FalseAccusation{victim: 0},
+                    expected_crimes: vec![Crime::R7FalseAccusation{ victim: 0 }],
+                },
+                SignParticipant {
+                    party_index: 2,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+            ],
+        },
+        // r8_fail_bad_proof
+        TestCase {
+            share_count: 5,
+            threshold: 2,
+            allow_self_delivery: false,
+            sign_participants: vec![
+                SignParticipant {
+                    party_index: 4,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+                SignParticipant {
+                    party_index: 3,
+                    behaviour: R6BadProof,
+                    expected_crimes: vec![Crime::R8BadRangeProof{ victim: 0 }, Crime::R8BadRangeProof{ victim: 2 }],
+                },
+                SignParticipant {
+                    party_index: 2,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+            ],
+        },
+        // r8_fail_false_accusation
+        TestCase {
+            share_count: 5,
+            threshold: 2,
+            allow_self_delivery: false,
+            sign_participants: vec![
+                SignParticipant {
+                    party_index: 4,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+                SignParticipant {
+                    party_index: 3,
+                    behaviour: R7FalseAccusation{victim: 0},
+                    expected_crimes: vec![Crime::R8FalseAccusation{ victim: 0 }],
+                },
+                SignParticipant {
+                    party_index: 2,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+            ],
+        },
+        // TODO: which behaviour triggers R8MissingData?
+        // r8_fail_randomizer
+        // TestCase {
+        //     share_count: 5,
+        //     threshold: 2,
+        //     allow_self_delivery: false,
+        //     sign_participants: vec![
+        //         SignParticipant {
+        //             party_index: 4,
+        //             behaviour: Honest,
+        //             expected_crimes: vec![],
+        //         },
+        //         SignParticipant {
+        //             party_index: 3,
+        //             behaviour: /* ????? */,
+        //             expected_crimes: vec![Crime::R8MissingData],
+        //         },
+        //         SignParticipant {
+        //             party_index: 2,
+        //             behaviour: Honest,
+        //             expected_crimes: vec![],
+        //         },
+        //     ],
+        // },
         // r8_fail_randomizer
         TestCase {
             share_count: 5,
