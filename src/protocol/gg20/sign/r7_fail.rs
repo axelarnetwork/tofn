@@ -1,17 +1,13 @@
-use super::{Sign, Status};
-use crate::{
-    fillvec::FillVec,
-    protocol::{CrimeType, Criminal},
-    zkp::range,
-};
+use super::{crimes::Crime, Sign, Status};
+use crate::zkp::range;
 use tracing::{info, warn};
 
 impl Sign {
-    pub(super) fn r7_fail(&self) -> Vec<Criminal> {
+    pub(super) fn r7_fail(&self) -> Vec<Vec<Crime>> {
         assert!(matches!(self.status, Status::R6Fail));
         assert!(self.in_r6bcasts_fail.some_count() > 0);
 
-        let mut culprits = FillVec::with_len(self.participant_indices.len());
+        let mut criminals = vec![Vec::new(); self.participant_indices.len()];
 
         // TODO refactor copied code to iterate over (accuser, accused)
         // TODO clarify confusion: participant vs party indices
@@ -82,37 +78,28 @@ impl Sign {
                         .ecdsa_randomizer_x_nonce_summand_proof;
 
                     let verification = verifier_zkp.verify_range_proof_wc(stmt, proof);
-                    let culprit_index = match verification {
+                    match verification {
                         Ok(_) => {
                             info!(
                                 "participant {} detect false accusation by {} against {}",
                                 self.my_participant_index, accuser, accused.participant_index
                             );
-                            accuser
+                            criminals[accuser].push(Crime::R7FalseAccusation {
+                                victim: accused.participant_index,
+                            });
                         }
                         Err(e) => {
                             info!(
-                                "participant {} detect bad proof from {} to {} because [{}]",
+                                "participant {} detect bad range proof from {} to {} because [{}]",
                                 self.my_participant_index, accused.participant_index, accuser, e
                             );
-                            accused.participant_index
+                            criminals[accused.participant_index]
+                                .push(Crime::R7BadRangeProof { victim: accuser });
                         }
                     };
-                    culprits.overwrite(
-                        culprit_index,
-                        Criminal {
-                            index: culprit_index,
-                            crime_type: CrimeType::Malicious,
-                        },
-                    );
                 }
             }
         }
-
-        culprits
-            .into_vec()
-            .into_iter()
-            .filter_map(|opt| opt)
-            .collect()
+        criminals
     }
 }

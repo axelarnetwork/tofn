@@ -49,6 +49,8 @@ impl EcdsaSig {
 // only include malicious module in malicious build
 #[cfg(feature = "malicious")]
 pub mod malicious;
+
+mod crimes;
 mod protocol;
 
 enum Status {
@@ -71,21 +73,6 @@ enum Status {
     Done,
     Fail,
 }
-
-// all possible crimes
-// variant names are of the form <Status><Crime>
-// TODO separate Crime enum for each round?
-// TODO add variant data (eg. R2ZkpVerify proof from party i to party j fail because x)
-// #[derive(Debug, Clone, Serialize, Deserialize)]
-// pub enum Crime {
-//     R2ZkpVerify,
-//     R3FailFalseAccusation,
-// }
-// #[derive(Debug, Clone, Serialize, Deserialize)]
-// pub struct Culprit {
-//     participant_index: usize,
-//     crime: Crime,
-// }
 
 mod r1;
 mod r2;
@@ -184,6 +171,7 @@ pub struct Sign {
     out_r7bcast_fail_randomizer_serialized: Option<MsgBytes>,
 
     final_output: Option<SignOutput>, // T is serialized asn1 sig
+    final_output2: Option<SignOutput2>,
 }
 
 impl Sign {
@@ -243,6 +231,7 @@ impl Sign {
             out_r7bcast_fail_serialized: None,
             out_r7bcast_fail_randomizer_serialized: None,
             final_output: None,
+            final_output2: None,
         })
     }
     pub fn clone_output(&self) -> Option<SignOutput> {
@@ -251,6 +240,7 @@ impl Sign {
 }
 
 pub type SignOutput = Output<Vec<u8>>;
+type SignOutput2 = Result<Vec<u8>, Vec<Vec<crimes::Crime>>>;
 
 /// validate_params helper with custom error type
 /// Assume `secret_key_share` is valid and check `participant_indices` against it.

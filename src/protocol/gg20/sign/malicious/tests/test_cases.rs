@@ -24,7 +24,7 @@ pub(super) fn generate_simple_test_cases() -> Vec<TestCase> {
     let mut test_cases = Vec::new();
     let share_count = 5;
     let threshold = 2;
-    let allow_self_delivery = true;
+    let allow_self_delivery = false;
     // skip honest bahaviour
     for malicous_type in MaliciousType::iter().skip(1) {
         test_cases.push(TestCase {

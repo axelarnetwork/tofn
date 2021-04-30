@@ -74,8 +74,8 @@ impl Protocol for BadSign {
                 let (state, bcast, mut p2ps) = self.sign.r1();
 
                 info!(
-                    "malicious participant {} r1 corrupt proof to {}",
-                    self.sign.my_participant_index, victim
+                    "malicious participant {} do {:?}",
+                    self.sign.my_participant_index, self.malicious_type
                 );
                 let proof = p2ps.vec_ref_mut()[victim].as_mut();
                 // The proof of the criminal is None.
@@ -100,8 +100,8 @@ impl Protocol for BadSign {
                 let (mut state, bcast, p2ps) = self.sign.r1();
 
                 info!(
-                    "malicious participant {} r1 corrupt my_secret_blind_summand",
-                    self.sign.my_participant_index
+                    "malicious participant {} do {:?}",
+                    self.sign.my_participant_index, self.malicious_type
                 );
                 let one: FE = ECScalar::from(&BigInt::from(1));
                 let my_secret_blind_summand = &mut state.my_secret_blind_summand;
@@ -114,8 +114,8 @@ impl Protocol for BadSign {
                 };
                 // no need to execute self.s.r2()
                 info!(
-                    "malicious participant {} r1 falsely accuse {}",
-                    self.sign.my_participant_index, victim
+                    "malicious participant {} do {:?}",
+                    self.sign.my_participant_index, self.malicious_type
                 );
                 self.sign.update_state_r2fail(r2::FailBcast {
                     culprits: vec![r2::Culprit {
@@ -134,8 +134,8 @@ impl Protocol for BadSign {
                         mut out_p2ps,
                     } => {
                         info!(
-                            "malicious participant {} r2 corrupt mta proof to {}",
-                            self.sign.my_participant_index, victim
+                            "malicious participant {} do {:?}",
+                            self.sign.my_participant_index, self.malicious_type
                         );
 
                         let proof = out_p2ps.vec_ref_mut()[victim].as_mut();
@@ -173,8 +173,8 @@ impl Protocol for BadSign {
                         mut out_p2ps,
                     } => {
                         info!(
-                            "malicious participant {} r2 corrupt mta_wc proof to {}",
-                            self.sign.my_participant_index, victim
+                            "malicious participant {} do {:?}",
+                            self.sign.my_participant_index, self.malicious_type
                         );
 
                         let proof = &mut out_p2ps.vec_ref_mut()[victim].as_mut();
@@ -208,8 +208,8 @@ impl Protocol for BadSign {
                 };
                 // no need to execute self.s.r3()
                 info!(
-                    "malicious participant {} r2 falsely accuse {} mta",
-                    self.sign.my_participant_index, victim
+                    "malicious participant {} do {:?}",
+                    self.sign.my_participant_index, self.malicious_type
                 );
                 self.sign.update_state_r3fail(r3::FailBcast {
                     culprits: vec![r3::Culprit {
@@ -225,8 +225,8 @@ impl Protocol for BadSign {
                 };
                 // no need to execute self.s.r3()
                 info!(
-                    "malicious participant {} r2 falsely accuse {} mta_wc",
-                    self.sign.my_participant_index, victim
+                    "malicious participant {} do {:?}",
+                    self.sign.my_participant_index, self.malicious_type
                 );
                 self.sign.update_state_r3fail(r3::FailBcast {
                     culprits: vec![r3::Culprit {
@@ -245,8 +245,8 @@ impl Protocol for BadSign {
                         mut out_bcast,
                     } => {
                         info!(
-                            "malicious participant {} r3 corrupt pedersen proof",
-                            self.sign.my_participant_index
+                            "malicious participant {} do {:?}",
+                            self.sign.my_participant_index, self.malicious_type
                         );
                         let proof = &mut out_bcast.nonce_x_keyshare_summand_proof;
                         *proof = pedersen::malicious::corrupt_proof(proof);
@@ -272,8 +272,8 @@ impl Protocol for BadSign {
                         mut out_bcast,
                     } => {
                         info!(
-                            "malicious participant {} r3 corrupt nonce_x_blind_summand (delta_i)",
-                            self.sign.my_participant_index
+                            "malicious participant {} do {:?} (delta_i)",
+                            self.sign.my_participant_index, self.malicious_type
                         );
                         let one: FE = ECScalar::from(&BigInt::from(1));
                         // need to corrupt both state and out_bcast
@@ -303,8 +303,8 @@ impl Protocol for BadSign {
                                 mut out_bcast,
                             } => {
                                 info!(
-                                    "malicious participant {} r3 corrupt nonce_x_blind_summand (delta_i)",
-                                    self.sign.my_participant_index
+                                    "malicious participant {} do {:?} (delta_i)",
+                                    self.sign.my_participant_index, self.malicious_type
                                 );
                                 // later we will corrupt ecdsa_nonce_summand by adding 1
                                 // => need to add 1 * my_secret_blind_summand to nonce_x_blind_summand to maintain consistency
@@ -331,8 +331,8 @@ impl Protocol for BadSign {
                     }
                     Status::R6FailRandomizer => {
                         info!(
-                            "malicious participant {} r7_fail_randomizer corrupt ecdsa_nonce_summand (k_i)",
-                            self.sign.my_participant_index
+                            "malicious participant {} do {:?} (k_i)",
+                            self.sign.my_participant_index, self.malicious_type
                         );
                         let mut bcast = self.sign.r7_fail_randomizer();
                         let ecdsa_nonce_summand = &mut bcast.ecdsa_nonce_summand;
@@ -352,8 +352,8 @@ impl Protocol for BadSign {
                                 mut out_bcast,
                             } => {
                                 info!(
-                                    "malicious participant {} r3 corrupt nonce_x_blind_summand (delta_i)",
-                                    self.sign.my_participant_index
+                                    "malicious participant {} do {:?} (delta_i)",
+                                    self.sign.my_participant_index, self.malicious_type
                                 );
                                 if state.my_mta_blind_summands_lhs[victim].is_some() {
                                     // later we will corrupt mta_blind_summands_lhs[victim] by adding 1
@@ -384,8 +384,8 @@ impl Protocol for BadSign {
                     }
                     Status::R6FailRandomizer => {
                         info!(
-                            "malicious participant {} r7_fail_randomizer corrupt my_mta_blind_summands[{}].lhs_plaintext (alpha_ij)",
-                            self.sign.my_participant_index, victim
+                            "malicious participant {} do {:?} (alpha_ij)",
+                            self.sign.my_participant_index, self.malicious_type
                         );
                         let mut bcast = self.sign.r7_fail_randomizer();
                         let mta_blind_summand = bcast.mta_blind_summands[victim].as_mut();
@@ -409,8 +409,8 @@ impl Protocol for BadSign {
                                 mut out_bcast,
                             } => {
                                 info!(
-                                    "malicious participant {} r3 corrupt nonce_x_blind_summand (delta_i)",
-                                    self.sign.my_participant_index
+                                    "malicious participant {} do {:?} (delta_i)",
+                                    self.sign.my_participant_index, self.malicious_type
                                 );
                                 if self
                                     .sign
@@ -448,8 +448,8 @@ impl Protocol for BadSign {
                     }
                     Status::R6FailRandomizer => {
                         info!(
-                            "malicious participant {} r7_fail_randomizer corrupt my_mta_blind_summands[{}].rhs (beta_ij)",
-                            self.sign.my_participant_index, victim
+                            "malicious participant {} do {:?} (beta_ij)",
+                            self.sign.my_participant_index, self.malicious_type
                         );
                         let mut bcast = self.sign.r7_fail_randomizer();
                         let mta_blind_summand = bcast.mta_blind_summands[victim].as_mut();
@@ -470,8 +470,8 @@ impl Protocol for BadSign {
                 };
                 // no need to execute self.s.r4()
                 info!(
-                    "malicious participant {} r3 falsely accuse {}",
-                    self.sign.my_participant_index, victim
+                    "malicious participant {} do {:?}",
+                    self.sign.my_participant_index, self.malicious_type
                 );
                 self.sign.update_state_r4fail(r4::FailBcast {
                     culprits: vec![r4::Culprit {
@@ -490,8 +490,8 @@ impl Protocol for BadSign {
                         mut out_bcast,
                     } => {
                         info!(
-                            "malicious participant {} r4 corrupt commit reveal",
-                            self.sign.my_participant_index
+                            "malicious participant {} do {:?}",
+                            self.sign.my_participant_index, self.malicious_type
                         );
                         let reveal = &mut out_bcast.reveal;
                         *reveal += BigInt::from(1);
@@ -513,8 +513,8 @@ impl Protocol for BadSign {
                 };
                 // no need to execute self.s.r5()
                 info!(
-                    "malicious participant {} r4 falsely accuse {}",
-                    self.sign.my_participant_index, victim
+                    "malicious participant {} do {:?}",
+                    self.sign.my_participant_index, self.malicious_type
                 );
                 self.sign.update_state_r5fail(r5::FailBcast {
                     culprits: vec![r5::Culprit {
@@ -534,8 +534,8 @@ impl Protocol for BadSign {
                         mut out_p2ps,
                     } => {
                         info!(
-                            "malicious participant {} r5 corrupt range proof wc",
-                            self.sign.my_participant_index
+                            "malicious participant {} do {:?}",
+                            self.sign.my_participant_index, self.malicious_type
                         );
 
                         let proof = &mut out_p2ps.vec_ref_mut()[victim].as_mut();
@@ -569,8 +569,8 @@ impl Protocol for BadSign {
                 };
                 // no need to execute self.s.r6()
                 info!(
-                    "malicious participant {} r5 falsely accuse {}",
-                    self.sign.my_participant_index, victim
+                    "malicious participant {} do {:?}",
+                    self.sign.my_participant_index, self.malicious_type
                 );
                 self.sign.update_state_r6fail(r6::BcastCulprits {
                     culprits: vec![r6::Culprit {
@@ -589,8 +589,8 @@ impl Protocol for BadSign {
                         mut out_bcast,
                     } => {
                         info!(
-                            "malicious participant {} r6 corrupt pedersen proof Wc",
-                            self.sign.my_participant_index
+                            "malicious participant {} do {:?}",
+                            self.sign.my_participant_index, self.malicious_type
                         );
                         let proof = &mut out_bcast.ecdsa_public_key_check_proof_wc;
                         *proof = pedersen::malicious::corrupt_proof_wc(proof);
@@ -619,8 +619,8 @@ impl Protocol for BadSign {
                 };
                 // no need to execute self.s.r6()
                 info!(
-                    "malicious participant {} r6 kick the protocol into FailRandomizer mode",
-                    self.sign.my_participant_index
+                    "malicious participant {} do {:?}",
+                    self.sign.my_participant_index, self.malicious_type
                 );
                 self.sign.update_state_r6fail_randomizer()
             }
@@ -630,8 +630,8 @@ impl Protocol for BadSign {
                 };
                 // no need to execute self.s.r7()
                 info!(
-                    "malicious participant {} r6 falsely accuse {}",
-                    self.sign.my_participant_index, victim
+                    "malicious participant {} do {:?}",
+                    self.sign.my_participant_index, self.malicious_type
                 );
                 self.sign.update_state_r7fail(r7::FailBcast {
                     culprits: vec![r7::Culprit {
@@ -650,8 +650,8 @@ impl Protocol for BadSign {
                         mut out_bcast,
                     } => {
                         info!(
-                            "malicious participant {} r7 corrupt ecdsa_sig_summand",
-                            self.sign.my_participant_index
+                            "malicious participant {} do {:?}",
+                            self.sign.my_participant_index, self.malicious_type
                         );
                         let one: FE = ECScalar::from(&BigInt::from(1));
                         // need to corrupt both state and out_bcast

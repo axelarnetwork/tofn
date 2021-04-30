@@ -1,8 +1,4 @@
-use super::{Sign, Status};
-use crate::{
-    fillvec::FillVec,
-    protocol::{CrimeType, Criminal},
-};
+use super::{crimes::Crime, Sign, Status};
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     FE, GE,
@@ -13,13 +9,14 @@ use tracing::{info, warn};
 
 impl Sign {
     // execute blame protocol from section 4.3 of https://eprint.iacr.org/2020/540.pdf
-    pub(super) fn r8_fail_randomizer(&self) -> Vec<Criminal> {
+    pub(super) fn r8_fail_randomizer(&self) -> Vec<Vec<Crime>> {
         assert!(matches!(self.status, Status::R7FailRandomizer));
         assert!(self.in_r7bcasts_fail_randomizer.some_count() > 0);
 
-        let mut criminals = FillVec::with_len(self.participant_indices.len());
+        let mut criminals = vec![Vec::new(); self.participant_indices.len()];
 
-        'outer: for (i, r7_participant_data) in self
+        // 'outer: for (i, r7_participant_data) in self
+        for (i, r7_participant_data) in self
             .in_r7bcasts_fail_randomizer
             .vec_ref()
             .iter()
@@ -29,18 +26,13 @@ impl Sign {
                 // we took an extra round to ensure all other parties know to switch to blame mode
                 // thus, any party that did not send abort data must be a criminal
                 // TODO is that party a criminal even in case of timeout?
+                let crime = Crime::R8MissingData;
                 warn!(
-                    "participant {} says: participant {} failed to send R7FailRandomizer data",
-                    self.my_participant_index, i
+                    "participant {} detect {:?} by {}",
+                    self.my_participant_index, crime, i
                 );
-                criminals.overwrite(
-                    i,
-                    Criminal {
-                        index: i,
-                        crime_type: CrimeType::Malicious,
-                    },
-                );
-                continue; // participant i is known to be criminal, continue to next participant
+                criminals[i].push(crime);
+                continue; // can't proceed without data
             }
             let r7_participant_data = r7_participant_data.as_ref().unwrap();
 
@@ -75,18 +67,14 @@ impl Sign {
                 )
             });
             if nonce_x_blind_summand != in_r3bcast.nonce_x_blind_summand {
+                let crime = Crime::R8BadNonceXBlindSummand;
                 info!(
-                    "participant {} detect bad nonce_x_blind_summand claimed by {}",
-                    self.my_participant_index, i
+                    "participant {} detect {:?} by {}",
+                    self.my_participant_index, crime, i
                 );
-                criminals.overwrite(
-                    i,
-                    Criminal {
-                        index: i,
-                        crime_type: CrimeType::Malicious,
-                    },
-                );
-                continue; // participant i is known to be criminal, continue to next participant
+                criminals[i].push(crime);
+                // TODO continue looking for more crimes?
+                // continue; // participant i is known to be criminal, continue to next participant
             }
 
             // verify r7_participant_data is consistent with earlier messages:
@@ -111,18 +99,14 @@ impl Sign {
             });
             if *encrypted_ecdsa_nonce_summand.0 != in_r1bcast.encrypted_ecdsa_nonce_summand.c {
                 // this code path triggered by R3BadEcdsaNonceSummand
+                let crime = Crime::R8BadNonceSummand;
                 info!(
-                    "participant {} detect inconsistent encryption of ecdsa_nonce_summand claimed by {}",
-                    self.my_participant_index, i
+                    "participant {} detect {:?} by {}",
+                    self.my_participant_index, crime, i
                 );
-                criminals.overwrite(
-                    i,
-                    Criminal {
-                        index: i,
-                        crime_type: CrimeType::Malicious,
-                    },
-                );
-                continue; // participant i is known to be criminal, continue to next participant
+                criminals[i].push(crime);
+                // TODO continue looking for more crimes?
+                // continue; // participant i is known to be criminal, continue to next participant
             }
 
             // 2. secret_blind_summand (gamma_i)
@@ -136,18 +120,14 @@ impl Sign {
             });
             if public_blind_summand != in_r4bcast.public_blind_summand {
                 // this code path triggered by R1BadSecretBlindSummand
+                let crime = Crime::R8BadBlindSummand;
                 info!(
-                    "participant {} detect inconsistent secret_blind_summand claimed by {}",
-                    self.my_participant_index, i
+                    "participant {} detect {:?} by {}",
+                    self.my_participant_index, crime, i
                 );
-                criminals.overwrite(
-                    i,
-                    Criminal {
-                        index: i,
-                        crime_type: CrimeType::Malicious,
-                    },
-                );
-                continue; // participant i is known to be criminal, continue to next participant
+                criminals[i].push(crime);
+                // TODO continue looking for more crimes?
+                // continue; // participant i is known to be criminal, continue to next participant
             }
 
             // 3. mta_blind_summands.rhs (beta_ij)
@@ -189,18 +169,14 @@ impl Sign {
                             .c
                 {
                     // this code path triggered by R3BadMtaBlindSummandRhs
+                    let crime = Crime::R8MtaBlindSummandRhs { victim: j };
                     info!(
-                        "participant {} detect inconsistent mta_blind_summand_rhs (beta_ji) claimed by {} from {}",
-                        self.my_participant_index, i, j
+                        "participant {} detect {:?} (beta_ji) by {}",
+                        self.my_participant_index, crime, i
                     );
-                    criminals.overwrite(
-                        i,
-                        Criminal {
-                            index: i,
-                            crime_type: CrimeType::Malicious,
-                        },
-                    );
-                    continue 'outer; // participant i is known to be criminal, continue to next participant
+                    criminals[i].push(crime);
+                    // TODO continue looking for more crimes?
+                    // continue 'outer; // participant i is known to be criminal, continue to next participant
                 }
 
                 // 4. mta_blind_summands.lhs (alpha_ij)
@@ -217,25 +193,21 @@ impl Sign {
                         .c
                 {
                     // this code path triggered by R3BadMtaBlindSummandLhs
+                    let crime = Crime::R8MtaBlindSummandLhs { victim: j };
                     info!(
-                        "participant {} detect inconsistent mta_blind_summand_lhs (alpha_ij) claimed by {} from {}",
-                        self.my_participant_index, i, j
+                        "participant {} detect {:?} (alpha_ij) by {}",
+                        self.my_participant_index, crime, i
                     );
-                    criminals.overwrite(
-                        i,
-                        Criminal {
-                            index: i,
-                            crime_type: CrimeType::Malicious,
-                        },
-                    );
-                    continue 'outer; // participant i is known to be criminal, continue to next participant
+                    criminals[i].push(crime);
+                    // TODO continue looking for more crimes?
+                    // continue 'outer; // participant i is known to be criminal, continue to next participant
                 }
             }
         }
 
         // if no criminals were found then everyone who sent r6::Output::FailRandomizer is a criminal
         // TODO CAREFUL!  If we missed a check then a single malicious actor can cause everyone to blame everyone!
-        if criminals.some_count() == 0 {
+        if criminals.iter().map(|v| v.len()).sum::<usize>() == 0 {
             // TODO code copied from move_to_sad_path
             let complainers: Vec<usize> = self
                 .in_r6bcasts_fail_randomizer
@@ -244,25 +216,15 @@ impl Sign {
                 .enumerate()
                 .filter_map(|x| if x.1.is_some() { Some(x.0) } else { None })
                 .collect();
+            let crime = Crime::R8FalseComplaint;
             warn!(
-                "participant {} detect no fault in R7FailRandomizer; accusing complainers {:?}",
-                self.my_participant_index, complainers
+                "participant {} detect {:?}; accusing complainers {:?}",
+                self.my_participant_index, crime, complainers
             );
             for c in complainers {
-                criminals.overwrite(
-                    c,
-                    Criminal {
-                        index: c,
-                        crime_type: CrimeType::Malicious,
-                    },
-                );
+                criminals[c].push(crime.clone());
             }
         }
-
         criminals
-            .into_vec()
-            .into_iter()
-            .filter_map(|opt| opt)
-            .collect()
     }
 }
