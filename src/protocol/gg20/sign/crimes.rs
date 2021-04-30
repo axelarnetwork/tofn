@@ -26,7 +26,7 @@ pub(super) enum Crime {
 }
 
 // helper function
-pub(super) fn to_criminals(criminals: &Vec<Vec<Crime>>) -> Vec<Criminal> {
+pub(super) fn to_criminals(criminals: &[Vec<Crime>]) -> Vec<Criminal> {
     criminals
         .iter()
         .enumerate()
