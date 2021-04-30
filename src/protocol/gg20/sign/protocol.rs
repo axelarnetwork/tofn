@@ -1,4 +1,8 @@
-use super::{crimes::to_criminals, Status::*, *};
+use super::{
+    crimes::{to_criminals, Crime},
+    Status::*,
+    *,
+};
 use crate::protocol::{MsgBytes, Protocol, ProtocolResult};
 use serde::{Deserialize, Serialize};
 
@@ -64,12 +68,7 @@ impl Protocol for Sign {
                     self.update_state_r3fail(out_bcast)?;
                 }
             },
-            R2Fail => {
-                let bad_guys = self.r3_fail();
-                self.final_output = Some(Output::Err(to_criminals(&bad_guys)));
-                self.final_output2 = Some(Err(bad_guys));
-                self.status = Fail;
-            }
+            R2Fail => self.update_state_fail(self.r3_fail()),
             R3 => match self.r4() {
                 r4::Output::Success { state, out_bcast } => {
                     self.update_state_r4(state, out_bcast)?;
@@ -78,12 +77,7 @@ impl Protocol for Sign {
                     self.update_state_r4fail(out_bcast)?;
                 }
             },
-            R3Fail => {
-                let bad_guys = self.r4_fail();
-                self.final_output = Some(Output::Err(to_criminals(&bad_guys)));
-                self.final_output2 = Some(Err(bad_guys));
-                self.status = Fail;
-            }
+            R3Fail => self.update_state_fail(self.r4_fail()),
             R4 => match self.r5() {
                 r5::Output::Success {
                     state,
@@ -96,12 +90,7 @@ impl Protocol for Sign {
                     self.update_state_r5fail(out_bcast)?;
                 }
             },
-            R4Fail => {
-                let bad_guys = self.r5_fail();
-                self.final_output = Some(Output::Err(to_criminals(&bad_guys)));
-                self.final_output2 = Some(Err(bad_guys));
-                self.status = Fail;
-            }
+            R4Fail => self.update_state_fail(self.r5_fail()),
             R5 => match self.r6() {
                 r6::Output::Success { state, out_bcast } => {
                     self.update_state_r6(state, out_bcast)?;
@@ -113,12 +102,7 @@ impl Protocol for Sign {
                     self.update_state_r6fail_randomizer()?;
                 }
             },
-            R5Fail => {
-                let bad_guys = self.r6_fail();
-                self.final_output = Some(Output::Err(to_criminals(&bad_guys)));
-                self.final_output2 = Some(Err(bad_guys));
-                self.status = Fail;
-            }
+            R5Fail => self.update_state_fail(self.r6_fail()),
             R6 => match self.r7() {
                 r7::Output::Success { state, out_bcast } => {
                     self.update_state_r7(state, out_bcast)?;
@@ -127,12 +111,7 @@ impl Protocol for Sign {
                     self.update_state_r7fail(out_bcast)?;
                 }
             },
-            R6Fail => {
-                let bad_guys = self.r7_fail();
-                self.final_output = Some(Output::Err(to_criminals(&bad_guys)));
-                self.final_output2 = Some(Err(bad_guys));
-                self.status = Fail;
-            }
+            R6Fail => self.update_state_fail(self.r7_fail()),
             R6FailRandomizer => {
                 let bcast = self.r7_fail_randomizer();
                 self.update_state_r7fail_randomizer(bcast)?;
@@ -142,24 +121,10 @@ impl Protocol for Sign {
                     self.final_output = Some(Output::Ok(sig.as_bytes().to_vec()));
                     self.status = Done;
                 }
-                r8::Output::Fail { criminals } => {
-                    self.final_output = Some(Output::Err(to_criminals(&criminals)));
-                    self.final_output2 = Some(Err(criminals));
-                    self.status = Fail;
-                }
+                r8::Output::Fail { criminals } => self.update_state_fail(criminals),
             },
-            R7Fail => {
-                let bad_guys = self.r8_fail();
-                self.final_output = Some(Output::Err(to_criminals(&bad_guys)));
-                self.final_output2 = Some(Err(bad_guys));
-                self.status = Fail;
-            }
-            R7FailRandomizer => {
-                let bad_guys = self.r8_fail_randomizer();
-                self.final_output = Some(Output::Err(to_criminals(&bad_guys)));
-                self.final_output2 = Some(Err(bad_guys));
-                self.status = Fail;
-            }
+            R7Fail => self.update_state_fail(self.r8_fail()),
+            R7FailRandomizer => self.update_state_fail(self.r8_fail_randomizer()),
             Done => return Err(From::from("already done")),
             Fail => return Err(From::from("already failed")),
         };
@@ -843,5 +808,11 @@ impl Sign {
             .insert(self.my_participant_index, bcast)?; // self delivery
         self.status = R7FailRandomizer;
         Ok(())
+    }
+
+    pub(super) fn update_state_fail(&mut self, criminals: Vec<Vec<Crime>>) {
+        self.final_output = Some(Output::Err(to_criminals(&criminals)));
+        self.final_output2 = Some(Err(criminals));
+        self.status = Fail;
     }
 }
