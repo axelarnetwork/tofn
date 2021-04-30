@@ -23,6 +23,7 @@ pub(super) enum Crime {
     R8MtaBlindSummandRhs { victim: usize },
     R8MtaBlindSummandLhs { victim: usize },
     R8FalseComplaint,
+    R8BadSigSummand,
 }
 
 // helper function

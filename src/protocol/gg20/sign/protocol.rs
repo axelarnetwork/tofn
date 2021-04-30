@@ -143,7 +143,8 @@ impl Protocol for Sign {
                     self.status = Done;
                 }
                 r8::Output::Fail { criminals } => {
-                    self.final_output = Some(Output::Err(criminals));
+                    self.final_output = Some(Output::Err(to_criminals(&criminals)));
+                    self.final_output2 = Some(Err(criminals));
                     self.status = Fail;
                 }
             },

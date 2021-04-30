@@ -1,13 +1,12 @@
-use super::{EcdsaSig, Sign, Status};
-use crate::protocol::{CrimeType, Criminal};
+use super::{crimes::Crime, EcdsaSig, Sign, Status};
 use k256::ecdsa::Asn1Signature;
 use tracing::{error, warn};
 
 // round 8
 
-pub enum Output {
+pub(super) enum Output {
     Success { sig: Asn1Signature },
-    Fail { criminals: Vec<Criminal> },
+    Fail { criminals: Vec<Vec<Crime>> },
 }
 
 impl Sign {
@@ -40,9 +39,9 @@ impl Sign {
         // (r,s) is an invalid ECDSA signature
         // compute a list of culprits
         // culprits fail Eq. (1) of https://eprint.iacr.org/2020/540.pdf
-        let mut criminals = Vec::new();
+        let mut criminals = vec![Vec::new(); self.participant_indices.len()];
         let r5state = self.r5state.as_ref().unwrap();
-        for (i, participant_index) in self.participant_indices.iter().enumerate() {
+        for i in 0..self.participant_indices.len() {
             let in_r5bcast = self.in_r5bcasts.vec_ref()[i].as_ref().unwrap();
             let in_r6bcast = self.in_r6bcasts.vec_ref()[i].as_ref().unwrap();
             let in_r7bcast = self.in_r7bcasts.vec_ref()[i].as_ref().unwrap();
@@ -54,20 +53,18 @@ impl Sign {
             let lhs = r5state.ecdsa_randomizer * in_r7bcast.ecdsa_sig_summand;
 
             if lhs != rhs {
+                let crime = Crime::R8BadSigSummand;
                 warn!(
-                    "party {} says: sig check failure for party {}",
-                    self.my_secret_key_share.my_index, participant_index
+                    "participant {} detect {:?} by {}",
+                    self.my_participant_index, crime, i
                 );
-                criminals.push(Criminal {
-                    index: i,
-                    crime_type: CrimeType::Malicious,
-                });
+                criminals[i].push(crime);
             }
         }
 
-        if criminals.is_empty() {
-            error!("party {} says: sig is invalid, yet all sig checks pass. proceeding to fail mode with zero culprits",
-            self.my_secret_key_share.my_index);
+        if criminals.iter().map(|v| v.len()).sum::<usize>() == 0 {
+            error!("participant {} detect invalid signature but no criminals. proceeding to fail mode with zero criminals",
+            self.my_participant_index);
         }
 
         Output::Fail { criminals }
