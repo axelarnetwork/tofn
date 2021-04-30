@@ -1,17 +1,15 @@
-use super::{Sign, Status};
-use crate::{
-    fillvec::FillVec,
-    protocol::{CrimeType, Criminal},
-    zkp::range,
-};
+use super::{crimes::Crime, Sign, Status};
+use crate::zkp::range;
 use tracing::{info, warn};
 
 impl Sign {
-    pub(super) fn r3_fail(&self) -> Vec<Criminal> {
+    pub(super) fn r3_fail(&self) -> Vec<Vec<Crime>> {
         assert!(matches!(self.status, Status::R2Fail));
         assert!(self.in_r2bcasts_fail.some_count() > 0);
 
-        let mut culprits = FillVec::with_len(self.participant_indices.len());
+        let mut criminals: Vec<Vec<Crime>> = (0..self.participant_indices.len())
+            .map(|_| Vec::new())
+            .collect(); // can't use vec![Vec::new(); capacity] https://users.rust-lang.org/t/how-to-initialize-vec-option-t-with-none/30580/2
 
         for accuser in 0..self.participant_indices.len() {
             if let Some(fail_bcast) = self.in_r2bcasts_fail.vec_ref()[accuser].as_ref() {
@@ -49,37 +47,28 @@ impl Sign {
                         .range_proof;
                     let verification = verifier_zkp.verify_range_proof(stmt, proof);
 
-                    let culprit_index = match verification {
+                    match verification {
                         Ok(_) => {
                             info!(
                                 "participant {} detect false accusation by {} against {}",
                                 self.my_participant_index, accuser, accused.participant_index
                             );
-                            accuser
+                            criminals[accuser].push(Crime::R3FalseAccusation {
+                                victim: accused.participant_index,
+                            });
                         }
                         Err(e) => {
                             info!(
-                                "participant {} detect bad proof from {} to {} because [{}]",
+                                "participant {} detect bad range proof from {} to {} because [{}]",
                                 self.my_participant_index, accused.participant_index, accuser, e
                             );
-                            accused.participant_index
+                            criminals[accused.participant_index]
+                                .push(Crime::R3BadRangeProof { victim: accuser });
                         }
                     };
-                    culprits.overwrite(
-                        culprit_index,
-                        Criminal {
-                            index: culprit_index,
-                            crime_type: CrimeType::Malicious,
-                        },
-                    );
                 }
             }
         }
-
-        culprits
-            .into_vec()
-            .into_iter()
-            .filter_map(|opt| opt)
-            .collect()
+        criminals
     }
 }
