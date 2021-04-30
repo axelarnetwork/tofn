@@ -114,7 +114,9 @@ impl Protocol for Sign {
                 }
             },
             R5Fail => {
-                self.final_output = Some(Output::Err(self.r6_fail()));
+                let bad_guys = self.r6_fail();
+                self.final_output = Some(Output::Err(to_criminals(&bad_guys)));
+                self.final_output2 = Some(Err(bad_guys));
                 self.status = Fail;
             }
             R6 => match self.r7() {

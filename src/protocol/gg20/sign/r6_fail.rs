@@ -1,8 +1,4 @@
-use super::{Sign, Status};
-use crate::{
-    fillvec::FillVec,
-    protocol::{CrimeType, Criminal},
-};
+use super::{crimes::Crime, Sign, Status};
 use curv::{
     cryptographic_primitives::commitments::{hash_commitment::HashCommitment, traits::Commitment},
     elliptic::curves::traits::ECPoint,
@@ -14,11 +10,13 @@ use tracing::info;
 // instead, end the protocol in r5 and return criminals
 
 impl Sign {
-    pub(super) fn r6_fail(&self) -> Vec<Criminal> {
+    pub(super) fn r6_fail(&self) -> Vec<Vec<Crime>> {
         assert!(matches!(self.status, Status::R5Fail));
         assert!(self.in_r5bcasts_fail.some_count() > 0);
 
-        let mut culprits = FillVec::with_len(self.participant_indices.len());
+        let mut criminals: Vec<Vec<Crime>> = (0..self.participant_indices.len())
+            .map(|_| Vec::new())
+            .collect(); // can't use vec![Vec::new(); capacity] https://users.rust-lang.org/t/how-to-initialize-vec-option-t-with-none/30580/2
 
         // TODO refactor copied code to iterate over (accuser, accused)
         // TODO clarify confusion: participant vs party indices
@@ -48,34 +46,26 @@ impl Sign {
                             &r4bcast.public_blind_summand.bytes_compressed_to_big_int(),
                             &r4bcast.reveal,
                         );
-                    let culprit_index = if commit == reconstructed_commit {
+                    if commit == reconstructed_commit {
                         info!(
                             "participant {} detect false accusation pedersen by {} against {}",
                             self.my_participant_index, accuser, accused.participant_index
                         );
-                        accuser
+                        criminals[accuser].push(Crime::R6FalseAccusation {
+                            victim: accused.participant_index,
+                        });
                     } else {
                         info!(
                             "participant {} confirm bad hash commit from {}",
                             self.my_participant_index, accused.participant_index
                         );
-                        accused.participant_index
+                        criminals[accused.participant_index].push(Crime::R6BadHashCommit {
+                            victim: accuser,
+                        });
                     };
-                    culprits.overwrite(
-                        culprit_index,
-                        Criminal {
-                            index: culprit_index,
-                            crime_type: CrimeType::Malicious,
-                        },
-                    );
                 }
             }
         }
-
-        culprits
-            .into_vec()
-            .into_iter()
-            .filter_map(|opt| opt)
-            .collect()
+        criminals
     }
 }
