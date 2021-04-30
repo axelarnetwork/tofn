@@ -36,12 +36,11 @@ impl Sign {
             };
         }
 
-        // (r,s) is an invalid ECDSA signature
-        // compute a list of culprits
-        // culprits fail Eq. (1) of https://eprint.iacr.org/2020/540.pdf
+        // (r,s) is an invalid ECDSA signature => compute criminals
+        // criminals fail Eq. (1) of https://eprint.iacr.org/2020/540.pdf
         let mut criminals = vec![Vec::new(); self.participant_indices.len()];
         let r5state = self.r5state.as_ref().unwrap();
-        for i in 0..self.participant_indices.len() {
+        for (i, criminal) in criminals.iter_mut().enumerate() {
             let in_r5bcast = self.in_r5bcasts.vec_ref()[i].as_ref().unwrap();
             let in_r6bcast = self.in_r6bcasts.vec_ref()[i].as_ref().unwrap();
             let in_r7bcast = self.in_r7bcasts.vec_ref()[i].as_ref().unwrap();
@@ -58,7 +57,7 @@ impl Sign {
                     "participant {} detect {:?} by {}",
                     self.my_participant_index, crime, i
                 );
-                criminals[i].push(crime);
+                criminal.push(crime);
             }
         }
 
