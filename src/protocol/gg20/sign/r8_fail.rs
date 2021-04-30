@@ -77,8 +77,10 @@ impl Sign {
                                 "participant {} detect bad range proof from {} to {} because [{}]",
                                 self.my_participant_index, accused.participant_index, accuser, e
                             );
-                            criminals[accused.participant_index]
-                                .push(Crime::R8BadRangeProof { victim: accuser });
+                            let crime = Crime::R8BadRangeProof;
+                            if !criminals[accused.participant_index].contains(&crime) {
+                                criminals[accused.participant_index].push(crime);
+                            }
                         }
                     };
                 }

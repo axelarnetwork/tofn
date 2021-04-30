@@ -45,8 +45,10 @@ impl Sign {
                                 "participant {} confirm bad pedersen range proof from {} because [{}]",
                                 self.my_participant_index, accused.participant_index, e
                             );
-                            criminals[accused.participant_index]
-                                .push(Crime::R5BadRangeProof { victim: accuser });
+                            let crime = Crime::R5BadRangeProof;
+                            if !criminals[accused.participant_index].contains(&crime) {
+                                criminals[accused.participant_index].push(Crime::R5BadRangeProof);
+                            }
                         }
                     };
                 }
