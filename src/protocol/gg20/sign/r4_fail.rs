@@ -1,8 +1,5 @@
-use super::{r3, crimes::Crime, Sign, Status};
-use crate::{
-    protocol::gg20::vss,
-    zkp::mta,
-};
+use super::{crimes::Crime, r3, Sign, Status};
+use crate::{protocol::gg20::vss, zkp::mta};
 use tracing::{info, warn};
 
 impl Sign {
@@ -11,8 +8,8 @@ impl Sign {
         assert!(self.in_r3bcasts_fail.some_count() > 0);
 
         let mut criminals: Vec<Vec<Crime>> = (0..self.participant_indices.len())
-        .map(|_| Vec::new())
-        .collect(); // can't use vec![Vec::new(); capacity] https://users.rust-lang.org/t/how-to-initialize-vec-option-t-with-none/30580/2
+            .map(|_| Vec::new())
+            .collect(); // can't use vec![Vec::new(); capacity] https://users.rust-lang.org/t/how-to-initialize-vec-option-t-with-none/30580/2
 
         // TODO refactor copied code to iterate over (accuser, accused)
         // TODO clarify confusion: participant vs party indices
@@ -90,7 +87,7 @@ impl Sign {
                             );
                             criminals[accuser].push(Crime::R4FalseAccusation {
                                 victim: accused.participant_index,
-                            }); 
+                            });
                         }
                         Err(e) => {
                             info!(
@@ -98,7 +95,7 @@ impl Sign {
                                 self.my_participant_index, accused.participant_index, accuser, e
                             );
                             criminals[accused.participant_index]
-                            .push(Crime::R4BadRangeProof { victim: accuser });
+                                .push(Crime::R4BadRangeProof { victim: accuser });
                         }
                     };
                 }

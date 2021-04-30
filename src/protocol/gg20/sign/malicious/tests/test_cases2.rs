@@ -53,8 +53,8 @@ pub(super) fn generate_some_test_cases() -> Vec<TestCase> {
                 },
                 SignParticipant {
                     party_index: 3,
-                    behaviour: R2FalseAccusation{victim: 0},
-                    expected_crimes: vec![Crime::R3FalseAccusation{ victim: 0 }],
+                    behaviour: R2FalseAccusation { victim: 0 },
+                    expected_crimes: vec![Crime::R3FalseAccusation { victim: 0 }],
                 },
                 SignParticipant {
                     party_index: 2,
@@ -77,7 +77,7 @@ pub(super) fn generate_some_test_cases() -> Vec<TestCase> {
                 SignParticipant {
                     party_index: 3,
                     behaviour: R2BadMta { victim: 0 },
-                    expected_crimes: vec![Crime::R4BadRangeProof{victim: 0}],
+                    expected_crimes: vec![Crime::R4BadRangeProof { victim: 0 }],
                 },
                 SignParticipant {
                     party_index: 2,
@@ -100,7 +100,7 @@ pub(super) fn generate_some_test_cases() -> Vec<TestCase> {
                 SignParticipant {
                     party_index: 3,
                     behaviour: R2BadMtaWc { victim: 0 },
-                    expected_crimes: vec![Crime::R4BadRangeProof{victim: 0}],
+                    expected_crimes: vec![Crime::R4BadRangeProof { victim: 0 }],
                 },
                 SignParticipant {
                     party_index: 2,
@@ -123,7 +123,7 @@ pub(super) fn generate_some_test_cases() -> Vec<TestCase> {
                 SignParticipant {
                     party_index: 3,
                     behaviour: R3FalseAccusationMta { victim: 0 },
-                    expected_crimes: vec![Crime::R4FalseAccusation {victim: 0}],
+                    expected_crimes: vec![Crime::R4FalseAccusation { victim: 0 }],
                 },
                 SignParticipant {
                     party_index: 2,
@@ -146,7 +146,7 @@ pub(super) fn generate_some_test_cases() -> Vec<TestCase> {
                 SignParticipant {
                     party_index: 3,
                     behaviour: R3FalseAccusationMtaWc { victim: 0 },
-                    expected_crimes: vec![Crime::R4FalseAccusation {victim: 0}],
+                    expected_crimes: vec![Crime::R4FalseAccusation { victim: 0 }],
                 },
                 SignParticipant {
                     party_index: 2,
@@ -169,7 +169,10 @@ pub(super) fn generate_some_test_cases() -> Vec<TestCase> {
                 SignParticipant {
                     party_index: 3,
                     behaviour: R3BadProof,
-                    expected_crimes: vec![Crime::R5BadRangeProof { victim: 0 }, Crime::R5BadRangeProof { victim: 2}],
+                    expected_crimes: vec![
+                        Crime::R5BadRangeProof { victim: 0 },
+                        Crime::R5BadRangeProof { victim: 2 },
+                    ],
                 },
                 SignParticipant {
                     party_index: 2,
@@ -191,7 +194,7 @@ pub(super) fn generate_some_test_cases() -> Vec<TestCase> {
                 },
                 SignParticipant {
                     party_index: 3,
-                    behaviour: R4FalseAccusation{victim: 0},
+                    behaviour: R4FalseAccusation { victim: 0 },
                     expected_crimes: vec![Crime::R5FalseAccusation { victim: 0 }],
                 },
                 SignParticipant {
@@ -215,7 +218,10 @@ pub(super) fn generate_some_test_cases() -> Vec<TestCase> {
                 SignParticipant {
                     party_index: 3,
                     behaviour: R4BadReveal,
-                    expected_crimes: vec![Crime::R6BadHashCommit { victim: 0 }, Crime::R6BadHashCommit { victim: 2 }],
+                    expected_crimes: vec![
+                        Crime::R6BadHashCommit { victim: 0 },
+                        Crime::R6BadHashCommit { victim: 2 },
+                    ],
                 },
                 SignParticipant {
                     party_index: 2,
@@ -237,7 +243,7 @@ pub(super) fn generate_some_test_cases() -> Vec<TestCase> {
                 },
                 SignParticipant {
                     party_index: 3,
-                    behaviour: R5FalseAccusation{victim: 0},
+                    behaviour: R5FalseAccusation { victim: 0 },
                     expected_crimes: vec![Crime::R6FalseAccusation { victim: 0 }],
                 },
                 SignParticipant {
@@ -260,8 +266,8 @@ pub(super) fn generate_some_test_cases() -> Vec<TestCase> {
                 },
                 SignParticipant {
                     party_index: 3,
-                    behaviour: R5BadProof{victim: 0},
-                    expected_crimes: vec![Crime::R7BadRangeProof{ victim: 0 }],
+                    behaviour: R5BadProof { victim: 0 },
+                    expected_crimes: vec![Crime::R7BadRangeProof { victim: 0 }],
                 },
                 SignParticipant {
                     party_index: 2,
@@ -283,8 +289,8 @@ pub(super) fn generate_some_test_cases() -> Vec<TestCase> {
                 },
                 SignParticipant {
                     party_index: 3,
-                    behaviour: R6FalseAccusation{victim: 0},
-                    expected_crimes: vec![Crime::R7FalseAccusation{ victim: 0 }],
+                    behaviour: R6FalseAccusation { victim: 0 },
+                    expected_crimes: vec![Crime::R7FalseAccusation { victim: 0 }],
                 },
                 SignParticipant {
                     party_index: 2,
@@ -307,7 +313,10 @@ pub(super) fn generate_some_test_cases() -> Vec<TestCase> {
                 SignParticipant {
                     party_index: 3,
                     behaviour: R6BadProof,
-                    expected_crimes: vec![Crime::R8BadRangeProof{ victim: 0 }, Crime::R8BadRangeProof{ victim: 2 }],
+                    expected_crimes: vec![
+                        Crime::R8BadRangeProof { victim: 0 },
+                        Crime::R8BadRangeProof { victim: 2 },
+                    ],
                 },
                 SignParticipant {
                     party_index: 2,
@@ -329,8 +338,8 @@ pub(super) fn generate_some_test_cases() -> Vec<TestCase> {
                 },
                 SignParticipant {
                     party_index: 3,
-                    behaviour: R7FalseAccusation{victim: 0},
-                    expected_crimes: vec![Crime::R8FalseAccusation{ victim: 0 }],
+                    behaviour: R7FalseAccusation { victim: 0 },
+                    expected_crimes: vec![Crime::R8FalseAccusation { victim: 0 }],
                 },
                 SignParticipant {
                     party_index: 2,

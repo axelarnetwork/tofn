@@ -70,8 +70,7 @@ impl Sign {
                             );
                             criminals[accuser].push(Crime::R8FalseAccusation {
                                 victim: accused.participant_index,
-                            });  
-
+                            });
                         }
                         Err(e) => {
                             info!(

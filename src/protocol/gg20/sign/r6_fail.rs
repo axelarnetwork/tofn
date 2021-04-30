@@ -59,9 +59,8 @@ impl Sign {
                             "participant {} confirm bad hash commit from {}",
                             self.my_participant_index, accused.participant_index
                         );
-                        criminals[accused.participant_index].push(Crime::R6BadHashCommit {
-                            victim: accuser,
-                        });
+                        criminals[accused.participant_index]
+                            .push(Crime::R6BadHashCommit { victim: accuser });
                     };
                 }
             }
