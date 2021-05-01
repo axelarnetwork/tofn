@@ -22,7 +22,6 @@ pub enum MaliciousType {
     R3BadMtaBlindSummandLhs { victim: usize }, // triggers r6::Output::FailRandomizer
     R3BadMtaBlindSummandRhs { victim: usize }, // triggers r6::Output::FailRandomizer
     R4BadReveal,
-    R5FalseAccusation { victim: usize },
     R5BadProof { victim: usize },
     R6FalseAccusation { victim: usize },
     R6BadProof,
@@ -473,28 +472,12 @@ impl Protocol for BadSign {
                     }
                     r4::Output::Fail { criminals } => {
                         warn!(
-                            "malicious participant {} instructed to do {:?} but protocol has already failed so reverting to honesty",
+                            "malicious participant {} can't do {:?} because protocol has failed; reverting to honesty",
                             self.sign.my_participant_index, self.malicious_type,
                         );
                         Ok(self.sign.update_state_fail(criminals))
                     }
                 }
-            }
-            R5FalseAccusation { victim } => {
-                if !matches!(self.sign.status, Status::R4) {
-                    return self.sign.next_round();
-                };
-                // no need to execute self.s.r5()
-                info!(
-                    "malicious participant {} do {:?}",
-                    self.sign.my_participant_index, self.malicious_type
-                );
-                self.sign.update_state_r5fail(r5::FailBcast {
-                    culprits: vec![r5::Culprit {
-                        participant_index: victim,
-                        crime: r5::Crime::CommitReveal,
-                    }],
-                })
             }
             R5BadProof { victim } => {
                 if !matches!(self.sign.status, Status::R4) {
@@ -524,12 +507,12 @@ impl Protocol for BadSign {
                         *proof = range::malicious::corrupt_proof_wc(proof);
                         self.sign.update_state_r5(state, out_bcast, out_p2ps)
                     }
-                    r5::Output::Fail { out_bcast } => {
+                    r5::Output::Fail { criminals } => {
                         warn!(
                             "malicious participant {} can't do {:?} because protocol has failed; reverting to honesty",
-                            self.sign.my_participant_index, victim
+                            self.sign.my_participant_index, self.malicious_type
                         );
-                        self.sign.update_state_r5fail(out_bcast)
+                        Ok(self.sign.update_state_fail(criminals))
                     }
                 }
             }

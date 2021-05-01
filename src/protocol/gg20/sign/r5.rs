@@ -1,7 +1,7 @@
 use crate::fillvec::FillVec;
 use crate::zkp::range;
 
-use super::{Sign, Status};
+use super::{crimes::Crime, Sign, Status};
 use curv::{
     cryptographic_primitives::commitments::{hash_commitment::HashCommitment, traits::Commitment},
     elliptic::curves::traits::ECPoint,
@@ -28,29 +28,14 @@ pub struct State {
     pub(super) my_ecdsa_randomizer_x_nonce_summand: GE,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Culprit {
-    pub participant_index: usize,
-    pub crime: Crime,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum Crime {
-    CommitReveal,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FailBcast {
-    pub culprits: Vec<Culprit>,
-}
-pub enum Output {
+pub(super) enum Output {
     Success {
         state: State,
         out_bcast: Bcast,
         out_p2ps: FillVec<P2p>,
     },
     Fail {
-        out_bcast: FailBcast,
+        criminals: Vec<Vec<Crime>>,
     },
 }
 
@@ -63,7 +48,7 @@ impl Sign {
         // compute R (aka ecdsa_randomizer) as per phase 4 of 2020/540
         // first verify all commits and compute sum of all reveals
         let mut public_blind = r1state.my_public_blind_summand;
-        let mut culprits = Vec::new();
+        let mut criminals = vec![Vec::new(); self.participant_indices.len()];
 
         for (i, in_r4bcast) in self.in_r4bcasts.vec_ref().iter().enumerate() {
             if i == self.my_participant_index {
@@ -77,22 +62,18 @@ impl Sign {
                 &in_r4bcast.reveal,
             );
             if self.in_r1bcasts.vec_ref()[i].as_ref().unwrap().commit != com {
+                let crime = Crime::R5BadHashCommit;
                 warn!(
-                    "party {} says: commit failed to verify for party {}",
-                    self.my_secret_key_share.my_index, self.participant_indices[i]
+                    "participant {} detect {:?} by {}",
+                    self.my_participant_index, crime, i
                 );
-                culprits.push(Culprit {
-                    participant_index: i,
-                    crime: Crime::CommitReveal,
-                });
+                criminals[i].push(crime);
             }
             public_blind = public_blind + in_r4bcast.public_blind_summand;
         }
 
-        if !culprits.is_empty() {
-            return Output::Fail {
-                out_bcast: FailBcast { culprits },
-            };
+        if criminals.iter().map(|v| v.len()).sum::<usize>() > 0 {
+            return Output::Fail { criminals };
         }
 
         let ecdsa_randomizer = public_blind * r4state.nonce_x_blind_inv; // R

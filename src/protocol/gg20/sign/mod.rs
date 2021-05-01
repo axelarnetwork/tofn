@@ -63,7 +63,6 @@ enum Status {
     R3Fail,
     R4,
     R5,
-    R5Fail,
     R6,
     R6Fail,
     R6FailRandomizer,
@@ -82,7 +81,6 @@ mod r4;
 mod r4_fail;
 mod r5;
 mod r6;
-mod r6_fail;
 mod r7;
 mod r7_fail;
 mod r7_fail_randomizer;
@@ -130,7 +128,6 @@ pub struct Sign {
 
     in_r2bcasts_fail: FillVec<r2::FailBcast>,
     in_r3bcasts_fail: FillVec<r3::FailBcast>,
-    in_r5bcasts_fail: FillVec<r5::FailBcast>,
     in_r6bcasts_fail: FillVec<r6::BcastCulprits>,
     in_r6bcasts_fail_randomizer: FillVec<()>,
     in_r7bcasts_fail: FillVec<r7::FailBcast>,
@@ -161,7 +158,6 @@ pub struct Sign {
     out_r7bcast: Option<MsgBytes>,
     out_r2bcast_fail_serialized: Option<MsgBytes>, // TODO _serialized suffix to distinguish from EXPERIMENT described above
     out_r3bcast_fail_serialized: Option<MsgBytes>,
-    out_r5bcast_fail_serialized: Option<MsgBytes>,
     out_r6bcast_fail_serialized: Option<MsgBytes>,
     out_r6bcast_fail_randomizer_serialized: Option<MsgBytes>,
     out_r7bcast_fail_serialized: Option<MsgBytes>,
@@ -204,7 +200,6 @@ impl Sign {
             in_r7bcasts: FillVec::with_len(participant_count),
             in_r2bcasts_fail: FillVec::with_len(participant_count),
             in_r3bcasts_fail: FillVec::with_len(participant_count),
-            in_r5bcasts_fail: FillVec::with_len(participant_count),
             in_r6bcasts_fail: FillVec::with_len(participant_count),
             in_r6bcasts_fail_randomizer: FillVec::with_len(participant_count),
             in_r7bcasts_fail: FillVec::with_len(participant_count),
@@ -220,7 +215,6 @@ impl Sign {
             out_r7bcast: None,
             out_r2bcast_fail_serialized: None,
             out_r3bcast_fail_serialized: None,
-            out_r5bcast_fail_serialized: None,
             out_r6bcast_fail_serialized: None,
             out_r6bcast_fail_randomizer_serialized: None,
             out_r7bcast_fail_serialized: None,

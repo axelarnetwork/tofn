@@ -149,7 +149,7 @@ fn basic_correctness_inner(
             }
             r4::Output::Fail { criminals } => {
                 panic!(
-                    "r4 party {} expect success got failure with culprits: {:?}",
+                    "r4 party {} expect success got failure with criminals: {:?}",
                     participant.my_secret_key_share.my_index, criminals
                 );
             }
@@ -184,10 +184,10 @@ fn basic_correctness_inner(
                 all_r5_bcasts.insert(i, out_bcast).unwrap();
                 all_r5_p2ps.push(out_p2ps);
             }
-            r5::Output::Fail { out_bcast } => {
+            r5::Output::Fail { criminals } => {
                 panic!(
-                    "r5 party {} expect success got failure with culprits: {:?}",
-                    participant.my_secret_key_share.my_index, out_bcast
+                    "r5 party {} expect success got failure with criminals: {:?}",
+                    participant.my_secret_key_share.my_index, criminals
                 );
             }
         }
