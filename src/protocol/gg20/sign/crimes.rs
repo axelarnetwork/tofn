@@ -6,10 +6,9 @@ use crate::protocol::{CrimeType, Criminal};
 pub(super) enum Crime {
     R3BadRangeProof { victim: usize },
     R3FalseAccusation { victim: usize },
-    R4BadRangeProof { victim: usize },
+    R4BadPedersenProof,
+    R4FailBadRangeProof { victim: usize },
     R4FalseAccusation { victim: usize },
-    R5BadRangeProof,
-    R5FalseAccusation { victim: usize },
     R6BadHashCommit,
     R6FalseAccusation { victim: usize },
     R7BadRangeProof { victim: usize },

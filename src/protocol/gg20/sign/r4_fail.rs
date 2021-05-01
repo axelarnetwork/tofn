@@ -93,7 +93,7 @@ impl Sign {
                                 self.my_participant_index, accused.participant_index, accuser, e
                             );
                             criminals[accused.participant_index]
-                                .push(Crime::R4BadRangeProof { victim: accuser });
+                                .push(Crime::R4FailBadRangeProof { victim: accuser });
                         }
                     };
                 }

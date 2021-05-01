@@ -19,6 +19,35 @@ static MESSAGE_TO_SIGN: [u8; 2] = [42, 24];
 
 #[test]
 #[traced_test]
+fn gus() {
+    use crate::protocol::{CrimeType, Criminal};
+    execute_test_case(&TestCase {
+        share_count: 5,
+        threshold: 2,
+        allow_self_delivery: true,
+        sign_participants: vec![
+            SignParticipant {
+                party_index: 0,
+                behaviour: Honest,
+            },
+            SignParticipant {
+                party_index: 1,
+                behaviour: Honest,
+            },
+            SignParticipant {
+                party_index: 2,
+                behaviour: R3BadProof,
+            }, // initialize enum values with Default::default()
+        ],
+        sign_expected_criminals: vec![Criminal {
+            index: 2,
+            crime_type: CrimeType::Malicious,
+        }],
+    });
+}
+
+#[test]
+#[traced_test]
 fn simple_cases() {
     execute_test_case_list(&SIMPLE_TEST_CASES);
 }
@@ -97,15 +126,29 @@ fn execute_test_case(t: &TestCase) {
 
     execute_protocol_vec(&mut protocols, t.allow_self_delivery);
 
-    // TEST: everyone correctly computed the culprit list
-    for signer in signers {
-        // We also need to take valid output into account because we skip some
-        // self-targeting malicious behaviours, resulting to valid SignOutput
-        let criminals = match signer.clone_output().unwrap() {
+    // TEST: honest parties finished and correctly computed the criminals list
+    for signer in signers
+        .iter()
+        .filter(|s| matches!(s.malicious_type, Honest))
+    {
+        let output = signer.clone_output().unwrap_or_else(|| {
+            panic!(
+                "honest participant {} did not finish",
+                signer.sign.my_participant_index
+            )
+        });
+        // in some cases the protocol succeeds despite malicious behaviour
+        // example: self-victimizing adversaries
+        // in these cases, we expect an empty criminals list
+        let criminals = match output {
             Ok(_) => vec![],
             Err(criminals) => criminals,
         };
-        assert_eq!(criminals, t.sign_expected_criminals);
+        assert_eq!(
+            criminals, t.sign_expected_criminals,
+            "honest participant {} unexpected criminals list:\n   got: {:?}\nexpect: {:?}",
+            signer.sign.my_participant_index, criminals, t.sign_expected_criminals
+        );
     }
 }
 
@@ -192,4 +235,29 @@ fn execute_test_case2(t: &test_cases2::TestCase) {
             );
         }
     }
+
+    // // TEST: honest parties finished and correctly computed the criminals list
+    // for signer in signers
+    //     .iter()
+    //     .filter(|s| matches!(s.malicious_type, Honest))
+    // {
+    //     let output = signer.sign.final_output2.clone().unwrap_or_else(|| {
+    //         panic!(
+    //             "honest participant {} did not finish",
+    //             signer.sign.my_participant_index
+    //         )
+    //     });
+    //     // in some cases the protocol succeeds despite malicious behaviour
+    //     // example: self-victimizing adversaries
+    //     // in these cases, we expect an empty criminals list
+    //     let criminals = match output {
+    //         Ok(_) => vec![],
+    //         Err(criminals) => criminals,
+    //     };
+    //     assert_eq!(
+    //         criminals, t.sign_expected_criminals,
+    //         "honest participant {} unexpected criminals list:\n   got: {:?}\nexpect: {:?}",
+    //         signer.sign.my_participant_index, criminals, t.sign_expected_criminals
+    //     );
+    // }
 }

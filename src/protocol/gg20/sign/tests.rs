@@ -147,10 +147,10 @@ fn basic_correctness_inner(
                 participant.status = Status::R4;
                 all_r4_bcasts.insert(i, out_bcast).unwrap();
             }
-            r4::Output::Fail { out_bcast } => {
+            r4::Output::Fail { criminals } => {
                 panic!(
                     "r4 party {} expect success got failure with culprits: {:?}",
-                    participant.my_secret_key_share.my_index, out_bcast
+                    participant.my_secret_key_share.my_index, criminals
                 );
             }
         }

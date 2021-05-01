@@ -21,7 +21,6 @@ pub enum MaliciousType {
     R3BadEcdsaNonceSummand,  // triggers r6::Output::FailRandomizer
     R3BadMtaBlindSummandLhs { victim: usize }, // triggers r6::Output::FailRandomizer
     R3BadMtaBlindSummandRhs { victim: usize }, // triggers r6::Output::FailRandomizer
-    R4FalseAccusation { victim: usize },
     R4BadReveal,
     R5FalseAccusation { victim: usize },
     R5BadProof { victim: usize },
@@ -464,22 +463,6 @@ impl Protocol for BadSign {
                     _ => self.sign.next_round(),
                 }
             }
-            R4FalseAccusation { victim } => {
-                if !matches!(self.sign.status, Status::R3) {
-                    return self.sign.next_round();
-                };
-                // no need to execute self.s.r4()
-                info!(
-                    "malicious participant {} do {:?}",
-                    self.sign.my_participant_index, self.malicious_type
-                );
-                self.sign.update_state_r4fail(r4::FailBcast {
-                    culprits: vec![r4::Culprit {
-                        participant_index: victim,
-                        crime: r4::Crime::PedersenProof,
-                    }],
-                })
-            }
             R4BadReveal => {
                 if !matches!(self.sign.status, Status::R3) {
                     return self.sign.next_round();
@@ -498,12 +481,12 @@ impl Protocol for BadSign {
 
                         self.sign.update_state_r4(state, out_bcast)
                     }
-                    r4::Output::Fail { out_bcast } => {
+                    r4::Output::Fail { criminals } => {
                         warn!(
-                            "malicious participant {} instructed to corrupt r4 commit reveal but r4 has already failed so reverting to honesty",
-                            self.sign.my_participant_index
+                            "malicious participant {} instructed to do {:?} but protocol has already failed so reverting to honesty",
+                            self.sign.my_participant_index, self.malicious_type,
                         );
-                        self.sign.update_state_r4fail(out_bcast)
+                        Ok(self.sign.update_state_fail(criminals))
                     }
                 }
             }

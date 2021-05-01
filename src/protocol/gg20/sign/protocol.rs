@@ -17,7 +17,6 @@ enum MsgType {
     R3Bcast,
     R3FailBcast,
     R4Bcast,
-    R4FailBcast,
     R5Bcast,
     R5P2p { to: usize },
     R5FailBcast,
@@ -73,8 +72,8 @@ impl Protocol for Sign {
                 r4::Output::Success { state, out_bcast } => {
                     self.update_state_r4(state, out_bcast)?;
                 }
-                r4::Output::Fail { out_bcast } => {
-                    self.update_state_r4fail(out_bcast)?;
+                r4::Output::Fail { criminals } => {
+                    self.update_state_fail(criminals);
                 }
             },
             R3Fail => self.update_state_fail(self.r4_fail()),
@@ -90,7 +89,6 @@ impl Protocol for Sign {
                     self.update_state_r5fail(out_bcast)?;
                 }
             },
-            R4Fail => self.update_state_fail(self.r5_fail()),
             R5 => match self.r6() {
                 r6::Output::Success { state, out_bcast } => {
                     self.update_state_r6(state, out_bcast)?;
@@ -206,16 +204,6 @@ impl Protocol for Sign {
                 self.in_r4bcasts
                     .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
             }
-            MsgType::R4FailBcast => {
-                if !self.in_r4bcasts_fail.is_none(msg_meta.from) {
-                    debug!(
-                        "participant {} overwrite existing R4FailBcast msg from {}",
-                        self.my_participant_index, msg_meta.from
-                    );
-                }
-                self.in_r4bcasts_fail
-                    .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
-            }
             MsgType::R5Bcast => {
                 if !self.in_r5bcasts.is_none(msg_meta.from) {
                     debug!(
@@ -319,7 +307,6 @@ impl Protocol for Sign {
             R3 => &self.out_r3bcast,
             R3Fail => &self.out_r3bcast_fail_serialized,
             R4 => &self.out_r4bcast,
-            R4Fail => &self.out_r4bcast_fail_serialized,
             R5 => &self.out_r5bcast,
             R5Fail => &self.out_r5bcast_fail_serialized,
             R6 => &self.out_r6bcast,
@@ -342,7 +329,6 @@ impl Protocol for Sign {
             R3 => &None,
             R3Fail => &None,
             R4 => &None,
-            R4Fail => &None,
             R5 => &self.out_r5p2ps,
             R5Fail => &None,
             R6 => &None,
@@ -402,14 +388,9 @@ impl Protocol for Sign {
                 }
                 false
             }
-            R4 | R4Fail => {
-                for i in 0..self.participant_indices.len() {
-                    if i == me {
-                        continue;
-                    }
-                    if self.in_r4bcasts.is_none(i) && self.in_r4bcasts_fail.is_none(i) {
-                        return true;
-                    }
+            R4 => {
+                if !self.in_r4bcasts.is_full_except(me) {
+                    return true;
                 }
                 false
             }
@@ -478,11 +459,6 @@ impl Sign {
                     self.status = R3Fail;
                 }
             }
-            R4 => {
-                if self.in_r4bcasts_fail.some_count() > 0 {
-                    self.status = R4Fail;
-                }
-            }
             R5 => {
                 if self.in_r5bcasts_fail.some_count() > 0 {
                     self.status = R5Fail;
@@ -523,7 +499,7 @@ impl Sign {
             // do not use catch-all pattern `_ => (),`
             // instead, list all variants explicity
             // because otherwise you'll forget to update this match statement when you add a variant
-            R1 | R2Fail | R3Fail | R4Fail | R5Fail | R6Fail | R6FailRandomizer | R7Fail
+            R1 | R2Fail | R3Fail | R4 | R5Fail | R6Fail | R6FailRandomizer | R7Fail
             | R7FailRandomizer | New | Done | Fail => (),
         }
     }
@@ -648,23 +624,6 @@ impl Sign {
             .insert(self.my_participant_index, out_bcast)?; // self delivery
         self.r4state = Some(state);
         self.status = R4;
-        Ok(())
-    }
-
-    // TODO refactor copied code from update_state_r2fail
-    pub(super) fn update_state_r4fail(&mut self, bcast: r4::FailBcast) -> ProtocolResult {
-        // serialize outgoing bcast
-        self.out_r4bcast_fail_serialized = Some(bincode::serialize(&MsgMeta {
-            msg_type: MsgType::R4FailBcast,
-            from: self.my_participant_index,
-            payload: bincode::serialize(&bcast)?,
-        })?);
-
-        // self delivery
-        self.in_r4bcasts_fail
-            .insert(self.my_participant_index, bcast)?;
-
-        self.status = R4Fail;
         Ok(())
     }
 
