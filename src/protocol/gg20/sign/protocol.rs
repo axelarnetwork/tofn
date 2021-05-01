@@ -117,6 +117,7 @@ impl Protocol for Sign {
             R7 => match self.r8() {
                 r8::Output::Success { sig } => {
                     self.final_output = Some(Output::Ok(sig.as_bytes().to_vec()));
+                    self.final_output2 = Some(Ok(sig.as_bytes().to_vec()));
                     self.status = Done;
                 }
                 r8::Output::Fail { criminals } => self.update_state_fail(criminals),

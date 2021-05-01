@@ -53,6 +53,7 @@ pub mod malicious;
 mod crimes;
 mod protocol;
 
+#[derive(Debug)]
 enum Status {
     New,
     R1,

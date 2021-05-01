@@ -1,6 +1,6 @@
 use super::{crimes::Crime, Sign, Status};
 use crate::zkp::range;
-use tracing::{info, warn};
+use tracing::info;
 
 impl Sign {
     pub(super) fn r3_fail(&self) -> Vec<Vec<Crime>> {
@@ -12,9 +12,13 @@ impl Sign {
         for accuser in 0..self.participant_indices.len() {
             if let Some(fail_bcast) = self.in_r2bcasts_fail.vec_ref()[accuser].as_ref() {
                 for accused in fail_bcast.culprits.iter() {
-                    // Skip round if accuser is targeting himself; R1FalseAccusation is causing that
                     if accuser == accused.participant_index {
-                        warn!("Accuser is targeting self. Skipping ...");
+                        let crime = Crime::R3FalseAccusation { victim: accuser };
+                        info!(
+                            "participant {} detect {:?} by {} (self accusation)",
+                            self.my_participant_index, crime, accuser
+                        );
+                        criminals[accuser].push(crime);
                         continue;
                     }
 
@@ -24,12 +28,7 @@ impl Sign {
                     let prover_encrypted_ecdsa_nonce_summand = &self.in_r1bcasts.vec_ref()
                         [accused.participant_index]
                         .as_ref()
-                        .unwrap_or_else(|| {
-                            panic!(
-                                "r3fail party {} no r1bcast from {}",
-                                self.my_participant_index, accused.participant_index
-                            )
-                        })
+                        .unwrap()
                         .encrypted_ecdsa_nonce_summand
                         .c;
                     let verifier_zkp =
@@ -47,21 +46,22 @@ impl Sign {
 
                     match verification {
                         Ok(_) => {
-                            info!(
-                                "participant {} detect false accusation by {} against {}",
-                                self.my_participant_index, accuser, accused.participant_index
-                            );
-                            criminals[accuser].push(Crime::R3FalseAccusation {
+                            let crime = Crime::R3FalseAccusation {
                                 victim: accused.participant_index,
-                            });
+                            };
+                            info!(
+                                "participant {} detect {:?} by {}",
+                                self.my_participant_index, crime, accuser
+                            );
+                            criminals[accuser].push(crime);
                         }
                         Err(e) => {
+                            let crime = Crime::R3BadRangeProof { victim: accuser };
                             info!(
-                                "participant {} detect bad range proof from {} to {} because [{}]",
+                                "participant {} detect {:?} by {} because [{}]",
                                 self.my_participant_index, accused.participant_index, accuser, e
                             );
-                            criminals[accused.participant_index]
-                                .push(Crime::R3BadRangeProof { victim: accuser });
+                            criminals[accused.participant_index].push(crime);
                         }
                     };
                 }

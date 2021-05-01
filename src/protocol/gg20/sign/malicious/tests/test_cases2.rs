@@ -1,7 +1,7 @@
 use strum::IntoEnumIterator;
 
 use super::*;
-use crate::protocol::gg20::sign::crimes::Crime;
+use crate::protocol::gg20::sign::{crimes::Crime, SignOutput2};
 
 pub(super) struct SignParticipant {
     pub(super) party_index: usize,
@@ -13,7 +13,29 @@ pub(super) struct TestCase {
     pub(super) share_count: usize,
     pub(super) threshold: usize,
     pub(super) allow_self_delivery: bool,
+    pub(super) expect_success: bool,
     pub(super) sign_participants: Vec<SignParticipant>,
+}
+
+impl TestCase {
+    pub(super) fn assert_expected_output(&self, output: &SignOutput2) {
+        match output {
+            Ok(_) => assert!(self.expect_success, "expect failure, got success"),
+            Err(criminals) => {
+                assert!(!self.expect_success, "expect success, got failure");
+                // make criminals into a Vec<&Vec<Crime>>
+                let expected_crime_lists: Vec<&Vec<Crime>> = self
+                    .sign_participants
+                    .iter()
+                    .map(|p| &p.expected_crimes)
+                    .collect();
+                assert_eq!(
+                    expected_crime_lists,
+                    criminals.iter().collect::<Vec<&Vec<Crime>>>()
+                );
+            }
+        }
+    }
 }
 
 pub(super) fn map_type_to_crime(t: &MaliciousType) -> Vec<Crime> {
@@ -49,15 +71,16 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
     let share_count= 5;
     let threshold= 2;
     let allow_self_delivery= false;
-    for t in MaliciousType::iter() {
+    let expect_success = false;
+    for m in MaliciousType::iter().skip(1) {
         basic_test_cases.push(TestCase {
-            share_count, threshold, allow_self_delivery,
+            share_count, threshold, allow_self_delivery, expect_success,
             sign_participants: vec![
                 SignParticipant {
                     party_index: 4, behaviour: Honest, expected_crimes: vec![],
                 },
                 SignParticipant {
-                    party_index: 3, expected_crimes: map_type_to_crime(&t), behaviour: t,
+                    party_index: 3, expected_crimes: map_type_to_crime(&m), behaviour: m,
                 },
                 SignParticipant {
                     party_index: 2, behaviour: Honest, expected_crimes: vec![],
@@ -74,16 +97,16 @@ pub(super) fn generate_skipping_cases_2() -> Vec<TestCase> {
     let victim = 2; // all victims are at index 2
     let self_targeting_types = vec![
         R1BadProof { victim },
-        R2FalseAccusation { victim },
+        // R2FalseAccusation { victim }, // this produces criminals
         R2BadMta { victim },
         R2BadMtaWc { victim },
-        R3FalseAccusationMta { victim },
-        R3FalseAccusationMtaWc { victim },
+        // R3FalseAccusationMta { victim }, // this produces criminals
+        // R3FalseAccusationMtaWc { victim }, // this produces criminals
         R3BadMtaBlindSummandLhs { victim },
         // R3FalseAccusation { victim }, // this produces criminals
         // R4FalseAccusation { victim }, // this produces criminals
         R5BadProof { victim },
-        R6FalseAccusation { victim },
+        // R6FalseAccusation { victim }, // this produces criminals
         // R6FalseAccusation { victim }, // this produces criminals
     ];
 
@@ -91,9 +114,10 @@ pub(super) fn generate_skipping_cases_2() -> Vec<TestCase> {
     let share_count = 5;
     let threshold = 2;
     let allow_self_delivery = false;
+    let expect_success = true;
     for t in self_targeting_types {
         test_cases.push(TestCase {
-            share_count, threshold, allow_self_delivery,
+            share_count, threshold, allow_self_delivery, expect_success,
             sign_participants: vec![
                 SignParticipant { party_index: 1, behaviour: Honest, expected_crimes: vec![]}, // index 0
                 SignParticipant { party_index: 2, behaviour: Honest, expected_crimes: vec![]}, // index 1

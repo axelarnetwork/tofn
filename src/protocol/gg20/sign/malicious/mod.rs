@@ -70,27 +70,21 @@ impl Protocol for BadSign {
                 if !matches!(self.sign.status, Status::New) {
                     return self.sign.next_round();
                 };
+                if victim == self.sign.my_participant_index {
+                    warn!(
+                        "malicious participant {} can't do {:?} on myself; reverting to honesty",
+                        self.sign.my_participant_index, self.malicious_type
+                    );
+                    return self.sign.next_round();
+                }
                 let (state, bcast, mut p2ps) = self.sign.r1();
-
                 info!(
                     "malicious participant {} do {:?}",
                     self.sign.my_participant_index, self.malicious_type
                 );
-                let proof = p2ps.vec_ref_mut()[victim].as_mut();
-                // The proof of the criminal is None.
-                // To prevent tofn from unwraping a None proof, we skip
-                // the corruction if a criminal targets himself.
-                match proof {
-                    Some(proof) => {
-                        let proof = &mut proof.range_proof;
-                        *proof = range::malicious::corrupt_proof(proof);
-                        self.sign.update_state_r1(state, bcast, p2ps)
-                    }
-                    None => {
-                        warn!("Criminal attempted to corrupt None proof (are you targeting yourself?). Skipping...");
-                        self.sign.next_round()
-                    }
-                }
+                let proof = &mut p2ps.vec_ref_mut()[victim].as_mut().unwrap().range_proof;
+                *proof = range::malicious::corrupt_proof(proof);
+                self.sign.update_state_r1(state, bcast, p2ps)
             }
             R1BadSecretBlindSummand => {
                 if !matches!(self.sign.status, Status::New) {
@@ -127,6 +121,13 @@ impl Protocol for BadSign {
                 if !matches!(self.sign.status, Status::R1) {
                     return self.sign.next_round();
                 };
+                if victim == self.sign.my_participant_index {
+                    warn!(
+                        "malicious participant {} can't do {:?} on myself; reverting to honesty",
+                        self.sign.my_participant_index, self.malicious_type
+                    );
+                    return self.sign.next_round();
+                }
                 match self.sign.r2() {
                     r2::Output::Success {
                         state,
@@ -136,26 +137,13 @@ impl Protocol for BadSign {
                             "malicious participant {} do {:?}",
                             self.sign.my_participant_index, self.malicious_type
                         );
-
-                        let proof = out_p2ps.vec_ref_mut()[victim].as_mut();
-                        // The proof of the criminal is None.
-                        // To prevent tofn from unwraping a None proof, we skip
-                        // the corruction if a criminal targets himself.
-                        match proof {
-                            Some(proof) => {
-                                let proof = &mut proof.mta_proof;
-                                *proof = mta::malicious::corrupt_proof(proof);
-                                self.sign.update_state_r2(state, out_p2ps)
-                            }
-                            None => {
-                                warn!("Criminal attempted to corrupt None proof (are you targeting yourself?). Skipping...");
-                                self.sign.next_round()
-                            }
-                        }
+                        let proof = &mut out_p2ps.vec_ref_mut()[victim].as_mut().unwrap().mta_proof;
+                        *proof = mta::malicious::corrupt_proof(proof);
+                        self.sign.update_state_r2(state, out_p2ps)
                     }
                     r2::Output::Fail { out_bcast } => {
                         warn!(
-                            "malicious participant {} instructed to corrupt r2 mta proof to {} but r2 has already failed so reverting to honesty",
+                            "malicious participant {} can't do {:?} because protocol has failed; reverting to honesty",
                             self.sign.my_participant_index, victim
                         );
                         self.sign.update_state_r2fail(out_bcast)
@@ -166,6 +154,13 @@ impl Protocol for BadSign {
                 if !matches!(self.sign.status, Status::R1) {
                     return self.sign.next_round();
                 };
+                if victim == self.sign.my_participant_index {
+                    warn!(
+                        "malicious participant {} can't do {:?} on myself; reverting to honesty",
+                        self.sign.my_participant_index, self.malicious_type
+                    );
+                    return self.sign.next_round();
+                }
                 match self.sign.r2() {
                     r2::Output::Success {
                         state,
@@ -175,26 +170,16 @@ impl Protocol for BadSign {
                             "malicious participant {} do {:?}",
                             self.sign.my_participant_index, self.malicious_type
                         );
-
-                        let proof = &mut out_p2ps.vec_ref_mut()[victim].as_mut();
-                        // The proof of the criminal is None.
-                        // To prevent tofn from unwraping a None proof, we skip
-                        // the corruction if a criminal targets himself.
-                        match proof {
-                            Some(proof) => {
-                                let proof = &mut proof.mta_proof_wc;
-                                *proof = mta::malicious::corrupt_proof_wc(proof);
-                                self.sign.update_state_r2(state, out_p2ps)
-                            }
-                            None => {
-                                warn!("Criminal attempted to corrupt None proof (are you targeting yourself?). Skipping...");
-                                self.sign.next_round()
-                            }
-                        }
+                        let proof = &mut out_p2ps.vec_ref_mut()[victim]
+                            .as_mut()
+                            .unwrap()
+                            .mta_proof_wc;
+                        *proof = mta::malicious::corrupt_proof_wc(proof);
+                        self.sign.update_state_r2(state, out_p2ps)
                     }
                     r2::Output::Fail { out_bcast } => {
                         warn!(
-                            "malicious participant {} instructed to corrupt r2 mta_wc proof to {} but r2 has already failed so reverting to honesty",
+                            "malicious participant {} can't do {:?} because protocol has failed; reverting to honesty",
                             self.sign.my_participant_index, victim
                         );
                         self.sign.update_state_r2fail(out_bcast)
@@ -343,7 +328,17 @@ impl Protocol for BadSign {
                 }
             }
             R3BadMtaBlindSummandLhs { victim } => {
-                match self.sign.status {
+                if !matches!(self.sign.status, Status::R2 | Status::R6FailRandomizer) {
+                    return self.sign.next_round();
+                };
+                if victim == self.sign.my_participant_index {
+                    warn!(
+                        "malicious participant {} can't do {:?} on myself; reverting to honesty",
+                        self.sign.my_participant_index, self.malicious_type
+                    );
+                    return self.sign.next_round();
+                }
+                match &self.sign.status {
                     Status::R2 => {
                         match self.sign.r3() {
                             r3::Output::Success {
@@ -354,29 +349,23 @@ impl Protocol for BadSign {
                                     "malicious participant {} do {:?} (delta_i)",
                                     self.sign.my_participant_index, self.malicious_type
                                 );
-                                if state.my_mta_blind_summands_lhs[victim].is_some() {
-                                    // later we will corrupt mta_blind_summands_lhs[victim] by adding 1
-                                    // => need to add 1  to nonce_x_blind_summand to maintain consistency
-                                    let one: FE = ECScalar::from(&BigInt::from(1));
-                                    let nonce_x_blind_summand =
-                                        &mut out_bcast.nonce_x_blind_summand;
-                                    *nonce_x_blind_summand = *nonce_x_blind_summand + one;
-                                    // need to corrupt both state and out_bcast because they both contain a copy of nonce_x_blind_summand
-                                    let nonce_x_blind_summand_state =
-                                        &mut state.my_nonce_x_blind_summand;
-                                    *nonce_x_blind_summand_state =
-                                        *nonce_x_blind_summand_state + one;
-                                } else {
-                                    warn!("malicious participant {} missing my_mta_blind_summands_lhs[{}] (are you targeting yourself?) Skipping...", self.sign.my_participant_index, victim);
-                                }
+                                // later we will corrupt mta_blind_summands_lhs[victim] by adding 1
+                                // => need to add 1 to nonce_x_blind_summand to maintain consistency
+                                let one: FE = ECScalar::from(&BigInt::from(1));
+                                let nonce_x_blind_summand = &mut out_bcast.nonce_x_blind_summand;
+                                *nonce_x_blind_summand = *nonce_x_blind_summand + one;
+                                // need to corrupt both state and out_bcast because they both contain a copy of nonce_x_blind_summand
+                                let nonce_x_blind_summand_state =
+                                    &mut state.my_nonce_x_blind_summand;
+                                *nonce_x_blind_summand_state = *nonce_x_blind_summand_state + one;
 
                                 self.sign.update_state_r3(state, out_bcast)
                             }
                             r3::Output::Fail { out_bcast } => {
                                 warn!(
-                                        "malicious participant {} instructed to corrupt r3 nonce_x_blind_summand but r3 has already failed so reverting to honesty",
-                                        self.sign.my_participant_index
-                                    );
+                                    "malicious participant {} can't do {:?} because protocol has failed; reverting to honesty",
+                                    self.sign.my_participant_index, self.malicious_type
+                                );
                                 self.sign.update_state_r3fail(out_bcast)
                             }
                         }
@@ -387,16 +376,18 @@ impl Protocol for BadSign {
                             self.sign.my_participant_index, self.malicious_type
                         );
                         let mut bcast = self.sign.r7_fail_randomizer();
-                        let mta_blind_summand = bcast.mta_blind_summands[victim].as_mut();
-                        if let Some(mta_blind_summand) = mta_blind_summand {
-                            mta_blind_summand.lhs_plaintext =
-                                &mta_blind_summand.lhs_plaintext + BigInt::from(1);
-                        } else {
-                            error!("malicious participant {} missing my_mta_blind_summands_lhs[{}] should have been detected in r3 (are you targeting yourself?) Skipping...", self.sign.my_participant_index, victim);
-                        }
+                        let mta_blind_summand = bcast.mta_blind_summands[victim].as_mut().unwrap();
+                        mta_blind_summand.lhs_plaintext =
+                            &mta_blind_summand.lhs_plaintext + BigInt::from(1);
                         self.sign.update_state_r7fail_randomizer(bcast)
                     }
-                    _ => self.sign.next_round(),
+                    status => {
+                        error!(
+                            "malicious participant {} do {:?} nothing to do in status {:?}",
+                            self.sign.my_participant_index, self.malicious_type, status
+                        );
+                        self.sign.next_round()
+                    }
                 }
             }
             R3BadMtaBlindSummandRhs { victim } => {
@@ -510,6 +501,13 @@ impl Protocol for BadSign {
                 if !matches!(self.sign.status, Status::R4) {
                     return self.sign.next_round();
                 };
+                if victim == self.sign.my_participant_index {
+                    warn!(
+                        "malicious participant {} can't do {:?} on myself; reverting to honesty",
+                        self.sign.my_participant_index, self.malicious_type
+                    );
+                    return self.sign.next_round();
+                }
                 match self.sign.r5() {
                     r5::Output::Success {
                         state,
@@ -520,27 +518,17 @@ impl Protocol for BadSign {
                             "malicious participant {} do {:?}",
                             self.sign.my_participant_index, self.malicious_type
                         );
-
-                        let proof = &mut out_p2ps.vec_ref_mut()[victim].as_mut();
-                        // The proof of the criminal is None.
-                        // To prevent tofn from unwraping a None proof, we skip
-                        // the corruction if a criminal targets himself.
-                        match proof {
-                            Some(proof) => {
-                                let proof = &mut proof.ecdsa_randomizer_x_nonce_summand_proof;
-                                *proof = range::malicious::corrupt_proof_wc(proof);
-                                self.sign.update_state_r5(state, out_bcast, out_p2ps)
-                            }
-                            None => {
-                                warn!("Criminal attempted to corrupt None proof (are you targeting yourself?). Skipping...");
-                                self.sign.next_round()
-                            }
-                        }
+                        let proof = &mut out_p2ps.vec_ref_mut()[victim]
+                            .as_mut()
+                            .unwrap()
+                            .ecdsa_randomizer_x_nonce_summand_proof;
+                        *proof = range::malicious::corrupt_proof_wc(proof);
+                        self.sign.update_state_r5(state, out_bcast, out_p2ps)
                     }
                     r5::Output::Fail { out_bcast } => {
                         warn!(
-                            "malicious participant {} instructed to corrupt r5 range proof wc but r5 has already failed so reverting to honesty",
-                            self.sign.my_participant_index
+                            "malicious participant {} can't do {:?} because protocol has failed; reverting to honesty",
+                            self.sign.my_participant_index, victim
                         );
                         self.sign.update_state_r5fail(out_bcast)
                     }

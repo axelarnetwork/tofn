@@ -153,7 +153,6 @@ fn execute_test_case(t: &TestCase) {
 }
 
 mod test_cases2;
-use crate::protocol::gg20::sign::crimes::Crime;
 
 lazy_static::lazy_static! {
     static ref BASIC_CASES_2: Vec<test_cases2::TestCase> = test_cases2::generate_basic_cases();
@@ -211,53 +210,17 @@ fn execute_test_case2(t: &test_cases2::TestCase) {
 
     execute_protocol_vec(&mut protocols, t.allow_self_delivery);
 
-    // TEST: everyone correctly computed the culprit list
-    let expected_crime_lists: Vec<&Vec<Crime>> = t
-        .sign_participants
+    // TEST: honest parties finished and correctly computed the criminals list
+    for signer in signers
         .iter()
-        .map(|p| &p.expected_crimes)
-        .collect();
-    for signer in signers {
-        let final_output2 = signer.sign.final_output2;
-        // lots of cruft needed to get a Vec<&Vec<Crime>> to compare against expected_crime_lists
-        if let Some(final_output2) = final_output2 {
-            let actual_crime_lists: Vec<&Vec<Crime>> = final_output2
-                .as_ref()
-                .as_ref()
-                .unwrap_err()
-                .iter()
-                .collect();
-            assert_eq!(actual_crime_lists, expected_crime_lists);
-        } else {
-            println!(
-                "skipping {:?} because final_output2 is not ready yet",
-                signer.malicious_type
-            );
-        }
+        .filter(|s| matches!(s.malicious_type, Honest))
+    {
+        let output = signer.sign.final_output2.clone().unwrap_or_else(|| {
+            panic!(
+                "honest participant {} did not finish",
+                signer.sign.my_participant_index
+            )
+        });
+        t.assert_expected_output(&output);
     }
-
-    // // TEST: honest parties finished and correctly computed the criminals list
-    // for signer in signers
-    //     .iter()
-    //     .filter(|s| matches!(s.malicious_type, Honest))
-    // {
-    //     let output = signer.sign.final_output2.clone().unwrap_or_else(|| {
-    //         panic!(
-    //             "honest participant {} did not finish",
-    //             signer.sign.my_participant_index
-    //         )
-    //     });
-    //     // in some cases the protocol succeeds despite malicious behaviour
-    //     // example: self-victimizing adversaries
-    //     // in these cases, we expect an empty criminals list
-    //     let criminals = match output {
-    //         Ok(_) => vec![],
-    //         Err(criminals) => criminals,
-    //     };
-    //     assert_eq!(
-    //         criminals, t.sign_expected_criminals,
-    //         "honest participant {} unexpected criminals list:\n   got: {:?}\nexpect: {:?}",
-    //         signer.sign.my_participant_index, criminals, t.sign_expected_criminals
-    //     );
-    // }
 }
