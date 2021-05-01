@@ -383,7 +383,7 @@ impl Protocol for BadSign {
                     }
                     status => {
                         error!(
-                            "malicious participant {} do {:?} nothing to do in status {:?}",
+                            "malicious participant {} do {:?} but nothing to do in status {:?}",
                             self.sign.my_participant_index, self.malicious_type, status
                         );
                         self.sign.next_round()
@@ -391,7 +391,17 @@ impl Protocol for BadSign {
                 }
             }
             R3BadMtaBlindSummandRhs { victim } => {
-                match self.sign.status {
+                if !matches!(self.sign.status, Status::R2 | Status::R6FailRandomizer) {
+                    return self.sign.next_round();
+                };
+                if victim == self.sign.my_participant_index {
+                    warn!(
+                        "malicious participant {} can't do {:?} on myself; reverting to honesty",
+                        self.sign.my_participant_index, self.malicious_type
+                    );
+                    return self.sign.next_round();
+                }
+                match &self.sign.status {
                     Status::R2 => {
                         match self.sign.r3() {
                             r3::Output::Success {
@@ -402,36 +412,23 @@ impl Protocol for BadSign {
                                     "malicious participant {} do {:?} (delta_i)",
                                     self.sign.my_participant_index, self.malicious_type
                                 );
-                                if self
-                                    .sign
-                                    .r2state
-                                    .as_ref()
-                                    .unwrap()
-                                    .my_mta_blind_summands_rhs[victim]
-                                    .is_some()
-                                {
-                                    // later we will corrupt mta_blind_summands_rhs[victim] by adding 1
-                                    // => need to add 1 to nonce_x_blind_summand to maintain consistency
-                                    let one: FE = ECScalar::from(&BigInt::from(1));
-                                    let nonce_x_blind_summand =
-                                        &mut out_bcast.nonce_x_blind_summand;
-                                    *nonce_x_blind_summand = *nonce_x_blind_summand + one;
-                                    // need to corrupt both state and out_bcast because they both contain a copy of nonce_x_blind_summand
-                                    let nonce_x_blind_summand_state =
-                                        &mut state.my_nonce_x_blind_summand;
-                                    *nonce_x_blind_summand_state =
-                                        *nonce_x_blind_summand_state + one;
-                                } else {
-                                    warn!("malicious participant {} missing my_mta_blind_summands_rhs[{}] (are you targeting yourself?) Skipping...", self.sign.my_participant_index, victim);
-                                }
+                                // later we will corrupt mta_blind_summands_rhs[victim] by adding 1
+                                // => need to add 1 to nonce_x_blind_summand to maintain consistency
+                                let one: FE = ECScalar::from(&BigInt::from(1));
+                                let nonce_x_blind_summand = &mut out_bcast.nonce_x_blind_summand;
+                                *nonce_x_blind_summand = *nonce_x_blind_summand + one;
+                                // need to corrupt both state and out_bcast because they both contain a copy of nonce_x_blind_summand
+                                let nonce_x_blind_summand_state =
+                                    &mut state.my_nonce_x_blind_summand;
+                                *nonce_x_blind_summand_state = *nonce_x_blind_summand_state + one;
 
                                 self.sign.update_state_r3(state, out_bcast)
                             }
                             r3::Output::Fail { out_bcast } => {
                                 warn!(
-                                        "malicious participant {} instructed to corrupt r3 nonce_x_blind_summand but r3 has already failed so reverting to honesty",
-                                        self.sign.my_participant_index
-                                    );
+                                    "malicious participant {} can't do {:?} because protocol has failed; reverting to honesty",
+                                    self.sign.my_participant_index, self.malicious_type
+                                );
                                 self.sign.update_state_r3fail(out_bcast)
                             }
                         }
@@ -442,16 +439,18 @@ impl Protocol for BadSign {
                             self.sign.my_participant_index, self.malicious_type
                         );
                         let mut bcast = self.sign.r7_fail_randomizer();
-                        let mta_blind_summand = bcast.mta_blind_summands[victim].as_mut();
-                        if let Some(mta_blind_summand) = mta_blind_summand {
-                            let one: FE = ECScalar::from(&BigInt::from(1));
-                            mta_blind_summand.rhs = mta_blind_summand.rhs + one;
-                        } else {
-                            error!("malicious participant {} missing my_mta_blind_summands_rhs[{}] should have been detected in r3 (are you targeting yourself?) Skipping...", self.sign.my_participant_index, victim);
-                        }
+                        let mta_blind_summand = bcast.mta_blind_summands[victim].as_mut().unwrap();
+                        let one: FE = ECScalar::from(&BigInt::from(1));
+                        mta_blind_summand.rhs = mta_blind_summand.rhs + one;
                         self.sign.update_state_r7fail_randomizer(bcast)
                     }
-                    _ => self.sign.next_round(),
+                    status => {
+                        error!(
+                            "malicious participant {} do {:?} but nothing to do in status {:?}",
+                            self.sign.my_participant_index, self.malicious_type, status
+                        );
+                        self.sign.next_round()
+                    }
                 }
             }
             R4BadReveal => {

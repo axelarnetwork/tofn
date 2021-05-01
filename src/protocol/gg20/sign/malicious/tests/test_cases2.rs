@@ -103,11 +103,11 @@ pub(super) fn generate_skipping_cases_2() -> Vec<TestCase> {
         // R3FalseAccusationMta { victim }, // this produces criminals
         // R3FalseAccusationMtaWc { victim }, // this produces criminals
         R3BadMtaBlindSummandLhs { victim },
-        // R3FalseAccusation { victim }, // this produces criminals
-        // R4FalseAccusation { victim }, // this produces criminals
+        R3BadMtaBlindSummandRhs { victim },
+        // R5FalseAccusation { victim }, // this produces criminals
         R5BadProof { victim },
         // R6FalseAccusation { victim }, // this produces criminals
-        // R6FalseAccusation { victim }, // this produces criminals
+        // R7FalseAccusation { victim }, // this produces criminals
     ];
 
     let mut test_cases = Vec::new();

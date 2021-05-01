@@ -23,41 +23,31 @@ impl Sign {
                 for accused in fail_bcast.culprits.iter() {
                     let commit = &self.in_r1bcasts.vec_ref()[accused.participant_index]
                         .as_ref()
-                        .unwrap_or_else(|| {
-                            // TODO these checks should be unnecessary after refactoring
-                            panic!(
-                                "r6_fail party {} missing r1bcast from {}",
-                                self.my_participant_index, accused.participant_index
-                            )
-                        })
+                        .unwrap()
                         .commit;
                     let r4bcast = self.in_r4bcasts.vec_ref()[accused.participant_index]
                         .as_ref()
-                        .unwrap_or_else(|| {
-                            panic!(
-                                "r6_fail party {} missing r4bcast from {}",
-                                self.my_participant_index, accused.participant_index
-                            )
-                        });
+                        .unwrap();
                     let reconstructed_commit =
                         &HashCommitment::create_commitment_with_user_defined_randomness(
                             &r4bcast.public_blind_summand.bytes_compressed_to_big_int(),
                             &r4bcast.reveal,
                         );
                     if commit == reconstructed_commit {
-                        info!(
-                            "participant {} detect false accusation pedersen by {} against {}",
-                            self.my_participant_index, accuser, accused.participant_index
-                        );
-                        criminals[accuser].push(Crime::R6FalseAccusation {
+                        let crime = Crime::R6FalseAccusation {
                             victim: accused.participant_index,
-                        });
-                    } else {
+                        };
                         info!(
-                            "participant {} confirm bad hash commit from {}",
-                            self.my_participant_index, accused.participant_index
+                            "participant {} detect {:?} by {}",
+                            self.my_participant_index, crime, accuser
                         );
+                        criminals[accuser].push(crime);
+                    } else {
                         let crime = Crime::R6BadHashCommit;
+                        info!(
+                            "participant {} detect {:?} by {}",
+                            self.my_participant_index, crime, accused.participant_index
+                        );
                         if !criminals[accused.participant_index].contains(&crime) {
                             criminals[accused.participant_index].push(crime);
                         }
