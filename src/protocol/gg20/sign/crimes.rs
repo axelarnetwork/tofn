@@ -12,9 +12,8 @@ pub(super) enum Crime {
     R5BadHashCommit,
     R7BadRangeProof { victim: usize },
     R7FalseAccusation { victim: usize },
-    R8BadRangeProof,
-    R8FalseAccusation { victim: usize },
-    R8MissingData, // TODO: Add a unit test for this
+    R8BadRangeProof, // TODO rename to R7BadRangeProof
+    R8MissingData,   // TODO: Add a unit test for this
     R8BadNonceXBlindSummand,
     R8BadNonceSummand,
     R8BadBlindSummand,

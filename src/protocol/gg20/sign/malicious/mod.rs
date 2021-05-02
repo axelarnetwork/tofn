@@ -26,7 +26,6 @@ pub enum MaliciousType {
     R6FalseAccusation { victim: usize },
     R6BadProof,
     R6FalseFailRandomizer,
-    R7FalseAccusation { victim: usize },
     R7BadSigSummand,
 }
 use MaliciousType::*;
@@ -577,22 +576,6 @@ impl Protocol for BadSign {
                 );
                 self.sign.update_state_r6fail_randomizer()
             }
-            R7FalseAccusation { victim } => {
-                if !matches!(self.sign.status, Status::R6) {
-                    return self.sign.next_round();
-                };
-                // no need to execute self.s.r7()
-                info!(
-                    "malicious participant {} do {:?}",
-                    self.sign.my_participant_index, self.malicious_type
-                );
-                self.sign.update_state_r7fail(r7::FailBcast {
-                    culprits: vec![r7::Culprit {
-                        participant_index: victim,
-                        crime: r7::Crime::PedersenProofWc,
-                    }],
-                })
-            }
             R7BadSigSummand => {
                 if !matches!(self.sign.status, Status::R6) {
                     return self.sign.next_round();
@@ -616,12 +599,12 @@ impl Protocol for BadSign {
 
                         self.sign.update_state_r7(state, out_bcast)
                     }
-                    r7::Output::Fail { out_bcast } => {
+                    r7::Output::Fail { criminals } => {
                         warn!(
-                            "malicious participant {} instructed to corrupt r7 ecdsa_sig_summand but r7 has already failed so reverting to honesty",
-                            self.sign.my_participant_index
+                            "malicious participant {} can't do {:?} because protocol has failed; reverting to honesty",
+                            self.sign.my_participant_index, self.malicious_type
                         );
-                        self.sign.update_state_r7fail(out_bcast)
+                        Ok(self.sign.update_state_fail(criminals))
                     }
                 }
             }

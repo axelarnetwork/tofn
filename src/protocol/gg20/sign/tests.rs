@@ -246,10 +246,10 @@ fn basic_correctness_inner(
                 participant.status = Status::R7;
                 all_r7_bcasts.insert(i, out_bcast).unwrap();
             }
-            r7::Output::Fail { out_bcast } => {
+            r7::Output::Fail { criminals } => {
                 panic!(
-                    "r7 party {} expect success got failure with culprits: {:?}",
-                    participant.my_secret_key_share.my_index, out_bcast
+                    "r7 party {} expect success got failure with criminals: {:?}",
+                    participant.my_secret_key_share.my_index, criminals
                 );
             }
         }

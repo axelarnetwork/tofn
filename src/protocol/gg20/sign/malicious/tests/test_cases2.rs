@@ -52,7 +52,6 @@ pub(super) fn map_type_to_crime(t: &MaliciousType) -> Vec<Crime> {
         R5BadProof { victim: v } => vec![Crime::R7BadRangeProof { victim: *v }],
         R6FalseAccusation { victim: v } => vec![Crime::R7FalseAccusation { victim: *v }],
         R6BadProof => vec![Crime::R8BadRangeProof],
-        R7FalseAccusation { victim: v } => vec![Crime::R8FalseAccusation { victim: *v }],
         R7BadSigSummand => vec![Crime::R8BadSigSummand],
         R3BadNonceXBlindSummand => vec![Crime::R8BadNonceXBlindSummand],
         R3BadEcdsaNonceSummand => vec![Crime::R8BadNonceSummand],

@@ -67,7 +67,6 @@ enum Status {
     R6Fail,
     R6FailRandomizer,
     R7,
-    R7Fail,
     R7FailRandomizer,
     Done,
     Fail,
@@ -85,7 +84,6 @@ mod r7;
 mod r7_fail;
 mod r7_fail_randomizer;
 mod r8;
-mod r8_fail;
 mod r8_fail_randomizer;
 
 pub struct Sign {
@@ -130,7 +128,6 @@ pub struct Sign {
     in_r3bcasts_fail: FillVec<r3::FailBcast>,
     in_r6bcasts_fail: FillVec<r6::BcastCulprits>,
     in_r6bcasts_fail_randomizer: FillVec<()>,
-    in_r7bcasts_fail: FillVec<r7::FailBcast>,
     in_r7bcasts_fail_randomizer: FillVec<r7_fail_randomizer::Bcast>,
 
     // TODO currently I do not store my own deserialized output messages
@@ -160,7 +157,6 @@ pub struct Sign {
     out_r3bcast_fail_serialized: Option<MsgBytes>,
     out_r6bcast_fail_serialized: Option<MsgBytes>,
     out_r6bcast_fail_randomizer_serialized: Option<MsgBytes>,
-    out_r7bcast_fail_serialized: Option<MsgBytes>,
     out_r7bcast_fail_randomizer_serialized: Option<MsgBytes>,
 
     final_output: Option<SignOutput>, // T is serialized asn1 sig
@@ -202,7 +198,6 @@ impl Sign {
             in_r3bcasts_fail: FillVec::with_len(participant_count),
             in_r6bcasts_fail: FillVec::with_len(participant_count),
             in_r6bcasts_fail_randomizer: FillVec::with_len(participant_count),
-            in_r7bcasts_fail: FillVec::with_len(participant_count),
             in_r7bcasts_fail_randomizer: FillVec::with_len(participant_count),
             out_r1bcast: None,
             out_r1p2ps: None,
@@ -217,7 +212,6 @@ impl Sign {
             out_r3bcast_fail_serialized: None,
             out_r6bcast_fail_serialized: None,
             out_r6bcast_fail_randomizer_serialized: None,
-            out_r7bcast_fail_serialized: None,
             out_r7bcast_fail_randomizer_serialized: None,
             final_output: None,
             final_output2: None,
