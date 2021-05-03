@@ -194,3 +194,24 @@ pub(super) fn generate_multiple_faults_in_same_round_2() -> Vec<TestCase> {
     test_cases
 }
 
+
+#[rustfmt::skip] // skip formatting to make file more readable
+pub(super) fn generate_target_multiple_parties_2() -> Vec<TestCase> {
+    vec![
+        TestCase {
+            share_count: 9, threshold: 6, allow_self_delivery: true, expect_success: false,
+            sign_participants: vec![
+                SignParticipant { party_index: 0, behaviour: Honest, expected_crimes: vec![]},
+                SignParticipant { party_index: 1, behaviour: Honest, expected_crimes: vec![]},
+                SignParticipant { party_index: 2, behaviour: Honest, expected_crimes: vec![]},
+                SignParticipant { party_index: 3, behaviour: R1BadProof { victim: 0 }, expected_crimes: map_type_to_crime(&R1BadProof{victim:0})},
+                SignParticipant { party_index: 4, behaviour: R2FalseAccusation{ victim: 0}, expected_crimes: map_type_to_crime(&R2FalseAccusation{ victim: 0})},
+                SignParticipant { party_index: 5, behaviour: R1BadProof { victim: 1 }, expected_crimes: map_type_to_crime(&R1BadProof{ victim: 1})},
+                SignParticipant { party_index: 6, behaviour: R2FalseAccusation{ victim: 1}, expected_crimes: map_type_to_crime(&R2FalseAccusation{ victim: 1})},
+                // R5 should not be registered because they happen after R1 crimes
+                SignParticipant { party_index: 7, behaviour: R5BadProof { victim: 2 }, expected_crimes: vec![]},
+                SignParticipant { party_index: 8, behaviour: R6FalseAccusation{ victim: 2}, expected_crimes: vec![]},
+            ],
+        },
+    ]
+}
