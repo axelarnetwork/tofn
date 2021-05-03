@@ -1,8 +1,4 @@
-use super::{
-    crimes::{to_criminals, Crime},
-    Status::*,
-    *,
-};
+use super::{crimes::Crime, Status::*, *};
 use crate::protocol::{MsgBytes, Protocol, ProtocolResult};
 use serde::{Deserialize, Serialize};
 
@@ -113,8 +109,8 @@ impl Protocol for Sign {
             }
             R7 => match self.r8() {
                 r8::Output::Success { sig } => {
-                    self.final_output = Some(Output::Ok(sig.as_bytes().to_vec()));
-                    self.final_output2 = Some(Ok(sig.as_bytes().to_vec()));
+                    // self.final_output = Some(Output::Ok(sig.as_bytes().to_vec()));
+                    self.final_output = Some(Ok(sig.as_bytes().to_vec()));
                     self.status = Done;
                 }
                 r8::Output::Fail { criminals } => self.update_state_fail(criminals),
@@ -707,8 +703,8 @@ impl Sign {
     }
 
     pub(super) fn update_state_fail(&mut self, criminals: Vec<Vec<Crime>>) {
-        self.final_output = Some(Output::Err(to_criminals(&criminals)));
-        self.final_output2 = Some(Err(criminals));
+        // self.final_output = Some(Output::Err(to_criminals(&criminals)));
+        self.final_output = Some(Err(criminals));
         self.status = Fail;
     }
 }

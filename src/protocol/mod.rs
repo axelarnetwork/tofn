@@ -22,10 +22,6 @@ pub struct Criminal {
     pub crime_type: CrimeType,
 }
 
-// TODO it's too much trouble to return references to local data,
-// so protocol outputs are owned instead
-type Output<T> = std::result::Result<T, Vec<Criminal>>;
-
 pub mod gg20;
 #[cfg(test)]
 mod tests;

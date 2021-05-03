@@ -1,10 +1,7 @@
 use super::keygen::SecretKeyShare;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    fillvec::FillVec,
-    protocol::{MsgBytes, Output},
-};
+use crate::{fillvec::FillVec, protocol::MsgBytes};
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     BigInt, FE, GE,
@@ -159,8 +156,7 @@ pub struct Sign {
     out_r6bcast_fail_randomizer_serialized: Option<MsgBytes>,
     out_r7bcast_fail_randomizer_serialized: Option<MsgBytes>,
 
-    final_output: Option<SignOutput>, // T is serialized asn1 sig
-    final_output2: Option<SignOutput2>,
+    final_output: Option<SignOutput>,
 }
 
 impl Sign {
@@ -214,7 +210,6 @@ impl Sign {
             out_r6bcast_fail_randomizer_serialized: None,
             out_r7bcast_fail_randomizer_serialized: None,
             final_output: None,
-            final_output2: None,
         })
     }
     pub fn clone_output(&self) -> Option<SignOutput> {
@@ -222,8 +217,7 @@ impl Sign {
     }
 }
 
-pub type SignOutput = Output<Vec<u8>>;
-type SignOutput2 = Result<Vec<u8>, Vec<Vec<crimes::Crime>>>;
+pub type SignOutput = Result<Vec<u8>, Vec<Vec<crimes::Crime>>>;
 
 /// validate_params helper with custom error type
 /// Assume `secret_key_share` is valid and check `participant_indices` against it.
