@@ -29,8 +29,10 @@ impl<T> FillVec<T> {
     }
     pub fn overwrite(&mut self, index: usize, value: T) {
         let stored = &mut self.vec[index];
+        if stored.is_none() {
+            self.some_count += 1;
+        }
         *stored = Some(value);
-        self.some_count += 1;
     }
     pub fn vec_ref(&self) -> &Vec<Option<T>> {
         &self.vec
