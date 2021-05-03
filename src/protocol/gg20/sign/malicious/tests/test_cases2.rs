@@ -276,3 +276,18 @@ pub(super) fn generate_small_threshold_2() -> Vec<TestCase> {
     ]
 }
 
+// Target a party that does not exist
+#[rustfmt::skip] // skip formatting to make file more readable
+pub(super) fn generate_out_of_index_2() -> Vec<TestCase> {
+    vec![
+        TestCase {
+            share_count: 5, threshold: 4, allow_self_delivery: false, expect_success: false,
+            sign_participants: vec![
+                SignParticipant { party_index: 0, behaviour: Honest, expected_crimes: vec![]},
+                SignParticipant { party_index: 1, behaviour: Honest, expected_crimes: vec![]},
+                SignParticipant { party_index: 2, behaviour: Honest, expected_crimes: vec![]},
+                SignParticipant { party_index: 5, behaviour: Honest, expected_crimes: vec![]}, // panic: index is equal to share_counts
+            ],
+        },
+    ]
+}

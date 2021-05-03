@@ -161,6 +161,7 @@ lazy_static::lazy_static! {
     static ref MULTIPLE_VICTIMS_2: Vec<test_cases2::TestCase> = test_cases2::generate_target_multiple_parties_2();
     static ref MULTIPLE_FAULTS_2: Vec<test_cases2::TestCase> = test_cases2::generate_multiple_faults_2();
     static ref PANIC_THRESHOLD_2: Vec<test_cases2::TestCase> = test_cases2::generate_small_threshold_2();
+    static ref PANIC_INDEX_2: Vec<test_cases2::TestCase> = test_cases2::generate_out_of_index_2();
 }
 
 #[test]
@@ -197,6 +198,12 @@ fn multiple_faults_2() {
 #[should_panic]
 fn panic_small_threshold_2() {
     execute_test_case_list_2(&PANIC_THRESHOLD_2);
+}
+
+#[test]
+#[should_panic]
+fn panic_out_of_index_2() {
+    execute_test_case_list_2(&PANIC_INDEX_2);
 }
 
 fn execute_test_case_list_2(test_cases: &[test_cases2::TestCase]) {
