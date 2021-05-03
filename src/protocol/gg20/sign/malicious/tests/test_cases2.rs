@@ -130,3 +130,67 @@ pub(super) fn generate_skipping_cases_2() -> Vec<TestCase> {
     }
     test_cases
 }
+
+pub(super) fn generate_multiple_faults_in_same_round_2() -> Vec<TestCase> {
+    // list all bad behaviours per round
+    // I wish all faults of the round X would have a common prefix R'X' so I could use
+    // let r1_faults = MaliciousType:iter().filter(|type| type.contains("R1"));
+    // instead of manually listing them
+    let victim = 0;
+    let all_rounds_faults = vec![
+        // round 1 faults
+        vec![R1BadProof { victim }, R2FalseAccusation { victim }],
+        // round 2 faults
+        vec![
+            R2BadMta { victim },
+            R2BadMtaWc { victim },
+            R3FalseAccusationMta { victim },
+            R3FalseAccusationMtaWc { victim },
+        ],
+        // round 3 faults
+        vec![R3BadProof],
+        // round 4 faults
+        vec![R4BadReveal],
+        // round 5 faults
+        vec![R5BadProof { victim }, R6FalseAccusation { victim }],
+        // round 6 faults
+        vec![R6BadProof],
+        // round 7 faults
+        vec![R7BadSigSummand],
+    ];
+
+
+    // create test cases for all rounds
+    let mut test_cases = Vec::new();
+    for round_faults in all_rounds_faults {
+        // start with the victim at pos 0
+        let mut participants = vec![
+            SignParticipant {
+                party_index: round_faults.len(), // give the good guy the last party index
+                behaviour: Honest, 
+                expected_crimes: vec![],
+            },
+        ];
+        for (i, fault) in round_faults.into_iter().enumerate() {
+            participants.push(
+                // I have to state `expected_crimes` before `behaviour` because
+                // the later consumes `fault` and I cannot borrow it after that
+                // wonder if rust compiler could accomodate that
+                SignParticipant {
+                    party_index: i,
+                    expected_crimes: map_type_to_crime(&fault),
+                    behaviour: fault, // behaviour data initialized by Default:default()
+                },
+            );
+        }
+        test_cases.push(TestCase {
+            share_count: 5,
+            threshold: participants.len() - 1, // threshold < #parties
+            allow_self_delivery: true,
+            expect_success: false,
+            sign_participants: participants,
+        });
+    }
+    test_cases
+}
+
