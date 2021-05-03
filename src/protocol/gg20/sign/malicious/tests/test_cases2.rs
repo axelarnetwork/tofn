@@ -159,18 +159,15 @@ pub(super) fn generate_multiple_faults_in_same_round_2() -> Vec<TestCase> {
         vec![R7BadSigSummand],
     ];
 
-
     // create test cases for all rounds
     let mut test_cases = Vec::new();
     for round_faults in all_rounds_faults {
         // start with the victim at pos 0
-        let mut participants = vec![
-            SignParticipant {
-                party_index: round_faults.len(), // give the good guy the last party index
-                behaviour: Honest, 
-                expected_crimes: vec![],
-            },
-        ];
+        let mut participants = vec![SignParticipant {
+            party_index: round_faults.len(), // give the good guy the last party index
+            behaviour: Honest,
+            expected_crimes: vec![],
+        }];
         for (i, fault) in round_faults.into_iter().enumerate() {
             participants.push(
                 // I have to state `expected_crimes` before `behaviour` because
@@ -193,7 +190,6 @@ pub(super) fn generate_multiple_faults_in_same_round_2() -> Vec<TestCase> {
     }
     test_cases
 }
-
 
 #[rustfmt::skip] // skip formatting to make file more readable
 pub(super) fn generate_target_multiple_parties_2() -> Vec<TestCase> {
@@ -260,20 +256,34 @@ pub(super) fn generate_multiple_faults_2() -> Vec<TestCase> {
 
 // Threshold is equal to the number of participants
 pub(super) fn generate_small_threshold_2() -> Vec<TestCase> {
-    vec![
-        TestCase {
-            share_count: 5, 
-            threshold: 4, 
-            allow_self_delivery: false, // panic: threashold is 4, signers are 4
-            expect_success: false,
-            sign_participants: vec![
-                SignParticipant { party_index: 0, behaviour: Honest, expected_crimes: vec![]},
-                SignParticipant { party_index: 1, behaviour: Honest, expected_crimes: vec![]},
-                SignParticipant { party_index: 2, behaviour: Honest, expected_crimes: vec![]},
-                SignParticipant { party_index: 3, behaviour: Honest, expected_crimes: vec![]},
-            ],
-        },
-    ]
+    vec![TestCase {
+        share_count: 5,
+        threshold: 4,
+        allow_self_delivery: false, // panic: threashold is 4, signers are 4
+        expect_success: false,
+        sign_participants: vec![
+            SignParticipant {
+                party_index: 0,
+                behaviour: Honest,
+                expected_crimes: vec![],
+            },
+            SignParticipant {
+                party_index: 1,
+                behaviour: Honest,
+                expected_crimes: vec![],
+            },
+            SignParticipant {
+                party_index: 2,
+                behaviour: Honest,
+                expected_crimes: vec![],
+            },
+            SignParticipant {
+                party_index: 3,
+                behaviour: Honest,
+                expected_crimes: vec![],
+            },
+        ],
+    }]
 }
 
 // Target a party that does not exist
