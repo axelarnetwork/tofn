@@ -1,7 +1,7 @@
 use strum::IntoEnumIterator;
 
 use super::*;
-use crate::protocol::gg20::sign::{crimes::Crime, SignOutput2};
+use crate::protocol::gg20::sign::{crimes::Crime, SignOutput};
 
 pub(super) struct SignParticipant {
     pub(super) party_index: usize,
@@ -18,7 +18,7 @@ pub(super) struct TestCase {
 }
 
 impl TestCase {
-    pub(super) fn assert_expected_output(&self, output: &SignOutput2) {
+    pub(super) fn assert_expected_output(&self, output: &SignOutput) {
         match output {
             Ok(_) => assert!(self.expect_success, "expect failure, got success"),
             Err(criminals) => {

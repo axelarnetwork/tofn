@@ -250,7 +250,7 @@ fn execute_test_case2(t: &test_cases2::TestCase) {
         .iter()
         .filter(|s| matches!(s.malicious_type, Honest))
     {
-        let output = signer.sign.final_output2.clone().unwrap_or_else(|| {
+        let output = signer.sign.final_output.clone().unwrap_or_else(|| {
             panic!(
                 "honest participant {} did not finish",
                 signer.sign.my_participant_index

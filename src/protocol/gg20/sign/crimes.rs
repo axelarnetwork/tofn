@@ -1,5 +1,3 @@
-use crate::protocol::{CrimeType, Criminal};
-
 // all crimes
 // names have the form <round><crime> where
 // <round> indicates round where the crime is detected, and
@@ -24,22 +22,4 @@ pub enum Crime {
     R8FailRandomizerMtaBlindSummandLhs { victim: usize },
     R8FailRandomizerFalseComplaint,
     R8BadSigSummand,
-}
-
-// helper function
-pub(super) fn to_criminals(criminals: &[Vec<Crime>]) -> Vec<Criminal> {
-    criminals
-        .iter()
-        .enumerate()
-        .filter_map(|(i, v)| {
-            if v.is_empty() {
-                None
-            } else {
-                Some(Criminal {
-                    index: i,
-                    crime_type: CrimeType::Malicious,
-                })
-            }
-        })
-        .collect()
 }

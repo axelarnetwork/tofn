@@ -1,4 +1,4 @@
-use super::{r2, r3, r4, r5, r6, r7, ParamsError, Sign, SignOutput2, Status};
+use super::{r2, r3, r4, r5, r6, r7, ParamsError, Sign, SignOutput, Status};
 use crate::protocol::{gg20::keygen::SecretKeyShare, MsgBytes, Protocol, ProtocolResult};
 use crate::zkp::{mta, pedersen, range};
 use curv::{elliptic::curves::traits::ECScalar, BigInt, FE};
@@ -53,8 +53,8 @@ impl BadSign {
         })
     }
 
-    pub fn clone_output(&self) -> Option<SignOutput2> {
-        self.sign.clone_output2()
+    pub fn clone_output(&self) -> Option<SignOutput> {
+        self.sign.clone_output()
     }
 }
 

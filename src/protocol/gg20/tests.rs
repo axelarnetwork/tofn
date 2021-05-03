@@ -93,9 +93,9 @@ pub mod sign {
             execute_protocol_vec(&mut protocols, allow_self_delivery);
 
             // TEST: everyone computed the same signature
-            let sig = participants[0].clone_output2().unwrap().unwrap();
+            let sig = participants[0].clone_output().unwrap().unwrap();
             for p in participants.iter() {
-                let cur_sig = p.clone_output2().unwrap().unwrap();
+                let cur_sig = p.clone_output().unwrap().unwrap();
                 assert_eq!(cur_sig, sig);
             }
         }
