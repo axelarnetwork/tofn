@@ -1,6 +1,6 @@
 use super::{crimes::Crime, r3, Sign, Status};
 use crate::{protocol::gg20::vss, zkp::mta};
-use tracing::{info, warn};
+use tracing::info;
 
 impl Sign {
     pub(super) fn r4_fail(&self) -> Vec<Vec<Crime>> {
@@ -14,20 +14,19 @@ impl Sign {
         for accuser in 0..self.participant_indices.len() {
             if let Some(fail_bcast) = self.in_r3bcasts_fail.vec_ref()[accuser].as_ref() {
                 for accused in fail_bcast.culprits.iter() {
-                    // Skip round if accuser is targeting himself; R2FalseAccusationMta is causing that
                     if accuser == accused.participant_index {
-                        warn!("Accuser is targeting self. Skipping ...");
+                        let crime = Crime::R4FailFalseAccusation { victim: accuser };
+                        info!(
+                            "participant {} detect {:?} by {} (self accusation)",
+                            self.my_participant_index, crime, accuser
+                        );
+                        criminals[accuser].push(crime);
                         continue;
                     }
                     let verifier_encrypted_ecdsa_nonce_summand = &self.in_r1bcasts.vec_ref()
                         [accuser]
                         .as_ref()
-                        .unwrap_or_else(|| {
-                            panic!(
-                                "r4fail party {} no r1bcast from {}",
-                                self.my_participant_index, accuser
-                            )
-                        })
+                        .unwrap()
                         .encrypted_ecdsa_nonce_summand
                         .c;
                     let verifier_ek =
@@ -37,12 +36,7 @@ impl Sign {
                     let prover_r2p2p = self.in_all_r2p2ps[accused.participant_index].vec_ref()
                         [accuser]
                         .as_ref()
-                        .unwrap_or_else(|| {
-                            panic!(
-                                "r4fail party {} no r2p2p from {} to {}",
-                                self.my_participant_index, accused.participant_index, accuser
-                            )
-                        });
+                        .unwrap();
 
                     let verification = match &accused.crime {
                         r3::Crime::Mta => {
@@ -79,21 +73,22 @@ impl Sign {
 
                     match verification {
                         Ok(_) => {
-                            info!(
-                                "participant {} detect false accusation mta by {} against {}",
-                                self.my_participant_index, accuser, accused.participant_index
-                            );
-                            criminals[accuser].push(Crime::R4FalseAccusation {
+                            let crime = Crime::R4FailFalseAccusation {
                                 victim: accused.participant_index,
-                            });
+                            };
+                            info!(
+                                "participant {} detect {:?} by {}",
+                                self.my_participant_index, crime, accuser
+                            );
+                            criminals[accuser].push(crime);
                         }
                         Err(e) => {
+                            let crime = Crime::R4FailBadRangeProof { victim: accuser };
                             info!(
-                                "participant {} detect bad range mta proof from {} to {} because [{}]",
-                                self.my_participant_index, accused.participant_index, accuser, e
+                                "participant {} detect {:?} by {} because [{}]",
+                                self.my_participant_index, crime, accused.participant_index, e
                             );
-                            criminals[accused.participant_index]
-                                .push(Crime::R4BadRangeProof { victim: accuser });
+                            criminals[accused.participant_index].push(crime);
                         }
                     };
                 }

@@ -2,7 +2,7 @@ use super::*;
 
 pub fn execute_protocol_vec(parties: &mut [&mut dyn Protocol], allow_self_delivery: bool) {
     #[allow(clippy::needless_range_loop)] // see explanation below
-    while !all_done(parties) {
+    while nobody_done(parties) {
         // #[allow(clippy::needless_range_loop)]
         // need to iterate over indices 0..n instead of parties.iter()
         // to satisfy the borrow checker
@@ -39,19 +39,25 @@ pub fn execute_protocol_vec(parties: &mut [&mut dyn Protocol], allow_self_delive
     }
 }
 
-fn all_done(parties: &[&mut dyn Protocol]) -> bool {
-    // panic if there's disagreement
-    let done = parties[0].done();
-    let parties = parties.iter().skip(1);
-    for (i, p) in parties.enumerate() {
-        if p.done() != done {
-            panic!(
-                "party 0 done? [{}], but party {} done? [{}]",
-                done,
-                i,
-                p.done()
-            );
+use tracing::warn;
+fn nobody_done(parties: &[&mut dyn Protocol]) -> bool {
+    // warn if there's disagreement
+    let (mut done, mut not_done) = (
+        Vec::with_capacity(parties.len()),
+        Vec::with_capacity(parties.len()),
+    );
+    for (i, p) in parties.iter().enumerate() {
+        if p.done() {
+            done.push(i);
+        } else {
+            not_done.push(i);
         }
     }
-    done
+    if !done.is_empty() && !not_done.is_empty() {
+        warn!(
+            "disagreement: done parties {:?}, not done parties {:?}",
+            done, not_done
+        );
+    }
+    done.is_empty()
 }

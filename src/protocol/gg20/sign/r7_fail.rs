@@ -1,6 +1,6 @@
 use super::{crimes::Crime, Sign, Status};
 use crate::zkp::range;
-use tracing::{info, warn};
+use tracing::info;
 
 impl Sign {
     pub(super) fn r7_fail(&self) -> Vec<Vec<Crime>> {
@@ -14,9 +14,13 @@ impl Sign {
         for accuser in 0..self.participant_indices.len() {
             if let Some(fail_bcast) = self.in_r6bcasts_fail.vec_ref()[accuser].as_ref() {
                 for accused in fail_bcast.culprits.iter() {
-                    // Skip round if accuser is targeting himself; R5FalseAccusation is causing that
                     if accuser == accused.participant_index {
-                        warn!("Accuser is targeting self. Skipping ...");
+                        let crime = Crime::R7FailFalseAccusation { victim: accuser };
+                        info!(
+                            "participant {} detect {:?} by {} (self accusation)",
+                            self.my_participant_index, crime, accuser
+                        );
+                        criminals[accuser].push(crime);
                         continue;
                     }
                     let prover_ek = &self.my_secret_key_share.all_eks
@@ -24,37 +28,15 @@ impl Sign {
                     let prover_encrypted_ecdsa_nonce_summand = &self.in_r1bcasts.vec_ref()
                         [accused.participant_index]
                         .as_ref()
-                        .unwrap_or_else(|| {
-                            panic!(
-                                // TODO these checks should be unnecessary after refactoring
-                                "r7fail party {} missing r1bcast from {}",
-                                self.my_participant_index, accused.participant_index
-                            )
-                        })
+                        .unwrap()
                         .encrypted_ecdsa_nonce_summand
                         .c;
                     let prover_ecdsa_randomizer_x_nonce_summand = &self.in_r5bcasts.vec_ref()
                         [accused.participant_index]
                         .as_ref()
-                        .unwrap_or_else(|| {
-                            panic!(
-                                // TODO these checks should be unnecessary after refactoring
-                                "r7fail party {} missing r5bcast from {}",
-                                self.my_participant_index, accused.participant_index
-                            )
-                        })
+                        .unwrap()
                         .ecdsa_randomizer_x_nonce_summand;
-                    let ecdsa_randomizer = &self
-                        .r5state
-                        .as_ref()
-                        .unwrap_or_else(|| {
-                            // TODO these checks should be unnecessary after refactoring
-                            panic!(
-                                "r7fail party {} hey where did my r5state go!?",
-                                self.my_participant_index
-                            )
-                        })
-                        .ecdsa_randomizer;
+                    let ecdsa_randomizer = &self.r5state.as_ref().unwrap().ecdsa_randomizer;
                     let verifier_zkp =
                         &self.my_secret_key_share.all_zkps[self.participant_indices[accuser]];
 
@@ -68,33 +50,28 @@ impl Sign {
                     };
                     let proof = &self.in_all_r5p2ps[accused.participant_index].vec_ref()[accuser]
                         .as_ref()
-                        .unwrap_or_else(|| {
-                            panic!(
-                                // TODO these checks should be unnecessary after refactoring
-                                "r7fail party {} missing r5p2p from {} to {}",
-                                self.my_participant_index, accused.participant_index, accuser
-                            )
-                        })
+                        .unwrap()
                         .ecdsa_randomizer_x_nonce_summand_proof;
 
                     let verification = verifier_zkp.verify_range_proof_wc(stmt, proof);
                     match verification {
                         Ok(_) => {
-                            info!(
-                                "participant {} detect false accusation by {} against {}",
-                                self.my_participant_index, accuser, accused.participant_index
-                            );
-                            criminals[accuser].push(Crime::R7FalseAccusation {
+                            let crime = Crime::R7FailFalseAccusation {
                                 victim: accused.participant_index,
-                            });
+                            };
+                            info!(
+                                "participant {} detect {:?} by {}",
+                                self.my_participant_index, crime, accuser
+                            );
+                            criminals[accuser].push(crime);
                         }
                         Err(e) => {
+                            let crime = Crime::R7FailBadRangeProof { victim: accuser };
                             info!(
-                                "participant {} detect bad range proof from {} to {} because [{}]",
-                                self.my_participant_index, accused.participant_index, accuser, e
+                                "participant {} detect {:?} by {} because [{}]",
+                                self.my_participant_index, crime, accused.participant_index, e
                             );
-                            criminals[accused.participant_index]
-                                .push(Crime::R7BadRangeProof { victim: accuser });
+                            criminals[accused.participant_index].push(crime);
                         }
                     };
                 }

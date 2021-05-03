@@ -48,16 +48,16 @@ pub(super) fn generate_skipping_cases() -> Vec<TestCase> {
     let victim = 2; // all victims are at index 2
     let self_targeting_types = vec![
         R1BadProof { victim },
-        R2FalseAccusation { victim },
+        // R2FalseAccusation { victim }, // this produces criminals
         R2BadMta { victim },
         R2BadMtaWc { victim },
-        R3FalseAccusationMta { victim },
-        R3FalseAccusationMtaWc { victim },
+        // R3FalseAccusationMta { victim }, // this produces criminals
+        // R3FalseAccusationMtaWc { victim }, // this produces criminals
         R3BadMtaBlindSummandLhs { victim },
         // R3FalseAccusation { victim }, // this produces criminals
         // R4FalseAccusation { victim }, // this produces criminals
         R5BadProof { victim },
-        R6FalseAccusation { victim },
+        // R6FalseAccusation { victim }, // this produces criminals
         // R6FalseAccusation { victim }, // this produces criminals
     ];
 
@@ -119,7 +119,7 @@ pub(super) fn generate_multiple_faults_in_same_round() -> Vec<TestCase> {
             sign_participants: vec![
                 SignParticipant { party_index: 0, behaviour: Honest, },
                 SignParticipant { party_index: 1, behaviour: R3BadProof, },
-                SignParticipant { party_index: 2, behaviour: R4FalseAccusation{victim: 0}, },
+                SignParticipant { party_index: 2, behaviour: R3BadProof, },
             ],
             sign_expected_criminals: vec![
                 Criminal { index: 1, crime_type: CrimeType::Malicious, },
@@ -132,7 +132,7 @@ pub(super) fn generate_multiple_faults_in_same_round() -> Vec<TestCase> {
             sign_participants: vec![
                 SignParticipant { party_index: 0, behaviour: Honest, },
                 SignParticipant { party_index: 1, behaviour: R4BadReveal, },
-                SignParticipant { party_index: 2, behaviour: R5FalseAccusation{victim: 0}, },
+                SignParticipant { party_index: 2, behaviour: R4BadReveal, },
             ],
             sign_expected_criminals: vec![
                 Criminal { index: 1, crime_type: CrimeType::Malicious, },
@@ -158,7 +158,7 @@ pub(super) fn generate_multiple_faults_in_same_round() -> Vec<TestCase> {
             sign_participants: vec![
                 SignParticipant { party_index: 0, behaviour: Honest, },
                 SignParticipant { party_index: 1, behaviour: R6BadProof, },
-                SignParticipant { party_index: 2, behaviour: R7FalseAccusation{victim: 0}, },
+                SignParticipant { party_index: 2, behaviour: R6BadProof, },
             ],
             sign_expected_criminals: vec![
                 Criminal { index: 1, crime_type: CrimeType::Malicious, },

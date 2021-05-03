@@ -53,6 +53,7 @@ pub mod malicious;
 mod crimes;
 mod protocol;
 
+#[derive(Debug)]
 enum Status {
     New,
     R1,
@@ -61,14 +62,11 @@ enum Status {
     R3,
     R3Fail,
     R4,
-    R4Fail,
     R5,
-    R5Fail,
     R6,
     R6Fail,
     R6FailRandomizer,
     R7,
-    R7Fail,
     R7FailRandomizer,
     Done,
     Fail,
@@ -81,14 +79,11 @@ mod r3_fail;
 mod r4;
 mod r4_fail;
 mod r5;
-mod r5_fail;
 mod r6;
-mod r6_fail;
 mod r7;
 mod r7_fail;
 mod r7_fail_randomizer;
 mod r8;
-mod r8_fail;
 mod r8_fail_randomizer;
 
 pub struct Sign {
@@ -131,11 +126,8 @@ pub struct Sign {
 
     in_r2bcasts_fail: FillVec<r2::FailBcast>,
     in_r3bcasts_fail: FillVec<r3::FailBcast>,
-    in_r4bcasts_fail: FillVec<r4::FailBcast>,
-    in_r5bcasts_fail: FillVec<r5::FailBcast>,
     in_r6bcasts_fail: FillVec<r6::BcastCulprits>,
     in_r6bcasts_fail_randomizer: FillVec<()>,
-    in_r7bcasts_fail: FillVec<r7::FailBcast>,
     in_r7bcasts_fail_randomizer: FillVec<r7_fail_randomizer::Bcast>,
 
     // TODO currently I do not store my own deserialized output messages
@@ -163,11 +155,8 @@ pub struct Sign {
     out_r7bcast: Option<MsgBytes>,
     out_r2bcast_fail_serialized: Option<MsgBytes>, // TODO _serialized suffix to distinguish from EXPERIMENT described above
     out_r3bcast_fail_serialized: Option<MsgBytes>,
-    out_r4bcast_fail_serialized: Option<MsgBytes>,
-    out_r5bcast_fail_serialized: Option<MsgBytes>,
     out_r6bcast_fail_serialized: Option<MsgBytes>,
     out_r6bcast_fail_randomizer_serialized: Option<MsgBytes>,
-    out_r7bcast_fail_serialized: Option<MsgBytes>,
     out_r7bcast_fail_randomizer_serialized: Option<MsgBytes>,
 
     final_output: Option<SignOutput>, // T is serialized asn1 sig
@@ -207,11 +196,8 @@ impl Sign {
             in_r7bcasts: FillVec::with_len(participant_count),
             in_r2bcasts_fail: FillVec::with_len(participant_count),
             in_r3bcasts_fail: FillVec::with_len(participant_count),
-            in_r4bcasts_fail: FillVec::with_len(participant_count),
-            in_r5bcasts_fail: FillVec::with_len(participant_count),
             in_r6bcasts_fail: FillVec::with_len(participant_count),
             in_r6bcasts_fail_randomizer: FillVec::with_len(participant_count),
-            in_r7bcasts_fail: FillVec::with_len(participant_count),
             in_r7bcasts_fail_randomizer: FillVec::with_len(participant_count),
             out_r1bcast: None,
             out_r1p2ps: None,
@@ -224,11 +210,8 @@ impl Sign {
             out_r7bcast: None,
             out_r2bcast_fail_serialized: None,
             out_r3bcast_fail_serialized: None,
-            out_r4bcast_fail_serialized: None,
-            out_r5bcast_fail_serialized: None,
             out_r6bcast_fail_serialized: None,
             out_r6bcast_fail_randomizer_serialized: None,
-            out_r7bcast_fail_serialized: None,
             out_r7bcast_fail_randomizer_serialized: None,
             final_output: None,
             final_output2: None,

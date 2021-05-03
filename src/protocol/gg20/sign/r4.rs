@@ -1,4 +1,4 @@
-use super::{Sign, Status};
+use super::{crimes::Crime, Sign, Status};
 use crate::zkp::pedersen;
 use curv::{elliptic::curves::traits::ECScalar, BigInt, FE, GE};
 use serde::{Deserialize, Serialize};
@@ -17,24 +17,9 @@ pub struct State {
     pub(super) nonce_x_blind_inv: FE,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Culprit {
-    pub participant_index: usize,
-    pub crime: Crime,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum Crime {
-    PedersenProof,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FailBcast {
-    pub culprits: Vec<Culprit>,
-}
-pub enum Output {
+pub(super) enum Output {
     Success { state: State, out_bcast: Bcast },
-    Fail { out_bcast: FailBcast },
+    Fail { criminals: Vec<Vec<Crime>> },
 }
 
 impl Sign {
@@ -45,7 +30,7 @@ impl Sign {
 
         // verify proofs and compute nonce_x_blind (delta_i)
         let mut nonce_x_blind = r3state.my_nonce_x_blind_summand;
-        let mut culprits = Vec::new();
+        let mut criminals = vec![Vec::new(); self.participant_indices.len()];
 
         for (i, in_r3bcast) in self.in_r3bcasts.vec_ref().iter().enumerate() {
             if i == self.my_participant_index {
@@ -54,23 +39,24 @@ impl Sign {
             let in_r3bcast = in_r3bcast.as_ref().unwrap();
 
             pedersen::verify(
-                &pedersen::Statement{ commit: &in_r3bcast.nonce_x_keyshare_summand_commit },
-                &in_r3bcast.nonce_x_keyshare_summand_proof
-            ).unwrap_or_else(|e| {
+                &pedersen::Statement {
+                    commit: &in_r3bcast.nonce_x_keyshare_summand_commit,
+                },
+                &in_r3bcast.nonce_x_keyshare_summand_proof,
+            )
+            .unwrap_or_else(|e| {
+                let crime = Crime::R4BadPedersenProof;
                 warn!(
-                    "party {} says: nonce * keyshare proof failed to verify for party {} because [{}]",
-                    self.my_secret_key_share.my_index, self.participant_indices[i], e
+                    "participant {} detect {:?} by {} because [{}]",
+                    self.my_participant_index, crime, i, e
                 );
-                culprits.push(Culprit {
-                    participant_index: i,
-                    crime: Crime::PedersenProof,
-                });
+                criminals[i].push(crime);
             });
 
             nonce_x_blind = nonce_x_blind + in_r3bcast.nonce_x_blind_summand;
         }
 
-        if culprits.is_empty() {
+        if criminals.iter().map(|v| v.len()).sum::<usize>() == 0 {
             Output::Success {
                 state: State {
                     nonce_x_blind_inv: nonce_x_blind.invert(),
@@ -82,9 +68,7 @@ impl Sign {
                 },
             }
         } else {
-            Output::Fail {
-                out_bcast: FailBcast { culprits },
-            }
+            Output::Fail { criminals }
         }
     }
 }

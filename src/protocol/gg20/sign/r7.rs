@@ -1,6 +1,6 @@
 use crate::zkp::pedersen;
 
-use super::{Sign, Status};
+use super::{crimes::Crime, Sign, Status};
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     FE,
@@ -20,24 +20,9 @@ pub struct State {
     pub(super) my_ecdsa_sig_summand: FE,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Culprit {
-    pub participant_index: usize,
-    pub crime: Crime,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum Crime {
-    PedersenProofWc,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FailBcast {
-    pub culprits: Vec<Culprit>,
-}
-pub enum Output {
+pub(super) enum Output {
     Success { state: State, out_bcast: Bcast },
-    Fail { out_bcast: FailBcast },
+    Fail { criminals: Vec<Vec<Crime>> },
 }
 
 impl Sign {
@@ -50,7 +35,7 @@ impl Sign {
         // * sum of ecdsa_public_key_check (S_i) = ecdsa_public_key as per phase 6 of 2020/540
         // * verify zk proofs
         let mut ecdsa_public_key = r6state.my_ecdsa_public_key_check;
-        let mut culprits = Vec::new();
+        let mut criminals = vec![Vec::new(); self.participant_indices.len()];
 
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
             if *participant_index == self.my_secret_key_share.my_index {
@@ -70,23 +55,19 @@ impl Sign {
                 &in_r6bcast.ecdsa_public_key_check_proof_wc,
             )
             .unwrap_or_else(|e| {
+                let crime = Crime::R7BadRangeProof;
                 warn!(
-                    "party {} says: pedersen proof wc failed to verify for party {} because [{}]",
-                    self.my_secret_key_share.my_index, participant_index, e
+                    "participant {} detect {:?} by {} because [{}]",
+                    self.my_participant_index, crime, i, e
                 );
-                culprits.push(Culprit {
-                    participant_index: i,
-                    crime: Crime::PedersenProofWc,
-                });
+                criminals[i].push(crime);
             });
 
             ecdsa_public_key = ecdsa_public_key + in_r6bcast.ecdsa_public_key_check;
         }
 
-        if !culprits.is_empty() {
-            return Output::Fail {
-                out_bcast: FailBcast { culprits },
-            };
+        if criminals.iter().map(|v| v.len()).sum::<usize>() > 0 {
+            return Output::Fail { criminals };
         }
 
         assert_eq!(ecdsa_public_key, self.my_secret_key_share.ecdsa_public_key); // TODO panic
