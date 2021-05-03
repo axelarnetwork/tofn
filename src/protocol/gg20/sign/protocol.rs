@@ -371,6 +371,14 @@ impl Protocol for Sign {
                 if !self.in_r5bcasts.is_full_except(me) {
                     return true;
                 }
+                for (i, in_r5p2ps) in self.in_all_r5p2ps.iter().enumerate() {
+                    if i == me {
+                        continue;
+                    }
+                    if !in_r5p2ps.is_full_except(i) {
+                        return true;
+                    }
+                }
                 false
             }
             R6 | R6Fail | R6FailRandomizer => {
