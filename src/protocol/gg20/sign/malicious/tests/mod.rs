@@ -157,6 +157,11 @@ mod test_cases2;
 lazy_static::lazy_static! {
     static ref BASIC_CASES_2: Vec<test_cases2::TestCase> = test_cases2::generate_basic_cases();
     static ref SKIPPING_CASES_2: Vec<test_cases2::TestCase> = test_cases2::generate_skipping_cases_2();
+    static ref SAME_ROUND_CASES_2: Vec<test_cases2::TestCase> = test_cases2::generate_multiple_faults_in_same_round_2();
+    static ref MULTIPLE_VICTIMS_2: Vec<test_cases2::TestCase> = test_cases2::generate_target_multiple_parties_2();
+    static ref MULTIPLE_FAULTS_2: Vec<test_cases2::TestCase> = test_cases2::generate_multiple_faults_2();
+    static ref PANIC_THRESHOLD_2: Vec<test_cases2::TestCase> = test_cases2::generate_small_threshold_2();
+    static ref PANIC_INDEX_2: Vec<test_cases2::TestCase> = test_cases2::generate_out_of_index_2();
 }
 
 #[test]
@@ -169,6 +174,36 @@ fn basic_tests_2() {
 #[traced_test]
 fn skipping_cases_2() {
     execute_test_case_list_2(&SKIPPING_CASES_2);
+}
+
+#[test]
+#[traced_test]
+fn same_round_cases_2() {
+    execute_test_case_list_2(&SAME_ROUND_CASES_2);
+}
+
+#[test]
+#[traced_test]
+fn multiple_targets_cases_2() {
+    execute_test_case_list_2(&MULTIPLE_VICTIMS_2);
+}
+
+#[test]
+#[traced_test]
+fn multiple_faults_2() {
+    execute_test_case_list_2(&MULTIPLE_FAULTS_2);
+}
+
+#[test]
+#[should_panic]
+fn panic_small_threshold_2() {
+    execute_test_case_list_2(&PANIC_THRESHOLD_2);
+}
+
+#[test]
+#[should_panic]
+fn panic_out_of_index_2() {
+    execute_test_case_list_2(&PANIC_INDEX_2);
 }
 
 fn execute_test_case_list_2(test_cases: &[test_cases2::TestCase]) {
