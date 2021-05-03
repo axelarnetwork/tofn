@@ -6,7 +6,7 @@ use crate::protocol::{CrimeType, Criminal};
 // <crime> is a description
 // example: R3FailBadProof -> crime detected in r3_fail()
 #[derive(Debug, Clone, PartialEq)]
-pub(super) enum Crime {
+pub enum Crime {
     R3FailBadRangeProof { victim: usize },
     R3FailFalseAccusation { victim: usize },
     R4BadPedersenProof,

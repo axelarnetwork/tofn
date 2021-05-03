@@ -113,7 +113,7 @@ impl Protocol for Sign {
             }
             R7 => match self.r8() {
                 r8::Output::Success { sig } => {
-                    self.final_output = Some(Output::Ok(sig.as_bytes().to_vec()));
+                    // self.final_output = Some(Output::Ok(sig.as_bytes().to_vec()));
                     self.final_output2 = Some(Ok(sig.as_bytes().to_vec()));
                     self.status = Done;
                 }
@@ -707,7 +707,7 @@ impl Sign {
     }
 
     pub(super) fn update_state_fail(&mut self, criminals: Vec<Vec<Crime>>) {
-        self.final_output = Some(Output::Err(to_criminals(&criminals)));
+        // self.final_output = Some(Output::Err(to_criminals(&criminals)));
         self.final_output2 = Some(Err(criminals));
         self.status = Fail;
     }
