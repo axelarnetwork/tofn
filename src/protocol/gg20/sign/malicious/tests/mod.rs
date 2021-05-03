@@ -159,6 +159,7 @@ lazy_static::lazy_static! {
     static ref SKIPPING_CASES_2: Vec<test_cases2::TestCase> = test_cases2::generate_skipping_cases_2();
     static ref SAME_ROUND_CASES_2: Vec<test_cases2::TestCase> = test_cases2::generate_multiple_faults_in_same_round_2();
     static ref MULTIPLE_VICTIMS_2: Vec<test_cases2::TestCase> = test_cases2::generate_target_multiple_parties_2();
+    static ref MULTIPLE_FAULTS_2: Vec<test_cases2::TestCase> = test_cases2::generate_multiple_faults_2();
 }
 
 #[test]
@@ -183,6 +184,12 @@ fn same_round_cases_2() {
 #[traced_test]
 fn multiple_targets_cases_2() {
     execute_test_case_list_2(&MULTIPLE_VICTIMS_2);
+}
+
+#[test]
+#[traced_test]
+fn multiple_faults_2() {
+    execute_test_case_list_2(&MULTIPLE_FAULTS_2);
 }
 
 fn execute_test_case_list_2(test_cases: &[test_cases2::TestCase]) {

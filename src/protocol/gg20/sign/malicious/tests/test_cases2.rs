@@ -215,3 +215,46 @@ pub(super) fn generate_target_multiple_parties_2() -> Vec<TestCase> {
         },
     ]
 }
+
+#[rustfmt::skip] // skip formatting to make file more readable
+pub(super) fn generate_multiple_faults_2() -> Vec<TestCase> {
+    vec![
+        TestCase {
+            share_count: 5, threshold: 4, allow_self_delivery: false, expect_success: false,
+            sign_participants: vec![
+                SignParticipant { party_index: 0, behaviour: Honest, expected_crimes: vec![]},
+                SignParticipant { party_index: 1, behaviour: R1BadProof { victim: 2 }, expected_crimes: map_type_to_crime(&R1BadProof{victim:2})},
+                SignParticipant { party_index: 2, behaviour: Honest, expected_crimes: vec![]},
+                SignParticipant { party_index: 3, behaviour: R3BadProof, expected_crimes: vec![]},
+                SignParticipant { party_index: 4, behaviour: Honest, expected_crimes: vec![]},
+            ],
+        },
+        TestCase {
+            share_count: 10, threshold: 4, allow_self_delivery: false, expect_success: false,
+            sign_participants: vec![
+                SignParticipant { party_index: 0, behaviour: R1BadProof { victim: 3 }, expected_crimes: map_type_to_crime(&R1BadProof{victim: 3})},
+                SignParticipant { party_index: 1, behaviour: R2BadMta{victim: 3}, expected_crimes: vec![]},
+                SignParticipant { party_index: 2, behaviour: R3BadProof, expected_crimes: vec![]},
+                SignParticipant { party_index: 3, behaviour: Honest, expected_crimes: vec![]},
+                SignParticipant { party_index: 4, behaviour: R4BadReveal, expected_crimes: vec![]},
+                SignParticipant { party_index: 5, behaviour: R5BadProof{victim: 3}, expected_crimes: vec![]},
+                SignParticipant { party_index: 6, behaviour: R6BadProof, expected_crimes: vec![]},
+                SignParticipant { party_index: 7, behaviour: R7BadSigSummand, expected_crimes: vec![]},
+            ],
+        },
+        TestCase {
+            share_count: 10, threshold: 4, allow_self_delivery: false, expect_success: false,
+            sign_participants: vec![
+                SignParticipant { party_index: 0, behaviour: Honest, expected_crimes: vec![]},
+                SignParticipant { party_index: 1, behaviour: R1BadProof { victim: 0 }, expected_crimes: map_type_to_crime(&R1BadProof{victim: 0})},
+                SignParticipant { party_index: 2, behaviour: R2BadMta{victim: 1}, expected_crimes: vec![]},
+                SignParticipant { party_index: 3, behaviour: R3BadProof, expected_crimes: vec![]},
+                SignParticipant { party_index: 4, behaviour: R4BadReveal, expected_crimes: vec![]},
+                SignParticipant { party_index: 5, behaviour: R5BadProof{victim: 3}, expected_crimes: vec![]},
+                SignParticipant { party_index: 6, behaviour: R6BadProof, expected_crimes: vec![]},
+                SignParticipant { party_index: 7, behaviour: R7BadSigSummand, expected_crimes: vec![]},
+            ],
+        },
+    ]
+}
+
