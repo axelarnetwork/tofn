@@ -258,3 +258,21 @@ pub(super) fn generate_multiple_faults_2() -> Vec<TestCase> {
     ]
 }
 
+// Threshold is equal to the number of participants
+pub(super) fn generate_small_threshold_2() -> Vec<TestCase> {
+    vec![
+        TestCase {
+            share_count: 5, 
+            threshold: 4, 
+            allow_self_delivery: false, // panic: threashold is 4, signers are 4
+            expect_success: false,
+            sign_participants: vec![
+                SignParticipant { party_index: 0, behaviour: Honest, expected_crimes: vec![]},
+                SignParticipant { party_index: 1, behaviour: Honest, expected_crimes: vec![]},
+                SignParticipant { party_index: 2, behaviour: Honest, expected_crimes: vec![]},
+                SignParticipant { party_index: 3, behaviour: Honest, expected_crimes: vec![]},
+            ],
+        },
+    ]
+}
+
