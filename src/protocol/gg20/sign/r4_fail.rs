@@ -15,7 +15,7 @@ impl Sign {
             if let Some(fail_bcast) = self.in_r3bcasts_fail.vec_ref()[accuser].as_ref() {
                 for accused in fail_bcast.culprits.iter() {
                     if accuser == accused.participant_index {
-                        let crime = Crime::R4FalseAccusation { victim: accuser };
+                        let crime = Crime::R4FailFalseAccusation { victim: accuser };
                         info!(
                             "participant {} detect {:?} by {} (self accusation)",
                             self.my_participant_index, crime, accuser
@@ -73,7 +73,7 @@ impl Sign {
 
                     match verification {
                         Ok(_) => {
-                            let crime = Crime::R4FalseAccusation {
+                            let crime = Crime::R4FailFalseAccusation {
                                 victim: accused.participant_index,
                             };
                             info!(

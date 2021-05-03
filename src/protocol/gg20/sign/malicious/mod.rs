@@ -5,6 +5,11 @@ use curv::{elliptic::curves::traits::ECScalar, BigInt, FE};
 use strum_macros::EnumIter;
 use tracing::{error, info, warn};
 
+// all malicious behaviours
+// names have the form <round><fault> where
+// <round> indicates round where the first malicious tampering occurs, and
+// <fault> is a description
+// example: R1BadProof -> fault injected to the output of r1()
 #[derive(Clone, Debug, EnumIter)]
 pub enum MaliciousType {
     // TODO R1BadCommit,
@@ -444,7 +449,7 @@ impl Protocol for BadSign {
                     }
                     status => {
                         error!(
-                            "malicious participant {} do {:?} but nothing to do in status {:?}",
+                            "you should never see this: malicious participant {} do {:?} but nothing to do in status {:?}",
                             self.sign.my_participant_index, self.malicious_type, status
                         );
                         self.sign.next_round()

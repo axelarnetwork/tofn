@@ -13,7 +13,7 @@ impl Sign {
             if let Some(fail_bcast) = self.in_r2bcasts_fail.vec_ref()[accuser].as_ref() {
                 for accused in fail_bcast.culprits.iter() {
                     if accuser == accused.participant_index {
-                        let crime = Crime::R3FalseAccusation { victim: accuser };
+                        let crime = Crime::R3FailFalseAccusation { victim: accuser };
                         info!(
                             "participant {} detect {:?} by {} (self accusation)",
                             self.my_participant_index, crime, accuser
@@ -46,7 +46,7 @@ impl Sign {
 
                     match verification {
                         Ok(_) => {
-                            let crime = Crime::R3FalseAccusation {
+                            let crime = Crime::R3FailFalseAccusation {
                                 victim: accused.participant_index,
                             };
                             info!(
@@ -56,7 +56,7 @@ impl Sign {
                             criminals[accuser].push(crime);
                         }
                         Err(e) => {
-                            let crime = Crime::R3BadRangeProof { victim: accuser };
+                            let crime = Crime::R3FailBadRangeProof { victim: accuser };
                             info!(
                                 "participant {} detect {:?} by {} because [{}]",
                                 self.my_participant_index, accused.participant_index, accuser, e

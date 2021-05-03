@@ -41,24 +41,28 @@ impl TestCase {
 pub(super) fn map_type_to_crime(t: &MaliciousType) -> Vec<Crime> {
     match t {
         Honest => vec![],
-        R1BadProof { victim: v } => vec![Crime::R3BadRangeProof { victim: *v }],
-        R2FalseAccusation { victim: v } => vec![Crime::R3FalseAccusation { victim: *v }],
+        R1BadProof { victim: v } => vec![Crime::R3FailBadRangeProof { victim: *v }],
+        R2FalseAccusation { victim: v } => vec![Crime::R3FailFalseAccusation { victim: *v }],
         R2BadMta { victim: v } => vec![Crime::R4FailBadRangeProof { victim: *v }],
         R2BadMtaWc { victim: v } => vec![Crime::R4FailBadRangeProof { victim: *v }],
-        R3FalseAccusationMta { victim: v } => vec![Crime::R4FalseAccusation { victim: *v }],
-        R3FalseAccusationMtaWc { victim: v } => vec![Crime::R4FalseAccusation { victim: *v }],
+        R3FalseAccusationMta { victim: v } => vec![Crime::R4FailFalseAccusation { victim: *v }],
+        R3FalseAccusationMtaWc { victim: v } => vec![Crime::R4FailFalseAccusation { victim: *v }],
         R3BadProof => vec![Crime::R4BadPedersenProof],
         R4BadReveal => vec![Crime::R5BadHashCommit],
-        R5BadProof { victim: v } => vec![Crime::R7BadRangeProof { victim: *v }],
-        R6FalseAccusation { victim: v } => vec![Crime::R7FalseAccusation { victim: *v }],
-        R6BadProof => vec![Crime::R8BadRangeProof],
+        R5BadProof { victim: v } => vec![Crime::R7FailBadRangeProof { victim: *v }],
+        R6FalseAccusation { victim: v } => vec![Crime::R7FailFalseAccusation { victim: *v }],
+        R6BadProof => vec![Crime::R7BadRangeProof],
         R7BadSigSummand => vec![Crime::R8BadSigSummand],
-        R3BadNonceXBlindSummand => vec![Crime::R8BadNonceXBlindSummand],
-        R3BadEcdsaNonceSummand => vec![Crime::R8BadNonceSummand],
-        R1BadSecretBlindSummand => vec![Crime::R8BadBlindSummand],
-        R3BadMtaBlindSummandRhs { victim: v } => vec![Crime::R8MtaBlindSummandRhs { victim: *v }],
-        R3BadMtaBlindSummandLhs { victim: v } => vec![Crime::R8MtaBlindSummandLhs { victim: *v }],
-        R6FalseFailRandomizer => vec![Crime::R8FalseComplaint],
+        R3BadNonceXBlindSummand => vec![Crime::R8FailRandomizerBadNonceXBlindSummand],
+        R3BadEcdsaNonceSummand => vec![Crime::R8FailRandomizerBadNonceSummand],
+        R1BadSecretBlindSummand => vec![Crime::R8FailRandomizerBadBlindSummand],
+        R3BadMtaBlindSummandRhs { victim: v } => {
+            vec![Crime::R8FailRandomizerMtaBlindSummandRhs { victim: *v }]
+        }
+        R3BadMtaBlindSummandLhs { victim: v } => {
+            vec![Crime::R8FailRandomizerMtaBlindSummandLhs { victim: *v }]
+        }
+        R6FalseFailRandomizer => vec![Crime::R8FailRandomizerFalseComplaint],
     }
 }
 

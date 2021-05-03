@@ -55,7 +55,7 @@ impl Sign {
                 &in_r6bcast.ecdsa_public_key_check_proof_wc,
             )
             .unwrap_or_else(|e| {
-                let crime = Crime::R8BadRangeProof;
+                let crime = Crime::R7BadRangeProof;
                 warn!(
                     "participant {} detect {:?} by {} because [{}]",
                     self.my_participant_index, crime, i, e

@@ -26,7 +26,7 @@ impl Sign {
                 // we took an extra round to ensure all other parties know to switch to blame mode
                 // thus, any party that did not send abort data must be a criminal
                 // TODO is that party a criminal even in case of timeout?
-                let crime = Crime::R8MissingData;
+                let crime = Crime::R8FailRandomizerMissingData;
                 warn!(
                     "participant {} detect {:?} by {}",
                     self.my_participant_index, crime, i
@@ -67,7 +67,7 @@ impl Sign {
                 )
             });
             if nonce_x_blind_summand != in_r3bcast.nonce_x_blind_summand {
-                let crime = Crime::R8BadNonceXBlindSummand;
+                let crime = Crime::R8FailRandomizerBadNonceXBlindSummand;
                 info!(
                     "participant {} detect {:?} by {}",
                     self.my_participant_index, crime, i
@@ -99,7 +99,7 @@ impl Sign {
             });
             if *encrypted_ecdsa_nonce_summand.0 != in_r1bcast.encrypted_ecdsa_nonce_summand.c {
                 // this code path triggered by R3BadEcdsaNonceSummand
-                let crime = Crime::R8BadNonceSummand;
+                let crime = Crime::R8FailRandomizerBadNonceSummand;
                 info!(
                     "participant {} detect {:?} by {}",
                     self.my_participant_index, crime, i
@@ -120,7 +120,7 @@ impl Sign {
             });
             if public_blind_summand != in_r4bcast.public_blind_summand {
                 // this code path triggered by R1BadSecretBlindSummand
-                let crime = Crime::R8BadBlindSummand;
+                let crime = Crime::R8FailRandomizerBadBlindSummand;
                 info!(
                     "participant {} detect {:?} by {}",
                     self.my_participant_index, crime, i
@@ -169,7 +169,7 @@ impl Sign {
                             .c
                 {
                     // this code path triggered by R3BadMtaBlindSummandRhs
-                    let crime = Crime::R8MtaBlindSummandRhs { victim: j };
+                    let crime = Crime::R8FailRandomizerMtaBlindSummandRhs { victim: j };
                     info!(
                         "participant {} detect {:?} (beta_ji) by {}",
                         self.my_participant_index, crime, i
@@ -193,7 +193,7 @@ impl Sign {
                         .c
                 {
                     // this code path triggered by R3BadMtaBlindSummandLhs
-                    let crime = Crime::R8MtaBlindSummandLhs { victim: j };
+                    let crime = Crime::R8FailRandomizerMtaBlindSummandLhs { victim: j };
                     info!(
                         "participant {} detect {:?} (alpha_ij) by {}",
                         self.my_participant_index, crime, i
@@ -216,7 +216,7 @@ impl Sign {
                 .enumerate()
                 .filter_map(|x| if x.1.is_some() { Some(x.0) } else { None })
                 .collect();
-            let crime = Crime::R8FalseComplaint;
+            let crime = Crime::R8FailRandomizerFalseComplaint;
             warn!(
                 "participant {} detect {:?}; accusing complainers {:?}",
                 self.my_participant_index, crime, complainers

@@ -15,7 +15,7 @@ impl Sign {
             if let Some(fail_bcast) = self.in_r6bcasts_fail.vec_ref()[accuser].as_ref() {
                 for accused in fail_bcast.culprits.iter() {
                     if accuser == accused.participant_index {
-                        let crime = Crime::R7FalseAccusation { victim: accuser };
+                        let crime = Crime::R7FailFalseAccusation { victim: accuser };
                         info!(
                             "participant {} detect {:?} by {} (self accusation)",
                             self.my_participant_index, crime, accuser
@@ -56,7 +56,7 @@ impl Sign {
                     let verification = verifier_zkp.verify_range_proof_wc(stmt, proof);
                     match verification {
                         Ok(_) => {
-                            let crime = Crime::R7FalseAccusation {
+                            let crime = Crime::R7FailFalseAccusation {
                                 victim: accused.participant_index,
                             };
                             info!(
@@ -66,7 +66,7 @@ impl Sign {
                             criminals[accuser].push(crime);
                         }
                         Err(e) => {
-                            let crime = Crime::R7BadRangeProof { victim: accuser };
+                            let crime = Crime::R7FailBadRangeProof { victim: accuser };
                             info!(
                                 "participant {} detect {:?} by {} because [{}]",
                                 self.my_participant_index, crime, accused.participant_index, e
