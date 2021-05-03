@@ -1,10 +1,7 @@
 use super::keygen::SecretKeyShare;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    fillvec::FillVec,
-    protocol::MsgBytes,
-};
+use crate::{fillvec::FillVec, protocol::MsgBytes};
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     BigInt, FE, GE,

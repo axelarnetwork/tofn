@@ -1,8 +1,4 @@
-use super::{
-    crimes::Crime,
-    Status::*,
-    *,
-};
+use super::{crimes::Crime, Status::*, *};
 use crate::protocol::{MsgBytes, Protocol, ProtocolResult};
 use serde::{Deserialize, Serialize};
 
