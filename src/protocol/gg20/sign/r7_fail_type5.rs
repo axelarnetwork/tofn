@@ -10,7 +10,7 @@ use tracing::{error, info, warn};
 impl Sign {
     // execute blame protocol from section 4.3 of https://eprint.iacr.org/2020/540.pdf
     pub(super) fn r7_fail_type5(&self) -> Vec<Vec<Crime>> {
-        assert!(matches!(self.status, Status::R6FailRandomizer));
+        assert!(matches!(self.status, Status::R6FailType5));
         assert!(self.in_r6bcasts_fail_type5.some_count() > 0);
 
         let mut criminals = vec![Vec::new(); self.participant_indices.len()];

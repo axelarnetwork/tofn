@@ -43,7 +43,6 @@ impl Protocol for Sign {
                 let (state, bcast, p2ps) = self.r1();
                 self.update_state_r1(state, bcast, p2ps)?;
             }
-
             R1 => match self.r2() {
                 r2::Output::Success { state, out_p2ps } => {
                     self.update_state_r2(state, out_p2ps)?;
@@ -52,7 +51,6 @@ impl Protocol for Sign {
                     self.update_state_r2fail(out_bcast)?;
                 }
             },
-
             R2 => match self.r3() {
                 r3::Output::Success { state, out_bcast } => {
                     self.update_state_r3(state, out_bcast)?;
@@ -106,15 +104,15 @@ impl Protocol for Sign {
                 }
             },
             R6Fail => self.update_state_fail(self.r7_fail()),
-            R6FailRandomizer => self.update_state_fail(self.r7_fail_type5()),
+            R6FailType5 => self.update_state_fail(self.r7_fail_type5()),
             R7 => match self.r8() {
                 r8::Output::Success { sig } => {
-                    // self.final_output = Some(Output::Ok(sig.as_bytes().to_vec()));
                     self.final_output = Some(Ok(sig.as_bytes().to_vec()));
                     self.status = Done;
                 }
                 r8::Output::Fail { criminals } => self.update_state_fail(criminals),
             },
+            R7FailType7 => todo!(),
             Done => return Err(From::from("already done")),
             Fail => return Err(From::from("already failed")),
         };
@@ -282,8 +280,9 @@ impl Protocol for Sign {
             R5 => &self.out_r5bcast,
             R6 => &self.out_r6bcast,
             R6Fail => &self.out_r6bcast_fail_serialized,
-            R6FailRandomizer => &self.out_r6bcast_fail_type5_serialized,
+            R6FailType5 => &self.out_r6bcast_fail_type5_serialized,
             R7 => &self.out_r7bcast,
+            R7FailType7 => &self.out_r7bcast_fail_type7_serialized,
             Done => &None,
             Fail => &None,
         }
@@ -301,8 +300,9 @@ impl Protocol for Sign {
             R5 => &self.out_r5p2ps,
             R6 => &None,
             R6Fail => &None,
-            R6FailRandomizer => &None,
+            R6FailType5 => &None,
             R7 => &None,
+            R7FailType7 => &None,
             Done => &None,
             Fail => &None,
         }
@@ -374,7 +374,7 @@ impl Protocol for Sign {
                 }
                 false
             }
-            R6 | R6Fail | R6FailRandomizer => {
+            R6 | R6Fail | R6FailType5 => {
                 for i in 0..self.participant_indices.len() {
                     if i == me {
                         continue;
@@ -388,9 +388,14 @@ impl Protocol for Sign {
                 }
                 false
             }
-            R7 => {
-                if !self.in_r7bcasts.is_full_except(me) {
-                    return true;
+            R7 | R7FailType7 => {
+                for i in 0..self.participant_indices.len() {
+                    if i == me {
+                        continue;
+                    }
+                    if self.in_r7bcasts.is_none(i) && self.in_r7bcasts_fail_type7.is_none(i) {
+                        return true;
+                    }
                 }
                 false
             }
@@ -419,7 +424,6 @@ impl Sign {
                 }
             }
             R6 => {
-                // prioritize R6Fail over R6FailRandomizer
                 if self.in_r6bcasts_fail.some_count() > 0 {
                     self.status = R6Fail;
                 }
@@ -427,8 +431,8 @@ impl Sign {
             // do not use catch-all pattern `_ => (),`
             // instead, list all variants explicity
             // because otherwise you'll forget to update this match statement when you add a variant
-            R1 | R2Fail | R3Fail | R4 | R5 | R6Fail | R6FailRandomizer | R7 | New | Done | Fail => {
-            }
+            R1 | R2Fail | R3Fail | R4 | R5 | R6Fail | R6FailType5 | R7 | R7FailType7 | New
+            | Done | Fail => {}
         }
     }
 
@@ -636,7 +640,7 @@ impl Sign {
         })?);
         self.in_r6bcasts_fail_type5
             .insert(self.my_participant_index, bcast)?; // self delivery
-        self.status = R6FailRandomizer;
+        self.status = R6FailType5;
         Ok(())
     }
 
@@ -652,9 +656,8 @@ impl Sign {
         })?);
         self.in_r7bcasts_fail_type7
             .insert(self.my_participant_index, bcast)?; // self delivery
-        todo!()
-        // self.status = R7FailType7;
-        // Ok(())
+        self.status = R7FailType7;
+        Ok(())
     }
 
     // TODO refactor copied code from update_state_r2
