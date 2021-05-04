@@ -5,26 +5,26 @@ use curv::{
 };
 use multi_party_ecdsa::utilities::mta as mta_zengo;
 use paillier::{EncryptWithChosenRandomness, Paillier, Randomness, RawPlaintext};
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
 impl Sign {
     // execute blame protocol from section 4.3 of https://eprint.iacr.org/2020/540.pdf
-    pub(super) fn r8_fail_randomizer(&self) -> Vec<Vec<Crime>> {
+    pub(super) fn r7_fail_randomizer(&self) -> Vec<Vec<Crime>> {
         assert!(matches!(self.status, Status::R6FailRandomizer));
         assert!(self.in_r6bcasts_fail_randomizer.some_count() > 0);
 
         let mut criminals = vec![Vec::new(); self.participant_indices.len()];
 
         // 'outer: for (i, r7_participant_data) in self
-        for (i, r7_participant_data) in self
+        for (i, r6_participant_data) in self
             .in_r6bcasts_fail_randomizer
             .vec_ref()
             .iter()
             .enumerate()
         {
-            if r7_participant_data.is_none() {
-                // TODO this happens when parties falsely pretend `type 5` success
-                let crime = Crime::R8FailRandomizerMissingData;
+            if r6_participant_data.is_none() {
+                // this happens when parties falsely pretend 'type 5' success
+                let crime = Crime::R7FailRandomizerMissingData;
                 warn!(
                     "participant {} detect {:?} by {}",
                     self.my_participant_index, crime, i
@@ -32,14 +32,14 @@ impl Sign {
                 criminals[i].push(crime);
                 continue; // can't proceed without data
             }
-            let r7_participant_data = r7_participant_data.as_ref().unwrap();
+            let r6_participant_data = r6_participant_data.as_ref().unwrap();
 
             // verify correct computation of nonce_x_blind_summand (delta_i)
             // as per definition of delta_i in page 17 of https://eprint.iacr.org/2020/540.pdf doc version 20200511:155431
-            let mut nonce_x_blind_summand = r7_participant_data
+            let mut nonce_x_blind_summand = r6_participant_data
                 .ecdsa_nonce_summand
-                .mul(&r7_participant_data.secret_blind_summand.get_element()); // k_i * gamma_i
-            for (j, mta_blind_summand) in r7_participant_data.mta_blind_summands.iter().enumerate()
+                .mul(&r6_participant_data.secret_blind_summand.get_element()); // k_i * gamma_i
+            for (j, mta_blind_summand) in r6_participant_data.mta_blind_summands.iter().enumerate()
             {
                 if j == i {
                     continue;
@@ -65,7 +65,7 @@ impl Sign {
                 )
             });
             if nonce_x_blind_summand != in_r3bcast.nonce_x_blind_summand {
-                let crime = Crime::R8FailRandomizerBadNonceXBlindSummand;
+                let crime = Crime::R7FailRandomizerBadNonceXBlindSummand;
                 info!(
                     "participant {} detect {:?} by {}",
                     self.my_participant_index, crime, i
@@ -85,8 +85,8 @@ impl Sign {
             let ek = &self.my_secret_key_share.all_eks[self.participant_indices[i]];
             let encrypted_ecdsa_nonce_summand = Paillier::encrypt_with_chosen_randomness(
                 ek,
-                RawPlaintext::from(r7_participant_data.ecdsa_nonce_summand.to_big_int()),
-                &Randomness::from(&r7_participant_data.ecdsa_nonce_summand_randomness),
+                RawPlaintext::from(r6_participant_data.ecdsa_nonce_summand.to_big_int()),
+                &Randomness::from(&r6_participant_data.ecdsa_nonce_summand_randomness),
             );
             let in_r1bcast = self.in_r1bcasts.vec_ref()[i].as_ref().unwrap_or_else(|| {
                 panic!(
@@ -97,7 +97,7 @@ impl Sign {
             });
             if *encrypted_ecdsa_nonce_summand.0 != in_r1bcast.encrypted_ecdsa_nonce_summand.c {
                 // this code path triggered by R3BadEcdsaNonceSummand
-                let crime = Crime::R8FailRandomizerBadNonceSummand;
+                let crime = Crime::R7FailRandomizerBadNonceSummand;
                 info!(
                     "participant {} detect {:?} by {}",
                     self.my_participant_index, crime, i
@@ -108,7 +108,7 @@ impl Sign {
             }
 
             // 2. secret_blind_summand (gamma_i)
-            let public_blind_summand = GE::generator() * r7_participant_data.secret_blind_summand;
+            let public_blind_summand = GE::generator() * r6_participant_data.secret_blind_summand;
             let in_r4bcast = self.in_r4bcasts.vec_ref()[i].as_ref().unwrap_or_else(|| {
                 panic!(
                     // TODO these checks should be unnecessary after refactoring
@@ -118,7 +118,7 @@ impl Sign {
             });
             if public_blind_summand != in_r4bcast.public_blind_summand {
                 // this code path triggered by R1BadSecretBlindSummand
-                let crime = Crime::R8FailRandomizerBadBlindSummand;
+                let crime = Crime::R7FailRandomizerBadBlindSummand;
                 info!(
                     "participant {} detect {:?} by {}",
                     self.my_participant_index, crime, i
@@ -130,7 +130,7 @@ impl Sign {
 
             // 3. mta_blind_summands.rhs (beta_ij)
             // 4. mta_blind_summands.lhs (alpha_ij)
-            for (j, mta_blind_summand) in r7_participant_data.mta_blind_summands.iter().enumerate()
+            for (j, mta_blind_summand) in r6_participant_data.mta_blind_summands.iter().enumerate()
             {
                 if j == i {
                     continue;
@@ -152,7 +152,7 @@ impl Sign {
                 // TODO better variable names: switch to greek letters used in GG20 paper
                 let (mta_response_blind, mta_blind_summand_rhs) = // (enc(alpha_ij), beta_ji)
                     mta_zengo::MessageB::b_with_predefined_randomness(
-                        &r7_participant_data.secret_blind_summand,
+                        &r6_participant_data.secret_blind_summand,
                         other_ek,
                         other_encrypted_ecdsa_nonce_summand.clone(),
                         &mta_blind_summand.rhs_randomness.randomness,
@@ -167,7 +167,7 @@ impl Sign {
                             .c
                 {
                     // this code path triggered by R3BadMtaBlindSummandRhs
-                    let crime = Crime::R8FailRandomizerMtaBlindSummandRhs { victim: j };
+                    let crime = Crime::R7FailRandomizerMtaBlindSummandRhs { victim: j };
                     info!(
                         "participant {} detect {:?} (beta_ji) by {}",
                         self.my_participant_index, crime, i
@@ -191,7 +191,7 @@ impl Sign {
                         .c
                 {
                     // this code path triggered by R3BadMtaBlindSummandLhs
-                    let crime = Crime::R8FailRandomizerMtaBlindSummandLhs { victim: j };
+                    let crime = Crime::R7FailRandomizerMtaBlindSummandLhs { victim: j };
                     info!(
                         "participant {} detect {:?} (alpha_ij) by {}",
                         self.my_participant_index, crime, i
@@ -203,25 +203,11 @@ impl Sign {
             }
         }
 
-        // if no criminals were found then everyone who sent r6::Output::FailRandomizer is a criminal
-        // TODO CAREFUL!  If we missed a check then a single malicious actor can cause everyone to blame everyone!
         if criminals.iter().map(|v| v.len()).sum::<usize>() == 0 {
-            // TODO code copied from move_to_sad_path
-            let complainers: Vec<usize> = self
-                .in_r6bcasts_fail_randomizer
-                .vec_ref()
-                .iter()
-                .enumerate()
-                .filter_map(|x| if x.1.is_some() { Some(x.0) } else { None })
-                .collect();
-            let crime = Crime::R8FailRandomizerFalseComplaint;
-            warn!(
-                "participant {} detect {:?}; accusing complainers {:?}",
-                self.my_participant_index, crime, complainers
+            error!(
+                "participant {} detect 'type 5' fault but found no criminals",
+                self.my_participant_index,
             );
-            for c in complainers {
-                criminals[c].push(crime.clone());
-            }
         }
         criminals
     }

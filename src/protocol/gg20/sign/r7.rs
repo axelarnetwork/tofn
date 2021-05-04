@@ -30,7 +30,7 @@ impl Sign {
         assert!(matches!(self.status, Status::R6));
         let mut criminals = vec![Vec::new(); self.participant_indices.len()];
 
-        // our check for 'type 5' failures passed in r6()
+        // our check for 'type 5' failures succeeded in r6()
         // thus, anyone who sent us a r6::BcastRandomizer is a criminal
         if self.in_r6bcasts_fail_randomizer.some_count() > 0 {
             let complainers: Vec<usize> = self
@@ -40,7 +40,7 @@ impl Sign {
                 .enumerate()
                 .filter_map(|x| if x.1.is_some() { Some(x.0) } else { None })
                 .collect();
-            let crime = Crime::R8FailRandomizerFalseComplaint;
+            let crime = Crime::R7FailRandomizerFalseComplaint;
             warn!(
                 "participant {} detect {:?} by {:?}",
                 self.my_participant_index, crime, complainers

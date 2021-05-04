@@ -102,7 +102,7 @@ impl Protocol for Sign {
                 }
             },
             R6Fail => self.update_state_fail(self.r7_fail()),
-            R6FailRandomizer => self.update_state_fail(self.r8_fail_randomizer()),
+            R6FailRandomizer => self.update_state_fail(self.r7_fail_randomizer()),
             R7 => match self.r8() {
                 r8::Output::Success { sig } => {
                     // self.final_output = Some(Output::Ok(sig.as_bytes().to_vec()));
