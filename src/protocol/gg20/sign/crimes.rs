@@ -22,4 +22,7 @@ pub enum Crime {
     R7FailType5MtaBlindSummandLhs { victim: usize },
     R7FailType5FalseComplaint,
     R8BadSigSummand,
+    R8FailType7MissingData, // TODO missing unit test
+    R8FailType7BadNonceSummand,
+    R8FailType7MtaWcKeyshareSummandLhs { victim: usize },
 }

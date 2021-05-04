@@ -112,7 +112,7 @@ impl Protocol for Sign {
                 }
                 r8::Output::Fail { criminals } => self.update_state_fail(criminals),
             },
-            R7FailType7 => todo!(),
+            R7FailType7 => self.update_state_fail(self.r8_fail_type7()),
             Done => return Err(From::from("already done")),
             Fail => return Err(From::from("already failed")),
         };

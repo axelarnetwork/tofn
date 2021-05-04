@@ -81,6 +81,7 @@ mod r7;
 mod r7_fail;
 mod r7_fail_type5;
 mod r8;
+mod r8_fail_type7;
 
 pub struct Sign {
     status: Status,
