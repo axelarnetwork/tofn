@@ -414,7 +414,6 @@ impl Sign {
             // instead, list all variants explicity
             // because otherwise you'll forget to update this match statement when you add a variant
             R1 | R2Fail | R3Fail | R4 | R5 | R6Fail | R6FailRandomizer | R7 | New | Done | Fail => {
-                ()
             }
         }
     }
