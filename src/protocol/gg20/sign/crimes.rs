@@ -14,12 +14,12 @@ pub enum Crime {
     R7FailBadRangeProof { victim: usize },
     R7FailFalseAccusation { victim: usize },
     R7BadRangeProof,
-    R8FailRandomizerMissingData, // TODO: Add a unit test for this
-    R8FailRandomizerBadNonceXBlindSummand,
-    R8FailRandomizerBadNonceSummand,
-    R8FailRandomizerBadBlindSummand,
-    R8FailRandomizerMtaBlindSummandRhs { victim: usize },
-    R8FailRandomizerMtaBlindSummandLhs { victim: usize },
-    R8FailRandomizerFalseComplaint,
+    R7FailRandomizerMissingData, // TODO missing unit test
+    R7FailRandomizerBadNonceXBlindSummand,
+    R7FailRandomizerBadNonceSummand,
+    R7FailRandomizerBadBlindSummand,
+    R7FailRandomizerMtaBlindSummandRhs { victim: usize },
+    R7FailRandomizerMtaBlindSummandLhs { victim: usize },
+    R7FailRandomizerFalseComplaint,
     R8BadSigSummand,
 }
