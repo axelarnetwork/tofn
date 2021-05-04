@@ -86,10 +86,10 @@ impl Protocol for Sign {
                 r6::Output::Success { state, out_bcast } => {
                     self.update_state_r6(state, out_bcast)?;
                 }
-                r6::Output::FailRangeProofWc { out_bcast } => {
+                r6::Output::Fail { out_bcast } => {
                     self.update_state_r6fail(out_bcast)?;
                 }
-                r6::Output::FailRandomizer { out_bcast } => {
+                r6::Output::FailType5 { out_bcast } => {
                     self.update_state_r6fail_randomizer(out_bcast)?;
                 }
             },
@@ -598,7 +598,7 @@ impl Sign {
     }
 
     // TODO refactor copied code from update_state_r2fail
-    pub(super) fn update_state_r6fail(&mut self, bcast: r6::BcastCulprits) -> ProtocolResult {
+    pub(super) fn update_state_r6fail(&mut self, bcast: r6::BcastFail) -> ProtocolResult {
         self.out_r6bcast_fail_serialized = Some(bincode::serialize(&MsgMeta {
             msg_type: MsgType::R6FailBcast,
             from: self.my_participant_index,
@@ -613,7 +613,7 @@ impl Sign {
     // TODO refactor copied code from update_state_r2fail
     pub(super) fn update_state_r6fail_randomizer(
         &mut self,
-        bcast: r6::BcastRandomizer,
+        bcast: r6::BcastFailType5,
     ) -> ProtocolResult {
         self.out_r6bcast_fail_randomizer_serialized = Some(bincode::serialize(&MsgMeta {
             msg_type: MsgType::R6FailBcastRandomizer,

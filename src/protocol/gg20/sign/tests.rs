@@ -217,13 +217,13 @@ fn basic_correctness_inner(
                 participant.status = Status::R6;
                 all_r6_bcasts.insert(i, out_bcast).unwrap();
             }
-            r6::Output::FailRangeProofWc { out_bcast } => {
+            r6::Output::Fail { out_bcast } => {
                 panic!(
                     "r6 party {} expect success got failure with culprits: {:?}",
                     participant.my_secret_key_share.my_index, out_bcast
                 );
             }
-            r6::Output::FailRandomizer { out_bcast: _ } => {
+            r6::Output::FailType5 { out_bcast: _ } => {
                 panic!(
                     "r6 party {} expect success got kicked into R6FailRandomizer mode",
                     participant.my_secret_key_share.my_index

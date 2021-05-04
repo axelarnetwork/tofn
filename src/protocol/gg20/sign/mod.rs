@@ -78,7 +78,7 @@ mod r5;
 mod r6;
 mod r7;
 mod r7_fail;
-mod r7_fail_randomizer;
+mod r7_fail_type5;
 mod r8;
 
 pub struct Sign {
@@ -121,8 +121,8 @@ pub struct Sign {
 
     in_r2bcasts_fail: FillVec<r2::FailBcast>,
     in_r3bcasts_fail: FillVec<r3::FailBcast>,
-    in_r6bcasts_fail: FillVec<r6::BcastCulprits>,
-    in_r6bcasts_fail_randomizer: FillVec<r6::BcastRandomizer>,
+    in_r6bcasts_fail: FillVec<r6::BcastFail>,
+    in_r6bcasts_fail_randomizer: FillVec<r6::BcastFailType5>,
 
     // TODO currently I do not store my own deserialized output messages
     // instead, my output messages are stored only in serialized form so they can be quickly returned in `get_bcast_out` and `get_p2p_out`

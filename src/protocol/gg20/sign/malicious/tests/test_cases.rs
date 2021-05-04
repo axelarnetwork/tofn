@@ -53,16 +53,16 @@ pub(super) fn map_type_to_crime(t: &MaliciousType) -> Vec<Crime> {
         R6FalseAccusation { victim: v } => vec![Crime::R7FailFalseAccusation { victim: *v }],
         R6BadProof => vec![Crime::R7BadRangeProof],
         R7BadSigSummand => vec![Crime::R8BadSigSummand],
-        R3BadNonceXBlindSummand => vec![Crime::R7FailRandomizerBadNonceXBlindSummand],
-        R3BadEcdsaNonceSummand => vec![Crime::R7FailRandomizerBadNonceSummand],
-        R1BadSecretBlindSummand => vec![Crime::R7FailRandomizerBadBlindSummand],
+        R3BadNonceXBlindSummand => vec![Crime::R7FailType5BadNonceXBlindSummand],
+        R3BadEcdsaNonceSummand => vec![Crime::R7FailType5BadNonceSummand],
+        R1BadSecretBlindSummand => vec![Crime::R7FailType5BadBlindSummand],
         R3BadMtaBlindSummandRhs { victim: v } => {
-            vec![Crime::R7FailRandomizerMtaBlindSummandRhs { victim: *v }]
+            vec![Crime::R7FailType5MtaBlindSummandRhs { victim: *v }]
         }
         R3BadMtaBlindSummandLhs { victim: v } => {
-            vec![Crime::R7FailRandomizerMtaBlindSummandLhs { victim: *v }]
+            vec![Crime::R7FailType5MtaBlindSummandLhs { victim: *v }]
         }
-        R6FalseFailRandomizer => vec![Crime::R7FailRandomizerFalseComplaint],
+        R6FalseFailRandomizer => vec![Crime::R7FailType5FalseComplaint],
     }
 }
 

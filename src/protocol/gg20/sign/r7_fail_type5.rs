@@ -24,7 +24,7 @@ impl Sign {
         {
             if r6_participant_data.is_none() {
                 // this happens when parties falsely pretend 'type 5' success
-                let crime = Crime::R7FailRandomizerMissingData;
+                let crime = Crime::R7FailType5MissingData;
                 warn!(
                     "participant {} detect {:?} by {}",
                     self.my_participant_index, crime, i
@@ -65,7 +65,7 @@ impl Sign {
                 )
             });
             if nonce_x_blind_summand != in_r3bcast.nonce_x_blind_summand {
-                let crime = Crime::R7FailRandomizerBadNonceXBlindSummand;
+                let crime = Crime::R7FailType5BadNonceXBlindSummand;
                 info!(
                     "participant {} detect {:?} by {}",
                     self.my_participant_index, crime, i
@@ -97,7 +97,7 @@ impl Sign {
             });
             if *encrypted_ecdsa_nonce_summand.0 != in_r1bcast.encrypted_ecdsa_nonce_summand.c {
                 // this code path triggered by R3BadEcdsaNonceSummand
-                let crime = Crime::R7FailRandomizerBadNonceSummand;
+                let crime = Crime::R7FailType5BadNonceSummand;
                 info!(
                     "participant {} detect {:?} by {}",
                     self.my_participant_index, crime, i
@@ -118,7 +118,7 @@ impl Sign {
             });
             if public_blind_summand != in_r4bcast.public_blind_summand {
                 // this code path triggered by R1BadSecretBlindSummand
-                let crime = Crime::R7FailRandomizerBadBlindSummand;
+                let crime = Crime::R7FailType5BadBlindSummand;
                 info!(
                     "participant {} detect {:?} by {}",
                     self.my_participant_index, crime, i
@@ -167,7 +167,7 @@ impl Sign {
                             .c
                 {
                     // this code path triggered by R3BadMtaBlindSummandRhs
-                    let crime = Crime::R7FailRandomizerMtaBlindSummandRhs { victim: j };
+                    let crime = Crime::R7FailType5MtaBlindSummandRhs { victim: j };
                     info!(
                         "participant {} detect {:?} (beta_ji) by {}",
                         self.my_participant_index, crime, i
@@ -191,7 +191,7 @@ impl Sign {
                         .c
                 {
                     // this code path triggered by R3BadMtaBlindSummandLhs
-                    let crime = Crime::R7FailRandomizerMtaBlindSummandLhs { victim: j };
+                    let crime = Crime::R7FailType5MtaBlindSummandLhs { victim: j };
                     info!(
                         "participant {} detect {:?} (alpha_ij) by {}",
                         self.my_participant_index, crime, i

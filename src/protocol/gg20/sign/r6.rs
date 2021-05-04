@@ -38,14 +38,14 @@ pub enum Crime {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BcastCulprits {
+pub struct BcastFail {
     pub culprits: Vec<Culprit>,
 }
 
 pub(super) enum Output {
     Success { state: State, out_bcast: Bcast },
-    FailRangeProofWc { out_bcast: BcastCulprits },
-    FailRandomizer { out_bcast: BcastRandomizer },
+    Fail { out_bcast: BcastFail },
+    FailType5 { out_bcast: BcastFailType5 },
 }
 
 impl Sign {
@@ -105,8 +105,8 @@ impl Sign {
         }
 
         if !culprits.is_empty() {
-            return Output::FailRangeProofWc {
-                out_bcast: BcastCulprits { culprits },
+            return Output::Fail {
+                out_bcast: BcastFail { culprits },
             };
         }
 
@@ -116,7 +116,7 @@ impl Sign {
                 "participant {} detect 'type 5' fault",
                 self.my_participant_index
             );
-            return Output::FailRandomizer {
+            return Output::FailType5 {
                 out_bcast: self.type5_fault_output(),
             };
         }
@@ -152,7 +152,7 @@ impl Sign {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct BcastRandomizer {
+pub(super) struct BcastFailType5 {
     pub ecdsa_nonce_summand: FE,                // k_i
     pub ecdsa_nonce_summand_randomness: BigInt, // k_i encryption randomness
     pub secret_blind_summand: FE,               // gamma_i
@@ -169,7 +169,7 @@ pub(super) struct MtaBlindSummandsData {
 
 impl Sign {
     // execute blame protocol from section 4.3 of https://eprint.iacr.org/2020/540.pdf
-    pub(super) fn type5_fault_output(&self) -> BcastRandomizer {
+    pub(super) fn type5_fault_output(&self) -> BcastFailType5 {
         assert!(matches!(self.status, Status::R5));
 
         let r1state = self.r1state.as_ref().unwrap();
@@ -230,7 +230,7 @@ impl Sign {
                 .unwrap();
         }
 
-        BcastRandomizer {
+        BcastFailType5 {
             ecdsa_nonce_summand: r1state.my_ecdsa_nonce_summand,
             ecdsa_nonce_summand_randomness: r1state
                 .my_encrypted_ecdsa_nonce_summand_randomness

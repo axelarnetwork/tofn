@@ -40,7 +40,7 @@ impl Sign {
                 .enumerate()
                 .filter_map(|x| if x.1.is_some() { Some(x.0) } else { None })
                 .collect();
-            let crime = Crime::R7FailRandomizerFalseComplaint;
+            let crime = Crime::R7FailType5FalseComplaint;
             warn!(
                 "participant {} detect {:?} by {:?}",
                 self.my_participant_index, crime, complainers

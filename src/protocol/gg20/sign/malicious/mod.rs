@@ -327,14 +327,14 @@ impl Protocol for BadSign {
                                 );
                             self.sign.update_state_r6(state, out_bcast)
                         }
-                        r6::Output::FailRangeProofWc { out_bcast } => {
+                        r6::Output::Fail { out_bcast } => {
                             warn!(
                                     "malicious participant {} can't do {:?} because protocol has failed; reverting to honesty",
                                     self.sign.my_participant_index, self.malicious_type
                                 );
                             self.sign.update_state_r6fail(out_bcast)
                         }
-                        r6::Output::FailRandomizer { mut out_bcast } => {
+                        r6::Output::FailType5 { mut out_bcast } => {
                             info!(
                                 "malicious participant {} do {:?} (k_i)",
                                 self.sign.my_participant_index, self.malicious_type
@@ -405,14 +405,14 @@ impl Protocol for BadSign {
                                 );
                             self.sign.update_state_r6(state, out_bcast)
                         }
-                        r6::Output::FailRangeProofWc { out_bcast } => {
+                        r6::Output::Fail { out_bcast } => {
                             warn!(
                                     "malicious participant {} can't do {:?} because protocol has failed; reverting to honesty",
                                     self.sign.my_participant_index, self.malicious_type
                                 );
                             self.sign.update_state_r6fail(out_bcast)
                         }
-                        r6::Output::FailRandomizer { mut out_bcast } => {
+                        r6::Output::FailType5 { mut out_bcast } => {
                             info!(
                                 "malicious participant {} do {:?} (alpha_ij)",
                                 self.sign.my_participant_index, self.malicious_type
@@ -484,14 +484,14 @@ impl Protocol for BadSign {
                                 );
                             self.sign.update_state_r6(state, out_bcast)
                         }
-                        r6::Output::FailRangeProofWc { out_bcast } => {
+                        r6::Output::Fail { out_bcast } => {
                             warn!(
                                     "malicious participant {} can't do {:?} because protocol has failed; reverting to honesty",
                                     self.sign.my_participant_index, self.malicious_type
                                 );
                             self.sign.update_state_r6fail(out_bcast)
                         }
-                        r6::Output::FailRandomizer { mut out_bcast } => {
+                        r6::Output::FailType5 { mut out_bcast } => {
                             info!(
                                 "malicious participant {} do {:?} (beta_ij)",
                                 self.sign.my_participant_index, self.malicious_type
@@ -585,7 +585,7 @@ impl Protocol for BadSign {
                     "malicious participant {} do {:?}",
                     self.sign.my_participant_index, self.malicious_type
                 );
-                self.sign.update_state_r6fail(r6::BcastCulprits {
+                self.sign.update_state_r6fail(r6::BcastFail {
                     culprits: vec![r6::Culprit {
                         participant_index: victim,
                         crime: r6::Crime::RangeProofWc,
@@ -610,14 +610,14 @@ impl Protocol for BadSign {
 
                         self.sign.update_state_r6(state, out_bcast)
                     }
-                    r6::Output::FailRangeProofWc { out_bcast } => {
+                    r6::Output::Fail { out_bcast } => {
                         warn!(
                             "malicious participant {} can't do {:?} because protocol has failed; reverting to honesty",
                             self.sign.my_participant_index, self.malicious_type
                         );
                         self.sign.update_state_r6fail(out_bcast)
                     }
-                    r6::Output::FailRandomizer { out_bcast } => {
+                    r6::Output::FailType5 { out_bcast } => {
                         warn!(
                             "malicious participant {} can't do {:?} because protocol has failed; reverting to honesty",
                             self.sign.my_participant_index, self.malicious_type
