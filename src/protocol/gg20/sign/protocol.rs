@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use tracing::debug;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 enum MsgType {
     R1Bcast,
     R1P2p { to: usize },
@@ -17,8 +17,9 @@ enum MsgType {
     R5P2p { to: usize },
     R6Bcast,
     R6FailBcast,
-    R6FailBcastRandomizer,
+    R6FailType5Bcast,
     R7Bcast,
+    R7FailType7Bcast,
 }
 
 // TODO identical to keygen::MsgMeta except for MsgType---use generic
@@ -101,7 +102,7 @@ impl Protocol for Sign {
                     self.update_state_fail(criminals);
                 }
                 r7::Output::FailType7 { out_bcast } => {
-                    todo!()
+                    self.update_state_r7fail_type7(out_bcast)?;
                 }
             },
             R6Fail => self.update_state_fail(self.r7_fail()),
@@ -235,7 +236,7 @@ impl Protocol for Sign {
                 self.in_r6bcasts_fail
                     .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
             }
-            MsgType::R6FailBcastRandomizer => {
+            MsgType::R6FailType5Bcast => {
                 if !self.in_r6bcasts_fail_type5.is_none(msg_meta.from) {
                     debug!(
                         "participant {} overwrite existing R6FailBcastRandomizer msg from {}",
@@ -250,6 +251,16 @@ impl Protocol for Sign {
                     debug!(
                         "participant {} overwrite existing R7Bcast msg from {}",
                         self.my_participant_index, msg_meta.from
+                    );
+                }
+                self.in_r7bcasts
+                    .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
+            }
+            MsgType::R7FailType7Bcast => {
+                if !self.in_r7bcasts_fail_type7.is_none(msg_meta.from) {
+                    debug!(
+                        "participant {} overwrite existing {:?} msg from {}",
+                        self.my_participant_index, msg_meta.msg_type, msg_meta.from
                     );
                 }
                 self.in_r7bcasts
@@ -619,7 +630,7 @@ impl Sign {
         bcast: r6::BcastFailType5,
     ) -> ProtocolResult {
         self.out_r6bcast_fail_type5_serialized = Some(bincode::serialize(&MsgMeta {
-            msg_type: MsgType::R6FailBcastRandomizer,
+            msg_type: MsgType::R6FailType5Bcast,
             from: self.my_participant_index,
             payload: bincode::serialize(&bcast)?,
         })?);
@@ -627,6 +638,23 @@ impl Sign {
             .insert(self.my_participant_index, bcast)?; // self delivery
         self.status = R6FailRandomizer;
         Ok(())
+    }
+
+    // TODO refactor copied code from update_state_r2fail
+    pub(super) fn update_state_r7fail_type7(
+        &mut self,
+        bcast: r7::BcastFailType7,
+    ) -> ProtocolResult {
+        self.out_r7bcast_fail_type7_serialized = Some(bincode::serialize(&MsgMeta {
+            msg_type: MsgType::R7FailType7Bcast,
+            from: self.my_participant_index,
+            payload: bincode::serialize(&bcast)?,
+        })?);
+        self.in_r7bcasts_fail_type7
+            .insert(self.my_participant_index, bcast)?; // self delivery
+        todo!()
+        // self.status = R7FailType7;
+        // Ok(())
     }
 
     // TODO refactor copied code from update_state_r2

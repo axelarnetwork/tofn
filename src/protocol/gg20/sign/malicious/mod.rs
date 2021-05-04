@@ -673,7 +673,7 @@ impl Protocol for BadSign {
                             "malicious participant {} can't do {:?} because protocol has failed; reverting to honesty",
                             self.sign.my_participant_index, self.malicious_type
                         );
-                        todo!()
+                        self.sign.update_state_r7fail_type7(out_bcast)
                     }
                 }
             }
