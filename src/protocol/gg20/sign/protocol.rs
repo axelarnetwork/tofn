@@ -2,7 +2,7 @@ use super::{crimes::Crime, Status::*, *};
 use crate::protocol::{MsgBytes, Protocol, ProtocolResult};
 use serde::{Deserialize, Serialize};
 
-use tracing::{debug, error, warn};
+use tracing::debug;
 
 #[derive(Serialize, Deserialize)]
 enum MsgType {
@@ -19,7 +19,6 @@ enum MsgType {
     R6FailBcast,
     R6FailBcastRandomizer,
     R7Bcast,
-    R7FailRandomizerBcast,
 }
 
 // TODO identical to keygen::MsgMeta except for MsgType---use generic
@@ -90,8 +89,8 @@ impl Protocol for Sign {
                 r6::Output::FailRangeProofWc { out_bcast } => {
                     self.update_state_r6fail(out_bcast)?;
                 }
-                r6::Output::FailRandomizer => {
-                    self.update_state_r6fail_randomizer()?;
+                r6::Output::FailRandomizer { out_bcast } => {
+                    self.update_state_r6fail_randomizer(out_bcast)?;
                 }
             },
             R6 => match self.r7() {
@@ -103,10 +102,7 @@ impl Protocol for Sign {
                 }
             },
             R6Fail => self.update_state_fail(self.r7_fail()),
-            R6FailRandomizer => {
-                let bcast = self.r7_fail_randomizer();
-                self.update_state_r7fail_randomizer(bcast)?;
-            }
+            R6FailRandomizer => self.update_state_fail(self.r8_fail_randomizer()),
             R7 => match self.r8() {
                 r8::Output::Success { sig } => {
                     // self.final_output = Some(Output::Ok(sig.as_bytes().to_vec()));
@@ -115,7 +111,6 @@ impl Protocol for Sign {
                 }
                 r8::Output::Fail { criminals } => self.update_state_fail(criminals),
             },
-            R7FailRandomizer => self.update_state_fail(self.r8_fail_randomizer()),
             Done => return Err(From::from("already done")),
             Fail => return Err(From::from("already failed")),
         };
@@ -257,16 +252,6 @@ impl Protocol for Sign {
                 self.in_r7bcasts
                     .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
             }
-            MsgType::R7FailRandomizerBcast => {
-                if !self.in_r7bcasts_fail_randomizer.is_none(msg_meta.from) {
-                    debug!(
-                        "participant {} overwrite existing R7FailRandomizerBcast msg from {}",
-                        self.my_participant_index, msg_meta.from
-                    );
-                }
-                self.in_r7bcasts_fail_randomizer
-                    .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
-            }
         };
         Ok(())
     }
@@ -285,7 +270,6 @@ impl Protocol for Sign {
             R6Fail => &self.out_r6bcast_fail_serialized,
             R6FailRandomizer => &self.out_r6bcast_fail_randomizer_serialized,
             R7 => &self.out_r7bcast,
-            R7FailRandomizer => &self.out_r7bcast_fail_randomizer_serialized,
             Done => &None,
             Fail => &None,
         }
@@ -305,7 +289,6 @@ impl Protocol for Sign {
             R6Fail => &None,
             R6FailRandomizer => &None,
             R7 => &None,
-            R7FailRandomizer => &None,
             Done => &None,
             Fail => &None,
         }
@@ -391,14 +374,9 @@ impl Protocol for Sign {
                 }
                 false
             }
-            R7 | R7FailRandomizer => {
-                for i in 0..self.participant_indices.len() {
-                    if i == me {
-                        continue;
-                    }
-                    if self.in_r7bcasts.is_none(i) && self.in_r7bcasts_fail_randomizer.is_none(i) {
-                        return true;
-                    }
+            R7 => {
+                if !self.in_r7bcasts.is_full_except(me) {
+                    return true;
                 }
                 false
             }
@@ -431,35 +409,13 @@ impl Sign {
                 if self.in_r6bcasts_fail.some_count() > 0 {
                     self.status = R6Fail;
                 }
-                if self.in_r6bcasts_fail_randomizer.some_count() > 0 {
-                    let complainers: Vec<usize> = self
-                        .in_r6bcasts_fail_randomizer
-                        .vec_ref()
-                        .iter()
-                        .enumerate()
-                        .filter_map(|x| if x.1.is_some() { Some(x.0) } else { None })
-                        .collect();
-                    warn!("participant {} says: my check passed yet participants {:?} kicked us into R6FailRandomizer status", self.my_participant_index, complainers);
-                    self.status = R6FailRandomizer;
-                }
-            }
-            R7 => {
-                if self.in_r7bcasts_fail_randomizer.some_count() > 0 {
-                    let senders_of_wrong_messages: Vec<usize> = self
-                        .in_r7bcasts_fail_randomizer
-                        .vec_ref()
-                        .iter()
-                        .enumerate()
-                        .filter_map(|x| if x.1.is_some() { Some(x.0) } else { None })
-                        .collect();
-                    error!("participant {} says: in state R7 but received a message of type R7FailRandomizerBcast from participants {:?}", self.my_participant_index, senders_of_wrong_messages);
-                }
             }
             // do not use catch-all pattern `_ => (),`
             // instead, list all variants explicity
             // because otherwise you'll forget to update this match statement when you add a variant
-            R1 | R2Fail | R3Fail | R4 | R5 | R6Fail | R6FailRandomizer | R7FailRandomizer | New
-            | Done | Fail => (),
+            R1 | R2Fail | R3Fail | R4 | R5 | R6Fail | R6FailRandomizer | R7 | New | Done | Fail => {
+                ()
+            }
         }
     }
 
@@ -656,14 +612,17 @@ impl Sign {
     }
 
     // TODO refactor copied code from update_state_r2fail
-    pub(super) fn update_state_r6fail_randomizer(&mut self) -> ProtocolResult {
+    pub(super) fn update_state_r6fail_randomizer(
+        &mut self,
+        bcast: r6::BcastRandomizer,
+    ) -> ProtocolResult {
         self.out_r6bcast_fail_randomizer_serialized = Some(bincode::serialize(&MsgMeta {
             msg_type: MsgType::R6FailBcastRandomizer,
             from: self.my_participant_index,
-            payload: bincode::serialize(&())?, // empty payload
+            payload: bincode::serialize(&bcast)?,
         })?);
         self.in_r6bcasts_fail_randomizer
-            .insert(self.my_participant_index, ())?; // self delivery
+            .insert(self.my_participant_index, bcast)?; // self delivery
         self.status = R6FailRandomizer;
         Ok(())
     }
@@ -683,22 +642,6 @@ impl Sign {
             .insert(self.my_participant_index, out_bcast)?; // self delivery
         self.r7state = Some(state);
         self.status = R7;
-        Ok(())
-    }
-
-    // TODO refactor copied code from update_state_r2
-    pub(super) fn update_state_r7fail_randomizer(
-        &mut self,
-        bcast: r7_fail_randomizer::Bcast,
-    ) -> ProtocolResult {
-        self.out_r7bcast_fail_randomizer_serialized = Some(bincode::serialize(&MsgMeta {
-            msg_type: MsgType::R7FailRandomizerBcast,
-            from: self.my_participant_index,
-            payload: bincode::serialize(&bcast)?,
-        })?);
-        self.in_r7bcasts_fail_randomizer
-            .insert(self.my_participant_index, bcast)?; // self delivery
-        self.status = R7FailRandomizer;
         Ok(())
     }
 

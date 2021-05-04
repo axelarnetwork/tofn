@@ -14,7 +14,7 @@ pub enum Crime {
     R7FailBadRangeProof { victim: usize },
     R7FailFalseAccusation { victim: usize },
     R7BadRangeProof,
-    R8FailRandomizerMissingData, // TODO: Add a unit test for this
+    R8FailRandomizerMissingData, // TODO: rename. this happens when parties falsely pretend `type 5` success
     R8FailRandomizerBadNonceXBlindSummand,
     R8FailRandomizerBadNonceSummand,
     R8FailRandomizerBadBlindSummand,

@@ -10,22 +10,20 @@ use tracing::{info, warn};
 impl Sign {
     // execute blame protocol from section 4.3 of https://eprint.iacr.org/2020/540.pdf
     pub(super) fn r8_fail_randomizer(&self) -> Vec<Vec<Crime>> {
-        assert!(matches!(self.status, Status::R7FailRandomizer));
-        assert!(self.in_r7bcasts_fail_randomizer.some_count() > 0);
+        assert!(matches!(self.status, Status::R6FailRandomizer));
+        assert!(self.in_r6bcasts_fail_randomizer.some_count() > 0);
 
         let mut criminals = vec![Vec::new(); self.participant_indices.len()];
 
         // 'outer: for (i, r7_participant_data) in self
         for (i, r7_participant_data) in self
-            .in_r7bcasts_fail_randomizer
+            .in_r6bcasts_fail_randomizer
             .vec_ref()
             .iter()
             .enumerate()
         {
             if r7_participant_data.is_none() {
-                // we took an extra round to ensure all other parties know to switch to blame mode
-                // thus, any party that did not send abort data must be a criminal
-                // TODO is that party a criminal even in case of timeout?
+                // TODO this happens when parties falsely pretend `type 5` success
                 let crime = Crime::R8FailRandomizerMissingData;
                 warn!(
                     "participant {} detect {:?} by {}",

@@ -28,6 +28,29 @@ pub(super) enum Output {
 impl Sign {
     pub(super) fn r7(&self) -> Output {
         assert!(matches!(self.status, Status::R6));
+        let mut criminals = vec![Vec::new(); self.participant_indices.len()];
+
+        // our check for 'type 5' failures passed in r6()
+        // thus, anyone who sent us a r6::BcastRandomizer is a criminal
+        if self.in_r6bcasts_fail_randomizer.some_count() > 0 {
+            let complainers: Vec<usize> = self
+                .in_r6bcasts_fail_randomizer
+                .vec_ref()
+                .iter()
+                .enumerate()
+                .filter_map(|x| if x.1.is_some() { Some(x.0) } else { None })
+                .collect();
+            let crime = Crime::R8FailRandomizerFalseComplaint;
+            warn!(
+                "participant {} detect {:?} by {:?}",
+                self.my_participant_index, crime, complainers
+            );
+            for c in complainers {
+                criminals[c].push(crime.clone());
+            }
+            return Output::Fail { criminals };
+        }
+
         let r5state = self.r5state.as_ref().unwrap();
         let r6state = self.r6state.as_ref().unwrap();
 
@@ -35,7 +58,6 @@ impl Sign {
         // * sum of ecdsa_public_key_check (S_i) = ecdsa_public_key as per phase 6 of 2020/540
         // * verify zk proofs
         let mut ecdsa_public_key = r6state.my_ecdsa_public_key_check;
-        let mut criminals = vec![Vec::new(); self.participant_indices.len()];
 
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
             if *participant_index == self.my_secret_key_share.my_index {

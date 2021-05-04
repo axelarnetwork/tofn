@@ -223,7 +223,7 @@ fn basic_correctness_inner(
                     participant.my_secret_key_share.my_index, out_bcast
                 );
             }
-            r6::Output::FailRandomizer => {
+            r6::Output::FailRandomizer { out_bcast: _ } => {
                 panic!(
                     "r6 party {} expect success got kicked into R6FailRandomizer mode",
                     participant.my_secret_key_share.my_index

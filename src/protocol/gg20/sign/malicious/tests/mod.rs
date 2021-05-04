@@ -70,11 +70,11 @@ fn execute_test_case_list(test_cases: &[test_cases::TestCase]) {
             "malicious_count [{}] share_count [{}] threshold [{}]",
             malicious_count, t.share_count, t.threshold
         );
-        execute_test_case2(t);
+        execute_test_case(t);
     }
 }
 
-fn execute_test_case2(t: &test_cases::TestCase) {
+fn execute_test_case(t: &test_cases::TestCase) {
     let participant_indices: Vec<usize> =
         t.sign_participants.iter().map(|p| p.party_index).collect();
     let key_shares = execute_keygen(t.share_count, t.threshold);
