@@ -217,16 +217,10 @@ fn basic_correctness_inner(
                 participant.status = Status::R6;
                 all_r6_bcasts.insert(i, out_bcast).unwrap();
             }
-            r6::Output::Fail { out_bcast } => {
+            r6_output => {
                 panic!(
-                    "r6 party {} expect success got failure with culprits: {:?}",
-                    participant.my_secret_key_share.my_index, out_bcast
-                );
-            }
-            r6::Output::FailType5 { out_bcast: _ } => {
-                panic!(
-                    "r6 party {} expect success got kicked into R6FailRandomizer mode",
-                    participant.my_secret_key_share.my_index
+                    "r6 party {} expect success got failure {:?}",
+                    participant.my_secret_key_share.my_index, r6_output
                 );
             }
         }
@@ -246,10 +240,10 @@ fn basic_correctness_inner(
                 participant.status = Status::R7;
                 all_r7_bcasts.insert(i, out_bcast).unwrap();
             }
-            r7::Output::Fail { criminals } => {
+            r7_output => {
                 panic!(
-                    "r7 party {} expect success got failure with criminals: {:?}",
-                    participant.my_secret_key_share.my_index, criminals
+                    "r7 party {} expect success got failure {:?}",
+                    participant.my_secret_key_share.my_index, r7_output
                 );
             }
         }

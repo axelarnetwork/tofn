@@ -122,7 +122,7 @@ pub struct Sign {
     in_r2bcasts_fail: FillVec<r2::FailBcast>,
     in_r3bcasts_fail: FillVec<r3::FailBcast>,
     in_r6bcasts_fail: FillVec<r6::BcastFail>,
-    in_r6bcasts_fail_randomizer: FillVec<r6::BcastFailType5>,
+    in_r6bcasts_fail_type5: FillVec<r6::BcastFailType5>,
 
     // TODO currently I do not store my own deserialized output messages
     // instead, my output messages are stored only in serialized form so they can be quickly returned in `get_bcast_out` and `get_p2p_out`
@@ -150,7 +150,7 @@ pub struct Sign {
     out_r2bcast_fail_serialized: Option<MsgBytes>, // TODO _serialized suffix to distinguish from EXPERIMENT described above
     out_r3bcast_fail_serialized: Option<MsgBytes>,
     out_r6bcast_fail_serialized: Option<MsgBytes>,
-    out_r6bcast_fail_randomizer_serialized: Option<MsgBytes>,
+    out_r6bcast_fail_type5_serialized: Option<MsgBytes>,
 
     final_output: Option<SignOutput>,
 }
@@ -189,7 +189,7 @@ impl Sign {
             in_r2bcasts_fail: FillVec::with_len(participant_count),
             in_r3bcasts_fail: FillVec::with_len(participant_count),
             in_r6bcasts_fail: FillVec::with_len(participant_count),
-            in_r6bcasts_fail_randomizer: FillVec::with_len(participant_count),
+            in_r6bcasts_fail_type5: FillVec::with_len(participant_count),
             out_r1bcast: None,
             out_r1p2ps: None,
             out_r2p2ps: None,
@@ -202,7 +202,7 @@ impl Sign {
             out_r2bcast_fail_serialized: None,
             out_r3bcast_fail_serialized: None,
             out_r6bcast_fail_serialized: None,
-            out_r6bcast_fail_randomizer_serialized: None,
+            out_r6bcast_fail_type5_serialized: None,
             final_output: None,
         })
     }

@@ -3,7 +3,7 @@ use crate::zkp::pedersen;
 use super::{crimes::Crime, Sign, Status};
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
-    FE,
+    BigInt, FE,
 };
 use serde::{Deserialize, Serialize};
 use tracing::warn;
@@ -20,9 +20,11 @@ pub struct State {
     pub(super) my_ecdsa_sig_summand: FE,
 }
 
+#[derive(Debug)]
 pub(super) enum Output {
     Success { state: State, out_bcast: Bcast },
     Fail { criminals: Vec<Vec<Crime>> },
+    FailType7 { out_bcast: BcastFailType7 },
 }
 
 impl Sign {
@@ -32,9 +34,9 @@ impl Sign {
 
         // our check for 'type 5' failures succeeded in r6()
         // thus, anyone who sent us a r6::BcastRandomizer is a criminal
-        if self.in_r6bcasts_fail_randomizer.some_count() > 0 {
+        if self.in_r6bcasts_fail_type5.some_count() > 0 {
             let complainers: Vec<usize> = self
-                .in_r6bcasts_fail_randomizer
+                .in_r6bcasts_fail_type5
                 .vec_ref()
                 .iter()
                 .enumerate()
@@ -92,7 +94,16 @@ impl Sign {
             return Output::Fail { criminals };
         }
 
-        assert_eq!(ecdsa_public_key, self.my_secret_key_share.ecdsa_public_key); // TODO panic
+        // check for failure of type 7 from section 4.2 of https://eprint.iacr.org/2020/540.pdf
+        if ecdsa_public_key != self.my_secret_key_share.ecdsa_public_key {
+            warn!(
+                "participant {} detect 'type 7' fault",
+                self.my_participant_index
+            );
+            return Output::FailType7 {
+                out_bcast: self.type7_fault_output(),
+            };
+        }
 
         // compute our sig share s_i (aka my_ecdsa_sig_summand) as per phase 7 of 2020/540
         let r1state = self.r1state.as_ref().unwrap();
@@ -116,5 +127,27 @@ impl Sign {
                 ecdsa_sig_summand: my_ecdsa_sig_summand,
             },
         }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(super) struct BcastFailType7 {
+    pub ecdsa_nonce_summand: FE, // k_i
+    pub ecdsa_nonce_summand_randomness: BigInt, // k_i encryption randomness
+                                 // pub mta_blind_summands: Vec<Option<MtaBlindSummandsData>>,
+}
+
+// #[derive(Debug, Clone, Serialize, Deserialize)]
+// pub(super) struct MtaBlindSummandsData {
+//     pub(super) rhs: FE,                           // beta_ji
+//     pub(super) rhs_randomness: r2::RhsRandomness, // beta_ji encryption randomness
+//     pub(super) lhs_plaintext: BigInt,             // alpha_ij Paillier plaintext
+//     pub(super) lhs_randomness: BigInt,            // alpha_ij encryption randomness
+// }
+
+impl Sign {
+    // execute blame protocol from section 4.3 of https://eprint.iacr.org/2020/540.pdf
+    pub(super) fn type7_fault_output(&self) -> BcastFailType7 {
+        todo!()
     }
 }

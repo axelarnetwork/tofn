@@ -12,7 +12,7 @@ use paillier::{
     RawCiphertext,
 };
 use serde::{Deserialize, Serialize};
-use tracing::warn;
+use tracing::{error, warn};
 
 // round 6
 
@@ -42,6 +42,7 @@ pub struct BcastFail {
     pub culprits: Vec<Culprit>,
 }
 
+#[derive(Debug)]
 pub(super) enum Output {
     Success { state: State, out_bcast: Bcast },
     Fail { out_bcast: BcastFail },
@@ -189,7 +190,7 @@ impl Sign {
                 .unwrap_or_else(|| {
                     // TODO these checks should not be necessary after refactoring
                     panic!(
-                        "r7_fail_randomizer participant {} says: missing r2p2p from {}",
+                        "participant {} missing r2p2p from {}",
                         self.my_participant_index, i
                     )
                 });
@@ -203,11 +204,9 @@ impl Sign {
             {
                 let my_mta_blind_summand_lhs_mod_q: FE =
                     ECScalar::from(&my_mta_blind_summand_lhs_plaintext.0);
-                assert_eq!(
-                    my_mta_blind_summand_lhs_mod_q,
-                    r3state.my_mta_blind_summands_lhs[i].unwrap(),
-                    "participant {}: decryption of mta_response_blind from {} in r7_fail_randomizer differs from r3", self.my_participant_index, i
-                ); // TODO panic
+                if my_mta_blind_summand_lhs_mod_q != r3state.my_mta_blind_summands_lhs[i].unwrap() {
+                    error!("participant {} decryption of mta_response_blind from {} in r6 differs from r3", self.my_participant_index, i);
+                }
 
                 // do not return my_mta_blind_summand_lhs_mod_q
                 // need my_mta_blind_summand_lhs_plaintext because it may differ from my_mta_blind_summand_lhs_mod_q

@@ -9,19 +9,14 @@ use tracing::{error, info, warn};
 
 impl Sign {
     // execute blame protocol from section 4.3 of https://eprint.iacr.org/2020/540.pdf
-    pub(super) fn r7_fail_randomizer(&self) -> Vec<Vec<Crime>> {
+    pub(super) fn r7_fail_type5(&self) -> Vec<Vec<Crime>> {
         assert!(matches!(self.status, Status::R6FailRandomizer));
-        assert!(self.in_r6bcasts_fail_randomizer.some_count() > 0);
+        assert!(self.in_r6bcasts_fail_type5.some_count() > 0);
 
         let mut criminals = vec![Vec::new(); self.participant_indices.len()];
 
         // 'outer: for (i, r7_participant_data) in self
-        for (i, r6_participant_data) in self
-            .in_r6bcasts_fail_randomizer
-            .vec_ref()
-            .iter()
-            .enumerate()
-        {
+        for (i, r6_participant_data) in self.in_r6bcasts_fail_type5.vec_ref().iter().enumerate() {
             if r6_participant_data.is_none() {
                 // this happens when parties falsely pretend 'type 5' success
                 let crime = Crime::R7FailType5MissingData;
@@ -47,7 +42,7 @@ impl Sign {
                 let mta_blind_summand = mta_blind_summand.as_ref().unwrap_or_else(|| {
                     panic!(
                         // TODO these checks should be unnecessary after refactoring
-                        "r8_fail_randomizer participant {} missing mta_blind_summand from {} for {}",
+                        "r7_fail_type5 participant {} missing mta_blind_summand from {} for {}",
                         self.my_participant_index, i, j
                     )
                 });
@@ -60,7 +55,7 @@ impl Sign {
             let in_r3bcast = self.in_r3bcasts.vec_ref()[i].as_ref().unwrap_or_else(|| {
                 panic!(
                     // TODO these checks should be unnecessary after refactoring
-                    "r8_fail_randomizer participant {} missing in_r3bcast from {}",
+                    "r7_fail_type5 participant {} missing in_r3bcast from {}",
                     self.my_participant_index, i
                 )
             });
@@ -91,7 +86,7 @@ impl Sign {
             let in_r1bcast = self.in_r1bcasts.vec_ref()[i].as_ref().unwrap_or_else(|| {
                 panic!(
                     // TODO these checks should be unnecessary after refactoring
-                    "r8_fail_randomizer participant {} missing in_r1bcast from {}",
+                    "r7_fail_type5 participant {} missing in_r1bcast from {}",
                     self.my_participant_index, i
                 )
             });
@@ -112,7 +107,7 @@ impl Sign {
             let in_r4bcast = self.in_r4bcasts.vec_ref()[i].as_ref().unwrap_or_else(|| {
                 panic!(
                     // TODO these checks should be unnecessary after refactoring
-                    "r8_fail_randomizer participant {} missing in_r4bcast from {}",
+                    "r7_fail_type5 participant {} missing in_r4bcast from {}",
                     self.my_participant_index, i
                 )
             });
@@ -138,7 +133,7 @@ impl Sign {
                 let mta_blind_summand = mta_blind_summand.as_ref().unwrap_or_else(|| {
                     panic!(
                         // TODO these checks should be unnecessary after refactoring
-                        "r8_fail_randomizer participant {} missing mta_blind_summand belonging to {} from {}",
+                        "r7_fail_type5 participant {} missing mta_blind_summand belonging to {} from {}",
                         self.my_participant_index, i, j
                     )
                 });

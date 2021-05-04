@@ -342,7 +342,7 @@ impl Protocol for BadSign {
                             let ecdsa_nonce_summand = &mut out_bcast.ecdsa_nonce_summand;
                             let one: FE = ECScalar::from(&BigInt::from(1));
                             *ecdsa_nonce_summand = *ecdsa_nonce_summand + one;
-                            self.sign.update_state_r6fail_randomizer(out_bcast)
+                            self.sign.update_state_r6fail_type5(out_bcast)
                         }
                     },
                     status => {
@@ -421,7 +421,7 @@ impl Protocol for BadSign {
                                 out_bcast.mta_blind_summands[victim].as_mut().unwrap();
                             mta_blind_summand.lhs_plaintext =
                                 &mta_blind_summand.lhs_plaintext + BigInt::from(1);
-                            self.sign.update_state_r6fail_randomizer(out_bcast)
+                            self.sign.update_state_r6fail_type5(out_bcast)
                         }
                     },
                     status => {
@@ -500,7 +500,7 @@ impl Protocol for BadSign {
                                 out_bcast.mta_blind_summands[victim].as_mut().unwrap();
                             let one: FE = ECScalar::from(&BigInt::from(1));
                             mta_blind_summand.rhs = mta_blind_summand.rhs + one;
-                            self.sign.update_state_r6fail_randomizer(out_bcast)
+                            self.sign.update_state_r6fail_type5(out_bcast)
                         }
                     },
                     status => {
@@ -622,7 +622,7 @@ impl Protocol for BadSign {
                             "malicious participant {} can't do {:?} because protocol has failed; reverting to honesty",
                             self.sign.my_participant_index, self.malicious_type
                         );
-                        self.sign.update_state_r6fail_randomizer(out_bcast)
+                        self.sign.update_state_r6fail_type5(out_bcast)
                     }
                 }
             }
@@ -636,7 +636,7 @@ impl Protocol for BadSign {
                     self.sign.my_participant_index, self.malicious_type
                 );
                 self.sign
-                    .update_state_r6fail_randomizer(self.sign.type5_fault_output())
+                    .update_state_r6fail_type5(self.sign.type5_fault_output())
             }
             R7BadSigSummand => {
                 if !matches!(self.sign.status, Status::R6) {
@@ -667,6 +667,13 @@ impl Protocol for BadSign {
                             self.sign.my_participant_index, self.malicious_type
                         );
                         Ok(self.sign.update_state_fail(criminals))
+                    }
+                    r7::Output::FailType7 { out_bcast } => {
+                        warn!(
+                            "malicious participant {} can't do {:?} because protocol has failed; reverting to honesty",
+                            self.sign.my_participant_index, self.malicious_type
+                        );
+                        todo!()
                     }
                 }
             }
