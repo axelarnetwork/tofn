@@ -48,7 +48,7 @@ impl Sign {
                 )
             });
             if *encrypted_ecdsa_nonce_summand.0 != in_r1bcast.encrypted_ecdsa_nonce_summand.c {
-                // this code path triggered by R3BadEcdsaNonceSummand
+                // this code path triggered by TODO
                 let crime = Crime::R8FailType7BadNonceSummand;
                 info!(
                     "participant {} detect {:?} by {}",
@@ -89,6 +89,9 @@ impl Sign {
                         .c
                 {
                     // this code path triggered by TODO
+
+                    // It's getting intractable to write tests for malicious behaviour.  Example: I want to corrupt `mu_ij` to trigger `Crime::R8FailType7MtaWcKeyshareSummandLhs`.  This requires corrupting `mu_ij`, `sigma_i`, and the Pedersen commitment and zk proof for `sigma_i` in round 3.  It's relatively easy to corrupt `mu_ij`, `sigma_i` after-the-fact like we've always done, but the only way to also corrupt the Pedersen commitment and zk proof we need to re-run `pedersen::commit` AND `pedersen::prove` after-the-fact.  At this point we're basically re-executing round 3 in the malicious code---it's no longer tractable to corrupt after-the-fact.  Instead, I need to re-design the codebase to facilitate corruption inside honest code.
+
                     let crime = Crime::R8FailType7MtaWcKeyshareSummandLhs { victim: j };
                     info!(
                         "participant {} detect {:?} (mu_ij) by {}",

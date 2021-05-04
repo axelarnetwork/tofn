@@ -15,17 +15,17 @@ pub enum MaliciousType {
     // TODO R1BadCommit,
     Honest,
     R1BadProof { victim: usize },
-    R1BadSecretBlindSummand, // triggers r6::Output::FailRandomizer
+    R1BadSecretBlindSummand, // triggers r6::Output::FailType5
     R2FalseAccusation { victim: usize },
     R2BadMta { victim: usize },
     R2BadMtaWc { victim: usize },
     R3FalseAccusationMta { victim: usize },
     R3FalseAccusationMtaWc { victim: usize },
     R3BadProof,
-    R3BadNonceXBlindSummand, // triggers r6::Output::FailRandomizer
-    R3BadEcdsaNonceSummand,  // triggers r6::Output::FailRandomizer
-    R3BadMtaBlindSummandLhs { victim: usize }, // triggers r6::Output::FailRandomizer
-    R3BadMtaBlindSummandRhs { victim: usize }, // triggers r6::Output::FailRandomizer
+    R3BadNonceXBlindSummand, // triggers r6::Output::FailType5
+    R3BadEcdsaNonceSummand,  // triggers r6::Output::FailType5
+    R3BadMtaBlindSummandLhs { victim: usize }, // triggers r6::Output::FailType5
+    R3BadMtaBlindSummandRhs { victim: usize }, // triggers r6::Output::FailType5
     R4BadReveal,
     R5BadProof { victim: usize },
     R6FalseAccusation { victim: usize },
