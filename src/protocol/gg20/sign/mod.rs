@@ -1,7 +1,10 @@
 use super::keygen::SecretKeyShare;
 use serde::{Deserialize, Serialize};
 
-use crate::{fillvec::FillVec, protocol::MsgBytes};
+use crate::{
+    fillvec::FillVec,
+    protocol::{gg20::vss, MsgBytes},
+};
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     BigInt, FE, GE,
@@ -215,9 +218,29 @@ impl Sign {
     pub fn clone_output(&self) -> Option<SignOutput> {
         self.final_output.clone()
     }
+
+    fn lagrangian_coefficient(&self, party_index: usize) -> FE {
+        vss::lagrangian_coefficient(
+            self.my_secret_key_share.share_count,
+            party_index,
+            &self.participant_indices,
+        )
+    }
+
+    fn public_key_summand(&self, participant_index: usize) -> GE {
+        let party_index = self.participant_indices[participant_index];
+        self.my_secret_key_share.all_ecdsa_public_key_shares[party_index]
+            * self.lagrangian_coefficient(party_index)
+    }
 }
 
 pub type SignOutput = Result<Vec<u8>, Vec<Vec<crimes::Crime>>>;
+
+// TODO need a fancier struct for Vec<Vec<Crime>>
+// eg. need a is_empty() method, etc
+fn is_empty(criminals: &[Vec<crimes::Crime>]) -> bool {
+    criminals.iter().fold(true, |acc, c| acc && c.is_empty())
+}
 
 /// validate_params helper with custom error type
 /// Assume `secret_key_share` is valid and check `participant_indices` against it.

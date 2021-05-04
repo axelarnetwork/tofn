@@ -1,4 +1,4 @@
-use super::{crimes::Crime, Sign, Status};
+use super::{crimes::Crime, is_empty, r7, Sign, Status};
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     FE, GE,
@@ -15,9 +15,9 @@ impl Sign {
 
         let mut criminals = vec![Vec::new(); self.participant_indices.len()];
 
-        // 'outer: for (i, r7_participant_data) in self
-        for (i, r7_participant_data) in self.in_r7bcasts_fail_type7.vec_ref().iter().enumerate() {
-            if r7_participant_data.is_none() {
+        // any participant who did not send data is a criminal
+        for (i, data) in self.in_r7bcasts_fail_type7.vec_ref().iter().enumerate() {
+            if data.is_none() {
                 // this happens when parties falsely pretend 'type 7' success
                 let crime = Crime::R8FailType7MissingData;
                 warn!(
@@ -25,28 +25,32 @@ impl Sign {
                     self.my_participant_index, crime, i
                 );
                 criminals[i].push(crime);
-                continue; // can't proceed without data
             }
-            let r7_participant_data = r7_participant_data.as_ref().unwrap();
+        }
+        // can't proceed without everyone's data
+        if !is_empty(&criminals) {
+            return criminals;
+        }
+        // now we can safely unwrap everyone's data
+        let all_r7bcasts: Vec<&r7::BcastFailType7> = self
+            .in_r7bcasts_fail_type7
+            .vec_ref()
+            .iter()
+            .map(|x| x.as_ref().unwrap())
+            .collect();
 
-            // verify r7_participant_data is consistent with earlier messages:
-            // 1. ecdsa_nonce_summand (k_i)
-            // 2. mta_wc_blind_summands.lhs (mu_ij)
-
+        // verify that each participant's data is consistent with earlier messages:
+        // 1. ecdsa_nonce_summand (k_i)
+        // 2. mta_wc_blind_summands.lhs (mu_ij)
+        for (i, r7bcast) in all_r7bcasts.iter().enumerate() {
             // 1. ecdsa_nonce_summand (k_i)
             let ek = &self.my_secret_key_share.all_eks[self.participant_indices[i]];
             let encrypted_ecdsa_nonce_summand = Paillier::encrypt_with_chosen_randomness(
                 ek,
-                RawPlaintext::from(r7_participant_data.ecdsa_nonce_summand.to_big_int()),
-                &Randomness::from(&r7_participant_data.ecdsa_nonce_summand_randomness),
+                RawPlaintext::from(r7bcast.ecdsa_nonce_summand.to_big_int()),
+                &Randomness::from(&r7bcast.ecdsa_nonce_summand_randomness),
             );
-            let in_r1bcast = self.in_r1bcasts.vec_ref()[i].as_ref().unwrap_or_else(|| {
-                panic!(
-                    // TODO these checks should be unnecessary after refactoring
-                    "r7_fail_type5 participant {} missing in_r1bcast from {}",
-                    self.my_participant_index, i
-                )
-            });
+            let in_r1bcast = self.in_r1bcasts.vec_ref()[i].as_ref().unwrap();
             if *encrypted_ecdsa_nonce_summand.0 != in_r1bcast.encrypted_ecdsa_nonce_summand.c {
                 // this code path triggered by TODO
                 let crime = Crime::R8FailType7BadNonceSummand;
@@ -55,26 +59,15 @@ impl Sign {
                     self.my_participant_index, crime, i
                 );
                 criminals[i].push(crime);
-                // TODO continue looking for more crimes?
-                // continue; // participant i is known to be criminal, continue to next participant
             }
 
             // 2. mta_wc_keyshare_summands.lhs (mu_ij)
-            for (j, mta_wc_keyshare_summand) in r7_participant_data
-                .mta_wc_keyshare_summands
-                .iter()
-                .enumerate()
+            for (j, mta_wc_keyshare_summand) in r7bcast.mta_wc_keyshare_summands.iter().enumerate()
             {
                 if j == i {
                     continue;
                 }
-                let mta_wc_keyshare_summand = mta_wc_keyshare_summand.as_ref().unwrap_or_else(|| {
-                    panic!(
-                        // TODO these checks should be unnecessary after refactoring
-                        "r8_fail_type7 participant {} missing mta_wc_keyshare_summand belonging to {} from {}",
-                        self.my_participant_index, i, j
-                    )
-                });
+                let mta_wc_keyshare_summand = mta_wc_keyshare_summand.as_ref().unwrap();
                 let mta_wc_keyshare_summand_lhs_ciphertext =
                     Paillier::encrypt_with_chosen_randomness(
                         ek,
@@ -98,18 +91,64 @@ impl Sign {
                         self.my_participant_index, crime, i
                     );
                     criminals[i].push(crime);
-                    // TODO continue looking for more crimes?
-                    // continue 'outer; // participant i is known to be criminal, continue to next participant
                 }
             }
-
-            // DONE TO HERE
-            todo!()
         }
 
-        if criminals.iter().map(|v| v.len()).sum::<usize>() == 0 {
+        // compute ecdsa nonce k = sum_i k_i
+        let zero: FE = ECScalar::zero();
+        let ecdsa_nonce = all_r7bcasts
+            .iter()
+            .fold(zero, |acc, b| acc + b.ecdsa_nonce_summand);
+
+        // verify zkps as per page 19 of https://eprint.iacr.org/2020/540.pdf doc version 20200511:155431
+        for (i, r7bcast) in all_r7bcasts.iter().enumerate() {
+            // compute sigma_i * G as per the equation at the bottom of page 18 of
+            // https://eprint.iacr.org/2020/540.pdf doc version 20200511:155431
+
+            // BEWARE: there is a typo in the equation second from the bottom of page 18 of
+            // https://eprint.iacr.org/2020/540.pdf doc version 20200511:155431
+            // the subscripts of nu should be reversed: nu_ji -> nu_ij
+
+            // the formula for sigma_i simplifies to the following:
+            //   sigma_i = w_i * k + sum_{j!=i} (mu_ij - mu_ji)
+            // thus we may compute sigma_i * G as follows:
+            //   k * W_i + sum_{j!=i} (mu_ij - mu_ji) * G
+
+            // compute sum_{j!=i} (mu_ij - mu_ji)
+            let mu_summation = r7bcast.mta_wc_keyshare_summands.iter().enumerate().fold(
+                zero,
+                |acc, (j, summand)| {
+                    if j == i {
+                        acc
+                    } else {
+                        let mu_ij: FE = ECScalar::from(&summand.as_ref().unwrap().lhs_plaintext);
+                        let mu_ji: FE = ECScalar::from(
+                            &all_r7bcasts[j].mta_wc_keyshare_summands[i]
+                                .as_ref()
+                                .unwrap()
+                                .lhs_plaintext,
+                        );
+                        let neg_mu_ji: FE = zero.sub(&mu_ji.get_element()); // wow zengo sucks
+                        acc + mu_ij + neg_mu_ji
+                    }
+                },
+            );
+
+            // compute sigma_i * G
+            let _sigma_i_g =
+                self.public_key_summand(i) * ecdsa_nonce + (GE::generator() * mu_summation);
+
+            // TODO check zkp
             error!(
-                "participant {} detect 'type 5' fault but found no criminals",
+                "participant {} 'type 7' zkp check not implemented",
+                self.my_participant_index,
+            );
+        }
+
+        if is_empty(&criminals) {
+            error!(
+                "participant {} detect 'type 7' fault but found no criminals",
                 self.my_participant_index,
             );
         }
