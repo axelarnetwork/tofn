@@ -261,7 +261,7 @@ impl Protocol for Sign {
                         self.my_participant_index, msg_meta.msg_type, msg_meta.from
                     );
                 }
-                self.in_r7bcasts
+                self.in_r7bcasts_fail_type7
                     .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)
             }
         };

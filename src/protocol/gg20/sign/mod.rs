@@ -89,6 +89,9 @@ mod r8_fail_type7;
 pub struct Sign {
     status: Status,
 
+    #[cfg(feature = "malicious")] // TODO hack type7 fault
+    behaviour: malicious::MaliciousType,
+
     // state data
     my_secret_key_share: SecretKeyShare,
     msg_to_sign: FE, // not used until round 7
@@ -172,6 +175,8 @@ impl Sign {
         let participant_count = participant_indices.len();
         let msg_to_sign: FE = ECScalar::from(&BigInt::from(msg_to_sign));
         Ok(Self {
+            #[cfg(feature = "malicious")] // TODO hack type7 fault
+            behaviour: malicious::MaliciousType::Honest,
             status: Status::New,
             my_secret_key_share: my_secret_key_share.clone(),
             participant_indices: participant_indices.to_vec(),
@@ -240,6 +245,12 @@ pub type SignOutput = Result<Vec<u8>, Vec<Vec<crimes::Crime>>>;
 // eg. need a is_empty() method, etc
 fn is_empty(criminals: &[Vec<crimes::Crime>]) -> bool {
     criminals.iter().fold(true, |acc, c| acc && c.is_empty())
+}
+
+#[cfg(feature = "malicious")] // TODO hack type7 fault
+fn corrupt_scalar(x: &FE) -> FE {
+    let one: FE = ECScalar::from(&BigInt::from(1));
+    *x + one
 }
 
 /// validate_params helper with custom error type

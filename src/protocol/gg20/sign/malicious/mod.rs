@@ -14,6 +14,7 @@ use tracing::{error, info, warn};
 pub enum MaliciousType {
     // TODO R1BadCommit,
     Honest,
+    R3BadNonceXKeyshareSummand, // triggers r7::Output::FailType7
     R1BadProof { victim: usize },
     R1BadSecretBlindSummand, // triggers r6::Output::FailType5
     R2FalseAccusation { victim: usize },
@@ -47,8 +48,11 @@ impl BadSign {
         msg_to_sign: &[u8],
         malicious_type: MaliciousType,
     ) -> Result<Self, ParamsError> {
+        // TODO hack type7 fault
+        let mut sign = Sign::new(my_secret_key_share, participant_indices, msg_to_sign)?;
+        sign.behaviour = malicious_type.clone();
         Ok(Self {
-            sign: Sign::new(my_secret_key_share, participant_indices, msg_to_sign)?,
+            sign,
             malicious_type,
         })
     }
@@ -69,6 +73,7 @@ impl Protocol for BadSign {
 
         match self.malicious_type {
             Honest => self.sign.next_round(),
+            R3BadNonceXKeyshareSummand => self.sign.next_round(), // TODO hack type7 fault
             R1BadProof { victim } => {
                 if !matches!(self.sign.status, Status::New) {
                     return self.sign.next_round();

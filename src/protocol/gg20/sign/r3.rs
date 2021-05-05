@@ -195,6 +195,15 @@ impl Sign {
                 );
         }
 
+        #[cfg(feature = "malicious")] // TODO hack type7 fault
+        if matches!(
+            self.behaviour,
+            super::malicious::MaliciousType::R3BadNonceXKeyshareSummand
+        ) {
+            use super::corrupt_scalar;
+            my_nonce_x_keyshare_summand = corrupt_scalar(&my_nonce_x_keyshare_summand);
+        }
+
         // commit to my_nonce_x_keyshare_summand and compute a zk proof for the commitment
         // GG20 notation:
         // commit -> T_i
