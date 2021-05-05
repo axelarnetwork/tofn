@@ -47,7 +47,7 @@ impl EcdsaSig {
 #[cfg(feature = "malicious")]
 pub mod malicious;
 
-mod crimes;
+pub mod crimes;
 mod protocol;
 
 #[derive(Debug)]
