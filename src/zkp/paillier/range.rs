@@ -88,18 +88,18 @@ impl ZkSetup {
         msg_g_g: Option<(&GE, &GE)>, // (msg_g, g)
         wit: &Witness,
     ) -> (Proof, Option<GE>) {
-        let alpha = BigInt::sample_below(&self.public.q3);
+        let alpha = BigInt::sample_below(&self.q3);
         let beta = Randomness::sample(&stmt.ek); // TODO sample() may not be coprime to stmt.ek.n; do we care?
-        let rho = BigInt::sample_below(&self.public.q_n_tilde);
-        let gamma = BigInt::sample_below(&self.public.q3_n_tilde);
+        let rho = BigInt::sample_below(&self.q_n_tilde);
+        let gamma = BigInt::sample_below(&self.q3_n_tilde);
 
-        let z = self.public.commit(&wit.msg.to_big_int(), &rho);
+        let z = self.commit(&wit.msg.to_big_int(), &rho);
         let u =
             Paillier::encrypt_with_chosen_randomness(stmt.ek, RawPlaintext::from(&alpha), &beta)
                 .0
                 .clone()
                 .into_owned(); // TODO wtf clone into_owned why does paillier suck so bad?
-        let w = self.public.commit(&alpha, &gamma);
+        let w = self.commit(&alpha, &gamma);
 
         let u1 = msg_g_g.map::<GE, _>(|(_, g)| {
             let alpha: FE = ECScalar::from(&alpha);
@@ -138,7 +138,7 @@ impl ZkSetup {
         proof: &Proof,
         msg_g_g_u1: Option<(&GE, &GE, &GE)>, // (msg_g, g, u1)
     ) -> Result<(), &'static str> {
-        if proof.s1 > self.public.q3 || proof.s1 < BigInt::zero() {
+        if proof.s1 > self.q3 || proof.s1 < BigInt::zero() {
             return Err("s1 not in range q^3");
         }
         let e_neg = HSha256::create_hash(&[
@@ -183,9 +183,9 @@ impl ZkSetup {
         }
 
         let w_check = BigInt::mod_mul(
-            &self.public.commit(&proof.s1, &proof.s2),
-            &BigInt::mod_pow(&proof.z, &e_neg, &self.public.n_tilde),
-            &self.public.n_tilde,
+            &self.commit(&proof.s1, &proof.s2),
+            &BigInt::mod_pow(&proof.z, &e_neg, &self.n_tilde()),
+            &self.n_tilde(),
         );
         if w_check != proof.w {
             return Err("w check fail");
@@ -289,7 +289,7 @@ pub mod tests {
         // test: bad witness
         // curv library sucks so bad that I cannot possibly write a corrupt_witness function
         // curv library does not allow in-place arithmetic
-        let one: FE = ECScalar::from(&BigInt::from(1));
+        let one: FE = ECScalar::from(&BigInt::one());
         let bad_wit = &Witness {
             msg: &(*wit.msg + one),
             ..*wit

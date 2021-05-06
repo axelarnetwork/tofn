@@ -56,16 +56,12 @@ impl Keygen {
                         self.my_index, i
                     )
                 });
-            in_r1bcast
-                .zkp
-                .dlog_proof
-                .verify(&in_r1bcast.zkp.dlog_statement)
-                .unwrap_or_else(|_| {
-                    panic!(
-                        "party {} says: dlog proof failed to verify for party {}",
-                        self.my_index, i
-                    )
-                });
+            if !in_r1bcast.zkp.verify_composite_dlog_proof() {
+                panic!(
+                    "party {} says: dlog proof failed to verify for party {}",
+                    self.my_index, i
+                );
+            }
             all_commits.push(in_r1bcast.commit.clone());
             all_eks.push(in_r1bcast.ek.clone());
             all_zkps.push(in_r1bcast.zkp.clone());
