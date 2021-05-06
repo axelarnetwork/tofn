@@ -2,7 +2,6 @@
 //!
 //! A quick-and-dirty wrapper to clean up zkp code from https://github.com/ZenGo-X/multi-party-ecdsa
 //!
-//! TODO clean up: lots of repeated data
 //! TODO look into the implementation here: https://github.com/ing-bank/threshold-signatures/blob/master/src/algorithms/zkp.rs
 
 use curv::{
