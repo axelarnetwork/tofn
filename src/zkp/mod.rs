@@ -1,3 +1,3 @@
 pub mod chaum_pedersen;
-pub mod paillier2;
+pub mod paillier;
 pub mod pedersen;

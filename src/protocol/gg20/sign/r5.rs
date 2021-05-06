@@ -1,5 +1,5 @@
 use crate::fillvec::FillVec;
-use crate::zkp::paillier2::range;
+use crate::zkp::paillier::range;
 
 use super::{crimes::Crime, Sign, Status};
 use curv::{

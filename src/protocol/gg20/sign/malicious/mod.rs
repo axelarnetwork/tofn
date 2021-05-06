@@ -1,7 +1,7 @@
 use super::{r2, r3, r4, r5, r6, r7, ParamsError, Sign, SignOutput, Status};
 use crate::protocol::{gg20::keygen::SecretKeyShare, MsgBytes, Protocol, ProtocolResult};
 use crate::zkp::{
-    paillier2::{mta, range},
+    paillier::{mta, range},
     pedersen,
 };
 use curv::{elliptic::curves::traits::ECScalar, BigInt, FE};

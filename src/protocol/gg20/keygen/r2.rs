@@ -3,7 +3,7 @@ use paillier::EncryptionKey;
 use serde::{Deserialize, Serialize};
 
 use super::{Keygen, Status};
-use crate::{fillvec::FillVec, protocol::gg20::vss, zkp::paillier2::ZkSetup};
+use crate::{fillvec::FillVec, protocol::gg20::vss, zkp::paillier::ZkSetup};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Bcast {

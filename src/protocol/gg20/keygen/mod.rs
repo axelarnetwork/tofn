@@ -1,4 +1,4 @@
-use crate::{fillvec::FillVec, protocol::MsgBytes, zkp::paillier2::ZkSetup};
+use crate::{fillvec::FillVec, protocol::MsgBytes, zkp::paillier::ZkSetup};
 use curv::{FE, GE};
 use paillier::{DecryptionKey, EncryptionKey};
 use serde::{Deserialize, Serialize};

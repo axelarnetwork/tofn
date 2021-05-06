@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{fillvec::FillVec, protocol::gg20::vss, zkp::paillier2::range};
+use crate::{fillvec::FillVec, protocol::gg20::vss, zkp::paillier::range};
 use curv::{
     // arithmetic::traits::Samplable,
     cryptographic_primitives::commitments::{hash_commitment::HashCommitment, traits::Commitment},

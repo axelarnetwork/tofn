@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use zk_paillier::zkproofs::NICorrectKeyProof;
 
 use super::{Keygen, Status};
-use crate::zkp::paillier2::ZkSetup;
+use crate::zkp::paillier::ZkSetup;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bcast {

@@ -1,7 +1,7 @@
 use super::{Sign, Status};
 use crate::fillvec::FillVec;
 use crate::protocol::gg20::vss;
-use crate::zkp::{paillier2::mta, pedersen};
+use crate::zkp::{paillier::mta, pedersen};
 use curv::{elliptic::curves::traits::ECScalar, FE, GE};
 use serde::{Deserialize, Serialize};
 use tracing::warn;

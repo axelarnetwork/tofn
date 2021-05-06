@@ -1,6 +1,6 @@
 use super::{Sign, Status};
 use crate::fillvec::FillVec;
-use crate::zkp::paillier2::{mta, range};
+use crate::zkp::paillier::{mta, range};
 use curv::{elliptic::curves::traits::ECPoint, BigInt, FE, GE};
 use multi_party_ecdsa::utilities::mta as mta_zengo;
 use serde::{Deserialize, Serialize};
