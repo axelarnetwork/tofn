@@ -14,6 +14,7 @@ use paillier::{DecryptionKey, EncryptionKey, KeyGeneration, Paillier};
 use serde::{Deserialize, Serialize};
 use zk_paillier::zkproofs::{CompositeDLogProof, DLogStatement};
 
+pub mod chaum_pedersen;
 pub mod mta;
 pub mod pedersen;
 pub mod range;

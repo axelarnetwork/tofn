@@ -20,7 +20,8 @@ pub struct State {
     pub(super) my_nonce_x_keyshare_summand: FE,
     pub(super) my_nonce_x_keyshare_summand_commit: GE,
     pub(super) my_nonce_x_keyshare_summand_commit_randomness: FE,
-    pub(super) my_mta_blind_summands_lhs: Vec<Option<FE>>, // alpha_ij, needed only in r6 fail mode
+    pub(super) my_mta_blind_summands_lhs: Vec<Option<FE>>, // alpha_ij, needed only in r7_fail_type5
+    pub(super) my_mta_wc_keyshare_summands_lhs: Vec<Option<FE>>, // mu_ij, needed only in r8_fail_type7
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -60,7 +61,7 @@ impl Sign {
         // 1. my_ecdsa_nonce_summand * my_secret_blind_summand
         // 2. my_ecdsa_nonce_summand * my_secret_key_summand
         let mut my_mta_blind_summands_lhs = FillVec::with_len(self.participant_indices.len());
-        let mut my_mta_keyshare_summands_lhs = FillVec::with_len(self.participant_indices.len());
+        let mut my_mta_wc_keyshare_summands_lhs = FillVec::with_len(self.participant_indices.len());
         let mut culprits = Vec::new();
 
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
@@ -149,7 +150,7 @@ impl Sign {
             my_mta_blind_summands_lhs
                 .insert(i, my_mta_blind_summand_lhs)
                 .unwrap();
-            my_mta_keyshare_summands_lhs
+            my_mta_wc_keyshare_summands_lhs
                 .insert(i, my_mta_keyshare_summand_lhs)
                 .unwrap();
         }
@@ -168,7 +169,7 @@ impl Sign {
         // my_secret_key_summand -> w_i
         let r2state = self.r2state.as_ref().unwrap();
         let my_mta_blind_summands_lhs = my_mta_blind_summands_lhs.into_vec();
-        let my_mta_keyshare_summands_lhs = my_mta_keyshare_summands_lhs.into_vec();
+        let my_mta_wc_keyshare_summands_lhs = my_mta_wc_keyshare_summands_lhs.into_vec();
 
         // start the summation with my contribution
         let mut my_nonce_x_blind_summand = r1state
@@ -187,11 +188,20 @@ impl Sign {
                     .unwrap()
                     .add(&r2state.my_mta_blind_summands_rhs[i].unwrap().get_element());
             my_nonce_x_keyshare_summand = my_nonce_x_keyshare_summand
-                + my_mta_keyshare_summands_lhs[i].unwrap().add(
+                + my_mta_wc_keyshare_summands_lhs[i].unwrap().add(
                     &r2state.my_mta_keyshare_summands_rhs[i]
                         .unwrap()
                         .get_element(),
                 );
+        }
+
+        #[cfg(feature = "malicious")] // TODO hack type7 fault
+        if matches!(
+            self.behaviour,
+            super::malicious::MaliciousType::R3BadNonceXKeyshareSummand
+        ) {
+            use super::corrupt_scalar;
+            my_nonce_x_keyshare_summand = corrupt_scalar(&my_nonce_x_keyshare_summand);
         }
 
         // commit to my_nonce_x_keyshare_summand and compute a zk proof for the commitment
@@ -214,6 +224,7 @@ impl Sign {
                 my_nonce_x_keyshare_summand_commit: *commit,
                 my_nonce_x_keyshare_summand_commit_randomness: *randomness,
                 my_mta_blind_summands_lhs,
+                my_mta_wc_keyshare_summands_lhs,
             },
             out_bcast: Bcast {
                 nonce_x_blind_summand: my_nonce_x_blind_summand,

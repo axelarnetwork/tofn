@@ -1,7 +1,10 @@
 use super::keygen::SecretKeyShare;
 use serde::{Deserialize, Serialize};
 
-use crate::{fillvec::FillVec, protocol::MsgBytes};
+use crate::{
+    fillvec::FillVec,
+    protocol::{gg20::vss, MsgBytes},
+};
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     BigInt, FE, GE,
@@ -62,8 +65,9 @@ enum Status {
     R5,
     R6,
     R6Fail,
-    R6FailRandomizer,
+    R6FailType5,
     R7,
+    R7FailType7,
     Done,
     Fail,
 }
@@ -78,11 +82,15 @@ mod r5;
 mod r6;
 mod r7;
 mod r7_fail;
-mod r7_fail_randomizer;
+mod r7_fail_type5;
 mod r8;
+mod r8_fail_type7;
 
 pub struct Sign {
     status: Status,
+
+    #[cfg(feature = "malicious")] // TODO hack type7 fault
+    behaviour: malicious::MaliciousType,
 
     // state data
     my_secret_key_share: SecretKeyShare,
@@ -121,8 +129,9 @@ pub struct Sign {
 
     in_r2bcasts_fail: FillVec<r2::FailBcast>,
     in_r3bcasts_fail: FillVec<r3::FailBcast>,
-    in_r6bcasts_fail: FillVec<r6::BcastCulprits>,
-    in_r6bcasts_fail_randomizer: FillVec<r6::BcastRandomizer>,
+    in_r6bcasts_fail: FillVec<r6::BcastFail>,
+    in_r6bcasts_fail_type5: FillVec<r6::BcastFailType5>,
+    in_r7bcasts_fail_type7: FillVec<r7::BcastFailType7>,
 
     // TODO currently I do not store my own deserialized output messages
     // instead, my output messages are stored only in serialized form so they can be quickly returned in `get_bcast_out` and `get_p2p_out`
@@ -150,7 +159,8 @@ pub struct Sign {
     out_r2bcast_fail_serialized: Option<MsgBytes>, // TODO _serialized suffix to distinguish from EXPERIMENT described above
     out_r3bcast_fail_serialized: Option<MsgBytes>,
     out_r6bcast_fail_serialized: Option<MsgBytes>,
-    out_r6bcast_fail_randomizer_serialized: Option<MsgBytes>,
+    out_r6bcast_fail_type5_serialized: Option<MsgBytes>,
+    out_r7bcast_fail_type7_serialized: Option<MsgBytes>,
 
     final_output: Option<SignOutput>,
 }
@@ -165,6 +175,8 @@ impl Sign {
         let participant_count = participant_indices.len();
         let msg_to_sign: FE = ECScalar::from(&BigInt::from(msg_to_sign));
         Ok(Self {
+            #[cfg(feature = "malicious")] // TODO hack type7 fault
+            behaviour: malicious::MaliciousType::Honest,
             status: Status::New,
             my_secret_key_share: my_secret_key_share.clone(),
             participant_indices: participant_indices.to_vec(),
@@ -189,7 +201,8 @@ impl Sign {
             in_r2bcasts_fail: FillVec::with_len(participant_count),
             in_r3bcasts_fail: FillVec::with_len(participant_count),
             in_r6bcasts_fail: FillVec::with_len(participant_count),
-            in_r6bcasts_fail_randomizer: FillVec::with_len(participant_count),
+            in_r6bcasts_fail_type5: FillVec::with_len(participant_count),
+            in_r7bcasts_fail_type7: FillVec::with_len(participant_count),
             out_r1bcast: None,
             out_r1p2ps: None,
             out_r2p2ps: None,
@@ -202,16 +215,43 @@ impl Sign {
             out_r2bcast_fail_serialized: None,
             out_r3bcast_fail_serialized: None,
             out_r6bcast_fail_serialized: None,
-            out_r6bcast_fail_randomizer_serialized: None,
+            out_r6bcast_fail_type5_serialized: None,
+            out_r7bcast_fail_type7_serialized: None,
             final_output: None,
         })
     }
     pub fn clone_output(&self) -> Option<SignOutput> {
         self.final_output.clone()
     }
+
+    fn lagrangian_coefficient(&self, party_index: usize) -> FE {
+        vss::lagrangian_coefficient(
+            self.my_secret_key_share.share_count,
+            party_index,
+            &self.participant_indices,
+        )
+    }
+
+    fn public_key_summand(&self, participant_index: usize) -> GE {
+        let party_index = self.participant_indices[participant_index];
+        self.my_secret_key_share.all_ecdsa_public_key_shares[party_index]
+            * self.lagrangian_coefficient(party_index)
+    }
 }
 
 pub type SignOutput = Result<Vec<u8>, Vec<Vec<crimes::Crime>>>;
+
+// TODO need a fancier struct for Vec<Vec<Crime>>
+// eg. need a is_empty() method, etc
+fn is_empty(criminals: &[Vec<crimes::Crime>]) -> bool {
+    criminals.iter().all(|c| c.is_empty())
+}
+
+#[cfg(feature = "malicious")] // TODO hack type7 fault
+fn corrupt_scalar(x: &FE) -> FE {
+    let one: FE = ECScalar::from(&BigInt::from(1));
+    *x + one
+}
 
 /// validate_params helper with custom error type
 /// Assume `secret_key_share` is valid and check `participant_indices` against it.

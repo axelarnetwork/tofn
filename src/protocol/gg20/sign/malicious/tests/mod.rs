@@ -61,15 +61,18 @@ fn panic_out_of_index() {
 
 fn execute_test_case_list(test_cases: &[test_cases::TestCase]) {
     for t in test_cases {
-        let malicious_count = t
+        let malicious_participants: Vec<(usize, MaliciousType)> = t
             .sign_participants
             .iter()
-            .filter(|p| !matches!(p.behaviour, Honest))
-            .count();
+            .enumerate()
+            .filter(|p| !matches!(p.1.behaviour, Honest))
+            .map(|p| (p.0, p.1.behaviour.clone()))
+            .collect();
         info!(
-            "malicious_count [{}] share_count [{}] threshold [{}]",
-            malicious_count, t.share_count, t.threshold
+            "share_count [{}] threshold [{}]",
+            t.share_count, t.threshold
         );
+        info!("malicious participants {:?}", malicious_participants);
         execute_test_case(t);
     }
 }

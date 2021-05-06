@@ -1,12 +1,13 @@
-use crate::zkp::pedersen;
-
 use super::{crimes::Crime, Sign, Status};
+use crate::fillvec::FillVec;
+use crate::zkp::{chaum_pedersen, pedersen};
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
-    FE,
+    BigInt, FE, GE,
 };
+use paillier::{Open, Paillier, RawCiphertext};
 use serde::{Deserialize, Serialize};
-use tracing::warn;
+use tracing::{error, warn};
 
 // round 7
 
@@ -20,9 +21,11 @@ pub struct State {
     pub(super) my_ecdsa_sig_summand: FE,
 }
 
+#[derive(Debug)]
 pub(super) enum Output {
     Success { state: State, out_bcast: Bcast },
     Fail { criminals: Vec<Vec<Crime>> },
+    FailType7 { out_bcast: BcastFailType7 },
 }
 
 impl Sign {
@@ -32,15 +35,15 @@ impl Sign {
 
         // our check for 'type 5' failures succeeded in r6()
         // thus, anyone who sent us a r6::BcastRandomizer is a criminal
-        if self.in_r6bcasts_fail_randomizer.some_count() > 0 {
+        if self.in_r6bcasts_fail_type5.some_count() > 0 {
             let complainers: Vec<usize> = self
-                .in_r6bcasts_fail_randomizer
+                .in_r6bcasts_fail_type5
                 .vec_ref()
                 .iter()
                 .enumerate()
                 .filter_map(|x| if x.1.is_some() { Some(x.0) } else { None })
                 .collect();
-            let crime = Crime::R7FailRandomizerFalseComplaint;
+            let crime = Crime::R7FailType5FalseComplaint;
             warn!(
                 "participant {} detect {:?} by {:?}",
                 self.my_participant_index, crime, complainers
@@ -92,7 +95,16 @@ impl Sign {
             return Output::Fail { criminals };
         }
 
-        assert_eq!(ecdsa_public_key, self.my_secret_key_share.ecdsa_public_key); // TODO panic
+        // check for failure of type 7 from section 4.2 of https://eprint.iacr.org/2020/540.pdf
+        if ecdsa_public_key != self.my_secret_key_share.ecdsa_public_key {
+            warn!(
+                "participant {} detect 'type 7' fault",
+                self.my_participant_index
+            );
+            return Output::FailType7 {
+                out_bcast: self.type7_fault_output(),
+            };
+        }
 
         // compute our sig share s_i (aka my_ecdsa_sig_summand) as per phase 7 of 2020/540
         let r1state = self.r1state.as_ref().unwrap();
@@ -115,6 +127,96 @@ impl Sign {
             out_bcast: Bcast {
                 ecdsa_sig_summand: my_ecdsa_sig_summand,
             },
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(super) struct BcastFailType7 {
+    pub ecdsa_nonce_summand: FE,                // k_i
+    pub ecdsa_nonce_summand_randomness: BigInt, // k_i encryption randomness
+    pub mta_wc_keyshare_summands: Vec<Option<MtaWcKeyshareSummandsData>>,
+    pub proof: chaum_pedersen::Proof,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(super) struct MtaWcKeyshareSummandsData {
+    pub(super) lhs_plaintext: BigInt,  // mu_ij Paillier plaintext
+    pub(super) lhs_randomness: BigInt, // mu_ij encryption randomness
+}
+
+impl Sign {
+    // execute blame protocol from section 4.3 of https://eprint.iacr.org/2020/540.pdf
+    pub(super) fn type7_fault_output(&self) -> BcastFailType7 {
+        assert!(matches!(self.status, Status::R6));
+        let r3state = self.r3state.as_ref().unwrap();
+
+        let mut mta_wc_keyshare_summands = FillVec::with_len(self.participant_indices.len());
+        for i in 0..self.participant_indices.len() {
+            if i == self.my_participant_index {
+                continue;
+            }
+
+            // recover encryption randomness for my_mta_wc_keyshare_summands_lhs
+            // need to decrypt again to do so
+            let in_p2p = self.in_all_r2p2ps[i].vec_ref()[self.my_participant_index]
+                .as_ref()
+                .unwrap();
+            let (
+                my_mta_wc_keyshare_summand_lhs_plaintext,
+                my_mta_wc_keyshare_summand_lhs_randomness,
+            ) = Paillier::open(
+                &self.my_secret_key_share.my_dk,
+                &RawCiphertext::from(&in_p2p.mta_response_keyshare.c),
+            );
+
+            // sanity check: we should recover the value we computed in r3
+            {
+                let my_mta_wc_keyshare_summand_lhs_mod_q: FE =
+                    ECScalar::from(&my_mta_wc_keyshare_summand_lhs_plaintext.0);
+                if my_mta_wc_keyshare_summand_lhs_mod_q
+                    != r3state.my_mta_wc_keyshare_summands_lhs[i].unwrap()
+                {
+                    error!("participant {} decryption of mta_wc_response_keyshare from {} in r6 differs from r3", self.my_participant_index, i);
+                }
+
+                // do not return my_mta_wc_keyshare_summand_lhs_mod_q
+                // need my_mta_wc_keyshare_summand_lhs_plaintext because it may differ from my_mta_wc_keyshare_summand_lhs_mod_q
+                // why? because the ciphertext was formed from homomorphic Paillier operations, not just encrypting my_mta_wc_keyshare_summand_lhs_mod_q
+            }
+
+            mta_wc_keyshare_summands
+                .insert(
+                    i,
+                    MtaWcKeyshareSummandsData {
+                        lhs_plaintext: (*my_mta_wc_keyshare_summand_lhs_plaintext.0).clone(),
+                        lhs_randomness: my_mta_wc_keyshare_summand_lhs_randomness.0,
+                    },
+                )
+                .unwrap();
+        }
+
+        let proof = chaum_pedersen::prove(
+            &chaum_pedersen::Statement {
+                base1: &GE::generator(),                                            // G
+                base2: &self.r5state.as_ref().unwrap().ecdsa_randomizer,            // R
+                target1: &(GE::generator() * r3state.my_nonce_x_keyshare_summand),  // sigma_i * G
+                target2: &self.r6state.as_ref().unwrap().my_ecdsa_public_key_check, // sigma_i * R == S_i
+            },
+            &chaum_pedersen::Witness {
+                scalar: &r3state.my_nonce_x_keyshare_summand,
+            },
+        );
+
+        let r1state = self.r1state.as_ref().unwrap();
+
+        BcastFailType7 {
+            ecdsa_nonce_summand: r1state.my_ecdsa_nonce_summand,
+            ecdsa_nonce_summand_randomness: r1state
+                .my_encrypted_ecdsa_nonce_summand_randomness
+                .clone(),
+            mta_wc_keyshare_summands: mta_wc_keyshare_summands.into_vec(),
+            proof,
         }
     }
 }

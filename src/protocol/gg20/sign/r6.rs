@@ -5,14 +5,9 @@ use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     BigInt, FE, GE,
 };
-use paillier::{
-    // DecryptionKey, EncryptionKey, Open, Paillier, Randomness, RawCiphertext, RawPlaintext,
-    Open,
-    Paillier,
-    RawCiphertext,
-};
+use paillier::{Open, Paillier, RawCiphertext};
 use serde::{Deserialize, Serialize};
-use tracing::warn;
+use tracing::{error, warn};
 
 // round 6
 
@@ -38,14 +33,15 @@ pub enum Crime {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BcastCulprits {
+pub struct BcastFail {
     pub culprits: Vec<Culprit>,
 }
 
+#[derive(Debug)]
 pub(super) enum Output {
     Success { state: State, out_bcast: Bcast },
-    FailRangeProofWc { out_bcast: BcastCulprits },
-    FailRandomizer { out_bcast: BcastRandomizer },
+    Fail { out_bcast: BcastFail },
+    FailType5 { out_bcast: BcastFailType5 },
 }
 
 impl Sign {
@@ -105,8 +101,8 @@ impl Sign {
         }
 
         if !culprits.is_empty() {
-            return Output::FailRangeProofWc {
-                out_bcast: BcastCulprits { culprits },
+            return Output::Fail {
+                out_bcast: BcastFail { culprits },
             };
         }
 
@@ -116,7 +112,7 @@ impl Sign {
                 "participant {} detect 'type 5' fault",
                 self.my_participant_index
             );
-            return Output::FailRandomizer {
+            return Output::FailType5 {
                 out_bcast: self.type5_fault_output(),
             };
         }
@@ -152,7 +148,7 @@ impl Sign {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct BcastRandomizer {
+pub(super) struct BcastFailType5 {
     pub ecdsa_nonce_summand: FE,                // k_i
     pub ecdsa_nonce_summand_randomness: BigInt, // k_i encryption randomness
     pub secret_blind_summand: FE,               // gamma_i
@@ -169,7 +165,7 @@ pub(super) struct MtaBlindSummandsData {
 
 impl Sign {
     // execute blame protocol from section 4.3 of https://eprint.iacr.org/2020/540.pdf
-    pub(super) fn type5_fault_output(&self) -> BcastRandomizer {
+    pub(super) fn type5_fault_output(&self) -> BcastFailType5 {
         assert!(matches!(self.status, Status::R5));
 
         let r1state = self.r1state.as_ref().unwrap();
@@ -189,7 +185,7 @@ impl Sign {
                 .unwrap_or_else(|| {
                     // TODO these checks should not be necessary after refactoring
                     panic!(
-                        "r7_fail_randomizer participant {} says: missing r2p2p from {}",
+                        "participant {} missing r2p2p from {}",
                         self.my_participant_index, i
                     )
                 });
@@ -203,11 +199,9 @@ impl Sign {
             {
                 let my_mta_blind_summand_lhs_mod_q: FE =
                     ECScalar::from(&my_mta_blind_summand_lhs_plaintext.0);
-                assert_eq!(
-                    my_mta_blind_summand_lhs_mod_q,
-                    r3state.my_mta_blind_summands_lhs[i].unwrap(),
-                    "participant {}: decryption of mta_response_blind from {} in r7_fail_randomizer differs from r3", self.my_participant_index, i
-                ); // TODO panic
+                if my_mta_blind_summand_lhs_mod_q != r3state.my_mta_blind_summands_lhs[i].unwrap() {
+                    error!("participant {} decryption of mta_response_blind from {} in r6 differs from r3", self.my_participant_index, i);
+                }
 
                 // do not return my_mta_blind_summand_lhs_mod_q
                 // need my_mta_blind_summand_lhs_plaintext because it may differ from my_mta_blind_summand_lhs_mod_q
@@ -230,7 +224,7 @@ impl Sign {
                 .unwrap();
         }
 
-        BcastRandomizer {
+        BcastFailType5 {
             ecdsa_nonce_summand: r1state.my_ecdsa_nonce_summand,
             ecdsa_nonce_summand_randomness: r1state
                 .my_encrypted_ecdsa_nonce_summand_randomness
