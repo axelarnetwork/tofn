@@ -1,7 +1,7 @@
 use curv::{
     cryptographic_primitives::hashing::{hash_sha256::HSha256, traits::Hash},
     elliptic::curves::traits::{ECPoint, ECScalar},
-    BigInt, FE, GE,
+    FE, GE,
 };
 use serde::{Deserialize, Serialize};
 
@@ -67,9 +67,12 @@ pub fn verify(stmt: &Statement, proof: &Proof) -> Result<(), &'static str> {
     }
 }
 
-#[cfg(any(test, feature = "malicious"))] // malicious module used in tests
+// warning suppression: uncomment the next line to malicious feature
+// #[cfg(any(test, feature = "malicious"))] // malicious module used in tests
+#[cfg(test)]
 pub(crate) mod malicious {
     use super::*;
+    use curv::BigInt;
 
     pub fn corrupt_proof(proof: &Proof) -> Proof {
         let proof = proof.clone();
