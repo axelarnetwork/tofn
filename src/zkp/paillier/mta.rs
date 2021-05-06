@@ -1,4 +1,4 @@
-use crate::zkp::Zkp;
+use super::ZkSetup;
 use curv::{
     arithmetic::traits::{Modulo, Samplable},
     cryptographic_primitives::hashing::{hash_sha256::HSha256, traits::Hash},
@@ -47,7 +47,7 @@ pub struct ProofWc {
     u: GE,
 }
 
-impl Zkp {
+impl ZkSetup {
     // statement (ciphertext1, ciphertext2, ek), witness (x, msg, randomness)
     //   such that ciphertext2 = x *' ciphertext1 +' Enc(ek, msg, randomness) and -q^3 < x < q^3
     //   where *' and +' denote homomorphic operations on ciphertexts
@@ -92,20 +92,20 @@ impl Zkp {
         x_g: Option<&GE>,
         wit: &Witness,
     ) -> (Proof, Option<GE>) {
-        let alpha = BigInt::sample_below(&self.public.q3);
+        let alpha = BigInt::sample_below(&self.q3);
 
-        let sigma = BigInt::sample_below(&self.public.q_n_tilde);
-        let tau = BigInt::sample_below(&self.public.q_n_tilde);
-        let rho = BigInt::sample_below(&self.public.q_n_tilde);
+        let sigma = BigInt::sample_below(&self.q_n_tilde);
+        let tau = BigInt::sample_below(&self.q_n_tilde);
+        let rho = BigInt::sample_below(&self.q_n_tilde);
 
-        let rho_prime = BigInt::sample_below(&self.public.q3_n_tilde);
+        let rho_prime = BigInt::sample_below(&self.q3_n_tilde);
 
         let beta = Randomness::sample(&stmt.ek); // TODO sample() may not be coprime to stmt.ek.n; do we care?
         let gamma = Randomness::sample(&stmt.ek).0; // TODO sample() may not be coprime to stmt.ek.n; do we care?
 
-        let z = self.public.commit(&wit.x.to_big_int(), &rho);
-        let z_prime = self.public.commit(&alpha, &rho_prime);
-        let t = self.public.commit(&wit.msg, &sigma);
+        let z = self.commit(&wit.x.to_big_int(), &rho);
+        let z_prime = self.commit(&alpha, &rho_prime);
+        let t = self.commit(&wit.msg, &sigma);
 
         let u = x_g.map::<GE, _>(|_| {
             let alpha: FE = ECScalar::from(&alpha);
@@ -118,7 +118,7 @@ impl Zkp {
             &stmt.ek.nn,
         );
 
-        let w = self.public.commit(&gamma, &tau);
+        let w = self.commit(&gamma, &tau);
 
         let e = HSha256::create_hash(&[
             &stmt.ek.n,
@@ -168,7 +168,7 @@ impl Zkp {
         proof: &Proof,
         x_g_u: Option<(&GE, &GE)>, // (x_g, u)
     ) -> Result<(), &'static str> {
-        if proof.s1 > self.public.q3 || proof.s1 < BigInt::zero() {
+        if proof.s1 > self.q3 || proof.s1 < BigInt::zero() {
             return Err("s1 not in range q^3");
         }
         let e = HSha256::create_hash(&[
@@ -196,21 +196,21 @@ impl Zkp {
         }
 
         let z_e_z_prime = BigInt::mod_mul(
-            &BigInt::mod_pow(&proof.z, &e, &self.public.n_tilde),
+            &BigInt::mod_pow(&proof.z, &e, self.n_tilde()),
             &proof.z_prime,
-            &self.public.n_tilde,
+            self.n_tilde(),
         );
-        let z_e_z_prime_check = self.public.commit(&proof.s1, &proof.s2);
+        let z_e_z_prime_check = self.commit(&proof.s1, &proof.s2);
         if z_e_z_prime_check != z_e_z_prime {
             return Err("z^e z_prime check fail");
         }
 
         let t_e_w = BigInt::mod_mul(
-            &BigInt::mod_pow(&proof.t, &e, &self.public.n_tilde),
+            &BigInt::mod_pow(&proof.t, &e, self.n_tilde()),
             &proof.w,
-            &self.public.n_tilde,
+            self.n_tilde(),
         );
-        let t_e_w_check = self.public.commit(&proof.t1, &proof.t2);
+        let t_e_w_check = self.commit(&proof.t1, &proof.t2);
         if t_e_w_check != t_e_w {
             return Err("t^e w check fail");
         }
@@ -268,7 +268,7 @@ pub(crate) mod malicious {
 pub(crate) mod tests {
     use super::{
         malicious::{corrupt_proof, corrupt_proof_wc},
-        Statement, StatementWc, Witness, Zkp,
+        Statement, StatementWc, Witness, ZkSetup,
     };
     use curv::{
         arithmetic::traits::Samplable,
@@ -316,7 +316,7 @@ pub(crate) mod tests {
             randomness: &randomness.0,
             x,
         };
-        let zkp = Zkp::new_unsafe();
+        let zkp = ZkSetup::new_unsafe();
 
         // test: valid proof
         let proof = zkp.mta_proof(stmt, wit);

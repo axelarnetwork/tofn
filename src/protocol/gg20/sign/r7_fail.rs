@@ -1,5 +1,5 @@
 use super::{crimes::Crime, Sign, Status};
-use crate::zkp::range;
+use crate::zkp::paillier::range;
 use tracing::info;
 
 impl Sign {

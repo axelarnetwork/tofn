@@ -3,7 +3,7 @@ use paillier::EncryptionKey;
 use serde::{Deserialize, Serialize};
 
 use super::{Keygen, Status};
-use crate::{fillvec::FillVec, protocol::gg20::vss, zkp::Zkp};
+use crate::{fillvec::FillVec, protocol::gg20::vss, zkp::paillier::ZkSetup};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Bcast {
@@ -22,7 +22,7 @@ pub struct State {
     pub(super) my_secret_summand_share_commitments: Vec<GE>,
     pub(super) all_commits: Vec<BigInt>,
     pub(super) all_eks: Vec<EncryptionKey>,
-    pub(super) all_zkps: Vec<Zkp>,
+    pub(super) all_zkps: Vec<ZkSetup>,
 }
 
 impl Keygen {
@@ -56,16 +56,12 @@ impl Keygen {
                         self.my_index, i
                     )
                 });
-            in_r1bcast
-                .zkp
-                .dlog_proof
-                .verify(&in_r1bcast.zkp.dlog_statement)
-                .unwrap_or_else(|_| {
-                    panic!(
-                        "party {} says: dlog proof failed to verify for party {}",
-                        self.my_index, i
-                    )
-                });
+            if !in_r1bcast.zkp.verify_composite_dlog_proof() {
+                panic!(
+                    "party {} says: dlog proof failed to verify for party {}",
+                    self.my_index, i
+                );
+            }
             all_commits.push(in_r1bcast.commit.clone());
             all_eks.push(in_r1bcast.ek.clone());
             all_zkps.push(in_r1bcast.zkp.clone());

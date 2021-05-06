@@ -9,13 +9,13 @@ use serde::{Deserialize, Serialize};
 use zk_paillier::zkproofs::NICorrectKeyProof;
 
 use super::{Keygen, Status};
-use crate::zkp::Zkp;
+use crate::zkp::paillier::ZkSetup;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bcast {
     pub commit: BigInt,
     pub ek: EncryptionKey, // homomorphic encryption (Paillier)
-    pub zkp: Zkp,          // TODO need a better name
+    pub zkp: ZkSetup,      // TODO need a better name
     pub correct_key_proof: NICorrectKeyProof,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
@@ -24,7 +24,7 @@ pub struct State {
     pub(super) my_ecdsa_public_summand: GE, // final ecdsa public key is the sum over all parties
     pub(super) my_dk: DecryptionKey,        // homomorphic decryption (Paillier)
     pub(super) my_ek: EncryptionKey,        // a copy of Bcast.ek
-    pub(super) my_zkp: Zkp,
+    pub(super) my_zkp: ZkSetup,
     pub(super) my_commit: BigInt, // a copy of Bcast.commit
     pub(super) my_reveal: BigInt, // decommit---to be released later
 }
@@ -41,7 +41,7 @@ impl Keygen {
         let (ek, my_dk) = Paillier::keypair().keys();
 
         let correct_key_proof = NICorrectKeyProof::proof(&my_dk);
-        let zkp = Zkp::new_unsafe();
+        let zkp = ZkSetup::new_unsafe();
         let (commit, my_reveal) = HashCommitment::create_commitment(
             &my_ecdsa_public_summand.bytes_compressed_to_big_int(),
         );

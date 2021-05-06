@@ -1,5 +1,5 @@
 use super::{crimes::Crime, r3, Sign, Status};
-use crate::{protocol::gg20::vss, zkp::mta};
+use crate::{protocol::gg20::vss, zkp::paillier::mta};
 use tracing::info;
 
 impl Sign {

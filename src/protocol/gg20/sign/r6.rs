@@ -1,6 +1,6 @@
 use super::{r2, Sign, Status};
 use crate::fillvec::FillVec;
-use crate::zkp::{pedersen, range};
+use crate::zkp::{paillier::range, pedersen};
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     BigInt, FE, GE,
