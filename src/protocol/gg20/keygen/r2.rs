@@ -3,7 +3,7 @@ use paillier::EncryptionKey;
 use serde::{Deserialize, Serialize};
 
 use super::{Keygen, Status};
-use crate::{fillvec::FillVec, protocol::gg20::vss, zkp::Zkp};
+use crate::{fillvec::FillVec, protocol::gg20::vss, zkp::paillier2::ZkSetup};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Bcast {
@@ -22,7 +22,7 @@ pub struct State {
     pub(super) my_secret_summand_share_commitments: Vec<GE>,
     pub(super) all_commits: Vec<BigInt>,
     pub(super) all_eks: Vec<EncryptionKey>,
-    pub(super) all_zkps: Vec<Zkp>,
+    pub(super) all_zkps: Vec<ZkSetup>,
 }
 
 impl Keygen {

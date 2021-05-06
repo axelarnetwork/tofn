@@ -1,4 +1,4 @@
-use crate::{fillvec::FillVec, protocol::MsgBytes, zkp::Zkp};
+use crate::{fillvec::FillVec, protocol::MsgBytes, zkp::paillier2::ZkSetup};
 use curv::{FE, GE};
 use paillier::{DecryptionKey, EncryptionKey};
 use serde::{Deserialize, Serialize};
@@ -11,12 +11,12 @@ pub struct SecretKeyShare {
     pub my_index: usize,
     pub my_dk: DecryptionKey,
     pub my_ek: EncryptionKey,
-    pub my_zkp: Zkp,
+    pub my_zkp: ZkSetup,
     pub ecdsa_public_key: GE,
     pub my_ecdsa_secret_key_share: FE,
     pub all_ecdsa_public_key_shares: Vec<GE>,
     pub all_eks: Vec<EncryptionKey>,
-    pub all_zkps: Vec<Zkp>,
+    pub all_zkps: Vec<ZkSetup>,
 }
 
 pub use curv::elliptic::curves::traits::{ECPoint, ECScalar};
@@ -85,7 +85,7 @@ pub struct CommonInfo {
     pub ecdsa_public_key: GE,
     pub all_ecdsa_public_key_shares: Vec<GE>,
     pub all_eks: Vec<EncryptionKey>,
-    pub all_zkps: Vec<Zkp>,
+    pub all_zkps: Vec<ZkSetup>,
     pub share_count: usize,
 }
 
@@ -94,7 +94,7 @@ pub struct ShareInfo {
     pub my_index: usize,
     pub my_dk: DecryptionKey,
     pub my_ek: EncryptionKey,
-    pub my_zkp: Zkp,
+    pub my_zkp: ZkSetup,
     pub my_ecdsa_secret_key_share: FE,
 }
 

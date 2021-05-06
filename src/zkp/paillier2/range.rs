@@ -1,6 +1,6 @@
 use std::ops::Neg;
 
-use crate::zkp::Zkp;
+use super::ZkSetup;
 use curv::{
     arithmetic::traits::{Modulo, Samplable},
     cryptographic_primitives::hashing::{hash_sha256::HSha256, traits::Hash},
@@ -44,7 +44,7 @@ pub struct ProofWc {
     u1: GE,
 }
 
-impl Zkp {
+impl ZkSetup {
     // statement (ciphertext, ek), witness (msg, randomness)
     //   such that ciphertext = Enc(ek, msg, randomness) and -q^3 < msg < q^3
     // full specification: appendix A.1 of https://eprint.iacr.org/2019/114.pdf
@@ -224,7 +224,7 @@ pub(crate) mod malicious {
 #[cfg(test)]
 pub mod tests {
     use super::{
-        Zkp,
+        ZkSetup,
         {
             malicious::{corrupt_proof, corrupt_proof_wc},
             Statement, StatementWc, Witness,
@@ -267,7 +267,7 @@ pub mod tests {
             msg,
             randomness: &randomness.0,
         };
-        let zkp = Zkp::new_unsafe();
+        let zkp = ZkSetup::new_unsafe();
 
         // test: valid proof
         let proof = zkp.range_proof(stmt, wit);

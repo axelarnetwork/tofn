@@ -1,4 +1,4 @@
-use crate::zkp::Zkp;
+use super::ZkSetup;
 use curv::{
     arithmetic::traits::{Modulo, Samplable},
     cryptographic_primitives::hashing::{hash_sha256::HSha256, traits::Hash},
@@ -47,7 +47,7 @@ pub struct ProofWc {
     u: GE,
 }
 
-impl Zkp {
+impl ZkSetup {
     // statement (ciphertext1, ciphertext2, ek), witness (x, msg, randomness)
     //   such that ciphertext2 = x *' ciphertext1 +' Enc(ek, msg, randomness) and -q^3 < x < q^3
     //   where *' and +' denote homomorphic operations on ciphertexts
@@ -268,7 +268,7 @@ pub(crate) mod malicious {
 pub(crate) mod tests {
     use super::{
         malicious::{corrupt_proof, corrupt_proof_wc},
-        Statement, StatementWc, Witness, Zkp,
+        Statement, StatementWc, Witness, ZkSetup,
     };
     use curv::{
         arithmetic::traits::Samplable,
@@ -316,7 +316,7 @@ pub(crate) mod tests {
             randomness: &randomness.0,
             x,
         };
-        let zkp = Zkp::new_unsafe();
+        let zkp = ZkSetup::new_unsafe();
 
         // test: valid proof
         let proof = zkp.mta_proof(stmt, wit);
