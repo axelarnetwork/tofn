@@ -117,7 +117,6 @@ mod tests {
         let one: FE = ECScalar::from(&BigInt::from(1));
         let bad_wit = Witness {
             scalar: &(*wit.scalar + one),
-            ..wit
         };
         let bad_proof = prove(&stmt, &bad_wit);
         verify(&stmt, &bad_proof).unwrap_err();

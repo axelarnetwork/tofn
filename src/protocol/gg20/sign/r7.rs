@@ -200,7 +200,7 @@ impl Sign {
             &chaum_pedersen::Statement {
                 base1: &GE::generator(),                                            // G
                 base2: &self.r5state.as_ref().unwrap().ecdsa_randomizer,            // R
-                target1: &(GE::generator() * &r3state.my_nonce_x_keyshare_summand), // sigma_i * G
+                target1: &(GE::generator() * r3state.my_nonce_x_keyshare_summand),  // sigma_i * G
                 target2: &self.r6state.as_ref().unwrap().my_ecdsa_public_key_check, // sigma_i * R == S_i
             },
             &chaum_pedersen::Witness {
