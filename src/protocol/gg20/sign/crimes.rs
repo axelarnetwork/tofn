@@ -24,5 +24,6 @@ pub enum Crime {
     R8BadSigSummand,
     R8FailType7MissingData,     // TODO missing unit test
     R8FailType7BadNonceSummand, // TODO missing unit test
-    R8FailType7MtaWcKeyshareSummandLhs { victim: usize },
+    R8FailType7MtaWcKeyshareSummandLhs { victim: usize }, // TODO missing unit test
+    R8FailType7BadZkp,
 }

@@ -63,7 +63,7 @@ pub(super) fn map_type_to_crime(t: &MaliciousType) -> Vec<Crime> {
             vec![Crime::R7FailType5MtaBlindSummandLhs { victim: *v }]
         }
         R6FalseFailRandomizer => vec![Crime::R7FailType5FalseComplaint],
-        R3BadNonceXKeyshareSummand => vec![], // TODO not implemented
+        R3BadNonceXKeyshareSummand => vec![Crime::R8FailType7BadZkp],
     }
 }
 

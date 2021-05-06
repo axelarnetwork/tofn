@@ -1,9 +1,9 @@
 use super::{crimes::Crime, Sign, Status};
 use crate::fillvec::FillVec;
-use crate::zkp::pedersen;
+use crate::zkp::{chaum_pedersen, pedersen};
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
-    BigInt, FE,
+    BigInt, FE, GE,
 };
 use paillier::{Open, Paillier, RawCiphertext};
 use serde::{Deserialize, Serialize};
@@ -136,6 +136,7 @@ pub(super) struct BcastFailType7 {
     pub ecdsa_nonce_summand: FE,                // k_i
     pub ecdsa_nonce_summand_randomness: BigInt, // k_i encryption randomness
     pub mta_wc_keyshare_summands: Vec<Option<MtaWcKeyshareSummandsData>>,
+    pub proof: chaum_pedersen::Proof,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -148,11 +149,9 @@ impl Sign {
     // execute blame protocol from section 4.3 of https://eprint.iacr.org/2020/540.pdf
     pub(super) fn type7_fault_output(&self) -> BcastFailType7 {
         assert!(matches!(self.status, Status::R6));
-
-        let r1state = self.r1state.as_ref().unwrap();
         let r3state = self.r3state.as_ref().unwrap();
-        let mut mta_wc_keyshare_summands = FillVec::with_len(self.participant_indices.len());
 
+        let mut mta_wc_keyshare_summands = FillVec::with_len(self.participant_indices.len());
         for i in 0..self.participant_indices.len() {
             if i == self.my_participant_index {
                 continue;
@@ -162,13 +161,7 @@ impl Sign {
             // need to decrypt again to do so
             let in_p2p = self.in_all_r2p2ps[i].vec_ref()[self.my_participant_index]
                 .as_ref()
-                .unwrap_or_else(|| {
-                    // TODO these checks should not be necessary after refactoring
-                    panic!(
-                        "participant {} missing r2p2p from {}",
-                        self.my_participant_index, i
-                    )
-                });
+                .unwrap();
             let (
                 my_mta_wc_keyshare_summand_lhs_plaintext,
                 my_mta_wc_keyshare_summand_lhs_randomness,
@@ -203,12 +196,27 @@ impl Sign {
                 .unwrap();
         }
 
+        let proof = chaum_pedersen::prove(
+            &chaum_pedersen::Statement {
+                base1: &GE::generator(),                                            // G
+                base2: &self.r5state.as_ref().unwrap().ecdsa_randomizer,            // R
+                target1: &(GE::generator() * &r3state.my_nonce_x_keyshare_summand), // sigma_i * G
+                target2: &self.r6state.as_ref().unwrap().my_ecdsa_public_key_check, // sigma_i * R == S_i
+            },
+            &chaum_pedersen::Witness {
+                scalar: &r3state.my_nonce_x_keyshare_summand,
+            },
+        );
+
+        let r1state = self.r1state.as_ref().unwrap();
+
         BcastFailType7 {
             ecdsa_nonce_summand: r1state.my_ecdsa_nonce_summand,
             ecdsa_nonce_summand_randomness: r1state
                 .my_encrypted_ecdsa_nonce_summand_randomness
                 .clone(),
             mta_wc_keyshare_summands: mta_wc_keyshare_summands.into_vec(),
+            proof,
         }
     }
 }

@@ -1,4 +1,5 @@
 use super::{crimes::Crime, is_empty, r7, Sign, Status};
+use crate::zkp::chaum_pedersen;
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     FE, GE,
@@ -135,15 +136,27 @@ impl Sign {
                 },
             );
 
-            // compute sigma_i * G
-            let _sigma_i_g =
-                self.public_key_summand(i) * ecdsa_nonce + (GE::generator() * mu_summation);
-
-            // TODO check zkp
-            error!(
-                "participant {} 'type 7' zkp check not implemented",
-                self.my_participant_index,
-            );
+            chaum_pedersen::verify(
+                &chaum_pedersen::Statement {
+                    base1: &GE::generator(),                                 // G
+                    base2: &self.r5state.as_ref().unwrap().ecdsa_randomizer, // R
+                    target1: &(self.public_key_summand(i) * ecdsa_nonce
+                        + (GE::generator() * mu_summation)), // sigma_i * G
+                    target2: &self.in_r6bcasts.vec_ref()[i]
+                        .as_ref()
+                        .unwrap()
+                        .ecdsa_public_key_check, // sigma_i * R == S_i
+                },
+                &r7bcast.proof,
+            )
+            .unwrap_or_else(|e| {
+                let crime = Crime::R8FailType7BadZkp;
+                warn!(
+                    "participant {} detect {:?} by {} because [{}]",
+                    self.my_participant_index, crime, i, e
+                );
+                criminals[i].push(crime);
+            });
         }
 
         if is_empty(&criminals) {
