@@ -10,5 +10,5 @@ pub enum Behaviour {
     R1BadCommit,
 }
 
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod tests;

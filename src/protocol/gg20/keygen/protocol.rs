@@ -156,7 +156,7 @@ impl Protocol for Keygen {
     }
 
     fn done(&self) -> bool {
-        matches!(self.status, Done)
+        matches!(self.status, Done | Fail)
     }
 }
 
