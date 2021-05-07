@@ -68,10 +68,19 @@ pub(crate) fn execute_keygen(share_count: usize, threshold: usize) -> Vec<Secret
     // execute round 3 all parties and store their outputs
     let mut all_r3_bcasts = FillVec::with_len(share_count);
     for (i, party) in parties.iter_mut().enumerate() {
-        let (state, bcast) = party.r3();
-        party.r3state = Some(state);
-        party.status = Status::R3;
-        all_r3_bcasts.insert(i, bcast).unwrap();
+        match party.r3() {
+            r3::Output::Success { state, out_bcast } => {
+                party.r3state = Some(state);
+                party.status = Status::R3;
+                all_r3_bcasts.insert(i, out_bcast).unwrap();
+            }
+            r3::Output::Fail { criminals } => {
+                panic!(
+                    "r3 party {} expect success got failure with criminals: {:?}",
+                    party.my_index, criminals
+                );
+            }
+        }
     }
     let all_r3_bcasts = all_r3_bcasts; // make read-only
 

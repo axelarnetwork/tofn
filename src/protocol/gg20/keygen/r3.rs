@@ -1,4 +1,4 @@
-use super::{Keygen, Status};
+use super::{crimes::Crime, Keygen, Status};
 use crate::protocol::gg20::vss;
 use curv::{
     cryptographic_primitives::{
@@ -20,11 +20,18 @@ pub struct State {
     pub(super) all_ecdsa_public_key_shares: Vec<GE>, // these sum to ecdsa_public_key
 }
 
+pub(super) enum Output {
+    Success { state: State, out_bcast: Bcast },
+    Fail { criminals: Vec<Vec<Crime>> },
+}
+
 impl Keygen {
-    pub(super) fn r3(&self) -> (State, Bcast) {
+    pub(super) fn r3(&self) -> Output {
         assert!(matches!(self.status, Status::R2));
         let r1state = self.r1state.as_ref().unwrap();
         let r2state = self.r2state.as_ref().unwrap();
+
+        let mut criminals = vec![Vec::new(); self.share_count];
 
         // check commitments
         // compute my_ecdsa_secret_key_share, ecdsa_public_key, all_ecdsa_public_key_shares
@@ -40,24 +47,27 @@ impl Keygen {
             }
             let r1bcast = self.in_r1bcasts.vec_ref()[i].as_ref().unwrap();
             let r2bcast = self.in_r2bcasts.vec_ref()[i].as_ref().unwrap();
-            let r2p2p = self.in_all_r2p2ps[i].vec_ref()[self.my_index]
+            let my_r2p2p = self.in_all_r2p2ps[i].vec_ref()[self.my_index]
                 .as_ref()
                 .unwrap();
             let y_i = &r2bcast.u_i_share_commitments[0];
-            let com = HashCommitment::create_commitment_with_user_defined_randomness(
+            let y_i_commit = HashCommitment::create_commitment_with_user_defined_randomness(
                 &y_i.bytes_compressed_to_big_int(),
                 &r2bcast.y_i_reveal,
             );
-            assert!(r1bcast.y_i_commit == com);
+
+            if y_i_commit != r1bcast.y_i_commit {
+                criminals[i].push(Crime::R3BadReveal);
+            }
             assert!(vss::validate_share(
                 &r2bcast.u_i_share_commitments,
-                &r2p2p.u_i_share,
+                &my_r2p2p.u_i_share,
                 self.my_index
             )
             .is_ok());
 
             ecdsa_public_key = ecdsa_public_key + y_i;
-            my_ecdsa_secret_key_share = my_ecdsa_secret_key_share + r2p2p.u_i_share;
+            my_ecdsa_secret_key_share = my_ecdsa_secret_key_share + my_r2p2p.u_i_share;
 
             for (j, ecdsa_public_key_share) in all_ecdsa_public_key_shares.iter_mut().enumerate() {
                 *ecdsa_public_key_share = *ecdsa_public_key_share
@@ -65,18 +75,21 @@ impl Keygen {
             }
         }
 
+        if !criminals.iter().all(|c| c.is_empty()) {
+            return Output::Fail { criminals };
+        }
+
         all_ecdsa_public_key_shares[self.my_index] = GE::generator() * my_ecdsa_secret_key_share;
 
-        let my_bcast = Bcast {
-            dlog_proof: DLogProof::prove(&my_ecdsa_secret_key_share),
-        };
-        (
-            State {
+        Output::Success {
+            state: State {
                 ecdsa_public_key,
                 my_ecdsa_secret_key_share,
                 all_ecdsa_public_key_shares,
             },
-            my_bcast,
-        )
+            out_bcast: Bcast {
+                dlog_proof: DLogProof::prove(&my_ecdsa_secret_key_share),
+            },
+        }
     }
 }

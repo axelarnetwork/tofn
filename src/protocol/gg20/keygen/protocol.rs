@@ -1,4 +1,4 @@
-use super::{Keygen, Status::*};
+use super::{crimes::Crime, Keygen, Status::*};
 use crate::protocol::{MsgBytes, Protocol, ProtocolResult};
 use serde::{Deserialize, Serialize};
 
@@ -24,7 +24,7 @@ impl Protocol for Keygen {
             return Err(From::from("can't prceed yet"));
         }
         // TODO refactor repeated code!
-        self.status = match self.status {
+        match self.status {
             New => {
                 let (state, bcast) = self.r1();
                 self.out_r1bcast = Some(bincode::serialize(&MsgMeta {
@@ -34,9 +34,8 @@ impl Protocol for Keygen {
                 })?);
                 self.in_r1bcasts.insert(self.my_index, bcast)?; // self-delivery
                 self.r1state = Some(state);
-                R1
+                self.status = R1;
             }
-
             R1 => {
                 let (state, bcast, p2ps) = self.r2();
                 self.out_r2bcast = Some(bincode::serialize(&MsgMeta {
@@ -63,26 +62,31 @@ impl Protocol for Keygen {
                 self.in_all_r2p2ps[self.my_index] = p2ps;
 
                 self.r2state = Some(state);
-                R2
+                self.status = R2;
             }
 
             R2 => {
-                let (state, bcast) = self.r3();
-                self.out_r3bcast = Some(bincode::serialize(&MsgMeta {
-                    msg_type: MsgType::R3Bcast,
-                    from: self.my_index,
-                    payload: bincode::serialize(&bcast)?,
-                })?);
-                self.r3state = Some(state);
-                self.in_r3bcasts.insert(self.my_index, bcast)?; // self-delivery
-                R3
+                match self.r3() {
+                    super::r3::Output::Success { state, out_bcast } => {
+                        self.out_r3bcast = Some(bincode::serialize(&MsgMeta {
+                            msg_type: MsgType::R3Bcast,
+                            from: self.my_index,
+                            payload: bincode::serialize(&out_bcast)?,
+                        })?);
+                        self.r3state = Some(state);
+                        self.in_r3bcasts.insert(self.my_index, out_bcast)?; // self-delivery
+                        self.status = R3;
+                    }
+                    super::r3::Output::Fail { criminals } => self.update_state_fail(criminals),
+                }
             }
 
             R3 => {
-                self.final_output = Some(self.r4());
-                Done
+                self.final_output = Some(Ok(self.r4()));
+                self.status = Done;
             }
             Done => return Err(From::from("already done")),
+            Fail => return Err(From::from("already failed")),
         };
         Ok(())
     }
@@ -113,7 +117,7 @@ impl Protocol for Keygen {
             R1 => &self.out_r1bcast,
             R2 => &self.out_r2bcast,
             R3 => &self.out_r3bcast,
-            Done => &None,
+            Done | Fail => &None,
         }
     }
 
@@ -123,7 +127,7 @@ impl Protocol for Keygen {
             R1 => &None,
             R2 => &self.out_r2p2ps,
             R3 => &None,
-            Done => &None,
+            Done | Fail => &None,
         }
     }
 
@@ -147,11 +151,18 @@ impl Protocol for Keygen {
                 false
             }
             R3 => !self.in_r3bcasts.is_full_except(me),
-            Done => false,
+            Done | Fail => false,
         }
     }
 
     fn done(&self) -> bool {
         matches!(self.status, Done)
+    }
+}
+
+impl Keygen {
+    pub(super) fn update_state_fail(&mut self, criminals: Vec<Vec<Crime>>) {
+        self.final_output = Some(Err(criminals));
+        self.status = Fail;
     }
 }

@@ -27,8 +27,10 @@ enum Status {
     R2,
     R3,
     Done,
+    Fail,
 }
 
+mod crimes;
 mod protocol;
 mod r1;
 mod r2;
@@ -71,7 +73,7 @@ pub struct Keygen {
     out_r2bcast: Option<MsgBytes>,
     out_r2p2ps: Option<Vec<Option<MsgBytes>>>,
     out_r3bcast: Option<MsgBytes>,
-    final_output: Option<SecretKeyShare>,
+    final_output: Option<KeygenOutput>,
 }
 
 // CommonInfo and ShareInfo only used by tofnd. We choose to define them in
@@ -121,9 +123,15 @@ impl Keygen {
         })
     }
     pub fn get_result(&self) -> Option<&SecretKeyShare> {
-        self.final_output.as_ref()
+        // TODO delete get_result method
+        self.final_output.as_ref().map(|r| r.as_ref().unwrap())
+    }
+    pub fn clone_output(&self) -> Option<KeygenOutput> {
+        self.final_output.clone()
     }
 }
+
+pub type KeygenOutput = Result<SecretKeyShare, Vec<Vec<crimes::Crime>>>;
 
 // validate_params helper with custom error type
 // TODO enforce a maximum share_count?

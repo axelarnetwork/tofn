@@ -25,6 +25,8 @@ impl Keygen {
                 )
             });
         }
+
+        // prepare data for final output
         let r1bcasts = self.in_r1bcasts.vec_ref();
         let all_eks = r1bcasts
             .iter()
