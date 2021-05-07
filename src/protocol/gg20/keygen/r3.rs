@@ -28,49 +28,40 @@ impl Keygen {
 
         // check commitments
         // compute my_ecdsa_secret_key_share, ecdsa_public_key, all_ecdsa_public_key_shares
-        let mut ecdsa_public_key = r1state.my_y;
-        let mut my_ecdsa_secret_key_share = r2state.my_share_of_my_ecdsa_secret_summand;
+        let mut ecdsa_public_key = r1state.my_y_i;
+        let mut my_ecdsa_secret_key_share = r2state.my_share_of_my_u_i;
         let mut all_ecdsa_public_key_shares: Vec<GE> = (0..self.share_count)
             // start each summation with my contribution
-            .map(|i| vss::get_point_commitment(&r2state.my_secret_summand_share_commitments, i))
+            .map(|i| vss::get_point_commitment(&r2state.my_u_i_share_commitments, i))
             .collect();
         for i in 0..self.share_count {
             if i == self.my_index {
                 continue;
             }
-            let bcast = self.in_r2bcasts.vec_ref()[i].clone().unwrap_or_else(|| {
-                panic!(
-                    "keygen r3 party {}: missing bcast msg from party {}",
-                    self.my_index, i
-                )
-            });
-            let in_r2p2p = self.in_all_r2p2ps[i].vec_ref()[self.my_index]
+            let r1bcast = self.in_r1bcasts.vec_ref()[i].as_ref().unwrap();
+            let r2bcast = self.in_r2bcasts.vec_ref()[i].as_ref().unwrap();
+            let r2p2p = self.in_all_r2p2ps[i].vec_ref()[self.my_index]
                 .as_ref()
-                .unwrap_or_else(|| {
-                    panic!(
-                        "keygen r3 party {}: missing p2p msg from party {}",
-                        self.my_index, i
-                    )
-                });
-            let ecdsa_public_summand = &bcast.secret_summand_share_commitments[0];
+                .unwrap();
+            let y_i = &r2bcast.u_i_share_commitments[0];
             let com = HashCommitment::create_commitment_with_user_defined_randomness(
-                &ecdsa_public_summand.bytes_compressed_to_big_int(),
-                &bcast.reveal,
+                &y_i.bytes_compressed_to_big_int(),
+                &r2bcast.y_i_reveal,
             );
-            assert!(r2state.all_commits[i] == com);
+            assert!(r1bcast.y_i_commit == com);
             assert!(vss::validate_share(
-                &bcast.secret_summand_share_commitments,
-                &in_r2p2p.secret_summand_share,
+                &r2bcast.u_i_share_commitments,
+                &r2p2p.u_i_share,
                 self.my_index
             )
             .is_ok());
 
-            ecdsa_public_key = ecdsa_public_key + ecdsa_public_summand;
-            my_ecdsa_secret_key_share = my_ecdsa_secret_key_share + in_r2p2p.secret_summand_share;
+            ecdsa_public_key = ecdsa_public_key + y_i;
+            my_ecdsa_secret_key_share = my_ecdsa_secret_key_share + r2p2p.u_i_share;
 
             for (j, ecdsa_public_key_share) in all_ecdsa_public_key_shares.iter_mut().enumerate() {
                 *ecdsa_public_key_share = *ecdsa_public_key_share
-                    + vss::get_point_commitment(&bcast.secret_summand_share_commitments, j);
+                    + vss::get_point_commitment(&r2bcast.u_i_share_commitments, j);
             }
         }
 

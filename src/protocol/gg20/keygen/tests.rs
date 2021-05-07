@@ -43,7 +43,7 @@ pub(crate) fn execute_keygen(share_count: usize, threshold: usize) -> Vec<Secret
     // save each u for later tests
     let all_u_secrets: Vec<FE> = parties
         .iter()
-        .map(|p| p.r1state.as_ref().unwrap().my_u)
+        .map(|p| p.r1state.as_ref().unwrap().my_u_i)
         .collect();
 
     // execute round 2 all parties and store their outputs
