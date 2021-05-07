@@ -32,6 +32,7 @@ impl Protocol for Keygen {
                     from: self.my_index,
                     payload: bincode::serialize(&bcast)?,
                 })?);
+                self.in_r1bcasts.insert(self.my_index, bcast)?; // self-delivery
                 self.r1state = Some(state);
                 R1
             }
@@ -44,7 +45,7 @@ impl Protocol for Keygen {
                     payload: bincode::serialize(&bcast)?,
                 })?);
                 let mut out_r2p2ps = Vec::with_capacity(self.share_count);
-                for (to, opt) in p2ps.into_vec().into_iter().enumerate() {
+                for (to, opt) in p2ps.vec_ref().iter().enumerate() {
                     if let Some(p2p) = opt {
                         out_r2p2ps.push(Some(bincode::serialize(&MsgMeta {
                             msg_type: MsgType::R2P2p { to },
@@ -56,6 +57,11 @@ impl Protocol for Keygen {
                     }
                 }
                 self.out_r2p2ps = Some(out_r2p2ps);
+
+                // self delivery
+                self.in_r2bcasts.insert(self.my_index, bcast)?;
+                self.in_all_r2p2ps[self.my_index] = p2ps;
+
                 self.r2state = Some(state);
                 R2
             }
@@ -68,6 +74,7 @@ impl Protocol for Keygen {
                     payload: bincode::serialize(&bcast)?,
                 })?);
                 self.r3state = Some(state);
+                self.in_r3bcasts.insert(self.my_index, bcast)?; // self-delivery
                 R3
             }
 
@@ -87,15 +94,15 @@ impl Protocol for Keygen {
         match msg_meta.msg_type {
             MsgType::R1Bcast => self
                 .in_r1bcasts
-                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
+                .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?),
             MsgType::R2Bcast => self
                 .in_r2bcasts
-                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
+                .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?),
             MsgType::R2P2p { to } => self.in_all_r2p2ps[msg_meta.from]
-                .insert(to, bincode::deserialize(&msg_meta.payload)?)?,
+                .overwrite(to, bincode::deserialize(&msg_meta.payload)?),
             MsgType::R3Bcast => self
                 .in_r3bcasts
-                .insert(msg_meta.from, bincode::deserialize(&msg_meta.payload)?)?,
+                .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?),
         };
         Ok(())
     }

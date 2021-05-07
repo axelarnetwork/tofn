@@ -1,9 +1,8 @@
 use curv::{BigInt, FE, GE};
-use paillier::EncryptionKey;
 use serde::{Deserialize, Serialize};
 
 use super::{Keygen, Status};
-use crate::{fillvec::FillVec, protocol::gg20::vss, zkp::paillier::ZkSetup};
+use crate::{fillvec::FillVec, protocol::gg20::vss};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Bcast {
@@ -20,8 +19,6 @@ pub struct P2p {
 pub struct State {
     pub(super) my_share_of_my_u_i: FE,
     pub(super) my_u_i_share_commitments: Vec<GE>,
-    pub(super) all_eks: Vec<EncryptionKey>,
-    pub(super) all_zkps: Vec<ZkSetup>,
 }
 
 impl Keygen {
@@ -29,14 +26,10 @@ impl Keygen {
         assert!(matches!(self.status, Status::R1));
         let r1state = self.r1state.as_ref().unwrap();
 
-        // verify other parties' proofs and build commits list
-        let mut all_eks = Vec::with_capacity(self.share_count);
-        let mut all_zkps = Vec::with_capacity(self.share_count);
+        // TODO Paillier, delete this for loop
         for (i, in_r1bcast) in self.in_r1bcasts.vec_ref().iter().enumerate() {
             if i == self.my_index {
-                all_eks.push(r1state.my_ek.clone());
-                all_zkps.push(r1state.my_zkp.clone());
-                continue; // don't verify my own proof
+                continue;
             }
             let r1bcast = in_r1bcast.as_ref().unwrap();
             r1bcast
@@ -54,17 +47,12 @@ impl Keygen {
                     self.my_index, i
                 );
             }
-            all_eks.push(r1bcast.ek.clone());
-            all_zkps.push(r1bcast.zkp.clone());
         }
-        assert_eq!(all_eks.len(), self.share_count);
-        assert_eq!(all_zkps.len(), self.share_count);
 
         let (my_u_i_share_commitments, my_u_i_shares) =
             vss::share(self.threshold, self.share_count, &r1state.my_u_i);
         assert_eq!(my_u_i_share_commitments[0], r1state.my_y_i);
 
-        // prepare outgoing p2p messages: secret shares of my_ecdsa_secret_summand
         let mut out_p2ps = FillVec::with_len(self.share_count);
         let my_share_of_my_u_i = my_u_i_shares[self.my_index].clone();
         for (i, my_u_i_share) in my_u_i_shares.into_iter().enumerate() {
@@ -91,8 +79,6 @@ impl Keygen {
             State {
                 my_share_of_my_u_i,
                 my_u_i_share_commitments,
-                all_eks,
-                all_zkps,
             },
             out_bcast,
             out_p2ps,
