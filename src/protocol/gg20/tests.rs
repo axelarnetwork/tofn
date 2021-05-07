@@ -32,10 +32,10 @@ pub mod keygen {
             execute_protocol_vec(&mut protocols, allow_self_delivery);
 
             // TEST: everyone computed the same pubkey
-            let pubkey = parties[0].get_result().unwrap();
+            let key_share = parties[0].clone_output().unwrap().unwrap();
             for p in parties.iter() {
-                let cur_key = p.get_result().unwrap();
-                assert_eq!(cur_key.ecdsa_public_key, pubkey.ecdsa_public_key);
+                let cur_key = p.clone_output().unwrap().unwrap();
+                assert_eq!(cur_key.ecdsa_public_key, key_share.ecdsa_public_key);
             }
         }
 

@@ -122,10 +122,6 @@ impl Keygen {
             final_output: None,
         })
     }
-    pub fn get_result(&self) -> Option<&SecretKeyShare> {
-        // TODO delete get_result method
-        self.final_output.as_ref().map(|r| r.as_ref().unwrap())
-    }
     pub fn clone_output(&self) -> Option<KeygenOutput> {
         self.final_output.clone()
     }
