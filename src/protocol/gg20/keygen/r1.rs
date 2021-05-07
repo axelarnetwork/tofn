@@ -8,7 +8,7 @@ use paillier::{KeyGeneration, Paillier};
 use serde::{Deserialize, Serialize};
 use zk_paillier::zkproofs::NICorrectKeyProof;
 
-use super::{Keygen, Status};
+use super::{malicious::Behaviour, Keygen, Status};
 use crate::zkp::paillier::ZkSetup;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -39,6 +39,13 @@ impl Keygen {
         let my_y_i = GE::generator() * my_u_i;
         let (my_y_i_commit, my_y_i_reveal) =
             HashCommitment::create_commitment(&my_y_i.bytes_compressed_to_big_int());
+
+        #[cfg(feature = "malicious")]
+        let my_y_i_commit = if matches!(self.behaviour, Behaviour::R1BadCommit) {
+            my_y_i_commit + BigInt::one()
+        } else {
+            my_y_i_commit
+        };
 
         // TODO Paillier
         let (ek, my_dk) = Paillier::keypair().keys();

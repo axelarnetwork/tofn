@@ -30,6 +30,9 @@ enum Status {
     Fail,
 }
 
+#[cfg(feature = "malicious")]
+pub mod malicious;
+
 mod crimes;
 mod protocol;
 mod r1;
@@ -74,6 +77,9 @@ pub struct Keygen {
     out_r2p2ps: Option<Vec<Option<MsgBytes>>>,
     out_r3bcast: Option<MsgBytes>,
     final_output: Option<KeygenOutput>,
+
+    #[cfg(feature = "malicious")]
+    behaviour: malicious::Behaviour,
 }
 
 // CommonInfo and ShareInfo only used by tofnd. We choose to define them in
@@ -120,6 +126,9 @@ impl Keygen {
             out_r2p2ps: None,
             out_r3bcast: None,
             final_output: None,
+
+            #[cfg(feature = "malicious")]
+            behaviour: malicious::Behaviour::Honest,
         })
     }
     pub fn clone_output(&self) -> Option<KeygenOutput> {

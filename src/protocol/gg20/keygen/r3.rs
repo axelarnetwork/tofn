@@ -9,6 +9,7 @@ use curv::{
     FE, GE,
 };
 use serde::{Deserialize, Serialize};
+use tracing::warn;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Bcast {
     pub dlog_proof: DLogProof,
@@ -57,7 +58,9 @@ impl Keygen {
             );
 
             if y_i_commit != r1bcast.y_i_commit {
-                criminals[i].push(Crime::R3BadReveal);
+                let crime = Crime::R3BadReveal;
+                warn!("party {} detect {:?} by {}", self.my_index, crime, i);
+                criminals[i].push(crime);
             }
             assert!(vss::validate_share(
                 &r2bcast.u_i_share_commitments,
