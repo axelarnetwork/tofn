@@ -6,6 +6,7 @@ use curv::{
 use paillier::{DecryptionKey, EncryptionKey};
 use paillier::{KeyGeneration, Paillier};
 use serde::{Deserialize, Serialize};
+use tracing::info;
 use zk_paillier::zkproofs::NICorrectKeyProof;
 
 use super::{malicious::Behaviour, Keygen, Status};
@@ -42,6 +43,7 @@ impl Keygen {
 
         #[cfg(feature = "malicious")]
         let my_y_i_commit = if matches!(self.behaviour, Behaviour::R1BadCommit) {
+            info!("malicious party {} do {:?}", self.my_index, self.behaviour);
             my_y_i_commit + BigInt::one()
         } else {
             my_y_i_commit
