@@ -70,15 +70,9 @@ impl Keygen {
         assert_eq!(all_eks.len(), self.share_count);
         assert_eq!(all_zkps.len(), self.share_count);
 
-        let (my_secret_summand_share_commitments, my_secret_summand_shares) = vss::share(
-            self.threshold,
-            self.share_count,
-            &r1state.my_ecdsa_secret_summand,
-        );
-        assert_eq!(
-            my_secret_summand_share_commitments[0],
-            r1state.my_ecdsa_public_summand
-        );
+        let (my_secret_summand_share_commitments, my_secret_summand_shares) =
+            vss::share(self.threshold, self.share_count, &r1state.my_u);
+        assert_eq!(my_secret_summand_share_commitments[0], r1state.my_y);
 
         // prepare outgoing p2p messages: secret shares of my_ecdsa_secret_summand
         let mut out_p2ps = FillVec::with_len(self.share_count);

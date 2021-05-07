@@ -19,11 +19,11 @@ pub struct Bcast {
     pub correct_key_proof: NICorrectKeyProof,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
-pub struct State {
-    pub(super) my_ecdsa_secret_summand: FE, // final ecdsa secret key is the sum over all parties
-    pub(super) my_ecdsa_public_summand: GE, // final ecdsa public key is the sum over all parties
-    pub(super) my_dk: DecryptionKey,        // homomorphic decryption (Paillier)
-    pub(super) my_ek: EncryptionKey,        // a copy of Bcast.ek
+pub(super) struct State {
+    pub(super) my_u: FE, // final ecdsa secret key is the sum over all parties
+    pub(super) my_y: GE, // final ecdsa public key is the sum over all parties
+    pub(super) my_dk: DecryptionKey, // homomorphic decryption (Paillier)
+    pub(super) my_ek: EncryptionKey, // a copy of Bcast.ek
     pub(super) my_zkp: ZkSetup,
     pub(super) my_commit: BigInt, // a copy of Bcast.commit
     pub(super) my_reveal: BigInt, // decommit---to be released later
@@ -47,13 +47,13 @@ impl Keygen {
         );
         (
             State {
-                my_ecdsa_secret_summand,
+                my_u: my_ecdsa_secret_summand,
                 my_dk,
                 my_ek: ek.clone(),
                 my_zkp: zkp.clone(),
                 my_commit: commit.clone(),
                 my_reveal,
-                my_ecdsa_public_summand,
+                my_y: my_ecdsa_public_summand,
             },
             Bcast {
                 commit,

@@ -28,7 +28,7 @@ impl Keygen {
 
         // check commitments
         // compute my_ecdsa_secret_key_share, ecdsa_public_key, all_ecdsa_public_key_shares
-        let mut ecdsa_public_key = r1state.my_ecdsa_public_summand;
+        let mut ecdsa_public_key = r1state.my_y;
         let mut my_ecdsa_secret_key_share = r2state.my_share_of_my_ecdsa_secret_summand;
         let mut all_ecdsa_public_key_shares: Vec<GE> = (0..self.share_count)
             // start each summation with my contribution
