@@ -81,3 +81,25 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
         })
         .collect()
 }
+
+pub(super) fn self_accusation_cases() -> Vec<TestCase> {
+    vec![TestCase {
+        threshold: 1,
+        allow_self_delivery: false,
+        expect_success: false,
+        parties: vec![
+            TestCaseParty {
+                behaviour: Honest,
+                expected_crimes: vec![],
+            },
+            TestCaseParty {
+                behaviour: Behaviour::R3FalseAccusation { victim: 1 },
+                expected_crimes: vec![Crime::R4FailFalseAccusation { victim: 1 }],
+            },
+            TestCaseParty {
+                behaviour: Honest,
+                expected_crimes: vec![],
+            },
+        ],
+    }]
+}

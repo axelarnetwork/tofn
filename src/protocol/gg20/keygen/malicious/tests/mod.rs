@@ -9,12 +9,19 @@ use test_cases::*;
 
 lazy_static::lazy_static! {
     static ref BASIC_CASES: Vec<TestCase> = generate_basic_cases();
+    static ref SELF_ACCUSATION: Vec<TestCase> = self_accusation_cases();
 }
 
 #[test]
 #[traced_test]
 fn basic_tests() {
     execute_test_case_list(&BASIC_CASES);
+}
+
+#[test]
+#[traced_test]
+fn self_accusation() {
+    execute_test_case_list(&SELF_ACCUSATION);
 }
 
 fn execute_test_case_list(test_cases: &[test_cases::TestCase]) {

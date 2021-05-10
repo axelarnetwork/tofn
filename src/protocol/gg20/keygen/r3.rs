@@ -5,7 +5,7 @@ use curv::{
         commitments::{hash_commitment::HashCommitment, traits::Commitment},
         proofs::sigma_dlog::{DLogProof, ProveDLog},
     },
-    elliptic::curves::traits::ECPoint,
+    elliptic::curves::traits::{ECPoint, ECScalar},
     FE, GE,
 };
 use serde::{Deserialize, Serialize};
@@ -119,6 +119,21 @@ impl Keygen {
                     + vss::get_point_commitment(&r2bcast.u_i_share_commitments, j);
             }
         }
+
+        #[cfg(feature = "malicious")]
+        match self.behaviour {
+            Behaviour::R3FalseAccusation { victim } if victim == self.my_index => {
+                info!(
+                    "malicious party {} do {:?} (self accusation)",
+                    self.my_index, self.behaviour
+                );
+                vss_failures.push(Complaint {
+                    criminal_index: self.my_index,
+                    vss_share: FE::new_random(), // doesn't matter what we put here
+                });
+            }
+            _ => (),
+        };
 
         // prioritize commit faiure path over vss failure path
         if !criminals.iter().all(|c| c.is_empty()) {
