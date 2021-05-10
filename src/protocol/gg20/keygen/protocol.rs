@@ -1,4 +1,4 @@
-use super::{crimes::Crime, Keygen, Status::*};
+use super::{crimes::Crime, r3, Keygen, Status::*};
 use crate::protocol::{MsgBytes, Protocol, ProtocolResult};
 use serde::{Deserialize, Serialize};
 
@@ -67,7 +67,7 @@ impl Protocol for Keygen {
 
             R2 => {
                 match self.r3() {
-                    super::r3::Output::Success { state, out_bcast } => {
+                    r3::Output::Success { state, out_bcast } => {
                         self.out_r3bcast = Some(bincode::serialize(&MsgMeta {
                             msg_type: MsgType::R3Bcast,
                             from: self.my_index,
@@ -77,7 +77,8 @@ impl Protocol for Keygen {
                         self.in_r3bcasts.insert(self.my_index, out_bcast)?; // self-delivery
                         self.status = R3;
                     }
-                    super::r3::Output::Fail { criminals } => self.update_state_fail(criminals),
+                    r3::Output::Fail { criminals } => self.update_state_fail(criminals),
+                    r3::Output::FailVss { out_bcast } => todo!(),
                 }
             }
 

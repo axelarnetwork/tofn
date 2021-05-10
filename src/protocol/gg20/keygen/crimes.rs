@@ -6,4 +6,5 @@
 #[derive(Debug, Clone, PartialEq)]
 pub enum Crime {
     R3BadReveal,
+    R3BadVss { victim: usize },
 }

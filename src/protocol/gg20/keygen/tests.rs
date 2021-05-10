@@ -74,11 +74,8 @@ pub(crate) fn execute_keygen(share_count: usize, threshold: usize) -> Vec<Secret
                 party.status = Status::R3;
                 all_r3_bcasts.insert(i, out_bcast).unwrap();
             }
-            r3::Output::Fail { criminals } => {
-                panic!(
-                    "r3 party {} expect success got failure with criminals: {:?}",
-                    party.my_index, criminals
-                );
+            _ => {
+                panic!("r3 party {} expect success got failure", party.my_index);
             }
         }
     }

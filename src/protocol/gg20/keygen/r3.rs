@@ -21,9 +21,22 @@ pub struct State {
     pub(super) all_ecdsa_public_key_shares: Vec<GE>, // these sum to ecdsa_public_key
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BcastFail {
+    pub vss_failures: Vec<Complaint>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Complaint {
+    pub criminal_index: usize,
+    pub vss_share: FE,
+    // TODO encryption randomness
+}
+
 pub(super) enum Output {
     Success { state: State, out_bcast: Bcast },
     Fail { criminals: Vec<Vec<Crime>> },
+    FailVss { out_bcast: BcastFail },
 }
 
 impl Keygen {
@@ -33,6 +46,7 @@ impl Keygen {
         let r2state = self.r2state.as_ref().unwrap();
 
         let mut criminals = vec![Vec::new(); self.share_count];
+        let mut vss_failures = Vec::new();
 
         // check commitments
         // compute my_ecdsa_secret_key_share, ecdsa_public_key, all_ecdsa_public_key_shares
@@ -62,12 +76,27 @@ impl Keygen {
                 warn!("party {} detect {:?} by {}", self.my_index, crime, i);
                 criminals[i].push(crime);
             }
-            assert!(vss::validate_share(
+
+            if vss::validate_share(
                 &r2bcast.u_i_share_commitments,
                 &my_r2p2p.u_i_share,
-                self.my_index
+                self.my_index,
             )
-            .is_ok());
+            .is_err()
+            {
+                warn!(
+                    "party {} complain {:?} by {}",
+                    self.my_index,
+                    Crime::R3BadVss {
+                        victim: self.my_index
+                    },
+                    i
+                );
+                vss_failures.push(Complaint {
+                    criminal_index: i,
+                    vss_share: my_r2p2p.u_i_share,
+                });
+            }
 
             ecdsa_public_key = ecdsa_public_key + y_i;
             my_ecdsa_secret_key_share = my_ecdsa_secret_key_share + my_r2p2p.u_i_share;
@@ -78,8 +107,14 @@ impl Keygen {
             }
         }
 
+        // prioritize commit faiure path over vss failure path
         if !criminals.iter().all(|c| c.is_empty()) {
             return Output::Fail { criminals };
+        }
+        if !vss_failures.is_empty() {
+            return Output::FailVss {
+                out_bcast: BcastFail { vss_failures },
+            };
         }
 
         all_ecdsa_public_key_shares[self.my_index] = GE::generator() * my_ecdsa_secret_key_share;
