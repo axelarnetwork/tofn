@@ -1,4 +1,4 @@
-use super::{crimes::Crime, Keygen, Status};
+use super::{crimes::Crime, malicious::Behaviour, Keygen, Status};
 use crate::protocol::gg20::vss;
 use curv::{
     cryptographic_primitives::{
@@ -9,7 +9,8 @@ use curv::{
     FE, GE,
 };
 use serde::{Deserialize, Serialize};
-use tracing::warn;
+use tracing::{info, warn};
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Bcast {
     pub dlog_proof: DLogProof,
@@ -77,20 +78,32 @@ impl Keygen {
                 criminals[i].push(crime);
             }
 
-            if vss::validate_share(
+            // TODO decrypt share
+
+            let vss_valid = vss::validate_share(
                 &r2bcast.u_i_share_commitments,
                 &my_r2p2p.u_i_share,
                 self.my_index,
             )
-            .is_err()
-            {
+            .is_ok();
+
+            #[cfg(feature = "malicious")]
+            let vss_valid = match self.behaviour {
+                Behaviour::R3FalseAccusation { victim } if victim == i && vss_valid => {
+                    info!("malicious party {} do {:?}", self.my_index, self.behaviour);
+                    false
+                }
+                _ => vss_valid,
+            };
+
+            if !vss_valid {
                 warn!(
-                    "party {} complain {:?} accuse {}",
+                    "party {} accuse {} of {:?}",
                     self.my_index,
+                    i,
                     Crime::R4FailBadVss {
                         victim: self.my_index
                     },
-                    i
                 );
                 vss_failures.push(Complaint {
                     criminal_index: i,
