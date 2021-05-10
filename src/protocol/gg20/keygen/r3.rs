@@ -85,9 +85,9 @@ impl Keygen {
             .is_err()
             {
                 warn!(
-                    "party {} complain {:?} by {}",
+                    "party {} complain {:?} accuse {}",
                     self.my_index,
-                    Crime::R3BadVss {
+                    Crime::R4FailBadVss {
                         victim: self.my_index
                     },
                     i

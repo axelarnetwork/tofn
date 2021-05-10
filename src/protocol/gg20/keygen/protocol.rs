@@ -96,9 +96,7 @@ impl Protocol for Keygen {
                 self.final_output = Some(Ok(self.r4()));
                 self.status = Done;
             }
-            R3Fail => {
-                todo!()
-            }
+            R3Fail => self.update_state_fail(self.r4_fail()),
             Done => return Err(From::from("already done")),
             Fail => return Err(From::from("already failed")),
         };
