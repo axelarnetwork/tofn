@@ -1,7 +1,8 @@
-use curv::{BigInt, FE, GE};
+use curv::{elliptic::curves::traits::ECScalar, BigInt, FE, GE};
 use serde::{Deserialize, Serialize};
+use tracing::info;
 
-use super::{Keygen, Status};
+use super::{malicious::Behaviour, Keygen, Status};
 use crate::{fillvec::FillVec, protocol::gg20::vss};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -51,6 +52,26 @@ impl Keygen {
 
         let (my_u_i_share_commitments, my_u_i_shares) =
             vss::share(self.threshold, self.share_count, &r1state.my_u_i);
+
+        #[cfg(feature = "malicious")]
+        let my_u_i_shares = if let Behaviour::R2BadShare { victim } = self.behaviour {
+            info!("malicious party {} do {:?}", self.my_index, self.behaviour);
+            my_u_i_shares
+                .iter()
+                .enumerate()
+                .map(|(i, s)| {
+                    if i == victim {
+                        let one: FE = ECScalar::from(&BigInt::one());
+                        *s + one
+                    } else {
+                        *s
+                    }
+                })
+                .collect()
+        } else {
+            my_u_i_shares
+        };
+
         assert_eq!(my_u_i_share_commitments[0], r1state.my_y_i);
 
         let mut out_p2ps = FillVec::with_len(self.share_count);

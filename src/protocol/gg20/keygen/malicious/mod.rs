@@ -8,6 +8,7 @@ use strum_macros::EnumIter;
 pub enum Behaviour {
     Honest,
     R1BadCommit,
+    R2BadShare { victim: usize },
 }
 
 #[cfg(test)]

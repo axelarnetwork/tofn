@@ -49,6 +49,7 @@ impl Behaviour {
         match self {
             Honest => panic!("`to_crime` called with `Honest`"),
             R1BadCommit => Crime::R3BadReveal,
+            R2BadShare { victim: v } => Crime::R4FailBadVss { victim: *v },
         }
     }
 }
