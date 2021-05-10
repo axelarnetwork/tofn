@@ -60,6 +60,8 @@ impl Keygen {
             // start each summation with my contribution
             .map(|i| vss::get_point_commitment(&r2state.my_u_i_share_commitments, i))
             .collect();
+
+        #[allow(clippy::needless_range_loop)]
         for i in 0..self.share_count {
             if i == self.my_index {
                 continue;

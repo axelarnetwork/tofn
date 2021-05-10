@@ -77,7 +77,7 @@ impl Keygen {
         assert_eq!(my_u_i_share_commitments[0], r1state.my_y_i);
 
         let mut out_p2ps = FillVec::with_len(self.share_count);
-        let my_share_of_my_u_i = my_u_i_shares[self.my_index].clone();
+        let my_share_of_my_u_i = my_u_i_shares[self.my_index];
         for (i, my_u_i_share) in my_u_i_shares.into_iter().enumerate() {
             if i == self.my_index {
                 continue;
