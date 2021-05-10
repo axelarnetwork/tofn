@@ -1,3 +1,5 @@
+use super::{Keygen, Status};
+use crate::zkp::paillier::ZkSetup;
 use curv::{
     cryptographic_primitives::commitments::{hash_commitment::HashCommitment, traits::Commitment},
     elliptic::curves::traits::{ECPoint, ECScalar},
@@ -6,11 +8,10 @@ use curv::{
 use paillier::{DecryptionKey, EncryptionKey};
 use paillier::{KeyGeneration, Paillier};
 use serde::{Deserialize, Serialize};
-use tracing::info;
 use zk_paillier::zkproofs::NICorrectKeyProof;
 
-use super::{malicious::Behaviour, Keygen, Status};
-use crate::zkp::paillier::ZkSetup;
+#[cfg(feature = "malicious")]
+use {super::malicious::Behaviour, tracing::info};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bcast {

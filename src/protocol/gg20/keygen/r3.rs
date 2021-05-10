@@ -1,15 +1,18 @@
-use super::{crimes::Crime, malicious::Behaviour, Keygen, Status};
+use super::{crimes::Crime, Keygen, Status};
 use crate::protocol::gg20::vss;
 use curv::{
     cryptographic_primitives::{
         commitments::{hash_commitment::HashCommitment, traits::Commitment},
         proofs::sigma_dlog::{DLogProof, ProveDLog},
     },
-    elliptic::curves::traits::{ECPoint, ECScalar},
+    elliptic::curves::traits::ECPoint,
     FE, GE,
 };
 use serde::{Deserialize, Serialize};
-use tracing::{info, warn};
+use tracing::warn;
+
+#[cfg(feature = "malicious")]
+use {super::malicious::Behaviour, curv::elliptic::curves::traits::ECScalar, tracing::info};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Bcast {

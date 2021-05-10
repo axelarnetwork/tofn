@@ -1,9 +1,11 @@
-use curv::{elliptic::curves::traits::ECScalar, BigInt, FE, GE};
+use curv::{BigInt, FE, GE};
 use serde::{Deserialize, Serialize};
-use tracing::info;
 
-use super::{malicious::Behaviour, Keygen, Status};
+use super::{Keygen, Status};
 use crate::{fillvec::FillVec, protocol::gg20::vss};
+
+#[cfg(feature = "malicious")]
+use {super::malicious::Behaviour, curv::elliptic::curves::traits::ECScalar, tracing::info};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Bcast {
