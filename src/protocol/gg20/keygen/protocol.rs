@@ -8,6 +8,7 @@ enum MsgType {
     R2Bcast,
     R2P2p { to: usize },
     R3Bcast,
+    R3FailBcast,
 }
 
 // TODO identical to keygen::MsgMeta except for MsgType---use generic
@@ -23,6 +24,8 @@ impl Protocol for Keygen {
         if self.expecting_more_msgs_this_round() {
             return Err(From::from("can't prceed yet"));
         }
+        self.move_to_sad_path();
+
         // TODO refactor repeated code!
         match self.status {
             New => {
@@ -78,13 +81,23 @@ impl Protocol for Keygen {
                         self.status = R3;
                     }
                     r3::Output::Fail { criminals } => self.update_state_fail(criminals),
-                    r3::Output::FailVss { out_bcast } => todo!(),
+                    r3::Output::FailVss { out_bcast } => {
+                        self.out_r3bcast_fail = Some(bincode::serialize(&MsgMeta {
+                            msg_type: MsgType::R3FailBcast,
+                            from: self.my_index,
+                            payload: bincode::serialize(&out_bcast)?,
+                        })?);
+                        self.in_r3bcasts_fail.insert(self.my_index, out_bcast)?; // self delivery
+                        self.status = R3Fail;
+                    }
                 }
             }
-
             R3 => {
                 self.final_output = Some(Ok(self.r4()));
                 self.status = Done;
+            }
+            R3Fail => {
+                todo!()
             }
             Done => return Err(From::from("already done")),
             Fail => return Err(From::from("already failed")),
@@ -108,6 +121,9 @@ impl Protocol for Keygen {
             MsgType::R3Bcast => self
                 .in_r3bcasts
                 .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?),
+            MsgType::R3FailBcast => self
+                .in_r3bcasts_fail
+                .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?),
         };
         Ok(())
     }
@@ -118,6 +134,7 @@ impl Protocol for Keygen {
             R1 => &self.out_r1bcast,
             R2 => &self.out_r2bcast,
             R3 => &self.out_r3bcast,
+            R3Fail => &self.out_r3bcast_fail,
             Done | Fail => &None,
         }
     }
@@ -128,6 +145,7 @@ impl Protocol for Keygen {
             R1 => &None,
             R2 => &self.out_r2p2ps,
             R3 => &None,
+            R3Fail => &None,
             Done | Fail => &None,
         }
     }
@@ -151,7 +169,17 @@ impl Protocol for Keygen {
                 }
                 false
             }
-            R3 => !self.in_r3bcasts.is_full_except(me),
+            R3 | R3Fail => {
+                for i in 0..self.share_count {
+                    if i == me {
+                        continue;
+                    }
+                    if self.in_r3bcasts.is_none(i) && self.in_r3bcasts_fail.is_none(i) {
+                        return true;
+                    }
+                }
+                false
+            }
             Done | Fail => false,
         }
     }
@@ -162,8 +190,21 @@ impl Protocol for Keygen {
 }
 
 impl Keygen {
-    pub(super) fn update_state_fail(&mut self, criminals: Vec<Vec<Crime>>) {
+    fn update_state_fail(&mut self, criminals: Vec<Vec<Crime>>) {
         self.final_output = Some(Err(criminals));
         self.status = Fail;
+    }
+    fn move_to_sad_path(&mut self) {
+        match self.status {
+            R3 => {
+                if self.in_r3bcasts_fail.some_count() > 0 {
+                    self.status = R3Fail;
+                }
+            }
+            // do not use catch-all pattern `_ => (),`
+            // instead, list all variants explicity
+            // because otherwise you'll forget to update this match statement when you add a variant
+            R1 | R2 | R3Fail | New | Done | Fail => {}
+        }
     }
 }
