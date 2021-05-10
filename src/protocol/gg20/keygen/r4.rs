@@ -5,7 +5,6 @@ impl Keygen {
     pub(super) fn r4(&self) -> SecretKeyShare {
         assert!(matches!(self.status, Status::R3));
         let r1state = self.r1state.as_ref().unwrap();
-        let r2state = self.r2state.as_ref().unwrap();
         let r3state = self.r3state.as_ref().unwrap();
 
         // verify other parties' proofs
@@ -26,6 +25,17 @@ impl Keygen {
                 )
             });
         }
+
+        // prepare data for final output
+        let r1bcasts = self.in_r1bcasts.vec_ref();
+        let all_eks = r1bcasts
+            .iter()
+            .map(|b| b.as_ref().unwrap().ek.clone())
+            .collect();
+        let all_zkps = r1bcasts
+            .iter()
+            .map(|b| b.as_ref().unwrap().zkp.clone())
+            .collect();
         SecretKeyShare {
             share_count: self.share_count,
             threshold: self.threshold,
@@ -36,8 +46,8 @@ impl Keygen {
             ecdsa_public_key: r3state.ecdsa_public_key,
             my_ecdsa_secret_key_share: r3state.my_ecdsa_secret_key_share,
             all_ecdsa_public_key_shares: r3state.all_ecdsa_public_key_shares.clone(),
-            all_eks: r2state.all_eks.clone(),
-            all_zkps: r2state.all_zkps.clone(),
+            all_eks,
+            all_zkps,
         }
     }
 }

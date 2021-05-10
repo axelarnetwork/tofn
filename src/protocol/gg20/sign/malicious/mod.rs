@@ -543,7 +543,8 @@ impl Protocol for BadSign {
                             "malicious participant {} can't do {:?} because protocol has failed; reverting to honesty",
                             self.sign.my_participant_index, self.malicious_type,
                         );
-                        Ok(self.sign.update_state_fail(criminals))
+                        self.sign.update_state_fail(criminals);
+                        Ok(())
                     }
                 }
             }
@@ -580,7 +581,8 @@ impl Protocol for BadSign {
                             "malicious participant {} can't do {:?} because protocol has failed; reverting to honesty",
                             self.sign.my_participant_index, self.malicious_type
                         );
-                        Ok(self.sign.update_state_fail(criminals))
+                        self.sign.update_state_fail(criminals);
+                        Ok(())
                     }
                 }
             }
@@ -674,7 +676,8 @@ impl Protocol for BadSign {
                             "malicious participant {} can't do {:?} because protocol has failed; reverting to honesty",
                             self.sign.my_participant_index, self.malicious_type
                         );
-                        Ok(self.sign.update_state_fail(criminals))
+                        self.sign.update_state_fail(criminals);
+                        Ok(())
                     }
                     r7::Output::FailType7 { out_bcast } => {
                         warn!(

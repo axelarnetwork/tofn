@@ -26,14 +26,21 @@ enum Status {
     R1,
     R2,
     R3,
+    R3Fail,
     Done,
+    Fail,
 }
 
+#[cfg(feature = "malicious")]
+pub mod malicious;
+
+mod crimes;
 mod protocol;
 mod r1;
 mod r2;
 mod r3;
 mod r4;
+mod r4_fail;
 
 #[derive(Serialize, Deserialize)]
 enum MsgType {
@@ -64,6 +71,7 @@ pub struct Keygen {
     in_r2bcasts: FillVec<r2::Bcast>,
     in_all_r2p2ps: Vec<FillVec<r2::P2p>>,
     in_r3bcasts: FillVec<r3::Bcast>,
+    in_r3bcasts_fail: FillVec<r3::BcastFail>,
 
     // outgoing/incoming messages
     // initialized to `None`, filled as the protocol progresses
@@ -71,7 +79,11 @@ pub struct Keygen {
     out_r2bcast: Option<MsgBytes>,
     out_r2p2ps: Option<Vec<Option<MsgBytes>>>,
     out_r3bcast: Option<MsgBytes>,
-    final_output: Option<SecretKeyShare>,
+    out_r3bcast_fail: Option<MsgBytes>,
+    final_output: Option<KeygenOutput>,
+
+    #[cfg(feature = "malicious")]
+    behaviour: malicious::Behaviour,
 }
 
 // CommonInfo and ShareInfo only used by tofnd. We choose to define them in
@@ -113,17 +125,24 @@ impl Keygen {
             in_r2bcasts: FillVec::with_len(share_count),
             in_all_r2p2ps: vec![FillVec::with_len(share_count); share_count],
             in_r3bcasts: FillVec::with_len(share_count),
+            in_r3bcasts_fail: FillVec::with_len(share_count),
             out_r1bcast: None,
             out_r2bcast: None,
             out_r2p2ps: None,
             out_r3bcast: None,
+            out_r3bcast_fail: None,
             final_output: None,
+
+            #[cfg(feature = "malicious")]
+            behaviour: malicious::Behaviour::Honest,
         })
     }
-    pub fn get_result(&self) -> Option<&SecretKeyShare> {
-        self.final_output.as_ref()
+    pub fn clone_output(&self) -> Option<KeygenOutput> {
+        self.final_output.clone()
     }
 }
+
+pub type KeygenOutput = Result<SecretKeyShare, Vec<Vec<crimes::Crime>>>;
 
 // validate_params helper with custom error type
 // TODO enforce a maximum share_count?
