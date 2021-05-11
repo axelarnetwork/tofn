@@ -77,7 +77,7 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
     let allow_self_delivery= false;
     let expect_success = false;
     // skip Honest and Unauthenticated
-    for m in MaliciousType::iter().skip(2) {
+    for m in MaliciousType::iter().filter(|m| !matches!(m, Honest | UnauthenticatedSender{victim: _})) {
         basic_test_cases.push(TestCase {
             share_count, threshold, allow_self_delivery, expect_success,
             sign_participants: vec![
