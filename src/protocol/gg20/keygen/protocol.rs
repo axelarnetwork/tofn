@@ -1,7 +1,5 @@
 use super::{crimes::Crime, r3, Keygen, Status::*};
-use crate::protocol::{
-    gg20::keygen::malicious::Behaviour, IndexRange, MsgBytes, Protocol, ProtocolResult,
-};
+use crate::protocol::{IndexRange, MsgBytes, Protocol, ProtocolResult};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
@@ -34,8 +32,11 @@ impl Protocol for Keygen {
 
         // spoof message if I am a spoofer
         #[cfg(feature = "malicious")]
-        if let Behaviour::UnauthenticatedSender { victim: v } = self.behaviour {
-            self.my_index = v;
+        {
+            use crate::protocol::gg20::keygen::malicious::Behaviour::UnauthenticatedSender;
+            if let UnauthenticatedSender { victim: v } = self.behaviour {
+                self.my_index = v;
+            }
         }
 
         self.move_to_sad_path();
