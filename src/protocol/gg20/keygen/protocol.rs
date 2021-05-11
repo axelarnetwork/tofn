@@ -1,5 +1,5 @@
 use super::{crimes::Crime, r3, Keygen, Status::*};
-use crate::protocol::{MsgBytes, Protocol, ProtocolResult};
+use crate::protocol::{IndexRange, MsgBytes, Protocol, ProtocolResult};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
@@ -26,6 +26,7 @@ impl Protocol for Keygen {
         }
         self.move_to_sad_path();
 
+        // TODO check for authanticated senders as in sing
         // TODO refactor repeated code!
         match self.status {
             New => {
@@ -103,7 +104,8 @@ impl Protocol for Keygen {
         Ok(())
     }
 
-    fn set_msg_in(&mut self, msg: &[u8]) -> ProtocolResult {
+    // TODO check for unauthenticated messages as in sign
+    fn set_msg_in(&mut self, msg: &[u8], _index_range: &IndexRange) -> ProtocolResult {
         // TODO match self.state
         // TODO refactor repeated code
         let msg_meta: MsgMeta = bincode::deserialize(msg)?;
