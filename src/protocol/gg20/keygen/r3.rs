@@ -6,14 +6,14 @@ use curv::{
         proofs::sigma_dlog::{DLogProof, ProveDLog},
     },
     elliptic::curves::traits::{ECPoint, ECScalar},
-    FE, GE,
+    BigInt, FE, GE,
 };
 use paillier::{Open, Paillier, RawCiphertext};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 #[cfg(feature = "malicious")]
-use {super::malicious::Behaviour, curv::elliptic::curves::traits::ECScalar, tracing::info};
+use {super::malicious::Behaviour, tracing::info};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Bcast {
@@ -35,7 +35,7 @@ pub struct BcastFail {
 pub struct Complaint {
     pub criminal_index: usize,
     pub vss_share: FE,
-    // TODO encryption randomness
+    pub vss_share_randomness: BigInt,
 }
 
 pub(super) enum Output {
@@ -115,7 +115,8 @@ impl Keygen {
                 );
                 vss_failures.push(Complaint {
                     criminal_index: i,
-                    vss_share: u_i_share, // TODO (plaintext, randomness)
+                    vss_share: u_i_share,
+                    vss_share_randomness: u_i_share_randomness.0,
                 });
             }
 
@@ -138,6 +139,7 @@ impl Keygen {
                 vss_failures.push(Complaint {
                     criminal_index: self.my_index,
                     vss_share: FE::new_random(), // doesn't matter what we put here
+                    vss_share_randomness: BigInt::one(),
                 });
             }
             _ => (),

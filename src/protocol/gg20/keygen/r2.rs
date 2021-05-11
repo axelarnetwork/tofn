@@ -6,7 +6,7 @@ use super::{Keygen, Status};
 use crate::{fillvec::FillVec, protocol::gg20::vss};
 
 #[cfg(feature = "malicious")]
-use {super::malicious::Behaviour, curv::elliptic::curves::traits::ECScalar, tracing::info};
+use {super::malicious::Behaviour, tracing::info};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Bcast {
