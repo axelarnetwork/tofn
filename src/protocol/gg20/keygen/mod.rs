@@ -42,19 +42,6 @@ mod r3;
 mod r4;
 mod r4_fail;
 
-#[derive(Serialize, Deserialize)]
-enum MsgType {
-    R1Bcast,
-    R2Bcast,
-    R2P2p,
-    R3Bcast,
-}
-#[derive(Serialize, Deserialize)]
-struct MsgMeta {
-    msg_type: MsgType,
-    from: usize,
-    payload: MsgBytes,
-}
 pub struct Keygen {
     status: Status,
 
