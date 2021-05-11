@@ -121,7 +121,6 @@ impl Keygen {
             final_output: None,
 
             // TODO add unauthenticated parties as in sign
-
             #[cfg(feature = "malicious")]
             behaviour: malicious::Behaviour::Honest,
         })

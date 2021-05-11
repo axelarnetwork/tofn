@@ -91,7 +91,7 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
                     party_index: 2, behaviour: Honest, expected_crimes: vec![],
                 },
             ],
-        })
+        });
     }
     basic_test_cases
 }

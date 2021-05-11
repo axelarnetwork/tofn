@@ -36,7 +36,7 @@ impl Protocol for Sign {
             return Err(From::from("can't prceed yet"));
         }
 
-        // check if we have marked any party as unauthonticated
+        // check if we have marked any party as unauthenticated
         if self.unauth_parties.iter().any(|unauth| unauth.is_some()) {
             let crimes = self
                 .unauth_parties
