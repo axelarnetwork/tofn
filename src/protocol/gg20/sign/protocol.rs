@@ -1,5 +1,5 @@
 use super::{crimes::Crime, Status::*, *};
-use crate::protocol::{MsgBytes, Protocol, ProtocolResult};
+use crate::protocol::{IndexRange, MsgBytes, Protocol, ProtocolResult};
 use serde::{Deserialize, Serialize};
 
 use tracing::debug;
@@ -35,6 +35,24 @@ impl Protocol for Sign {
         if self.expecting_more_msgs_this_round() {
             return Err(From::from("can't prceed yet"));
         }
+
+        // check if we have marked any party as unauthonticated
+        if self.unauth_parties.iter().any(|unauth| unauth.is_some()) {
+            let crimes = self
+                .unauth_parties
+                .iter()
+                .map(|&unauth| {
+                    let mut my_crimes = vec![];
+                    if let Some(victim) = unauth {
+                        my_crimes.push(Crime::SpoofedMessage { victim });
+                    }
+                    my_crimes
+                })
+                .collect();
+            self.update_state_fail(crimes);
+            return Ok(());
+        }
+
         self.move_to_sad_path();
 
         // TODO refactor repeated code!
@@ -119,10 +137,13 @@ impl Protocol for Sign {
         Ok(())
     }
 
-    fn set_msg_in(&mut self, msg: &[u8]) -> ProtocolResult {
+    fn set_msg_in(&mut self, msg: &[u8], from_index_range: &IndexRange) -> ProtocolResult {
         // TODO match self.status
         // TODO refactor repeated code
         let msg_meta: MsgMeta = bincode::deserialize(msg)?;
+        if !from_index_range.includes(msg_meta.from) {
+            self.unauth_parties[from_index_range.first] = Some(msg_meta.from);
+        }
         match msg_meta.msg_type {
             MsgType::R1Bcast => {
                 if !self.in_r1bcasts.is_none(msg_meta.from) {
@@ -678,9 +699,8 @@ impl Sign {
         Ok(())
     }
 
-    pub(super) fn update_state_fail(&mut self, criminals: Vec<Vec<Crime>>) {
-        // self.final_output = Some(Output::Err(to_criminals(&criminals)));
-        self.final_output = Some(Err(criminals));
+    pub(super) fn update_state_fail(&mut self, crimes: Vec<Vec<Crime>>) {
+        self.final_output = Some(Err(crimes));
         self.status = Fail;
     }
 }
