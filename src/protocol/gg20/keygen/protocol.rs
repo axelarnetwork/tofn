@@ -1,5 +1,7 @@
 use super::{crimes::Crime, r3, Keygen, Status::*};
-use crate::protocol::{IndexRange, MsgBytes, Protocol, ProtocolResult};
+use crate::protocol::{
+    gg20::keygen::malicious::Behaviour, IndexRange, MsgBytes, Protocol, ProtocolResult,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
@@ -24,9 +26,33 @@ impl Protocol for Keygen {
         if self.expecting_more_msgs_this_round() {
             return Err(From::from("can't prceed yet"));
         }
+
+        // check if we have marked any party as unauthenticated
+        if self.unauth_parties.iter().any(|unauth| unauth.is_some()) {
+            let crimes = self
+                .unauth_parties
+                .iter()
+                .map(|&unauth| {
+                    let mut my_crimes = vec![];
+                    if let Some(victim) = unauth {
+                        my_crimes.push(Crime::SpoofedMessage { victim });
+                    }
+                    my_crimes
+                })
+                .collect();
+            self.update_state_fail(crimes);
+            return Ok(());
+        }
+
+        // handle unathenticated case
+        #[cfg(feature = "malicious")]
+        if let Behaviour::UnauthenticatedSender { victim: v } = self.behaviour {
+            self.my_index = v;
+            // self.next_round()
+        }
+
         self.move_to_sad_path();
 
-        // TODO check for authanticated senders as in sing
         // TODO refactor repeated code!
         match self.status {
             New => {
@@ -105,10 +131,13 @@ impl Protocol for Keygen {
     }
 
     // TODO check for unauthenticated messages as in sign
-    fn set_msg_in(&mut self, msg: &[u8], _index_range: &IndexRange) -> ProtocolResult {
+    fn set_msg_in(&mut self, msg: &[u8], from_index_range: &IndexRange) -> ProtocolResult {
         // TODO match self.state
         // TODO refactor repeated code
         let msg_meta: MsgMeta = bincode::deserialize(msg)?;
+        if !from_index_range.includes(msg_meta.from) {
+            self.unauth_parties[from_index_range.first] = Some(msg_meta.from);
+        }
         match msg_meta.msg_type {
             MsgType::R1Bcast => self
                 .in_r1bcasts

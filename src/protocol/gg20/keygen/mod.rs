@@ -67,6 +67,7 @@ pub struct Keygen {
     out_r2p2ps: Option<Vec<Option<MsgBytes>>>,
     out_r3bcast: Option<MsgBytes>,
     out_r3bcast_fail: Option<MsgBytes>,
+    unauth_parties: Vec<Option<usize>>,
     final_output: Option<KeygenOutput>,
 
     #[cfg(feature = "malicious")]
@@ -118,6 +119,7 @@ impl Keygen {
             out_r2p2ps: None,
             out_r3bcast: None,
             out_r3bcast_fail: None,
+            unauth_parties: vec![None; share_count],
             final_output: None,
 
             // TODO add unauthenticated parties as in sign
