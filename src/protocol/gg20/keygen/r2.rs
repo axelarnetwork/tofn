@@ -95,6 +95,15 @@ impl Keygen {
             .0
             .into_owned();
 
+            #[cfg(feature = "malicious")]
+            let encrypted_u_i_share = match self.behaviour {
+                Behaviour::R2BadEncryption { victim } if victim == i => {
+                    info!("malicious party {} do {:?}", self.my_index, self.behaviour);
+                    encrypted_u_i_share + BigInt::one()
+                }
+                _ => encrypted_u_i_share,
+            };
+
             out_p2ps
                 .insert(
                     i,

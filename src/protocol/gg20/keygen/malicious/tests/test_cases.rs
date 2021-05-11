@@ -50,6 +50,7 @@ impl Behaviour {
             Honest => panic!("`to_crime` called with `Honest`"),
             R1BadCommit => Crime::R3BadReveal,
             R2BadShare { victim: v } => Crime::R4FailBadVss { victim: *v },
+            R2BadEncryption { victim: v } => Crime::R4FailBadEncryption { victim: *v },
             R3FalseAccusation { victim: v } => Crime::R4FailFalseAccusation { victim: *v },
         }
     }
