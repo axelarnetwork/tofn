@@ -26,7 +26,20 @@ impl Protocol for Keygen {
         }
 
         // check if we have marked any party as unauthenticated
-        if self.detect_unauthorized_party() {
+        if self.unauth_parties.iter().any(|unauth| unauth.is_some()) {
+            // create a vec of crimes with respect to unauthenticated parties
+            let crimes = self
+                .unauth_parties
+                .iter()
+                .map(|&unauth| {
+                    let mut my_crimes = vec![];
+                    if let Some(victim) = unauth {
+                        my_crimes.push(Crime::SpoofedMessage { victim });
+                    }
+                    my_crimes
+                })
+                .collect();
+            self.update_state_fail(crimes);
             return Ok(());
         }
 
@@ -222,25 +235,5 @@ impl Keygen {
             // because otherwise you'll forget to update this match statement when you add a variant
             R1 | R2 | R3Fail | New | Done | Fail => {}
         }
-    }
-    fn detect_unauthorized_party(&mut self) -> bool {
-        // check if we have marked any party as unauthenticated
-        if !self.unauth_parties.iter().any(|unauth| unauth.is_some()) {
-            return false;
-        }
-        // create a vec of crimes with respect to unauthenticated parties
-        let crimes = self
-            .unauth_parties
-            .iter()
-            .map(|&unauth| {
-                let mut my_crimes = vec![];
-                if let Some(victim) = unauth {
-                    my_crimes.push(Crime::SpoofedMessage { victim });
-                }
-                my_crimes
-            })
-            .collect();
-        self.update_state_fail(crimes);
-        true
     }
 }
