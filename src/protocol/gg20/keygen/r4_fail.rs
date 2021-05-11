@@ -35,23 +35,23 @@ impl Keygen {
                         [accuser]
                         .as_ref()
                         .unwrap()
-                        .u_i_share;
-                    if vss::validate_share(accused_share_commitments, accuser_share, accuser)
-                        .is_ok()
-                    {
-                        let crime = Crime::R4FailFalseAccusation {
-                            victim: accused.criminal_index,
-                        };
-                        info!("party {} detect {:?} by {}", self.my_index, crime, accuser);
-                        criminals[accuser].push(crime);
-                    } else {
-                        let crime = Crime::R4FailBadVss { victim: accuser };
-                        info!(
-                            "party {} detect {:?} by {}",
-                            self.my_index, crime, accused.criminal_index,
-                        );
-                        criminals[accused.criminal_index].push(crime);
-                    }
+                        .encrypted_u_i_share;
+                    // if vss::validate_share(accused_share_commitments, accuser_share, accuser)
+                    //     .is_ok()
+                    // {
+                    //     let crime = Crime::R4FailFalseAccusation {
+                    //         victim: accused.criminal_index,
+                    //     };
+                    //     info!("party {} detect {:?} by {}", self.my_index, crime, accuser);
+                    //     criminals[accuser].push(crime);
+                    // } else {
+                    //     let crime = Crime::R4FailBadVss { victim: accuser };
+                    //     info!(
+                    //         "party {} detect {:?} by {}",
+                    //         self.my_index, crime, accused.criminal_index,
+                    //     );
+                    //     criminals[accused.criminal_index].push(crime);
+                    // }
                 }
             }
         }
