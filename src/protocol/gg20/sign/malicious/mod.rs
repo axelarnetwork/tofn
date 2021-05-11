@@ -19,6 +19,7 @@ use tracing::{error, info, warn};
 pub enum MaliciousType {
     // TODO R1BadCommit,
     Honest,
+    UnauthenticatedSender { victim: usize },
     R3BadNonceXKeyshareSummand, // triggers r7::Output::FailType7
     R1BadProof { victim: usize },
     R1BadSecretBlindSummand, // triggers r6::Output::FailType5
@@ -78,6 +79,18 @@ impl Protocol for BadSign {
 
         match self.malicious_type {
             Honest => self.sign.next_round(),
+            UnauthenticatedSender { victim } => {
+                // for UnauthenticatedSender behaviour, we don't edit the MsgBytes.
+                // we change the `from` field of MsgMeta
+                // TODO make Unauthenticated behaviour not crashing if it is done after victim's
+                // Explanation: By altering 'my_participant_index' we successfully change the 'from'
+                // field of the MsgMeta. However, because 'my_participant_index' is used to also
+                // insert data in bcast structures it will cause a 'ValueAlreadySet(victim)' error.
+                // the only way to get away with that is to have separate indexes for 'from' and
+                // 'participant_index' which doesn't make sence in the honest case.
+                self.sign.my_participant_index = victim;
+                self.sign.next_round()
+            }
             R3BadNonceXKeyshareSummand => self.sign.next_round(), // TODO hack type7 fault
             R1BadProof { victim } => {
                 if !matches!(self.sign.status, Status::New) {
