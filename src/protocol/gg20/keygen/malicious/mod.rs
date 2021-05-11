@@ -9,6 +9,7 @@ pub enum Behaviour {
     Honest,
     R1BadCommit,
     R2BadShare { victim: usize },
+    R2BadEncryption { victim: usize },
     R3FalseAccusation { victim: usize },
 }
 

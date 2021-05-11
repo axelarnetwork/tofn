@@ -1,5 +1,7 @@
 use super::{crimes::Crime, Keygen, Status};
 use crate::protocol::gg20::vss;
+use curv::elliptic::curves::traits::ECScalar;
+use paillier::{EncryptWithChosenRandomness, Paillier, Randomness, RawPlaintext};
 use tracing::{error, info};
 
 impl Keygen {
@@ -24,19 +26,36 @@ impl Keygen {
                         continue;
                     }
 
-                    // TODO verify encryption
+                    // verify encryption
+                    let accuser_ek = &self.in_r1bcasts.vec_ref()[accuser].as_ref().unwrap().ek;
+                    let encrypted_accuser_share_lhs = Paillier::encrypt_with_chosen_randomness(
+                        accuser_ek,
+                        RawPlaintext::from(accused.vss_share.to_big_int()),
+                        &Randomness::from(&accused.vss_share_randomness),
+                    )
+                    .0;
+                    let encrypted_accuser_share_rhs = &self.in_all_r2p2ps[accused.criminal_index]
+                        .vec_ref()[accuser]
+                        .as_ref()
+                        .unwrap()
+                        .encrypted_u_i_share;
+                    if encrypted_accuser_share_lhs.as_ref() != encrypted_accuser_share_rhs {
+                        let crime = Crime::R4FailBadEncryption { victim: accuser };
+                        info!(
+                            "party {} detect {:?} by {}",
+                            self.my_index, crime, accused.criminal_index,
+                        );
+                        criminals[accused.criminal_index].push(crime);
+                        continue;
+                    }
 
+                    // verify share commitment
                     let accused_share_commitments = &self.in_r2bcasts.vec_ref()
                         [accused.criminal_index]
                         .as_ref()
                         .unwrap()
                         .u_i_share_commitments;
-                    let accuser_share = &self.in_all_r2p2ps[accused.criminal_index].vec_ref()
-                        [accuser]
-                        .as_ref()
-                        .unwrap()
-                        .u_i_share;
-                    if vss::validate_share(accused_share_commitments, accuser_share, accuser)
+                    if vss::validate_share(accused_share_commitments, &accused.vss_share, accuser)
                         .is_ok()
                     {
                         let crime = Crime::R4FailFalseAccusation {
@@ -55,7 +74,6 @@ impl Keygen {
                 }
             }
         }
-
         if criminals.iter().all(|c| c.is_empty()) {
             error!("party {} r4_fail found no criminals", self.my_index,);
         }

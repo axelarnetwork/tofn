@@ -5,14 +5,15 @@ use curv::{
         commitments::{hash_commitment::HashCommitment, traits::Commitment},
         proofs::sigma_dlog::{DLogProof, ProveDLog},
     },
-    elliptic::curves::traits::ECPoint,
-    FE, GE,
+    elliptic::curves::traits::{ECPoint, ECScalar},
+    BigInt, FE, GE,
 };
+use paillier::{Open, Paillier, RawCiphertext};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 #[cfg(feature = "malicious")]
-use {super::malicious::Behaviour, curv::elliptic::curves::traits::ECScalar, tracing::info};
+use {super::malicious::Behaviour, tracing::info};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Bcast {
@@ -34,7 +35,7 @@ pub struct BcastFail {
 pub struct Complaint {
     pub criminal_index: usize,
     pub vss_share: FE,
-    // TODO encryption randomness
+    pub vss_share_randomness: BigInt,
 }
 
 pub(super) enum Output {
@@ -83,14 +84,16 @@ impl Keygen {
                 criminals[i].push(crime);
             }
 
-            // TODO decrypt share
+            // decrypt share
+            let (u_i_share_plaintext, u_i_share_randomness) = Paillier::open(
+                &self.r1state.as_ref().unwrap().my_dk,
+                &RawCiphertext::from(&my_r2p2p.encrypted_u_i_share),
+            );
+            let u_i_share: FE = ECScalar::from(&u_i_share_plaintext.0);
 
-            let vss_valid = vss::validate_share(
-                &r2bcast.u_i_share_commitments,
-                &my_r2p2p.u_i_share,
-                self.my_index,
-            )
-            .is_ok();
+            let vss_valid =
+                vss::validate_share(&r2bcast.u_i_share_commitments, &u_i_share, self.my_index)
+                    .is_ok();
 
             #[cfg(feature = "malicious")]
             let vss_valid = match self.behaviour {
@@ -112,12 +115,13 @@ impl Keygen {
                 );
                 vss_failures.push(Complaint {
                     criminal_index: i,
-                    vss_share: my_r2p2p.u_i_share,
+                    vss_share: u_i_share,
+                    vss_share_randomness: u_i_share_randomness.0,
                 });
             }
 
             ecdsa_public_key = ecdsa_public_key + y_i;
-            my_ecdsa_secret_key_share = my_ecdsa_secret_key_share + my_r2p2p.u_i_share;
+            my_ecdsa_secret_key_share = my_ecdsa_secret_key_share + u_i_share;
 
             for (j, ecdsa_public_key_share) in all_ecdsa_public_key_shares.iter_mut().enumerate() {
                 *ecdsa_public_key_share = *ecdsa_public_key_share
@@ -135,6 +139,7 @@ impl Keygen {
                 vss_failures.push(Complaint {
                     criminal_index: self.my_index,
                     vss_share: FE::new_random(), // doesn't matter what we put here
+                    vss_share_randomness: BigInt::one(),
                 });
             }
             _ => (),

@@ -7,5 +7,6 @@
 pub enum Crime {
     R3BadReveal,
     R4FailBadVss { victim: usize },
+    R4FailBadEncryption { victim: usize },
     R4FailFalseAccusation { victim: usize },
 }

@@ -1,11 +1,12 @@
-use curv::{BigInt, FE, GE};
+use curv::{elliptic::curves::traits::ECScalar, BigInt, FE, GE};
+use paillier::{EncryptWithChosenRandomness, Paillier, Randomness, RawPlaintext};
 use serde::{Deserialize, Serialize};
 
 use super::{Keygen, Status};
 use crate::{fillvec::FillVec, protocol::gg20::vss};
 
 #[cfg(feature = "malicious")]
-use {super::malicious::Behaviour, curv::elliptic::curves::traits::ECScalar, tracing::info};
+use {super::malicious::Behaviour, tracing::info};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Bcast {
@@ -15,7 +16,7 @@ pub struct Bcast {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct P2p {
-    pub u_i_share: FE, // threshold share of my_ecdsa_secret_summand
+    pub encrypted_u_i_share: BigInt, // threshold share of my_ecdsa_secret_summand
 }
 
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
@@ -82,17 +83,36 @@ impl Keygen {
             if i == self.my_index {
                 continue;
             }
+
+            // encrypt the share for party i
+            let ek = &self.in_r1bcasts.vec_ref()[i].as_ref().unwrap().ek;
+            let randomness = Randomness::sample(ek);
+            let encrypted_u_i_share = Paillier::encrypt_with_chosen_randomness(
+                ek,
+                RawPlaintext::from(my_u_i_share.to_big_int()),
+                &randomness,
+            )
+            .0
+            .into_owned();
+
+            #[cfg(feature = "malicious")]
+            let encrypted_u_i_share = match self.behaviour {
+                Behaviour::R2BadEncryption { victim } if victim == i => {
+                    info!("malicious party {} do {:?}", self.my_index, self.behaviour);
+                    encrypted_u_i_share + BigInt::one()
+                }
+                _ => encrypted_u_i_share,
+            };
+
             out_p2ps
                 .insert(
                     i,
                     P2p {
-                        u_i_share: my_u_i_share,
+                        encrypted_u_i_share,
                     },
                 )
                 .unwrap();
         }
-
-        // TODO sign and encrypt each p2p_msg
 
         let out_bcast = Bcast {
             y_i_reveal: r1state.my_y_i_reveal.clone(),
