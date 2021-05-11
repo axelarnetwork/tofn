@@ -28,27 +28,14 @@ impl Protocol for Keygen {
         }
 
         // check if we have marked any party as unauthenticated
-        if self.unauth_parties.iter().any(|unauth| unauth.is_some()) {
-            let crimes = self
-                .unauth_parties
-                .iter()
-                .map(|&unauth| {
-                    let mut my_crimes = vec![];
-                    if let Some(victim) = unauth {
-                        my_crimes.push(Crime::SpoofedMessage { victim });
-                    }
-                    my_crimes
-                })
-                .collect();
-            self.update_state_fail(crimes);
+        if self.detect_unauthorized_party() {
             return Ok(());
         }
 
-        // handle unathenticated case
+        // spoof message if I am a spoofer
         #[cfg(feature = "malicious")]
         if let Behaviour::UnauthenticatedSender { victim: v } = self.behaviour {
             self.my_index = v;
-            // self.next_round()
         }
 
         self.move_to_sad_path();
@@ -234,5 +221,25 @@ impl Keygen {
             // because otherwise you'll forget to update this match statement when you add a variant
             R1 | R2 | R3Fail | New | Done | Fail => {}
         }
+    }
+    fn detect_unauthorized_party(&mut self) -> bool {
+        // check if we have marked any party as unauthenticated
+        if !self.unauth_parties.iter().any(|unauth| unauth.is_some()) {
+            return false;
+        }
+        // create a vec of crimes with respect to unauthenticated parties
+        let crimes = self
+            .unauth_parties
+            .iter()
+            .map(|&unauth| {
+                let mut my_crimes = vec![];
+                if let Some(victim) = unauth {
+                    my_crimes.push(Crime::SpoofedMessage { victim });
+                }
+                my_crimes
+            })
+            .collect();
+        self.update_state_fail(crimes);
+        true
     }
 }
