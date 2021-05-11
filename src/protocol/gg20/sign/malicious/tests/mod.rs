@@ -9,6 +9,7 @@ use test_cases::*;
 
 lazy_static::lazy_static! {
     static ref BASIC_CASES: Vec<TestCase> = generate_basic_cases();
+    static ref SPOOF_CASES: Vec<TestCase> = generate_unauth_cases();
     static ref SKIPPING_CASES: Vec<TestCase> = generate_skipping_cases();
     static ref SAME_ROUND_CASES: Vec<TestCase> = generate_multiple_faults_in_same_round();
     static ref MULTIPLE_VICTIMS: Vec<TestCase> = generate_target_multiple_parties();
@@ -21,6 +22,12 @@ lazy_static::lazy_static! {
 #[traced_test]
 fn basic_tests() {
     execute_test_case_list(&BASIC_CASES);
+}
+
+#[test]
+#[traced_test]
+fn spoof_tests() {
+    execute_test_case_list(&SPOOF_CASES);
 }
 
 #[test]

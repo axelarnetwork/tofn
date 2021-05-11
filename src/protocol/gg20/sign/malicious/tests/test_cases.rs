@@ -76,7 +76,8 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
     let threshold= 2;
     let allow_self_delivery= false;
     let expect_success = false;
-    for m in MaliciousType::iter().skip(1) {
+    // skip Honest and Unauthenticated
+    for m in MaliciousType::iter().skip(2) {
         basic_test_cases.push(TestCase {
             share_count, threshold, allow_self_delivery, expect_success,
             sign_participants: vec![
@@ -93,6 +94,32 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
         })
     }
     basic_test_cases
+}
+
+// Test all basic cases with one malicious behaviour per test case
+#[rustfmt::skip] // skip formatting to make file more readable
+pub(super) fn generate_unauth_cases() -> Vec<TestCase> {
+    let mut test_cases = vec![];
+    let share_count= 3;
+    let threshold= 2;
+    let allow_self_delivery= false;
+    let expect_success = false;
+    let unauthenticated = MaliciousType::UnauthenticatedSender{victim: 2};
+    test_cases.push(TestCase {
+        share_count, threshold, allow_self_delivery, expect_success,
+        sign_participants: vec![
+            SignParticipant {
+                party_index: 0, behaviour: unauthenticated.clone(), expected_crimes: map_type_to_crime(&unauthenticated),
+            },
+            SignParticipant {
+                party_index: 1, behaviour: Honest, expected_crimes: vec![],
+            },
+            SignParticipant {
+                party_index: 2, behaviour: Honest, expected_crimes: vec![],
+            },
+        ],
+    });
+    test_cases
 }
 
 // Test all cases where malicious behaviours are skipped due to self-targeting
