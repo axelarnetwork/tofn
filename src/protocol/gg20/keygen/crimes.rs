@@ -5,6 +5,7 @@
 // example: R3FailBadProof -> crime detected in r3_fail()
 #[derive(Debug, Clone, PartialEq)]
 pub enum Crime {
+    SpoofedMessage { victim: usize },
     R3BadReveal,
     R4FailBadVss { victim: usize },
     R4FailBadEncryption { victim: usize },

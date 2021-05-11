@@ -7,6 +7,7 @@ use strum_macros::EnumIter;
 #[derive(Clone, Debug, EnumIter)]
 pub enum Behaviour {
     Honest,
+    UnauthenticatedSender { victim: usize },
     R1BadCommit,
     R2BadShare { victim: usize },
     R2BadEncryption { victim: usize },
