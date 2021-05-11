@@ -41,6 +41,10 @@ impl Behaviour {
         matches!(self, Honest)
     }
 
+    pub(super) fn is_spoofer(&self) -> bool {
+        matches!(self, UnauthenticatedSender { victim: _ })
+    }
+
     /// Return the `Crime` variant `c` such that
     /// if one party acts according to `self` and all other parties are honest
     /// then honest parties will detect `c`.
@@ -48,6 +52,7 @@ impl Behaviour {
     pub(super) fn to_crime(&self) -> Crime {
         match self {
             Honest => panic!("`to_crime` called with `Honest`"),
+            UnauthenticatedSender { victim: v } => Crime::SpoofedMessage { victim: *v },
             R1BadCommit => Crime::R3BadReveal,
             R2BadShare { victim: v } => Crime::R4FailBadVss { victim: *v },
             R2BadEncryption { victim: v } => Crime::R4FailBadEncryption { victim: *v },
@@ -60,7 +65,7 @@ impl Behaviour {
 // #[rustfmt::skip] // skip formatting to make file more readable
 pub(super) fn generate_basic_cases() -> Vec<TestCase> {
     Behaviour::iter()
-        .filter(|b| !b.is_honest())
+        .filter(|b| !b.is_honest() && !b.is_spoofer())
         .map(|b| TestCase {
             threshold: 1,
             allow_self_delivery: false,
@@ -81,6 +86,31 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
             ],
         })
         .collect()
+}
+
+// Test spoof cases
+// #[rustfmt::skip] // skip formatting to make file more readable
+pub(super) fn generate_spoof_cases() -> Vec<TestCase> {
+    let unauthenticated = UnauthenticatedSender { victim: 1 };
+    vec![TestCase {
+        threshold: 1,
+        allow_self_delivery: false,
+        expect_success: false,
+        parties: vec![
+            TestCaseParty {
+                behaviour: unauthenticated.clone(),
+                expected_crimes: vec![unauthenticated.to_crime()],
+            },
+            TestCaseParty {
+                behaviour: Honest,
+                expected_crimes: vec![],
+            },
+            TestCaseParty {
+                behaviour: Honest,
+                expected_crimes: vec![],
+            },
+        ],
+    }]
 }
 
 pub(super) fn self_accusation_cases() -> Vec<TestCase> {

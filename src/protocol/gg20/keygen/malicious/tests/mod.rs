@@ -10,6 +10,7 @@ use test_cases::*;
 lazy_static::lazy_static! {
     static ref BASIC_CASES: Vec<TestCase> = generate_basic_cases();
     static ref SELF_ACCUSATION: Vec<TestCase> = self_accusation_cases();
+    static ref SPOOF_CASES: Vec<TestCase> = generate_spoof_cases();
 }
 
 #[test]
@@ -22,6 +23,12 @@ fn basic_tests() {
 #[traced_test]
 fn self_accusation() {
     execute_test_case_list(&SELF_ACCUSATION);
+}
+
+#[test]
+#[traced_test]
+fn spoof_messages() {
+    execute_test_case_list(&SPOOF_CASES);
 }
 
 fn execute_test_case_list(test_cases: &[test_cases::TestCase]) {
