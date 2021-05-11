@@ -1,5 +1,7 @@
 use super::{r2, r3, r4, r5, r6, r7, ParamsError, Sign, SignOutput, Status};
-use crate::protocol::{gg20::keygen::SecretKeyShare, MsgBytes, Protocol, ProtocolResult};
+use crate::protocol::{
+    gg20::keygen::SecretKeyShare, IndexRange, MsgBytes, Protocol, ProtocolResult,
+};
 use crate::zkp::{
     paillier::{mta, range},
     pedersen,
@@ -690,8 +692,8 @@ impl Protocol for BadSign {
             }
         }
     }
-    fn set_msg_in(&mut self, msg: &[u8]) -> ProtocolResult {
-        self.sign.set_msg_in(msg)
+    fn set_msg_in(&mut self, msg: &[u8], index_range: &IndexRange) -> ProtocolResult {
+        self.sign.set_msg_in(msg, index_range)
     }
     fn get_bcast_out(&self) -> &Option<MsgBytes> {
         self.sign.get_bcast_out()

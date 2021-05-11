@@ -17,7 +17,8 @@ pub fn execute_protocol_vec(parties: &mut [&mut dyn Protocol], allow_self_delive
                     if !allow_self_delivery && j == i {
                         continue; // don't broadcast to myself
                     }
-                    parties[j].set_msg_in(&bcast).unwrap();
+                    let from_index_range = IndexRange { first: i, last: i };
+                    parties[j].set_msg_in(&bcast, &from_index_range).unwrap();
                 }
             }
 
@@ -30,7 +31,8 @@ pub fn execute_protocol_vec(parties: &mut [&mut dyn Protocol], allow_self_delive
                     }
                     for opt in &p2ps {
                         if let Some(p2p) = opt {
-                            parties[j].set_msg_in(&p2p).unwrap();
+                            let from_index_range = IndexRange { first: i, last: i };
+                            parties[j].set_msg_in(&p2p, &from_index_range).unwrap();
                         }
                     }
                 }
