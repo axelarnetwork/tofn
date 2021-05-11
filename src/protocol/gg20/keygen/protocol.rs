@@ -130,7 +130,6 @@ impl Protocol for Keygen {
         Ok(())
     }
 
-    // TODO check for unauthenticated messages as in sign
     fn set_msg_in(&mut self, msg: &[u8], from_index_range: &IndexRange) -> ProtocolResult {
         // TODO match self.state
         // TODO refactor repeated code
