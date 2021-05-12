@@ -1,5 +1,6 @@
 use super::keygen::SecretKeyShare;
 use serde::{Deserialize, Serialize};
+use strum_macros::EnumIter;
 
 use crate::{
     fillvec::FillVec,
@@ -79,6 +80,32 @@ pub(crate) struct MsgMeta {
     payload: MsgBytes,
 }
 
+impl MsgMeta {
+    #[cfg(test)]
+    pub(super) fn set_from(&mut self, from: usize) {
+        self.from = from;
+    }
+    // map message types to the round they are created
+    #[cfg(test)]
+    pub(crate) fn get_msg_type(&self) -> Status {
+        match self.msg_type {
+            MsgType::R1Bcast => Status::New,
+            MsgType::R1P2p { to: _ } => Status::New,
+            MsgType::R2P2p { to: _ } => Status::R1,
+            MsgType::R2FailBcast => Status::R1,
+            MsgType::R3Bcast => Status::R2,
+            MsgType::R3FailBcast => Status::R2,
+            MsgType::R4Bcast => Status::R3,
+            MsgType::R5Bcast => Status::R4,
+            MsgType::R5P2p { to: _ } => Status::R4,
+            MsgType::R6Bcast => Status::R5,
+            MsgType::R6FailBcast => Status::R5,
+            MsgType::R6FailType5Bcast => Status::R5,
+            MsgType::R7Bcast => Status::R6,
+            MsgType::R7FailType7Bcast => Status::R6,
+        }
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, EnumIter)]
 pub enum Status {
@@ -97,6 +124,12 @@ pub enum Status {
     R7FailType7,
     Done,
     Fail,
+}
+
+impl Default for Status {
+    fn default() -> Self {
+        Self::New
+    }
 }
 
 mod r1;

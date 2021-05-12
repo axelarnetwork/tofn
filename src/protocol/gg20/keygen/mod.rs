@@ -2,6 +2,7 @@ use crate::{fillvec::FillVec, protocol::MsgBytes, zkp::paillier::ZkSetup};
 use curv::{FE, GE};
 use paillier::{DecryptionKey, EncryptionKey};
 use serde::{Deserialize, Serialize};
+use strum_macros::EnumIter;
 
 // final output of keygen
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -21,7 +22,8 @@ pub struct SecretKeyShare {
 
 pub use curv::elliptic::curves::traits::{ECPoint, ECScalar};
 
-enum Status {
+#[derive(Clone, Debug, EnumIter, PartialEq)]
+pub enum Status {
     New,
     R1,
     R2,
@@ -29,6 +31,11 @@ enum Status {
     R3Fail,
     Done,
     Fail,
+}
+impl Default for Status {
+    fn default() -> Self {
+        Status::New
+    }
 }
 
 #[cfg(feature = "malicious")]
