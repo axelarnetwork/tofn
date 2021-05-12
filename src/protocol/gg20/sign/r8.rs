@@ -1,11 +1,11 @@
 use super::{crimes::Crime, EcdsaSig, Sign, Status};
-use k256::ecdsa::Asn1Signature;
+use k256::ecdsa::DerSignature;
 use tracing::{error, warn};
 
 // round 8
 
 pub(super) enum Output {
-    Success { sig: Asn1Signature },
+    Success { sig: DerSignature },
     Fail { criminals: Vec<Vec<Crime>> },
 }
 
@@ -32,7 +32,7 @@ impl Sign {
         ) {
             // convet signature into ASN1/DER (Bitcoin) format
             return Output::Success {
-                sig: sig.to_k256().to_asn1(),
+                sig: sig.to_k256().to_der(),
             };
         }
 

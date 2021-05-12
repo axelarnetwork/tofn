@@ -8,7 +8,7 @@ use curv::{
     BigInt,
 };
 use k256::{
-    ecdsa::{Asn1Signature, Signature},
+    ecdsa::{DerSignature, Signature},
     FieldBytes,
 };
 use keygen::tests::execute_keygen;
@@ -296,8 +296,8 @@ fn basic_correctness_inner(
     assert!(sig.verify(&ecdsa_public_key, &msg_to_sign));
 }
 
-fn extract_r_s(asn1_sig: &Asn1Signature) -> (FieldBytes, FieldBytes) {
-    let sig = Signature::from_asn1(asn1_sig.as_bytes()).unwrap();
+fn extract_r_s(asn1_sig: &DerSignature) -> (FieldBytes, FieldBytes) {
+    let sig = Signature::from_der(asn1_sig.as_bytes()).unwrap();
     let (sig_r, sig_s) = (sig.r(), sig.s());
     (From::from(sig_r), From::from(sig_s))
 }

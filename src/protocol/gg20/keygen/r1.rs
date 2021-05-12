@@ -37,6 +37,7 @@ pub(super) struct State {
 impl Keygen {
     pub(super) fn r1(&self) -> (State, Bcast) {
         assert!(matches!(self.status, Status::New));
+        // let my_u_i_k256 = k256::NonZeroScalar::random(rand::thread_rng());
         let my_u_i = FE::new_random();
         let my_y_i = GE::generator() * my_u_i;
         let (my_y_i_commit, my_y_i_reveal) =
