@@ -1,34 +1,7 @@
 use super::{crimes::Crime, Status::*, *};
 use crate::protocol::{IndexRange, MsgBytes, Protocol, ProtocolResult};
-use serde::{Deserialize, Serialize};
 
 use tracing::debug;
-
-#[derive(Debug, Serialize, Deserialize)]
-enum MsgType {
-    R1Bcast,
-    R1P2p { to: usize },
-    R2P2p { to: usize },
-    R2FailBcast,
-    R3Bcast,
-    R3FailBcast,
-    R4Bcast,
-    R5Bcast,
-    R5P2p { to: usize },
-    R6Bcast,
-    R6FailBcast,
-    R6FailType5Bcast,
-    R7Bcast,
-    R7FailType7Bcast,
-}
-
-// TODO identical to keygen::MsgMeta except for MsgType---use generic
-#[derive(Serialize, Deserialize)]
-struct MsgMeta {
-    msg_type: MsgType,
-    from: usize,
-    payload: MsgBytes,
-}
 
 impl Protocol for Sign {
     fn next_round(&mut self) -> ProtocolResult {
