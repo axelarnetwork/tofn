@@ -26,10 +26,11 @@ impl Protocol for Keygen {
         }
 
         // check if we have marked any party as unauthenticated
-        if self.unauth_parties.iter().any(|unauth| unauth.is_some()) {
+        if !self.unauth_parties.is_empty() {
             // create a vec of crimes with respect to unauthenticated parties
             let crimes = self
                 .unauth_parties
+                .vec_ref()
                 .iter()
                 .map(|&unauth| {
                     let mut my_crimes = vec![];
@@ -136,7 +137,7 @@ impl Protocol for Keygen {
         // TODO refactor repeated code
         let msg_meta: MsgMeta = bincode::deserialize(msg)?;
         if !from_index_range.includes(msg_meta.from) {
-            self.unauth_parties[from_index_range.first] = Some(msg_meta.from);
+            self.unauth_parties.overwrite(from_index_range.first, msg_meta.from);
         }
         match msg_meta.msg_type {
             MsgType::R1Bcast => self
