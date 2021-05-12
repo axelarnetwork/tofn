@@ -82,7 +82,7 @@ pub(crate) struct MsgMeta {
 
 impl MsgMeta {
     #[cfg(test)]
-    pub(super) fn set_from(&mut self, from: usize) {
+    pub(crate) fn set_from(&mut self, from: usize) {
         self.from = from;
     }
     // map message types to the round they are created
