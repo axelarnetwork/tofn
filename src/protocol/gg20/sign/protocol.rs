@@ -18,7 +18,10 @@ impl Protocol for Sign {
                 .map(|&unauth| {
                     let mut my_crimes = vec![];
                     if let Some(victim) = unauth {
-                        my_crimes.push(Crime::SpoofedMessage { victim });
+                        my_crimes.push(Crime::SpoofedMessage {
+                            victim,
+                            status: self.status.clone(),
+                        });
                     }
                     my_crimes
                 })
@@ -116,7 +119,8 @@ impl Protocol for Sign {
         // TODO refactor repeated code
         let msg_meta: MsgMeta = bincode::deserialize(msg)?;
         if !from_index_range.includes(msg_meta.from) {
-            self.unauth_parties.overwrite(from_index_range.first, msg_meta.from);
+            self.unauth_parties
+                .overwrite(from_index_range.first, msg_meta.from);
         }
         match msg_meta.msg_type {
             MsgType::R1Bcast => {

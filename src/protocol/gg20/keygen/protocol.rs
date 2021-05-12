@@ -35,7 +35,10 @@ impl Protocol for Keygen {
                 .map(|&unauth| {
                     let mut my_crimes = vec![];
                     if let Some(victim) = unauth {
-                        my_crimes.push(Crime::SpoofedMessage { victim });
+                        my_crimes.push(Crime::SpoofedMessage {
+                            victim,
+                            status: self.status.clone(),
+                        });
                     }
                     my_crimes
                 })
@@ -44,12 +47,14 @@ impl Protocol for Keygen {
             return Ok(());
         }
 
-        // spoof message if I am a spoofer
+        // change 'from' field of the message if I am a spoofer
         #[cfg(feature = "malicious")]
         {
             use crate::protocol::gg20::keygen::malicious::Behaviour::UnauthenticatedSender;
-            if let UnauthenticatedSender { victim: v } = self.behaviour {
-                self.my_index = v;
+            if let UnauthenticatedSender { victim, status } = self.behaviour.clone() {
+                if self.status.clone() == status {
+                    self.my_index = victim;
+                }
             }
         }
 
@@ -137,7 +142,8 @@ impl Protocol for Keygen {
         // TODO refactor repeated code
         let msg_meta: MsgMeta = bincode::deserialize(msg)?;
         if !from_index_range.includes(msg_meta.from) {
-            self.unauth_parties.overwrite(from_index_range.first, msg_meta.from);
+            self.unauth_parties
+                .overwrite(from_index_range.first, msg_meta.from);
         }
         match msg_meta.msg_type {
             MsgType::R1Bcast => self

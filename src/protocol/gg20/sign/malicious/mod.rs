@@ -19,7 +19,7 @@ use tracing::{error, info, warn};
 pub enum MaliciousType {
     // TODO R1BadCommit,
     Honest,
-    UnauthenticatedSender { victim: usize },
+    UnauthenticatedSender { victim: usize, status: Status },
     R3BadNonceXKeyshareSummand, // triggers r7::Output::FailType7
     R1BadProof { victim: usize },
     R1BadSecretBlindSummand, // triggers r6::Output::FailType5
@@ -77,9 +77,12 @@ impl Protocol for BadSign {
         }
         self.sign.move_to_sad_path();
 
-        match self.malicious_type {
+        match self.malicious_type.clone() {
             Honest => self.sign.next_round(),
-            UnauthenticatedSender { victim } => {
+            UnauthenticatedSender {
+                victim: _,
+                status: _,
+            } => {
                 // for UnauthenticatedSender behaviour, we don't edit the MsgBytes.
                 // we change the `from` field of MsgMeta
                 // TODO make Unauthenticated behaviour not crushing if it is commited after victim's msg.
@@ -90,7 +93,11 @@ impl Protocol for BadSign {
                 // cause a 'ValueAlreadySet(victim)' error if the spoofer attempts to spoof _after_ victim
                 // has send his message. The only way to get away with that is to have separate indices
                 // for 'from' and 'participant_index' which doesn't make sense in the honest case.
-                self.sign.my_participant_index = victim;
+                // self.sign.my_participant_index = victim;
+                // self.sign.next_round()
+                // if self.sign.status == status {
+                //     self.sign.my_participant_index = victim;
+                // }
                 self.sign.next_round()
             }
             R3BadNonceXKeyshareSummand => self.sign.next_round(), // TODO hack type7 fault

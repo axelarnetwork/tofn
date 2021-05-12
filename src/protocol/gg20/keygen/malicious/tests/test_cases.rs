@@ -1,7 +1,7 @@
 use strum::IntoEnumIterator;
 
 use super::{Behaviour, Behaviour::*};
-use crate::protocol::gg20::keygen::{crimes::Crime, KeygenOutput};
+use crate::protocol::gg20::keygen::{crimes::Crime, KeygenOutput, Status};
 
 pub(super) struct TestCaseParty {
     pub(super) behaviour: Behaviour,
@@ -42,7 +42,13 @@ impl Behaviour {
     }
 
     pub(super) fn is_spoofer(&self) -> bool {
-        matches!(self, UnauthenticatedSender { victim: _ })
+        matches!(
+            self,
+            UnauthenticatedSender {
+                victim: _,
+                status: _
+            }
+        )
     }
 
     /// Return the `Crime` variant `c` such that
@@ -52,7 +58,13 @@ impl Behaviour {
     pub(super) fn to_crime(&self) -> Crime {
         match self {
             Honest => panic!("`to_crime` called with `Honest`"),
-            UnauthenticatedSender { victim: v } => Crime::SpoofedMessage { victim: *v },
+            UnauthenticatedSender {
+                victim: v,
+                status: s,
+            } => Crime::SpoofedMessage {
+                victim: *v,
+                status: s.clone(),
+            },
             R1BadCommit => Crime::R3BadReveal,
             R2BadShare { victim: v } => Crime::R4FailBadVss { victim: *v },
             R2BadEncryption { victim: v } => Crime::R4FailBadEncryption { victim: *v },

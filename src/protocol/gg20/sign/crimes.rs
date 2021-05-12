@@ -1,3 +1,4 @@
+use crate::protocol::gg20::sign::Status;
 // all crimes
 // names have the form <round><crime> where
 // <round> indicates round where the crime is detected, and
@@ -5,7 +6,7 @@
 // example: R3FailBadProof -> crime detected in r3_fail()
 #[derive(Debug, Clone, PartialEq)]
 pub enum Crime {
-    SpoofedMessage { victim: usize },
+    SpoofedMessage { victim: usize, status: Status },
     R3FailBadRangeProof { victim: usize },
     R3FailFalseAccusation { victim: usize },
     R4BadPedersenProof,
