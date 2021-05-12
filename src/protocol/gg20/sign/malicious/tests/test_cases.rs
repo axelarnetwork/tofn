@@ -75,26 +75,44 @@ pub(super) fn map_type_to_crime(t: &MaliciousType) -> Vec<Crime> {
 }
 
 // Test all basic cases with one malicious behaviour per test case
-#[rustfmt::skip] // skip formatting to make file more readable
+// #[rustfmt::skip] // skip formatting to make file more readable
 pub(super) fn generate_basic_cases() -> Vec<TestCase> {
     let mut basic_test_cases = vec![];
-    let share_count= 5;
-    let threshold= 2;
-    let allow_self_delivery= false;
+    let share_count = 5;
+    let threshold = 2;
+    let allow_self_delivery = false;
     let expect_success = false;
     // skip Honest and Unauthenticated
-    for m in MaliciousType::iter().filter(|m| !matches!(m, Honest | UnauthenticatedSender{victim: _})) {
+    for m in MaliciousType::iter().filter(|m| {
+        !matches!(
+            m,
+            Honest
+                | UnauthenticatedSender {
+                    victim: _,
+                    status: _
+                }
+        )
+    }) {
         basic_test_cases.push(TestCase {
-            share_count, threshold, allow_self_delivery, expect_success,
+            share_count,
+            threshold,
+            allow_self_delivery,
+            expect_success,
             sign_participants: vec![
                 SignParticipant {
-                    party_index: 4, behaviour: Honest, expected_crimes: vec![],
+                    party_index: 4,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
                 },
                 SignParticipant {
-                    party_index: 3, expected_crimes: map_type_to_crime(&m), behaviour: m,
+                    party_index: 3,
+                    expected_crimes: map_type_to_crime(&m),
+                    behaviour: m,
                 },
                 SignParticipant {
-                    party_index: 2, behaviour: Honest, expected_crimes: vec![],
+                    party_index: 2,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
                 },
             ],
         });
@@ -103,29 +121,54 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
 }
 
 // Test all basic cases with one malicious behaviour per test case
-#[rustfmt::skip] // skip formatting to make file more readable
+// #[rustfmt::skip] // skip formatting to make file more readable
 pub(super) fn generate_unauth_cases() -> Vec<TestCase> {
-    let mut test_cases = vec![];
-    let share_count= 3;
-    let threshold= 2;
-    let allow_self_delivery= false;
-    let expect_success = false;
-    let unauthenticated = MaliciousType::UnauthenticatedSender{victim: 2};
-    test_cases.push(TestCase {
-        share_count, threshold, allow_self_delivery, expect_success,
-        sign_participants: vec![
-            SignParticipant {
-                party_index: 0, behaviour: unauthenticated.clone(), expected_crimes: map_type_to_crime(&unauthenticated),
-            },
-            SignParticipant {
-                party_index: 1, behaviour: Honest, expected_crimes: vec![],
-            },
-            SignParticipant {
-                party_index: 2, behaviour: Honest, expected_crimes: vec![],
-            },
-        ],
-    });
-    test_cases
+    let spoofers = Status::iter()
+        .filter(|s| {
+            !matches!(
+                s,
+                Status::Done
+                    | Status::Fail
+                    | Status::R2Fail
+                    | Status::R3Fail
+                    | Status::R6Fail
+                    | Status::R6FailType5
+                    | Status::R7
+                    | Status::R7FailType7
+            )
+        })
+        .map(|s| UnauthenticatedSender {
+            victim: 1,
+            status: s,
+        })
+        .collect::<Vec<MaliciousType>>();
+
+    spoofers
+        .iter()
+        .map(|spoofer| TestCase {
+            share_count: 3,
+            threshold: 1,
+            allow_self_delivery: false,
+            expect_success: false,
+            sign_participants: vec![
+                SignParticipant {
+                    party_index: 0,
+                    behaviour: spoofer.clone(),
+                    expected_crimes: map_type_to_crime(&spoofer),
+                },
+                SignParticipant {
+                    party_index: 1,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+                SignParticipant {
+                    party_index: 2,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+            ],
+        })
+        .collect()
 }
 
 // Test all cases where malicious behaviours are skipped due to self-targeting

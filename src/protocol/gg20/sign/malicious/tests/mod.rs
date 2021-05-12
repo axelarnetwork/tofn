@@ -1,5 +1,9 @@
 use super::*;
-use crate::protocol::{gg20::keygen::tests::execute_keygen, tests::execute_protocol_vec, Protocol};
+use crate::protocol::{
+    gg20::keygen::tests::execute_keygen,
+    tests::{execute_protocol_vec_spoof, Spoofer},
+    Protocol,
+};
 use tracing_test::traced_test; // enable logs in tests
 
 static MESSAGE_TO_SIGN: [u8; 2] = [42, 24];
@@ -103,10 +107,24 @@ fn execute_test_case(t: &test_cases::TestCase) {
         })
         .collect();
 
+    let spoofers: Vec<Spoofer> = signers
+        .iter()
+        .map(|s| match s.malicious_type.clone() {
+            UnauthenticatedSender { victim, status: s } => Some(Spoofer {
+                my_index: 0,
+                victim,
+                status: s.clone(),
+            }),
+            _ => None,
+        })
+        .filter(|spoofer| spoofer.is_some())
+        .map(|spoofer| spoofer.unwrap())
+        .collect();
+
     let mut protocols: Vec<&mut dyn Protocol> =
         signers.iter_mut().map(|p| p as &mut dyn Protocol).collect();
 
-    execute_protocol_vec(&mut protocols, t.allow_self_delivery);
+    execute_protocol_vec_spoof(&mut protocols, t.allow_self_delivery, &spoofers);
 
     // TEST: honest parties finished and correctly computed the criminals list
     for signer in signers

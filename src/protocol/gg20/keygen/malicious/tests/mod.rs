@@ -1,6 +1,10 @@
 // TODO refactor copied code from sign protocol
 use super::Behaviour;
-use crate::protocol::{gg20::keygen::Keygen, tests::execute_protocol_vec, Protocol};
+use crate::protocol::{
+    gg20::keygen::Keygen,
+    tests::{execute_protocol_vec, Spoofer},
+    Protocol,
+};
 use tracing::info;
 use tracing_test::traced_test; // enable logs in tests
 
