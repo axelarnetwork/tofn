@@ -8,7 +8,6 @@ use tracing_test::traced_test; // enable logs in tests
 
 static MESSAGE_TO_SIGN: [u8; 2] = [42, 24];
 
-#[derive(Clone)]
 struct SignSpoofer {
     index: usize,
     victim: usize,

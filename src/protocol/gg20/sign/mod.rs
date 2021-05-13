@@ -55,7 +55,7 @@ pub mod crimes;
 mod protocol;
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) enum MsgType {
+enum MsgType {
     R1Bcast,
     R1P2p { to: usize },
     R2P2p { to: usize },
