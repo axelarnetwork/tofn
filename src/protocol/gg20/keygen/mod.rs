@@ -60,25 +60,6 @@ struct MsgMeta {
     payload: MsgBytes,
 }
 
-// Implement MsgMeta for KeygenSpoofer.
-// We keep the implementation here to avoid pub(crate) MsgMeta
-#[cfg(all(feature = "malicious", test))]
-impl MsgMeta {
-    pub(crate) fn set_from(&mut self, from: usize) {
-        self.from = from;
-    }
-    // map message types to the round they are created
-    pub(crate) fn deduce_round(&self) -> Status {
-        match self.msg_type {
-            MsgType::R1Bcast => Status::New,
-            MsgType::R2Bcast => Status::R1,
-            MsgType::R2P2p { to: _ } => Status::R1,
-            MsgType::R3Bcast => Status::R2,
-            MsgType::R3FailBcast => Status::R2,
-        }
-    }
-}
-
 #[cfg(feature = "malicious")]
 pub mod malicious;
 

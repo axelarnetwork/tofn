@@ -1,7 +1,7 @@
 // TODO refactor copied code from sign protocol
 use super::Behaviour;
 use crate::protocol::{
-    gg20::keygen::{Keygen, MsgMeta, Status},
+    gg20::keygen::{Keygen, MsgMeta, MsgType, Status},
     tests::{execute_protocol_vec_spoof, Spoofer},
     Protocol,
 };
@@ -30,12 +30,20 @@ impl Spoofer for KeygenSpoofer {
     }
     fn spoof(&self, original_msg: &[u8]) -> Vec<u8> {
         let mut msg: MsgMeta = bincode::deserialize(original_msg).unwrap();
-        msg.set_from(self.victim);
+        msg.from = self.victim;
         bincode::serialize(&msg).unwrap()
     }
+    // map message types to the round they are created
     fn is_spoof_round(&self, msg: &[u8]) -> bool {
         let msg: MsgMeta = bincode::deserialize(msg).unwrap();
-        msg.deduce_round() == self.status
+        let curr_status = match msg.msg_type {
+            MsgType::R1Bcast => Status::New,
+            MsgType::R2Bcast => Status::R1,
+            MsgType::R2P2p { to: _ } => Status::R1,
+            MsgType::R3Bcast => Status::R2,
+            MsgType::R3FailBcast => Status::R2,
+        };
+        curr_status == self.status // why can't I use matches?
     }
 }
 

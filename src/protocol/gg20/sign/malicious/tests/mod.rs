@@ -1,6 +1,9 @@
 use super::*;
 use crate::protocol::{
-    gg20::{keygen::tests::execute_keygen, sign::MsgMeta},
+    gg20::{
+        keygen::tests::execute_keygen,
+        sign::{MsgMeta, MsgType},
+    },
     tests::{execute_protocol_vec_spoof, Spoofer},
     Protocol,
 };
@@ -20,12 +23,28 @@ impl Spoofer for SignSpoofer {
     }
     fn spoof(&self, original_msg: &[u8]) -> Vec<u8> {
         let mut msg: MsgMeta = bincode::deserialize(original_msg).unwrap();
-        msg.set_from(self.victim);
+        msg.from = self.victim;
         bincode::serialize(&msg).unwrap()
     }
     fn is_spoof_round(&self, msg: &[u8]) -> bool {
         let msg: MsgMeta = bincode::deserialize(msg).unwrap();
-        msg.msg_type() == self.status
+        let msg_type = match msg.msg_type {
+            MsgType::R1Bcast => Status::New,
+            MsgType::R1P2p { to: _ } => Status::New,
+            MsgType::R2P2p { to: _ } => Status::R1,
+            MsgType::R2FailBcast => Status::R1,
+            MsgType::R3Bcast => Status::R2,
+            MsgType::R3FailBcast => Status::R2,
+            MsgType::R4Bcast => Status::R3,
+            MsgType::R5Bcast => Status::R4,
+            MsgType::R5P2p { to: _ } => Status::R4,
+            MsgType::R6Bcast => Status::R5,
+            MsgType::R6FailBcast => Status::R5,
+            MsgType::R6FailType5Bcast => Status::R5,
+            MsgType::R7Bcast => Status::R6,
+            MsgType::R7FailType7Bcast => Status::R6,
+        };
+        msg_type == self.status
     }
 }
 
