@@ -1,12 +1,34 @@
 use super::*;
 use crate::protocol::{
-    gg20::keygen::tests::execute_keygen,
+    gg20::{keygen::tests::execute_keygen, sign::MsgMeta},
     tests::{execute_protocol_vec_spoof, Spoofer},
     Protocol,
 };
 use tracing_test::traced_test; // enable logs in tests
 
 static MESSAGE_TO_SIGN: [u8; 2] = [42, 24];
+
+#[derive(Clone)]
+pub(crate) struct SignSpoofer {
+    pub(crate) index: usize,
+    pub(crate) victim: usize,
+    pub(crate) status: Status,
+}
+
+impl Spoofer for SignSpoofer {
+    fn index(&self) -> usize {
+        self.index
+    }
+    fn spoof(&self, original_msg: &[u8]) -> Vec<u8> {
+        let mut msg: MsgMeta = bincode::deserialize(original_msg).unwrap();
+        msg.set_from(self.victim);
+        bincode::serialize(&msg).unwrap()
+    }
+    fn is_spoof_round(&self, msg: &[u8]) -> bool {
+        let msg: MsgMeta = bincode::deserialize(msg).unwrap();
+        msg.msg_type() == self.status
+    }
+}
 
 mod test_cases;
 use test_cases::*;
@@ -107,11 +129,11 @@ fn execute_test_case(t: &test_cases::TestCase) {
         })
         .collect();
 
-    let spoofers: Vec<Spoofer> = signers
+    let spoofers: Vec<SignSpoofer> = signers
         .iter()
         .map(|s| match s.malicious_type.clone() {
-            UnauthenticatedSender { victim, status: s } => Some(Spoofer {
-                my_index: 0,
+            UnauthenticatedSender { victim, status: s } => Some(SignSpoofer {
+                index: 0,
                 victim,
                 status: s.clone(),
             }),
@@ -120,6 +142,9 @@ fn execute_test_case(t: &test_cases::TestCase) {
         .filter(|spoofer| spoofer.is_some())
         .map(|spoofer| spoofer.unwrap())
         .collect();
+
+    // need to to an extra iteration because we can't return reference to temp objects
+    let spoofers: Vec<&dyn Spoofer> = spoofers.iter().map(|s| s as &dyn Spoofer).collect();
 
     let mut protocols: Vec<&mut dyn Protocol> =
         signers.iter_mut().map(|p| p as &mut dyn Protocol).collect();
