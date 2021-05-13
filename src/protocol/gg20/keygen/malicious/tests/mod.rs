@@ -109,11 +109,7 @@ fn execute_test_case(t: &test_cases::TestCase) {
         .map(|p| p as &mut dyn Protocol)
         .collect();
 
-    execute_protocol_vec_spoof(
-        &mut protocols,
-        t.allow_self_delivery,
-        &spoofers as &Vec<&dyn Spoofer>,
-    );
+    execute_protocol_vec_spoof(&mut protocols, t.allow_self_delivery, &spoofers);
 
     // TEST: honest parties finished and correctly computed the criminals list
     for keygen_party in keygen_parties.iter().filter(|k| k.behaviour.is_honest()) {
