@@ -1,5 +1,5 @@
-use strum_macros::EnumIter;
 use crate::protocol::gg20::keygen::Status;
+use strum_macros::EnumIter;
 // all malicious behaviours
 // names have the form <round><fault> where
 // <round> indicates round where the first malicious tampering occurs, and
