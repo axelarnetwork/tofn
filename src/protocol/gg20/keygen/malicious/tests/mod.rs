@@ -1,8 +1,8 @@
 // TODO refactor copied code from sign protocol
 use super::Behaviour;
 use crate::protocol::{
-    gg20::keygen::Keygen,
-    tests::{execute_protocol_vec, Spoofer},
+    gg20::keygen::{Keygen, MsgMeta, Status},
+    tests::{execute_protocol_vec_spoof, Spoofer},
     Protocol,
 };
 use tracing::info;
@@ -15,6 +15,27 @@ lazy_static::lazy_static! {
     static ref BASIC_CASES: Vec<TestCase> = generate_basic_cases();
     static ref SELF_ACCUSATION: Vec<TestCase> = self_accusation_cases();
     static ref SPOOF_CASES: Vec<TestCase> = generate_spoof_cases();
+}
+
+pub(crate) struct KeygenSpoofer {
+    pub(crate) index: usize,
+    pub(crate) victim: usize,
+    pub(crate) status: Status,
+}
+
+impl Spoofer for KeygenSpoofer {
+    fn index(&self) -> usize {
+        self.index
+    }
+    fn spoof(&self, original_msg: &[u8]) -> Vec<u8> {
+        let mut msg: MsgMeta = bincode::deserialize(original_msg).unwrap();
+        msg.set_from(self.victim);
+        bincode::serialize(&msg).unwrap()
+    }
+    fn is_spoof_round(&self, msg: &[u8]) -> bool {
+        let msg: MsgMeta = bincode::deserialize(msg).unwrap();
+        msg.deduce_round() == self.status
+    }
 }
 
 #[test]
@@ -66,12 +87,33 @@ fn execute_test_case(t: &test_cases::TestCase) {
         })
         .collect();
 
+    let spoofers: Vec<KeygenSpoofer> = keygen_parties
+        .iter_mut()
+        .map(|s| match s.behaviour.clone() {
+            Behaviour::UnauthenticatedSender { victim, status: s } => Some(KeygenSpoofer {
+                index: 0,
+                victim,
+                status: s.clone(),
+            }),
+            _ => None,
+        })
+        .filter(|spoofer| spoofer.is_some())
+        .map(|spoofer| spoofer.unwrap())
+        .collect();
+
+    // need to to an extra iteration because we can't return reference to temp objects
+    let spoofers: Vec<&dyn Spoofer> = spoofers.iter().map(|s| s as &dyn Spoofer).collect();
+
     let mut protocols: Vec<&mut dyn Protocol> = keygen_parties
         .iter_mut()
         .map(|p| p as &mut dyn Protocol)
         .collect();
 
-    execute_protocol_vec(&mut protocols, t.allow_self_delivery);
+    execute_protocol_vec_spoof(
+        &mut protocols,
+        t.allow_self_delivery,
+        &spoofers as &Vec<&dyn Spoofer>,
+    );
 
     // TEST: honest parties finished and correctly computed the criminals list
     for keygen_party in keygen_parties.iter().filter(|k| k.behaviour.is_honest()) {
