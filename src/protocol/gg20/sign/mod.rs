@@ -74,20 +74,21 @@ pub(crate) enum MsgType {
 
 // TODO identical to keygen::MsgMeta except for MsgType---use generic
 #[derive(Serialize, Deserialize)]
-pub(crate) struct MsgMeta {
+struct MsgMeta {
     msg_type: MsgType,
     from: usize,
     payload: MsgBytes,
 }
 
+// Implement MsgMeta for SignSpoofer.
+// We keep the implementation here to avoid pub(crate) MsgMeta
+#[cfg(all(feature = "malicious", test))]
 impl MsgMeta {
-    #[cfg(test)]
-    pub(crate) fn set_from(&mut self, from: usize) {
+    fn set_from(&mut self, from: usize) {
         self.from = from;
     }
     // map message types to the round they are created
-    #[cfg(test)]
-    pub(crate) fn get_msg_type(&self) -> Status {
+    fn msg_type(&self) -> Status {
         match self.msg_type {
             MsgType::R1Bcast => Status::New,
             MsgType::R1P2p { to: _ } => Status::New,
@@ -126,6 +127,10 @@ pub enum Status {
     Fail,
 }
 
+// MaliciousType includes UnauthonticatedSender{victim, status} and we use
+// strum to make MaliciousType iterable. Strum needs for all included enums
+// that contain complex data to provide a default method:
+// https://docs.rs/strum/0.14.0/strum/?search=#strum-macros
 impl Default for Status {
     fn default() -> Self {
         Self::New
