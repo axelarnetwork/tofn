@@ -10,7 +10,7 @@ pub(crate) fn execute_protocol_vec(parties: &mut [&mut dyn Protocol], allow_self
     execute_protocol_vec_spoof(
         parties,
         allow_self_delivery,
-        &Vec::<&dyn Spoofer>::with_capacity(0), // create an empty array of spoofers
+        &[], // create an empty slice of spoofers
     )
 }
 
@@ -43,9 +43,10 @@ pub(crate) fn execute_protocol_vec_spoof(
                     }
                     parties[j].set_msg_in(&bcast, &from_index_range).unwrap();
 
-                    // if I am a spoofer, change the 'from' field of my message into 'victim'
+                    // if I am a spoofer, create a *duplicate* message and change
+                    // the 'from' field of the new message into 'victim'
                     if let Some(spoofer) = spoofer {
-                        if spoofer.is_spoof_round(&bcast) && spoofer.index() < j {
+                        if spoofer.is_spoof_round(&bcast) {
                             parties[j]
                                 .set_msg_in(&spoofer.spoof(&bcast), &from_index_range)
                                 .unwrap();
@@ -64,9 +65,10 @@ pub(crate) fn execute_protocol_vec_spoof(
                     for opt in &p2ps {
                         if let Some(p2p) = opt {
                             parties[j].set_msg_in(&p2p, &from_index_range).unwrap();
-                            // if I am a spoofer, change the 'from' field of my message into 'victim'
+                            // if I am a spoofer, create a *duplicate* message and change
+                            // the 'from' field of the new message into 'victim'
                             if let Some(spoofer) = spoofer {
-                                if spoofer.is_spoof_round(&p2p) && spoofer.index() < j {
+                                if spoofer.is_spoof_round(&p2p) {
                                     parties[j]
                                         .set_msg_in(&spoofer.spoof(&p2p), &from_index_range)
                                         .unwrap();

@@ -100,8 +100,9 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
         .collect()
 }
 
-// Test spoof cases
-// #[rustfmt::skip] // skip formatting to make file more readable
+// TODO If we change the way we handle duplicate messages (we currently
+// overwrite them), we will need to reconsider which cases a are successful
+// create a spoofer that acts before the original sender and gets discovered
 pub(super) fn generate_success_spoof_cases() -> Vec<TestCase> {
     let spoofers = Status::iter()
         .filter(|s| !matches!(s, Status::Done | Status::Fail | Status::R3Fail | Status::R3))
@@ -135,6 +136,7 @@ pub(super) fn generate_success_spoof_cases() -> Vec<TestCase> {
         .collect()
 }
 
+// create a spoofer that acts after the original sender and his act has no effect
 pub(super) fn generate_failed_spoof_cases() -> Vec<TestCase> {
     let spoofers = Status::iter()
         .filter(|s| !matches!(s, Status::Done | Status::Fail | Status::R3Fail | Status::R3))
