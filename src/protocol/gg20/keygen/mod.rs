@@ -32,9 +32,50 @@ pub enum Status {
     Done,
     Fail,
 }
+
+// MaliciousType includes UnauthonticatedSender{victim, status} and we use
+// strum to make MaliciousType iterable. Strum needs for all included enums
+// that contain complex data to provide a default method:
+// https://docs.rs/strum/0.14.0/strum/?search=#strum-macros
 impl Default for Status {
     fn default() -> Self {
         Status::New
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+enum MsgType {
+    R1Bcast,
+    R2Bcast,
+    R2P2p { to: usize },
+    R3Bcast,
+    R3FailBcast,
+}
+
+// TODO identical to keygen::MsgMeta except for MsgType---use generic
+#[derive(Serialize, Deserialize)]
+struct MsgMeta {
+    msg_type: MsgType,
+    from: usize,
+    payload: MsgBytes,
+}
+
+// Implement MsgMeta for KeygenSpoofer.
+// We keep the implementation here to avoid pub(crate) MsgMeta
+#[cfg(all(feature = "malicious", test))]
+impl MsgMeta {
+    pub(crate) fn set_from(&mut self, from: usize) {
+        self.from = from;
+    }
+    // map message types to the round they are created
+    pub(crate) fn deduce_round(&self) -> Status {
+        match self.msg_type {
+            MsgType::R1Bcast => Status::New,
+            MsgType::R2Bcast => Status::R1,
+            MsgType::R2P2p { to: _ } => Status::R1,
+            MsgType::R3Bcast => Status::R2,
+            MsgType::R3FailBcast => Status::R2,
+        }
     }
 }
 

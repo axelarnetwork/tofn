@@ -1,23 +1,5 @@
-use super::{crimes::Crime, r3, Keygen, Status::*};
+use super::{crimes::Crime, r3, Keygen, MsgMeta, MsgType, Status::*};
 use crate::protocol::{IndexRange, MsgBytes, Protocol, ProtocolResult};
-use serde::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize)]
-enum MsgType {
-    R1Bcast,
-    R2Bcast,
-    R2P2p { to: usize },
-    R3Bcast,
-    R3FailBcast,
-}
-
-// TODO identical to keygen::MsgMeta except for MsgType---use generic
-#[derive(Serialize, Deserialize)]
-struct MsgMeta {
-    msg_type: MsgType,
-    from: usize,
-    payload: MsgBytes,
-}
 
 impl Protocol for Keygen {
     fn next_round(&mut self) -> ProtocolResult {
