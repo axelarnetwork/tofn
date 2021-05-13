@@ -11,7 +11,8 @@ crate-type = ["lib"]
 serde = { version = "1.0", features = ["derive"] }
 bincode = "1.2.1"
 k256 = { version = "0", features = ["ecdsa"] }
-# rand = "0.8" # k256 baggage
+rand = "0.8" # k256 baggage
+sha3 = "0.9" # should specify "0" except curv already depends on older versions
 multi-party-ecdsa = { git = "https://github.com/ZenGo-X/multi-party-ecdsa", tag = "v0.4.3" } # for utilities::mta
 
 # logging

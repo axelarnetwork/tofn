@@ -1,5 +1,5 @@
 use super::{Keygen, Status};
-use crate::zkp::paillier::ZkSetup;
+use crate::{hash, zkp::paillier::ZkSetup};
 use curv::{
     cryptographic_primitives::commitments::{hash_commitment::HashCommitment, traits::Commitment},
     elliptic::curves::traits::{ECPoint, ECScalar},
@@ -14,19 +14,26 @@ use zk_paillier::zkproofs::NICorrectKeyProof;
 use {super::malicious::Behaviour, tracing::info};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Bcast {
-    pub y_i_commit: BigInt,
+pub(super) struct Bcast {
+    pub(super) y_i_commit: BigInt,
+
+    pub(super) y_i_commit_k256: hash::Output,
 
     // TODO Paillier
-    pub ek: EncryptionKey,
-    pub zkp: ZkSetup,
-    pub correct_key_proof: NICorrectKeyProof,
+    pub(super) ek: EncryptionKey,
+    pub(super) zkp: ZkSetup,
+    pub(super) correct_key_proof: NICorrectKeyProof,
 }
-#[derive(Debug)] // do not derive Clone, Serialize, Deserialize
+// can't derive Debug because NonZeroScalar doesn't derive Debug
+// #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub(super) struct State {
     pub(super) my_u_i: FE,
     pub(super) my_y_i: GE,
     pub(super) my_y_i_reveal: BigInt,
+
+    pub(super) my_u_i_k256: k256::NonZeroScalar,
+    pub(super) my_y_i_k256: k256::EncodedPoint,
+    pub(super) my_y_i_reveal_k256: hash::Randomness,
 
     // TODO Paillier
     pub(super) my_dk: DecryptionKey,
@@ -37,7 +44,20 @@ pub(super) struct State {
 impl Keygen {
     pub(super) fn r1(&self) -> (State, Bcast) {
         assert!(matches!(self.status, Status::New));
-        // let my_u_i_k256 = k256::NonZeroScalar::random(rand::thread_rng());
+        let my_u_i_k256 = k256::NonZeroScalar::random(rand::thread_rng());
+        let my_y_i_k256 = k256::EncodedPoint::from(k256::AffinePoint::generator() * my_u_i_k256);
+        let (my_y_i_commit_k256, my_y_i_reveal_k256) = hash::commit(my_y_i_k256.as_bytes());
+
+        #[cfg(feature = "malicious")]
+        let my_y_i_commit_k256 = if matches!(self.behaviour, Behaviour::R1BadCommit) {
+            info!("malicious party {} do {:?}", self.my_index, self.behaviour);
+            my_y_i_commit_k256.corrupt()
+        } else {
+            my_y_i_commit_k256
+        };
+
+        // DONE TO HERE
+
         let my_u_i = FE::new_random();
         let my_y_i = GE::generator() * my_u_i;
         let (my_y_i_commit, my_y_i_reveal) =
@@ -61,12 +81,16 @@ impl Keygen {
                 my_u_i,
                 my_y_i,
                 my_y_i_reveal,
+                my_u_i_k256,
+                my_y_i_k256,
+                my_y_i_reveal_k256,
                 my_dk,
                 my_ek: ek.clone(),
                 my_zkp: zkp.clone(),
             },
             Bcast {
                 y_i_commit: my_y_i_commit,
+                y_i_commit_k256: my_y_i_commit_k256,
                 ek,
                 zkp,
                 correct_key_proof,
