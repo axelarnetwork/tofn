@@ -200,7 +200,7 @@ pub(super) fn generate_failed_unauth_cases() -> Vec<TestCase> {
             share_count: 3,
             threshold: 1,
             allow_self_delivery: false,
-            expect_success: false,
+            expect_success: true,
             sign_participants: vec![
                 SignParticipant {
                     party_index: 0,
