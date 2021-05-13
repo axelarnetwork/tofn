@@ -29,17 +29,6 @@ impl Protocol for Keygen {
             return Ok(());
         }
 
-        // change 'from' field of the message if I am a spoofer
-        #[cfg(feature = "malicious")]
-        {
-            use crate::protocol::gg20::keygen::malicious::Behaviour::UnauthenticatedSender;
-            if let UnauthenticatedSender { victim, status } = self.behaviour.clone() {
-                if self.status.clone() == status {
-                    self.my_index = victim;
-                }
-            }
-        }
-
         self.move_to_sad_path();
 
         // TODO refactor repeated code!

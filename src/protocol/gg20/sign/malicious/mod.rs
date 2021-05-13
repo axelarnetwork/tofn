@@ -82,24 +82,7 @@ impl Protocol for BadSign {
             UnauthenticatedSender {
                 victim: _,
                 status: _,
-            } => {
-                // for UnauthenticatedSender behaviour, we don't edit the MsgBytes.
-                // we change the `from` field of MsgMeta
-                // TODO make Unauthenticated behaviour not crushing if it is commited after victim's msg.
-                // (this only affects local malicious tests).
-                // Explanation:
-                // By altering 'my_participant_index' we change the 'from' field of the MsgMeta. However,
-                // because 'my_participant_index' is used to insert data in bcast structures, it will
-                // cause a 'ValueAlreadySet(victim)' error if the spoofer attempts to spoof _after_ victim
-                // has send his message. The only way to get away with that is to have separate indices
-                // for 'from' and 'participant_index' which doesn't make sense in the honest case.
-                // self.sign.my_participant_index = victim;
-                // self.sign.next_round()
-                // if self.sign.status == status {
-                //     self.sign.my_participant_index = victim;
-                // }
-                self.sign.next_round()
-            }
+            } => self.sign.next_round(), // act normally; message corruption occurs at the routing level
             R3BadNonceXKeyshareSummand => self.sign.next_round(), // TODO hack type7 fault
             R1BadProof { victim } => {
                 if !matches!(self.sign.status, Status::New) {
