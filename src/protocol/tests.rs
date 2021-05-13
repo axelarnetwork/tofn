@@ -45,7 +45,7 @@ pub(crate) fn execute_protocol_vec_spoof(
 
                     // if I am a spoofer, change the 'from' field of my message into 'victim'
                     if let Some(spoofer) = spoofer {
-                        if spoofer.is_spoof_round(&bcast) {
+                        if spoofer.is_spoof_round(&bcast) && spoofer.index() < j {
                             parties[j]
                                 .set_msg_in(&spoofer.spoof(&bcast), &from_index_range)
                                 .unwrap();
@@ -66,7 +66,7 @@ pub(crate) fn execute_protocol_vec_spoof(
                             parties[j].set_msg_in(&p2p, &from_index_range).unwrap();
                             // if I am a spoofer, change the 'from' field of my message into 'victim'
                             if let Some(spoofer) = spoofer {
-                                if spoofer.is_spoof_round(&p2p) {
+                                if spoofer.is_spoof_round(&p2p) && spoofer.index() < j {
                                     parties[j]
                                         .set_msg_in(&spoofer.spoof(&p2p), &from_index_range)
                                         .unwrap();
