@@ -9,10 +9,10 @@ use tracing_test::traced_test; // enable logs in tests
 static MESSAGE_TO_SIGN: [u8; 2] = [42, 24];
 
 #[derive(Clone)]
-pub(crate) struct SignSpoofer {
-    pub(crate) index: usize,
-    pub(crate) victim: usize,
-    pub(crate) status: Status,
+struct SignSpoofer {
+    index: usize,
+    victim: usize,
+    status: Status,
 }
 
 impl Spoofer for SignSpoofer {

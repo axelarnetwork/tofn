@@ -17,10 +17,10 @@ lazy_static::lazy_static! {
     static ref SPOOF_CASES: Vec<TestCase> = generate_spoof_cases();
 }
 
-pub(crate) struct KeygenSpoofer {
-    pub(crate) index: usize,
-    pub(crate) victim: usize,
-    pub(crate) status: Status,
+struct KeygenSpoofer {
+    index: usize,
+    victim: usize,
+    status: Status,
 }
 
 impl Spoofer for KeygenSpoofer {
