@@ -122,7 +122,7 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
 
 // Test all basic cases with one malicious behaviour per test case
 // #[rustfmt::skip] // skip formatting to make file more readable
-pub(super) fn generate_unauth_cases() -> Vec<TestCase> {
+pub(super) fn generate_success_unauth_cases() -> Vec<TestCase> {
     let spoofers = Status::iter()
         .filter(|s| {
             !matches!(
@@ -160,6 +160,57 @@ pub(super) fn generate_unauth_cases() -> Vec<TestCase> {
                     party_index: 1,
                     behaviour: Honest,
                     expected_crimes: vec![],
+                },
+                SignParticipant {
+                    party_index: 2,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+            ],
+        })
+        .collect()
+}
+
+// Test all basic cases with one malicious behaviour per test case
+// #[rustfmt::skip] // skip formatting to make file more readable
+pub(super) fn generate_failed_unauth_cases() -> Vec<TestCase> {
+    let spoofers = Status::iter()
+        .filter(|s| {
+            !matches!(
+                s,
+                Status::Done
+                    | Status::Fail
+                    | Status::R2Fail
+                    | Status::R3Fail
+                    | Status::R6Fail
+                    | Status::R6FailType5
+                    | Status::R7
+                    | Status::R7FailType7
+            )
+        })
+        .map(|s| UnauthenticatedSender {
+            victim: 0,
+            status: s,
+        })
+        .collect::<Vec<MaliciousType>>();
+
+    spoofers
+        .iter()
+        .map(|spoofer| TestCase {
+            share_count: 3,
+            threshold: 1,
+            allow_self_delivery: false,
+            expect_success: false,
+            sign_participants: vec![
+                SignParticipant {
+                    party_index: 0,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+                SignParticipant {
+                    party_index: 1,
+                    behaviour: spoofer.clone(),
+                    expected_crimes: map_type_to_crime(&spoofer),
                 },
                 SignParticipant {
                     party_index: 2,

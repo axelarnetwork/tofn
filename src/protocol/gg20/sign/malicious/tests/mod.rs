@@ -34,7 +34,8 @@ use test_cases::*;
 
 lazy_static::lazy_static! {
     static ref BASIC_CASES: Vec<TestCase> = generate_basic_cases();
-    static ref SPOOF_CASES: Vec<TestCase> = generate_unauth_cases();
+    static ref SUCCESS_SPOOF_CASES: Vec<TestCase> = generate_success_unauth_cases();
+    static ref FAILED_SPOOF_CASES: Vec<TestCase> = generate_success_unauth_cases();
     static ref SKIPPING_CASES: Vec<TestCase> = generate_skipping_cases();
     static ref SAME_ROUND_CASES: Vec<TestCase> = generate_multiple_faults_in_same_round();
     static ref MULTIPLE_VICTIMS: Vec<TestCase> = generate_target_multiple_parties();
@@ -52,7 +53,8 @@ fn basic_tests() {
 #[test]
 #[traced_test]
 fn spoof_tests() {
-    execute_test_case_list(&SPOOF_CASES);
+    execute_test_case_list(&SUCCESS_SPOOF_CASES);
+    execute_test_case_list(&FAILED_SPOOF_CASES);
 }
 
 #[test]
@@ -142,7 +144,7 @@ fn execute_test_case(t: &test_cases::TestCase) {
         .map(|spoofer| spoofer.unwrap())
         .collect();
 
-    // need to to an extra iteration because we can't return reference to temp objects
+    // need to do an extra iteration because we can't return reference to temp objects
     let spoofers: Vec<&dyn Spoofer> = spoofers.iter().map(|s| s as &dyn Spoofer).collect();
 
     let mut protocols: Vec<&mut dyn Protocol> =

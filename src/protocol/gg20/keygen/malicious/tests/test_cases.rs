@@ -102,7 +102,7 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
 
 // Test spoof cases
 // #[rustfmt::skip] // skip formatting to make file more readable
-pub(super) fn generate_spoof_cases() -> Vec<TestCase> {
+pub(super) fn generate_success_spoof_cases() -> Vec<TestCase> {
     let spoofers = Status::iter()
         .filter(|s| !matches!(s, Status::Done | Status::Fail | Status::R3Fail | Status::R3))
         .map(|s| UnauthenticatedSender {
@@ -125,6 +125,39 @@ pub(super) fn generate_spoof_cases() -> Vec<TestCase> {
                 TestCaseParty {
                     behaviour: Honest,
                     expected_crimes: vec![],
+                },
+                TestCaseParty {
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+            ],
+        })
+        .collect()
+}
+
+pub(super) fn generate_failed_spoof_cases() -> Vec<TestCase> {
+    let spoofers = Status::iter()
+        .filter(|s| !matches!(s, Status::Done | Status::Fail | Status::R3Fail | Status::R3))
+        .map(|s| UnauthenticatedSender {
+            victim: 0,
+            status: s,
+        })
+        .collect::<Vec<Behaviour>>();
+
+    spoofers
+        .iter()
+        .map(|spoofer| TestCase {
+            threshold: 1,
+            allow_self_delivery: false,
+            expect_success: true,
+            parties: vec![
+                TestCaseParty {
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+                TestCaseParty {
+                    behaviour: spoofer.clone(),
+                    expected_crimes: vec![spoofer.to_crime()],
                 },
                 TestCaseParty {
                     behaviour: Honest,

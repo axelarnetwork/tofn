@@ -14,7 +14,8 @@ use test_cases::*;
 lazy_static::lazy_static! {
     static ref BASIC_CASES: Vec<TestCase> = generate_basic_cases();
     static ref SELF_ACCUSATION: Vec<TestCase> = self_accusation_cases();
-    static ref SPOOF_CASES: Vec<TestCase> = generate_spoof_cases();
+    static ref SUCCESS_SPOOF_CASES: Vec<TestCase> = generate_success_spoof_cases();
+    static ref FAILED_SPOOF_CASES: Vec<TestCase> = generate_failed_spoof_cases();
 }
 
 struct KeygenSpoofer {
@@ -53,7 +54,8 @@ fn self_accusation() {
 #[test]
 #[traced_test]
 fn spoof_messages() {
-    execute_test_case_list(&SPOOF_CASES);
+    execute_test_case_list(&SUCCESS_SPOOF_CASES);
+    execute_test_case_list(&FAILED_SPOOF_CASES);
 }
 
 fn execute_test_case_list(test_cases: &[test_cases::TestCase]) {
@@ -101,7 +103,7 @@ fn execute_test_case(t: &test_cases::TestCase) {
         .map(|spoofer| spoofer.unwrap())
         .collect();
 
-    // need to to an extra iteration because we can't return reference to temp objects
+    // need to do an extra iteration because we can't return reference to temp objects
     let spoofers: Vec<&dyn Spoofer> = spoofers.iter().map(|s| s as &dyn Spoofer).collect();
 
     let mut protocols: Vec<&mut dyn Protocol> = keygen_parties
