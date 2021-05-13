@@ -104,7 +104,7 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
 // #[rustfmt::skip] // skip formatting to make file more readable
 pub(super) fn generate_spoof_cases() -> Vec<TestCase> {
     let spoofers = Status::iter()
-        .filter(|s| !matches!(s, Status::R3 | Status::R3Fail | Status::Done | Status::Fail))
+        .filter(|s| !matches!(s, Status::Done | Status::Fail | Status::R3Fail | Status::R3))
         .map(|s| UnauthenticatedSender {
             victim: 1,
             status: s,
