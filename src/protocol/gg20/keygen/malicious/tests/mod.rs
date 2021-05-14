@@ -1,6 +1,10 @@
 // TODO refactor copied code from sign protocol
 use super::Behaviour;
-use crate::protocol::{gg20::keygen::Keygen, tests::execute_protocol_vec, Protocol};
+use crate::protocol::{
+    gg20::keygen::{Keygen, MsgMeta, MsgType, Status},
+    tests::{execute_protocol_vec_spoof, Spoofer},
+    Protocol,
+};
 use tracing::info;
 use tracing_test::traced_test; // enable logs in tests
 
@@ -10,6 +14,37 @@ use test_cases::*;
 lazy_static::lazy_static! {
     static ref BASIC_CASES: Vec<TestCase> = generate_basic_cases();
     static ref SELF_ACCUSATION: Vec<TestCase> = self_accusation_cases();
+    static ref SUCCESS_SPOOF_CASES: Vec<TestCase> = generate_success_spoof_cases();
+    static ref FAILED_SPOOF_CASES: Vec<TestCase> = generate_failed_spoof_cases();
+}
+
+struct KeygenSpoofer {
+    index: usize,
+    victim: usize,
+    status: Status,
+}
+
+impl Spoofer for KeygenSpoofer {
+    fn index(&self) -> usize {
+        self.index
+    }
+    fn spoof(&self, original_msg: &[u8]) -> Vec<u8> {
+        let mut msg: MsgMeta = bincode::deserialize(original_msg).unwrap();
+        msg.from = self.victim;
+        bincode::serialize(&msg).unwrap()
+    }
+    // map message types to the round they are created
+    fn is_spoof_round(&self, msg: &[u8]) -> bool {
+        let msg: MsgMeta = bincode::deserialize(msg).unwrap();
+        let curr_status = match msg.msg_type {
+            MsgType::R1Bcast => Status::New,
+            MsgType::R2Bcast => Status::R1,
+            MsgType::R2P2p { to: _ } => Status::R1,
+            MsgType::R3Bcast => Status::R2,
+            MsgType::R3FailBcast => Status::R2,
+        };
+        curr_status == self.status // why can't I use matches?
+    }
 }
 
 #[test]
@@ -22,6 +57,13 @@ fn basic_tests() {
 #[traced_test]
 fn self_accusation() {
     execute_test_case_list(&SELF_ACCUSATION);
+}
+
+#[test]
+#[traced_test]
+fn spoof_messages() {
+    execute_test_case_list(&SUCCESS_SPOOF_CASES);
+    execute_test_case_list(&FAILED_SPOOF_CASES);
 }
 
 fn execute_test_case_list(test_cases: &[test_cases::TestCase]) {
@@ -55,12 +97,29 @@ fn execute_test_case(t: &test_cases::TestCase) {
         })
         .collect();
 
+    let spoofers: Vec<KeygenSpoofer> = keygen_parties
+        .iter_mut()
+        .map(|s| match s.behaviour.clone() {
+            Behaviour::UnauthenticatedSender { victim, status: s } => Some(KeygenSpoofer {
+                index: 0,
+                victim,
+                status: s.clone(),
+            }),
+            _ => None,
+        })
+        .filter(|spoofer| spoofer.is_some())
+        .map(|spoofer| spoofer.unwrap())
+        .collect();
+
+    // need to do an extra iteration because we can't return reference to temp objects
+    let spoofers: Vec<&dyn Spoofer> = spoofers.iter().map(|s| s as &dyn Spoofer).collect();
+
     let mut protocols: Vec<&mut dyn Protocol> = keygen_parties
         .iter_mut()
         .map(|p| p as &mut dyn Protocol)
         .collect();
 
-    execute_protocol_vec(&mut protocols, t.allow_self_delivery);
+    execute_protocol_vec_spoof(&mut protocols, t.allow_self_delivery, &spoofers);
 
     // TEST: honest parties finished and correctly computed the criminals list
     for keygen_party in keygen_parties.iter().filter(|k| k.behaviour.is_honest()) {

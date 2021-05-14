@@ -1,3 +1,4 @@
+use crate::protocol::gg20::keygen::Status;
 use strum_macros::EnumIter;
 // all malicious behaviours
 // names have the form <round><fault> where
@@ -7,6 +8,7 @@ use strum_macros::EnumIter;
 #[derive(Clone, Debug, EnumIter)]
 pub enum Behaviour {
     Honest,
+    UnauthenticatedSender { victim: usize, status: Status },
     R1BadCommit,
     R2BadShare { victim: usize },
     R2BadEncryption { victim: usize },

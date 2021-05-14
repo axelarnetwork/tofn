@@ -1,5 +1,6 @@
 use super::keygen::SecretKeyShare;
 use serde::{Deserialize, Serialize};
+use strum_macros::EnumIter;
 
 use crate::{
     fillvec::FillVec,
@@ -53,8 +54,34 @@ pub mod malicious;
 pub mod crimes;
 mod protocol;
 
-#[derive(Debug)]
-enum Status {
+#[derive(Debug, Serialize, Deserialize)]
+enum MsgType {
+    R1Bcast,
+    R1P2p { to: usize },
+    R2P2p { to: usize },
+    R2FailBcast,
+    R3Bcast,
+    R3FailBcast,
+    R4Bcast,
+    R5Bcast,
+    R5P2p { to: usize },
+    R6Bcast,
+    R6FailBcast,
+    R6FailType5Bcast,
+    R7Bcast,
+    R7FailType7Bcast,
+}
+
+// TODO identical to keygen::MsgMeta except for MsgType---use generic
+#[derive(Serialize, Deserialize)]
+struct MsgMeta {
+    msg_type: MsgType,
+    from: usize,
+    payload: MsgBytes,
+}
+
+#[derive(Clone, Debug, PartialEq, EnumIter)]
+pub enum Status {
     New,
     R1,
     R2,
@@ -70,6 +97,16 @@ enum Status {
     R7FailType7,
     Done,
     Fail,
+}
+
+// MaliciousType includes UnauthonticatedSender{victim, status} and we use
+// strum to make MaliciousType iterable. Strum needs for all included enums
+// that contain complex data to provide a default method:
+// https://docs.rs/strum/0.14.0/strum/?search=#strum-macros
+impl Default for Status {
+    fn default() -> Self {
+        Self::New
+    }
 }
 
 mod r1;
@@ -162,6 +199,9 @@ pub struct Sign {
     out_r6bcast_fail_type5_serialized: Option<MsgBytes>,
     out_r7bcast_fail_type7_serialized: Option<MsgBytes>,
 
+    // indicates if party 'i' is unauthenticated and it's victim index;
+    unauth_parties: FillVec<usize>,
+
     final_output: Option<SignOutput>,
 }
 
@@ -217,6 +257,7 @@ impl Sign {
             out_r6bcast_fail_serialized: None,
             out_r6bcast_fail_type5_serialized: None,
             out_r7bcast_fail_type7_serialized: None,
+            unauth_parties: FillVec::with_len(participant_count),
             final_output: None,
         })
     }

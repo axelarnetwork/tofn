@@ -54,6 +54,11 @@ impl<T> FillVec<T> {
         (self.is_none(index) && self.some_count() >= self.vec.len() - 1)
             || self.some_count() >= self.vec.len()
     }
+
+    // Replicate std::vec interface https://doc.rust-lang.org/src/alloc/vec/mod.rs.html#1800
+    pub fn is_empty(&self) -> bool {
+        self.some_count == 0
+    }
 }
 
 pub fn new_vec_none<T>(len: usize) -> Vec<Option<T>> {

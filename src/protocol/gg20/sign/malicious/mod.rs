@@ -1,5 +1,7 @@
 use super::{r2, r3, r4, r5, r6, r7, ParamsError, Sign, SignOutput, Status};
-use crate::protocol::{gg20::keygen::SecretKeyShare, MsgBytes, Protocol, ProtocolResult};
+use crate::protocol::{
+    gg20::keygen::SecretKeyShare, IndexRange, MsgBytes, Protocol, ProtocolResult,
+};
 use crate::zkp::{
     paillier::{mta, range},
     pedersen,
@@ -17,6 +19,7 @@ use tracing::{error, info, warn};
 pub enum MaliciousType {
     // TODO R1BadCommit,
     Honest,
+    UnauthenticatedSender { victim: usize, status: Status },
     R3BadNonceXKeyshareSummand, // triggers r7::Output::FailType7
     R1BadProof { victim: usize },
     R1BadSecretBlindSummand, // triggers r6::Output::FailType5
@@ -74,8 +77,12 @@ impl Protocol for BadSign {
         }
         self.sign.move_to_sad_path();
 
-        match self.malicious_type {
+        match self.malicious_type.clone() {
             Honest => self.sign.next_round(),
+            UnauthenticatedSender {
+                victim: _,
+                status: _,
+            } => self.sign.next_round(), // act normally; message corruption occurs at the routing level
             R3BadNonceXKeyshareSummand => self.sign.next_round(), // TODO hack type7 fault
             R1BadProof { victim } => {
                 if !matches!(self.sign.status, Status::New) {
@@ -690,8 +697,8 @@ impl Protocol for BadSign {
             }
         }
     }
-    fn set_msg_in(&mut self, msg: &[u8]) -> ProtocolResult {
-        self.sign.set_msg_in(msg)
+    fn set_msg_in(&mut self, msg: &[u8], index_range: &IndexRange) -> ProtocolResult {
+        self.sign.set_msg_in(msg, index_range)
     }
     fn get_bcast_out(&self) -> &Option<MsgBytes> {
         self.sign.get_bcast_out()

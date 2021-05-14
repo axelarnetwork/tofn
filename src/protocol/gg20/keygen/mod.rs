@@ -2,6 +2,7 @@ use crate::{fillvec::FillVec, protocol::MsgBytes, zkp::paillier::ZkSetup};
 use curv::{FE, GE};
 use paillier::{DecryptionKey, EncryptionKey};
 use serde::{Deserialize, Serialize};
+use strum_macros::EnumIter;
 
 // final output of keygen
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -21,7 +22,8 @@ pub struct SecretKeyShare {
 
 pub use curv::elliptic::curves::traits::{ECPoint, ECScalar};
 
-enum Status {
+#[derive(Clone, Debug, EnumIter, PartialEq)]
+pub enum Status {
     New,
     R1,
     R2,
@@ -29,6 +31,33 @@ enum Status {
     R3Fail,
     Done,
     Fail,
+}
+
+// MaliciousType includes UnauthonticatedSender{victim, status} and we use
+// strum to make MaliciousType iterable. Strum needs for all included enums
+// that contain complex data to provide a default method:
+// https://docs.rs/strum/0.14.0/strum/?search=#strum-macros
+impl Default for Status {
+    fn default() -> Self {
+        Status::New
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+enum MsgType {
+    R1Bcast,
+    R2Bcast,
+    R2P2p { to: usize },
+    R3Bcast,
+    R3FailBcast,
+}
+
+// TODO identical to keygen::MsgMeta except for MsgType---use generic
+#[derive(Serialize, Deserialize)]
+struct MsgMeta {
+    msg_type: MsgType,
+    from: usize,
+    payload: MsgBytes,
 }
 
 #[cfg(feature = "malicious")]
@@ -42,19 +71,6 @@ mod r3;
 mod r4;
 mod r4_fail;
 
-#[derive(Serialize, Deserialize)]
-enum MsgType {
-    R1Bcast,
-    R2Bcast,
-    R2P2p,
-    R3Bcast,
-}
-#[derive(Serialize, Deserialize)]
-struct MsgMeta {
-    msg_type: MsgType,
-    from: usize,
-    payload: MsgBytes,
-}
 pub struct Keygen {
     status: Status,
 
@@ -80,6 +96,7 @@ pub struct Keygen {
     out_r2p2ps: Option<Vec<Option<MsgBytes>>>,
     out_r3bcast: Option<MsgBytes>,
     out_r3bcast_fail: Option<MsgBytes>,
+    unauth_parties: FillVec<usize>,
     final_output: Option<KeygenOutput>,
 
     #[cfg(feature = "malicious")]
@@ -131,6 +148,7 @@ impl Keygen {
             out_r2p2ps: None,
             out_r3bcast: None,
             out_r3bcast_fail: None,
+            unauth_parties: FillVec::with_len(share_count),
             final_output: None,
 
             #[cfg(feature = "malicious")]
