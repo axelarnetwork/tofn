@@ -3,7 +3,10 @@ use paillier::{EncryptWithChosenRandomness, Paillier, Randomness, RawPlaintext};
 use serde::{Deserialize, Serialize};
 
 use super::{Keygen, Status};
-use crate::{fillvec::FillVec, protocol::gg20::vss};
+use crate::{
+    fillvec::FillVec,
+    protocol::gg20::{vss, vss_k256},
+};
 
 #[cfg(feature = "malicious")]
 use {super::malicious::Behaviour, tracing::info};
@@ -52,6 +55,11 @@ impl Keygen {
                 );
             }
         }
+
+        let (my_u_i_share_commits_k256, my_u_i_shares_k256) =
+            vss_k256::share(self.threshold, self.share_count, &r1state.my_u_i_k256);
+
+        assert_eq!(my_u_i_share_commits_k256[0], r1state.my_y_i_k256);
 
         let (my_u_i_share_commitments, my_u_i_shares) =
             vss::share(self.threshold, self.share_count, &r1state.my_u_i);
