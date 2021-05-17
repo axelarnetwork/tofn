@@ -28,9 +28,12 @@ pub(crate) struct P2p {
 }
 
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
-pub struct State {
+pub(super) struct State {
     pub(super) my_share_of_my_u_i: FE,
     pub(super) my_u_i_share_commitments: Vec<GE>,
+
+    pub(super) my_share_of_my_u_i_k256: k256::Scalar,
+    // do not duplicate encrypted_u_i_share_k256 from Bcast
 }
 
 impl Keygen {
@@ -91,6 +94,7 @@ impl Keygen {
 
         let mut out_p2ps = FillVec::with_len(self.share_count);
         let my_share_of_my_u_i = my_u_i_shares[self.my_index];
+        let my_share_of_my_u_i_k256 = my_u_i_shares_k256[self.my_index];
         for (i, my_u_i_share) in my_u_i_shares.into_iter().enumerate() {
             if i == self.my_index {
                 continue;
@@ -146,6 +150,7 @@ impl Keygen {
             State {
                 my_share_of_my_u_i,
                 my_u_i_share_commitments,
+                my_share_of_my_u_i_k256,
             },
             out_bcast,
             out_p2ps,
