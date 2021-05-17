@@ -55,6 +55,10 @@ impl<T> FillVec<T> {
             || self.some_count() >= self.vec.len()
     }
 
+    pub fn is_full(&self) -> bool {
+        self.some_count() == self.vec.len()
+    }
+
     // Replicate std::vec interface https://doc.rust-lang.org/src/alloc/vec/mod.rs.html#1800
     pub fn is_empty(&self) -> bool {
         self.some_count == 0

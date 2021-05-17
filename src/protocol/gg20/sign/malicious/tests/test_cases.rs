@@ -12,7 +12,6 @@ pub(super) struct SignParticipant {
 pub(super) struct TestCase {
     pub(super) share_count: usize,
     pub(super) threshold: usize,
-    pub(super) allow_self_delivery: bool,
     pub(super) expect_success: bool,
     pub(super) sign_participants: Vec<SignParticipant>,
 }
@@ -80,7 +79,6 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
     let mut basic_test_cases = vec![];
     let share_count = 5;
     let threshold = 2;
-    let allow_self_delivery = false;
     let expect_success = false;
     // skip Honest and Unauthenticated
     for m in MaliciousType::iter().filter(|m| {
@@ -96,7 +94,6 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
         basic_test_cases.push(TestCase {
             share_count,
             threshold,
-            allow_self_delivery,
             expect_success,
             sign_participants: vec![
                 SignParticipant {
@@ -129,11 +126,11 @@ pub(super) fn generate_success_unauth_cases() -> Vec<TestCase> {
                 s,
                 Status::Done
                     | Status::Fail
+                    | Status::New
                     | Status::R2Fail
                     | Status::R3Fail
                     | Status::R6Fail
                     | Status::R6FailType5
-                    | Status::R7
                     | Status::R7FailType7
             )
         })
@@ -148,7 +145,6 @@ pub(super) fn generate_success_unauth_cases() -> Vec<TestCase> {
         .map(|spoofer| TestCase {
             share_count: 3,
             threshold: 1,
-            allow_self_delivery: false,
             expect_success: false,
             sign_participants: vec![
                 SignParticipant {
@@ -199,7 +195,6 @@ pub(super) fn generate_failed_unauth_cases() -> Vec<TestCase> {
         .map(|spoofer| TestCase {
             share_count: 3,
             threshold: 1,
-            allow_self_delivery: false,
             expect_success: true,
             sign_participants: vec![
                 SignParticipant {
@@ -244,11 +239,10 @@ pub(super) fn generate_skipping_cases() -> Vec<TestCase> {
     let mut test_cases = Vec::new();
     let share_count = 5;
     let threshold = 2;
-    let allow_self_delivery = false;
     let expect_success = true;
     for t in self_targeting_types {
         test_cases.push(TestCase {
-            share_count, threshold, allow_self_delivery, expect_success,
+            share_count, threshold, expect_success,
             sign_participants: vec![
                 SignParticipant { party_index: 1, behaviour: Honest, expected_crimes: vec![]}, // index 0
                 SignParticipant { party_index: 2, behaviour: Honest, expected_crimes: vec![]}, // index 1
@@ -312,7 +306,6 @@ pub(super) fn generate_multiple_faults_in_same_round() -> Vec<TestCase> {
         test_cases.push(TestCase {
             share_count: 5,
             threshold: participants.len() - 1, // threshold < #parties
-            allow_self_delivery: true,
             expect_success: false,
             sign_participants: participants,
         });
@@ -324,7 +317,7 @@ pub(super) fn generate_multiple_faults_in_same_round() -> Vec<TestCase> {
 pub(super) fn generate_target_multiple_parties() -> Vec<TestCase> {
     vec![
         TestCase {
-            share_count: 9, threshold: 6, allow_self_delivery: true, expect_success: false,
+            share_count: 9, threshold: 6, expect_success: false,
             sign_participants: vec![
                 SignParticipant { party_index: 0, behaviour: Honest, expected_crimes: vec![]},
                 SignParticipant { party_index: 1, behaviour: Honest, expected_crimes: vec![]},
@@ -345,7 +338,7 @@ pub(super) fn generate_target_multiple_parties() -> Vec<TestCase> {
 pub(super) fn generate_multiple_faults() -> Vec<TestCase> {
     vec![
         TestCase {
-            share_count: 5, threshold: 4, allow_self_delivery: false, expect_success: false,
+            share_count: 5, threshold: 4, expect_success: false,
             sign_participants: vec![
                 SignParticipant { party_index: 0, behaviour: Honest, expected_crimes: vec![]},
                 SignParticipant { party_index: 1, behaviour: R1BadProof { victim: 2 }, expected_crimes: map_type_to_crime(&R1BadProof{victim:2})},
@@ -355,7 +348,7 @@ pub(super) fn generate_multiple_faults() -> Vec<TestCase> {
             ],
         },
         TestCase {
-            share_count: 10, threshold: 4, allow_self_delivery: false, expect_success: false,
+            share_count: 10, threshold: 4, expect_success: false,
             sign_participants: vec![
                 SignParticipant { party_index: 0, behaviour: R1BadProof { victim: 3 }, expected_crimes: map_type_to_crime(&R1BadProof{victim: 3})},
                 SignParticipant { party_index: 1, behaviour: R2BadMta{victim: 3}, expected_crimes: vec![]},
@@ -368,7 +361,7 @@ pub(super) fn generate_multiple_faults() -> Vec<TestCase> {
             ],
         },
         TestCase {
-            share_count: 10, threshold: 4, allow_self_delivery: false, expect_success: false,
+            share_count: 10, threshold: 4, expect_success: false,
             sign_participants: vec![
                 SignParticipant { party_index: 0, behaviour: Honest, expected_crimes: vec![]},
                 SignParticipant { party_index: 1, behaviour: R1BadProof { victim: 0 }, expected_crimes: map_type_to_crime(&R1BadProof{victim: 0})},
@@ -388,7 +381,6 @@ pub(super) fn generate_small_threshold() -> Vec<TestCase> {
     vec![TestCase {
         share_count: 5,
         threshold: 4,
-        allow_self_delivery: false, // panic: threashold is 4, signers are 4
         expect_success: false,
         sign_participants: vec![
             SignParticipant {
@@ -420,7 +412,7 @@ pub(super) fn generate_small_threshold() -> Vec<TestCase> {
 pub(super) fn generate_out_of_index() -> Vec<TestCase> {
     vec![
         TestCase {
-            share_count: 5, threshold: 4, allow_self_delivery: false, expect_success: false,
+            share_count: 5, threshold: 4, expect_success: false,
             sign_participants: vec![
                 SignParticipant { party_index: 0, behaviour: Honest, expected_crimes: vec![]},
                 SignParticipant { party_index: 1, behaviour: Honest, expected_crimes: vec![]},

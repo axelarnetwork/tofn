@@ -6,17 +6,27 @@ pub(crate) trait Spoofer {
     fn is_spoof_round(&self, msg: &[u8]) -> bool;
 }
 
-pub(crate) fn execute_protocol_vec(parties: &mut [&mut dyn Protocol], allow_self_delivery: bool) {
+pub(crate) fn execute_protocol_vec(parties: &mut [&mut dyn Protocol]) {
     execute_protocol_vec_spoof(
         parties,
-        allow_self_delivery,
         &[], // create an empty slice of spoofers
     )
 }
 
+// check that all parties agree on expecting new messages
+fn all_parties_expect_the_same(parties: &[&mut dyn Protocol]) -> bool {
+    let expecting_more = parties[0].expecting_more_msgs_this_round();
+    for (i, p) in parties.iter().enumerate() {
+        if expecting_more != p.expecting_more_msgs_this_round() {
+            println!("Party {} disagree", i);
+            return false;
+        }
+    }
+    true
+}
+
 pub(crate) fn execute_protocol_vec_spoof(
     parties: &mut [&mut dyn Protocol],
-    allow_self_delivery: bool,
     spoofers: &[&dyn Spoofer],
 ) {
     #[allow(clippy::needless_range_loop)] // see explanation below
@@ -25,9 +35,6 @@ pub(crate) fn execute_protocol_vec_spoof(
         // need to iterate over indices 0..n instead of parties.iter()
         // to satisfy the borrow checker
         for i in 0..parties.len() {
-            assert!(!parties[i].expecting_more_msgs_this_round());
-            parties[i].next_round().unwrap();
-
             // set up index range. We check if 'from' index is the current share
             let from_index_range = IndexRange { first: i, last: i };
 
@@ -38,9 +45,6 @@ pub(crate) fn execute_protocol_vec_spoof(
             if let Some(bcast) = parties[i].get_bcast_out() {
                 let bcast = bcast.clone();
                 for j in 0..parties.len() {
-                    if !allow_self_delivery && j == i {
-                        continue; // don't broadcast to myself
-                    }
                     parties[j].set_msg_in(&bcast, &from_index_range).unwrap();
 
                     // if I am a spoofer, create a *duplicate* message and change
@@ -59,9 +63,6 @@ pub(crate) fn execute_protocol_vec_spoof(
             if let Some(p2ps) = parties[i].get_p2p_out() {
                 let p2ps = p2ps.clone(); // fighting the borrow checker
                 for j in 0..parties.len() {
-                    if !allow_self_delivery && j == i {
-                        continue; // don't deliver to myself
-                    }
                     for opt in &p2ps {
                         if let Some(p2p) = opt {
                             parties[j].set_msg_in(&p2p, &from_index_range).unwrap();
@@ -78,6 +79,14 @@ pub(crate) fn execute_protocol_vec_spoof(
                     }
                 }
             }
+
+            // check that all parties agree on expecting more messages after the end of every party's round
+            assert!(all_parties_expect_the_same(parties));
+        }
+
+        // proceed to next round for each party
+        for i in 0..parties.len() {
+            parties[i].next_round().unwrap();
         }
     }
 }
