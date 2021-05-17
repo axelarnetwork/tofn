@@ -98,7 +98,6 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
         .collect()
 }
 
-// overwrite them), we will need to reconsider which cases a are successful
 // create a spoofer that acts before the original sender and gets discovered
 pub(super) fn generate_spoof_before_honest_cases() -> Vec<TestCase> {
     let spoofers = Status::iter()

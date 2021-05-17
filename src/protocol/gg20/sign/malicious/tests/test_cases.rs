@@ -117,8 +117,6 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
     basic_test_cases
 }
 
-// TODO If we change the way we handle duplicate messages (we currently
-// overwrite them), we will need to reconsider which cases a are successful
 // create a spoofer that acts before the original sender and gets discovered
 pub(super) fn generate_spoof_before_honest_cases() -> Vec<TestCase> {
     let spoofers = Status::iter()
