@@ -7,7 +7,7 @@ use sha3::{Digest, Sha3_256};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct Output([u8; 32]);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct Randomness([u8; 32]);
 
 pub(crate) fn commit(msg: impl AsRef<[u8]>) -> (Output, Randomness) {

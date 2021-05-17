@@ -9,8 +9,8 @@ use k256::elliptic_curve::sec1::FromEncodedPoint;
 use serde::{de, de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 
 /// newtype wrapper for k256::AffinePoint
-#[derive(Debug, PartialEq)]
-struct AffinePoint(k256::AffinePoint);
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct AffinePoint(pub(crate) k256::AffinePoint);
 
 /// impl `Deref` as a workaround for lack of delegation in Rust
 impl std::ops::Deref for AffinePoint {

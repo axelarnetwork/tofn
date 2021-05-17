@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::{Keygen, Status};
 use crate::{
     fillvec::FillVec,
+    hash, k256_serde,
     protocol::gg20::{vss, vss_k256},
 };
 
@@ -12,9 +13,12 @@ use crate::{
 use {super::malicious::Behaviour, tracing::info};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Bcast {
-    pub y_i_reveal: BigInt,
-    pub u_i_share_commitments: Vec<GE>,
+pub(super) struct Bcast {
+    pub(super) y_i_reveal: BigInt,
+    pub(super) u_i_share_commitments: Vec<GE>,
+
+    pub(super) y_i_reveal_k256: hash::Randomness,
+    pub(super) u_i_share_commits_k256: Vec<k256_serde::AffinePoint>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -58,8 +62,7 @@ impl Keygen {
 
         let (my_u_i_share_commits_k256, my_u_i_shares_k256) =
             vss_k256::share(self.threshold, self.share_count, &r1state.my_u_i_k256);
-
-        // assert_eq!(my_u_i_share_commits_k256[0], r1state.my_y_i_k256);
+        assert_eq!(my_u_i_share_commits_k256[0], r1state.my_y_i_k256);
 
         let (my_u_i_share_commitments, my_u_i_shares) =
             vss::share(self.threshold, self.share_count, &r1state.my_u_i);
@@ -125,6 +128,11 @@ impl Keygen {
         let out_bcast = Bcast {
             y_i_reveal: r1state.my_y_i_reveal.clone(),
             u_i_share_commitments: my_u_i_share_commitments.clone(),
+            y_i_reveal_k256: r1state.my_y_i_reveal_k256.clone(),
+            u_i_share_commits_k256: my_u_i_share_commits_k256
+                .into_iter()
+                .map(|c| k256_serde::AffinePoint(c))
+                .collect(),
         };
         (
             State {
