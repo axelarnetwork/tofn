@@ -59,7 +59,7 @@ impl Keygen {
         let (my_u_i_share_commits_k256, my_u_i_shares_k256) =
             vss_k256::share(self.threshold, self.share_count, &r1state.my_u_i_k256);
 
-        assert_eq!(my_u_i_share_commits_k256[0], r1state.my_y_i_k256);
+        // assert_eq!(my_u_i_share_commits_k256[0], r1state.my_y_i_k256);
 
         let (my_u_i_share_commitments, my_u_i_shares) =
             vss::share(self.threshold, self.share_count, &r1state.my_u_i);

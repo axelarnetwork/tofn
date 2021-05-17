@@ -1,19 +1,17 @@
 //! Helpers for verifiable secret sharing
 
-use k256::elliptic_curve::Field;
-
 pub fn share(
     t: usize,
     n: usize,
-    secret: &k256::Scalar,
-) -> (Vec<k256::ProjectivePoint>, Vec<k256::Scalar>) {
+    secret: &k256::NonZeroScalar,
+) -> (Vec<k256::AffinePoint>, Vec<k256::Scalar>) {
     // sample a polynomial
-    let coeffs: Vec<k256::Scalar> = (0..=t)
+    let coeffs: Vec<k256::NonZeroScalar> = (0..=t)
         .map(|i| {
             if i == 0 {
                 secret.clone()
             } else {
-                k256::Scalar::random(rand::thread_rng())
+                k256::NonZeroScalar::random(rand::thread_rng())
             }
         })
         .collect();
@@ -28,7 +26,7 @@ pub fn share(
     // compute commitment
     let commit = coeffs
         .iter()
-        .map(|&coeff| k256::ProjectivePoint::generator() * coeff)
+        .map(|&coeff| k256::AffinePoint::generator() * coeff)
         .collect();
 
     (commit, shares)
