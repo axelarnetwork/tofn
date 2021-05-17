@@ -37,11 +37,11 @@ impl Spoofer for KeygenSpoofer {
     fn is_spoof_round(&self, msg: &[u8]) -> bool {
         let msg: MsgMeta = bincode::deserialize(msg).unwrap();
         let curr_status = match msg.msg_type {
-            MsgType::R1Bcast => Status::New,
-            MsgType::R2Bcast => Status::R1,
-            MsgType::R2P2p { to: _ } => Status::R1,
-            MsgType::R3Bcast => Status::R2,
-            MsgType::R3FailBcast => Status::R2,
+            MsgType::R1Bcast => Status::R1,
+            MsgType::R2Bcast => Status::R2,
+            MsgType::R2P2p { to: _ } => Status::R2,
+            MsgType::R3Bcast => Status::R3,
+            MsgType::R3FailBcast => Status::R3,
         };
         curr_status == self.status // why can't I use matches?
     }
@@ -119,7 +119,7 @@ fn execute_test_case(t: &test_cases::TestCase) {
         .map(|p| p as &mut dyn Protocol)
         .collect();
 
-    execute_protocol_vec_spoof(&mut protocols, t.allow_self_delivery, &spoofers);
+    execute_protocol_vec_spoof(&mut protocols, &spoofers);
 
     // TEST: honest parties finished and correctly computed the criminals list
     for keygen_party in keygen_parties.iter().filter(|k| k.behaviour.is_honest()) {

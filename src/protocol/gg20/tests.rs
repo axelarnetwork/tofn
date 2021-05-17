@@ -12,16 +12,6 @@ pub mod keygen {
     #[test]
     #[traced_test]
     fn protocol_basic_correctness() {
-        protocol_basic_correctness_inner(false)
-    }
-
-    #[test]
-    #[traced_test]
-    fn protocol_basic_correctness_with_self_delivery() {
-        protocol_basic_correctness_inner(true)
-    }
-
-    fn protocol_basic_correctness_inner(allow_self_delivery: bool) {
         for &(share_count, threshold) in TEST_CASES.iter() {
             // keep it on the stack: avoid use of Box<dyn Protocol> https://doc.rust-lang.org/book/ch17-02-trait-objects.html
             let mut parties: Vec<Keygen> = (0..share_count)
@@ -29,7 +19,7 @@ pub mod keygen {
                 .collect();
             let mut protocols: Vec<&mut dyn Protocol> =
                 parties.iter_mut().map(|p| p as &mut dyn Protocol).collect();
-            execute_protocol_vec(&mut protocols, allow_self_delivery);
+            execute_protocol_vec(&mut protocols);
 
             // TEST: everyone computed the same pubkey
             let key_share = parties[0].clone_output().unwrap().unwrap();
@@ -68,16 +58,6 @@ pub mod sign {
     #[test]
     #[traced_test]
     fn protocol_basic_correctness() {
-        protocol_basic_correctness_inner(false)
-    }
-
-    #[test]
-    #[traced_test]
-    fn protocol_basic_correctness_with_self_delivery() {
-        protocol_basic_correctness_inner(true)
-    }
-
-    fn protocol_basic_correctness_inner(allow_self_delivery: bool) {
         for (share_count, threshold, participant_indices) in TEST_CASES.iter() {
             let key_shares = execute_keygen(*share_count, *threshold);
 
@@ -90,7 +70,7 @@ pub mod sign {
                 .iter_mut()
                 .map(|p| p as &mut dyn Protocol)
                 .collect();
-            execute_protocol_vec(&mut protocols, allow_self_delivery);
+            execute_protocol_vec(&mut protocols);
 
             // TEST: everyone computed the same signature
             let sig = participants[0].clone_output().unwrap().unwrap();

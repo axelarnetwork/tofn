@@ -6,10 +6,9 @@ pub(crate) trait Spoofer {
     fn is_spoof_round(&self, msg: &[u8]) -> bool;
 }
 
-pub(crate) fn execute_protocol_vec(parties: &mut [&mut dyn Protocol], allow_self_delivery: bool) {
+pub(crate) fn execute_protocol_vec(parties: &mut [&mut dyn Protocol]) {
     execute_protocol_vec_spoof(
         parties,
-        allow_self_delivery,
         &[], // create an empty slice of spoofers
     )
 }
@@ -27,7 +26,6 @@ fn all_parties_expect_the_same(parties: &[&mut dyn Protocol]) -> bool {
 
 pub(crate) fn execute_protocol_vec_spoof(
     parties: &mut [&mut dyn Protocol],
-    _allow_self_delivery: bool,
     spoofers: &[&dyn Spoofer],
 ) {
     #[allow(clippy::needless_range_loop)] // see explanation below

@@ -10,7 +10,6 @@ pub(super) struct TestCaseParty {
 
 pub(super) struct TestCase {
     pub(super) threshold: usize,
-    pub(super) allow_self_delivery: bool,
     pub(super) expect_success: bool,
     pub(super) parties: Vec<TestCaseParty>,
 }
@@ -80,7 +79,6 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
         .filter(|b| !b.is_honest() && !b.is_spoofer())
         .map(|b| TestCase {
             threshold: 1,
-            allow_self_delivery: false,
             expect_success: false,
             parties: vec![
                 TestCaseParty {
@@ -105,7 +103,12 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
 // create a spoofer that acts before the original sender and gets discovered
 pub(super) fn generate_success_spoof_cases() -> Vec<TestCase> {
     let spoofers = Status::iter()
-        .filter(|s| !matches!(s, Status::Done | Status::Fail | Status::R3Fail | Status::R3))
+        .filter(|s| {
+            !matches!(
+                s,
+                Status::New | Status::Done | Status::Fail | Status::R3Fail
+            )
+        })
         .map(|s| UnauthenticatedSender {
             victim: 1,
             status: s,
@@ -116,7 +119,6 @@ pub(super) fn generate_success_spoof_cases() -> Vec<TestCase> {
         .iter()
         .map(|spoofer| TestCase {
             threshold: 1,
-            allow_self_delivery: false,
             expect_success: false,
             parties: vec![
                 TestCaseParty {
@@ -150,7 +152,6 @@ pub(super) fn generate_failed_spoof_cases() -> Vec<TestCase> {
         .iter()
         .map(|spoofer| TestCase {
             threshold: 1,
-            allow_self_delivery: false,
             expect_success: true,
             parties: vec![
                 TestCaseParty {
@@ -173,7 +174,6 @@ pub(super) fn generate_failed_spoof_cases() -> Vec<TestCase> {
 pub(super) fn self_accusation_cases() -> Vec<TestCase> {
     vec![TestCase {
         threshold: 1,
-        allow_self_delivery: false,
         expect_success: false,
         parties: vec![
             TestCaseParty {

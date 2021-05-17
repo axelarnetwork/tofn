@@ -308,8 +308,6 @@ impl Protocol for Sign {
     }
 
     fn expecting_more_msgs_this_round(&self) -> bool {
-        let me = self.my_participant_index;
-
         // TODO account for sad path messages
         // need to receive one message per party (happy OR sad)
 
