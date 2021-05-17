@@ -117,21 +117,20 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
     basic_test_cases
 }
 
-// Test all basic cases with one malicious behaviour per test case
-// #[rustfmt::skip] // skip formatting to make file more readable
-pub(super) fn generate_success_unauth_cases() -> Vec<TestCase> {
+// create a spoofer that acts before the original sender and gets discovered
+pub(super) fn generate_spoof_before_honest_cases() -> Vec<TestCase> {
     let spoofers = Status::iter()
         .filter(|s| {
-            !matches!(
+            // match outputs of spoofer::is_spoof_round()
+            matches!(
                 s,
-                Status::Done
-                    | Status::Fail
-                    | Status::New
-                    | Status::R2Fail
-                    | Status::R3Fail
-                    | Status::R6Fail
-                    | Status::R6FailType5
-                    | Status::R7FailType7
+                Status::R1
+                    | Status::R2
+                    | Status::R3
+                    | Status::R4
+                    | Status::R5
+                    | Status::R6
+                    | Status::R7
             )
         })
         .map(|s| UnauthenticatedSender {
@@ -167,21 +166,20 @@ pub(super) fn generate_success_unauth_cases() -> Vec<TestCase> {
         .collect()
 }
 
-// Test all basic cases with one malicious behaviour per test case
-// #[rustfmt::skip] // skip formatting to make file more readable
-pub(super) fn generate_failed_unauth_cases() -> Vec<TestCase> {
+// create a spoofer that acts after the original sender and gets discovered
+pub(super) fn generate_spoof_after_honest_cases() -> Vec<TestCase> {
     let spoofers = Status::iter()
         .filter(|s| {
-            !matches!(
+            // match outputs of spoofer::is_spoof_round()
+            matches!(
                 s,
-                Status::Done
-                    | Status::Fail
-                    | Status::R2Fail
-                    | Status::R3Fail
-                    | Status::R6Fail
-                    | Status::R6FailType5
+                Status::R1
+                    | Status::R2
+                    | Status::R3
+                    | Status::R4
+                    | Status::R5
+                    | Status::R6
                     | Status::R7
-                    | Status::R7FailType7
             )
         })
         .map(|s| UnauthenticatedSender {
@@ -195,7 +193,7 @@ pub(super) fn generate_failed_unauth_cases() -> Vec<TestCase> {
         .map(|spoofer| TestCase {
             share_count: 3,
             threshold: 1,
-            expect_success: true,
+            expect_success: false,
             sign_participants: vec![
                 SignParticipant {
                     party_index: 0,
