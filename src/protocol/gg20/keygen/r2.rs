@@ -22,8 +22,9 @@ pub(super) struct Bcast {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct P2p {
-    pub encrypted_u_i_share: BigInt, // threshold share of my_ecdsa_secret_summand
+pub(crate) struct P2p {
+    pub(crate) encrypted_u_i_share: BigInt, // threshold share of my_ecdsa_secret_summand
+    pub(crate) encrypted_u_i_share_k256: crate::paillier::Ciphertext,
 }
 
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
@@ -94,9 +95,15 @@ impl Keygen {
             if i == self.my_index {
                 continue;
             }
+            let ek = &self.in_r1bcasts.vec_ref()[i].as_ref().unwrap().ek;
+
+            // k256: encrypt the share for party i
+            let ek_256 = crate::paillier::EncryptionKey::from(ek);
+            let my_u_i_share_k256 = crate::paillier::Plaintext::from(&my_u_i_shares_k256[i]);
+            let (encrypted_u_i_share_k256, _) =
+                crate::paillier::encrypt(&ek_256, &my_u_i_share_k256);
 
             // encrypt the share for party i
-            let ek = &self.in_r1bcasts.vec_ref()[i].as_ref().unwrap().ek;
             let randomness = Randomness::sample(ek);
             let encrypted_u_i_share = Paillier::encrypt_with_chosen_randomness(
                 ek,
@@ -120,6 +127,7 @@ impl Keygen {
                     i,
                     P2p {
                         encrypted_u_i_share,
+                        encrypted_u_i_share_k256,
                     },
                 )
                 .unwrap();
