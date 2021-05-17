@@ -70,28 +70,26 @@ impl Protocol for Keygen {
                 self.status = R2;
             }
 
-            R2 => {
-                match self.r3() {
-                    r3::Output::Success { state, out_bcast } => {
-                        self.out_r3bcast = Some(bincode::serialize(&MsgMeta {
-                            msg_type: MsgType::R3Bcast,
-                            from: self.my_index,
-                            payload: bincode::serialize(&out_bcast)?,
-                        })?);
-                        self.r3state = Some(state);
-                        self.status = R3;
-                    }
-                    r3::Output::Fail { criminals } => self.update_state_fail(criminals),
-                    r3::Output::FailVss { out_bcast } => {
-                        self.out_r3bcast_fail = Some(bincode::serialize(&MsgMeta {
-                            msg_type: MsgType::R3FailBcast,
-                            from: self.my_index,
-                            payload: bincode::serialize(&out_bcast)?,
-                        })?);
-                        self.status = R3Fail;
-                    }
+            R2 => match self.r3() {
+                r3::Output::Success { state, out_bcast } => {
+                    self.out_r3bcast = Some(bincode::serialize(&MsgMeta {
+                        msg_type: MsgType::R3Bcast,
+                        from: self.my_index,
+                        payload: bincode::serialize(&out_bcast)?,
+                    })?);
+                    self.r3state = Some(state);
+                    self.status = R3;
                 }
-            }
+                r3::Output::Fail { criminals } => self.update_state_fail(criminals),
+                r3::Output::FailVss { out_bcast } => {
+                    self.out_r3bcast_fail = Some(bincode::serialize(&MsgMeta {
+                        msg_type: MsgType::R3FailBcast,
+                        from: self.my_index,
+                        payload: bincode::serialize(&out_bcast)?,
+                    })?);
+                    self.status = R3Fail;
+                }
+            },
             R3 => {
                 self.final_output = Some(Ok(self.r4()));
                 self.status = Done;

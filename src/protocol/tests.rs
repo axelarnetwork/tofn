@@ -13,6 +13,7 @@ pub(crate) fn execute_protocol_vec(parties: &mut [&mut dyn Protocol]) {
     )
 }
 
+// check that all parties agree on expecting new messages
 fn all_parties_expect_the_same(parties: &[&mut dyn Protocol]) -> bool {
     let expecting_more = parties[0].expecting_more_msgs_this_round();
     for (i, p) in parties.iter().enumerate() {
