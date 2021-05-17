@@ -40,7 +40,6 @@ impl Protocol for Keygen {
                     from: self.my_index,
                     payload: bincode::serialize(&bcast)?,
                 })?);
-                self.in_r1bcasts.insert(self.my_index, bcast)?; // self-delivery
                 self.r1state = Some(state);
                 self.status = R1;
             }
@@ -65,8 +64,6 @@ impl Protocol for Keygen {
                 }
                 self.out_r2p2ps = Some(out_r2p2ps);
 
-                // self delivery
-                self.in_r2bcasts.insert(self.my_index, bcast)?;
                 self.in_all_r2p2ps[self.my_index] = p2ps;
 
                 self.r2state = Some(state);
@@ -82,7 +79,6 @@ impl Protocol for Keygen {
                             payload: bincode::serialize(&out_bcast)?,
                         })?);
                         self.r3state = Some(state);
-                        self.in_r3bcasts.insert(self.my_index, out_bcast)?; // self-delivery
                         self.status = R3;
                     }
                     r3::Output::Fail { criminals } => self.update_state_fail(criminals),
@@ -92,7 +88,6 @@ impl Protocol for Keygen {
                             from: self.my_index,
                             payload: bincode::serialize(&out_bcast)?,
                         })?);
-                        self.in_r3bcasts_fail.insert(self.my_index, out_bcast)?; // self delivery
                         self.status = R3Fail;
                     }
                 }
@@ -161,9 +156,9 @@ impl Protocol for Keygen {
         let me = self.my_index;
         match self.status {
             New => false,
-            R1 => !self.in_r1bcasts.is_full_except(me),
+            R1 => !self.in_r1bcasts.is_full(),
             R2 => {
-                if !self.in_r2bcasts.is_full_except(me) {
+                if !self.in_r2bcasts.is_full() {
                     return true;
                 }
                 for (i, in_r2p2ps) in self.in_all_r2p2ps.iter().enumerate() {
@@ -178,9 +173,6 @@ impl Protocol for Keygen {
             }
             R3 | R3Fail => {
                 for i in 0..self.share_count {
-                    if i == me {
-                        continue;
-                    }
                     if self.in_r3bcasts.is_none(i) && self.in_r3bcasts_fail.is_none(i) {
                         return true;
                     }

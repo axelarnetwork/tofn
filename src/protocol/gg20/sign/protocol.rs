@@ -317,13 +317,10 @@ impl Protocol for Sign {
             New => false,
             R1 => {
                 // TODO fix ugly code to deal with wasted entries for messages to myself
-                if !self.in_r1bcasts.is_full_except(me) {
+                if !self.in_r1bcasts.is_full() {
                     return true;
                 }
                 for (i, in_r1p2ps) in self.in_all_r1p2ps.iter().enumerate() {
-                    if i == me {
-                        continue;
-                    }
                     if !in_r1p2ps.is_full_except(i) {
                         return true;
                     }
@@ -332,9 +329,6 @@ impl Protocol for Sign {
             }
             R2 | R2Fail => {
                 for i in 0..self.participant_indices.len() {
-                    if i == me {
-                        continue;
-                    }
                     if !self.in_all_r2p2ps[i].is_full_except(i) && self.in_r2bcasts_fail.is_none(i)
                     {
                         return true;
@@ -344,9 +338,6 @@ impl Protocol for Sign {
             }
             R3 | R3Fail => {
                 for i in 0..self.participant_indices.len() {
-                    if i == me {
-                        continue;
-                    }
                     if self.in_r3bcasts.is_none(i) && self.in_r3bcasts_fail.is_none(i) {
                         return true;
                     }
@@ -354,19 +345,16 @@ impl Protocol for Sign {
                 false
             }
             R4 => {
-                if !self.in_r4bcasts.is_full_except(me) {
+                if !self.in_r4bcasts.is_full() {
                     return true;
                 }
                 false
             }
             R5 => {
-                if !self.in_r5bcasts.is_full_except(me) {
+                if !self.in_r5bcasts.is_full() {
                     return true;
                 }
                 for (i, in_r5p2ps) in self.in_all_r5p2ps.iter().enumerate() {
-                    if i == me {
-                        continue;
-                    }
                     if !in_r5p2ps.is_full_except(i) {
                         return true;
                     }
@@ -375,9 +363,6 @@ impl Protocol for Sign {
             }
             R6 | R6Fail | R6FailType5 => {
                 for i in 0..self.participant_indices.len() {
-                    if i == me {
-                        continue;
-                    }
                     if self.in_r6bcasts.is_none(i)
                         && self.in_r6bcasts_fail.is_none(i)
                         && self.in_r6bcasts_fail_type5.is_none(i)
@@ -389,9 +374,6 @@ impl Protocol for Sign {
             }
             R7 | R7FailType7 => {
                 for i in 0..self.participant_indices.len() {
-                    if i == me {
-                        continue;
-                    }
                     if self.in_r7bcasts.is_none(i) && self.in_r7bcasts_fail_type7.is_none(i) {
                         return true;
                     }
@@ -463,8 +445,6 @@ impl Sign {
         }
         self.out_r1p2ps = Some(out_r1p2ps);
 
-        // self delivery
-        self.in_r1bcasts.insert(self.my_participant_index, bcast)?;
         self.in_all_r1p2ps[self.my_participant_index] = p2ps;
 
         self.r1state = Some(state);
@@ -490,7 +470,6 @@ impl Sign {
             }
         }
         self.out_r2p2ps = Some(out_p2ps_serialized);
-        self.in_all_r2p2ps[self.my_participant_index] = out_p2ps; // self delivery
         self.r2state = Some(state);
         self.status = R2;
         Ok(())
@@ -502,8 +481,6 @@ impl Sign {
             from: self.my_participant_index,
             payload: bincode::serialize(&bcast)?,
         })?);
-        self.in_r2bcasts_fail
-            .insert(self.my_participant_index, bcast)?; // self delivery
         self.status = R2Fail;
         Ok(())
     }
@@ -519,8 +496,6 @@ impl Sign {
             from: self.my_participant_index,
             payload: bincode::serialize(&out_bcast)?,
         })?);
-        self.in_r3bcasts
-            .insert(self.my_participant_index, out_bcast)?; // self delivery
         self.r3state = Some(state);
         self.status = R3;
         Ok(())
@@ -534,8 +509,6 @@ impl Sign {
             from: self.my_participant_index,
             payload: bincode::serialize(&bcast)?,
         })?);
-        self.in_r3bcasts_fail
-            .insert(self.my_participant_index, bcast)?; // self delivery
         self.status = R3Fail;
         Ok(())
     }
@@ -551,8 +524,6 @@ impl Sign {
             from: self.my_participant_index,
             payload: bincode::serialize(&out_bcast)?,
         })?);
-        self.in_r4bcasts
-            .insert(self.my_participant_index, out_bcast)?; // self delivery
         self.r4state = Some(state);
         self.status = R4;
         Ok(())
@@ -587,8 +558,6 @@ impl Sign {
         }
         self.out_r5p2ps = Some(out_r5p2ps);
 
-        // self delivery
-        self.in_r5bcasts.insert(self.my_participant_index, bcast)?;
         self.in_all_r5p2ps[self.my_participant_index] = p2ps;
 
         self.r5state = Some(state);
@@ -607,8 +576,6 @@ impl Sign {
             from: self.my_participant_index,
             payload: bincode::serialize(&out_bcast)?,
         })?);
-        self.in_r6bcasts
-            .insert(self.my_participant_index, out_bcast)?; // self delivery
         self.r6state = Some(state);
         self.status = R6;
         Ok(())
@@ -621,8 +588,6 @@ impl Sign {
             from: self.my_participant_index,
             payload: bincode::serialize(&bcast)?,
         })?);
-        self.in_r6bcasts_fail
-            .insert(self.my_participant_index, bcast)?; // self delivery
         self.status = R6Fail;
         Ok(())
     }
@@ -637,8 +602,6 @@ impl Sign {
             from: self.my_participant_index,
             payload: bincode::serialize(&bcast)?,
         })?);
-        self.in_r6bcasts_fail_type5
-            .insert(self.my_participant_index, bcast)?; // self delivery
         self.status = R6FailType5;
         Ok(())
     }
@@ -653,8 +616,6 @@ impl Sign {
             from: self.my_participant_index,
             payload: bincode::serialize(&bcast)?,
         })?);
-        self.in_r7bcasts_fail_type7
-            .insert(self.my_participant_index, bcast)?; // self delivery
         self.status = R7FailType7;
         Ok(())
     }
@@ -670,8 +631,6 @@ impl Sign {
             from: self.my_participant_index,
             payload: bincode::serialize(&out_bcast)?,
         })?);
-        self.in_r7bcasts
-            .insert(self.my_participant_index, out_bcast)?; // self delivery
         self.r7state = Some(state);
         self.status = R7;
         Ok(())
