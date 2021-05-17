@@ -98,10 +98,9 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
         .collect()
 }
 
-// TODO If we change the way we handle duplicate messages (we currently
 // overwrite them), we will need to reconsider which cases a are successful
 // create a spoofer that acts before the original sender and gets discovered
-pub(super) fn generate_success_spoof_cases() -> Vec<TestCase> {
+pub(super) fn generate_spoof_before_honest_cases() -> Vec<TestCase> {
     let spoofers = Status::iter()
         .filter(|s| {
             !matches!(
@@ -138,10 +137,10 @@ pub(super) fn generate_success_spoof_cases() -> Vec<TestCase> {
         .collect()
 }
 
-// create a spoofer that acts after the original sender and his act has no effect
-pub(super) fn generate_failed_spoof_cases() -> Vec<TestCase> {
+// create a spoofer that acts after the original sender and gets discovered
+pub(super) fn generate_spoof_after_honest_cases() -> Vec<TestCase> {
     let spoofers = Status::iter()
-        .filter(|s| !matches!(s, Status::Done | Status::Fail | Status::R3Fail | Status::R3))
+        .filter(|s| matches!(s, Status::R1 | Status::R2 | Status::R3)) // match outputs of spoofer::is_spoof_round()
         .map(|s| UnauthenticatedSender {
             victim: 0,
             status: s,
@@ -152,7 +151,7 @@ pub(super) fn generate_failed_spoof_cases() -> Vec<TestCase> {
         .iter()
         .map(|spoofer| TestCase {
             threshold: 1,
-            expect_success: true,
+            expect_success: false,
             parties: vec![
                 TestCaseParty {
                     behaviour: Honest,

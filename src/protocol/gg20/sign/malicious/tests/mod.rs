@@ -53,8 +53,8 @@ use test_cases::*;
 
 lazy_static::lazy_static! {
     static ref BASIC_CASES: Vec<TestCase> = generate_basic_cases();
-    static ref SUCCESS_SPOOF_CASES: Vec<TestCase> = generate_success_unauth_cases();
-    static ref FAILED_SPOOF_CASES: Vec<TestCase> = generate_failed_unauth_cases();
+    static ref SPOOF_BEFORE_CASES: Vec<TestCase> = generate_spoof_before_honest_cases();
+    static ref SPOOF_AFTER_CASES: Vec<TestCase> = generate_spoof_after_honest_cases();
     static ref SKIPPING_CASES: Vec<TestCase> = generate_skipping_cases();
     static ref SAME_ROUND_CASES: Vec<TestCase> = generate_multiple_faults_in_same_round();
     static ref MULTIPLE_VICTIMS: Vec<TestCase> = generate_target_multiple_parties();
@@ -71,9 +71,11 @@ fn basic_tests() {
 
 #[test]
 #[traced_test]
-fn spoof_tests() {
-    execute_test_case_list(&SUCCESS_SPOOF_CASES);
-    execute_test_case_list(&FAILED_SPOOF_CASES);
+// we detect whether a message is spoofed the moment we receive it so we should be
+// able to find is successfully either receiving it before or after the original msg
+fn spoof_messages() {
+    execute_test_case_list(&SPOOF_BEFORE_CASES);
+    execute_test_case_list(&SPOOF_AFTER_CASES);
 }
 
 #[test]
@@ -151,9 +153,10 @@ fn execute_test_case(t: &test_cases::TestCase) {
 
     let spoofers: Vec<SignSpoofer> = signers
         .iter()
-        .map(|s| match s.malicious_type.clone() {
+        .enumerate()
+        .map(|(index, s)| match s.malicious_type.clone() {
             UnauthenticatedSender { victim, status: s } => Some(SignSpoofer {
-                index: 0,
+                index,
                 victim,
                 status: s.clone(),
             }),
