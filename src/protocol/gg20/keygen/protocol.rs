@@ -185,24 +185,16 @@ impl Protocol for Keygen {
     fn waiting_on(&self) -> Vec<Vec<GeneralCrime>> {
         match self.status {
             New => vec![vec![]; self.in_r1bcasts.vec_ref().len()],
-            R1 => Keygen::crimes_from_fillvec(&self.in_r1bcasts, MsgType::R1Bcast, self.my_index),
+            R1 => Keygen::crimes_from_fillvec(&self.in_r1bcasts, MsgType::R1Bcast),
             R2 => {
                 // bcasts are sent before p2ps. If we don't have all bcasts we can safely determine the staller
                 if !self.in_r2bcasts.is_full() {
-                    return Keygen::crimes_from_fillvec(
-                        &self.in_r2bcasts,
-                        MsgType::R2Bcast,
-                        self.my_index,
-                    );
+                    return Keygen::crimes_from_fillvec(&self.in_r2bcasts, MsgType::R2Bcast);
                 }
                 Keygen::crimes_from_vec_fillvec(&self.in_all_r2p2ps)
             }
-            R3 => Keygen::crimes_from_fillvec(&self.in_r3bcasts, MsgType::R3Bcast, self.my_index),
-            R3Fail => Keygen::crimes_from_fillvec(
-                &self.in_r3bcasts_fail,
-                MsgType::R3FailBcast,
-                self.my_index,
-            ),
+            R3 => Keygen::crimes_from_fillvec(&self.in_r3bcasts, MsgType::R3Bcast),
+            R3Fail => Keygen::crimes_from_fillvec(&self.in_r3bcasts_fail, MsgType::R3FailBcast),
             Done | Fail => vec![vec![]; self.in_r1bcasts.vec_ref().len()],
         }
     }
@@ -231,11 +223,7 @@ impl Keygen {
         }
     }
 
-    fn crimes_from_fillvec<T>(
-        fillvec: &FillVec<T>,
-        msg_type: MsgType,
-        victim: usize,
-    ) -> Vec<Vec<GeneralCrime>> {
+    fn crimes_from_fillvec<T>(fillvec: &FillVec<T>, msg_type: MsgType) -> Vec<Vec<GeneralCrime>> {
         fillvec
             .vec_ref()
             .iter()
@@ -246,7 +234,7 @@ impl Keygen {
                 }
                 // construct the crime. If the stall was over p2ps, insert the victim
                 let msg_type = match msg_type {
-                    MsgType::R2P2p { to: _ } => MsgType::R2P2p { to: victim },
+                    MsgType::R2P2p { to: victim } => MsgType::R2P2p { to: victim },
                     _ => msg_type.clone(),
                 };
                 let gen_msg_type = GeneralMsgType::KeygenMsgType { msg_type };
@@ -264,7 +252,6 @@ impl Keygen {
             all_p2p_crimes.push(Keygen::crimes_from_fillvec(
                 &p2ps,
                 MsgType::R2P2p { to: victim },
-                victim,
             ));
         }
         // aggregate crimes for the same criminal reported by different parties
@@ -306,7 +293,7 @@ mod test {
         ];
         assert_eq!(
             expected_crimes,
-            Keygen::crimes_from_fillvec(&fillvec, MsgType::R1Bcast, 0)
+            Keygen::crimes_from_fillvec(&fillvec, MsgType::R1Bcast)
         );
     }
 
