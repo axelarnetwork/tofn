@@ -1,7 +1,7 @@
 use strum::IntoEnumIterator;
 
 use super::{Behaviour, Behaviour::*};
-use crate::protocol::gg20::keygen::{crimes::Crime, KeygenOutput, Status};
+use crate::protocol::gg20::keygen::{crimes::Crime, KeygenOutput, MsgType, Status};
 
 pub(super) struct TestCaseParty {
     pub(super) behaviour: Behaviour,
@@ -50,6 +50,16 @@ impl Behaviour {
         )
     }
 
+    pub(super) fn is_staller(&self) -> bool {
+        matches!(
+            self,
+            Stall {
+                victim: _,
+                msg_type: _
+            }
+        )
+    }
+
     /// Return the `Crime` variant `c` such that
     /// if one party acts according to `self` and all other parties are honest
     /// then honest parties will detect `c`.
@@ -64,6 +74,13 @@ impl Behaviour {
                 victim: *v,
                 status: s.clone(),
             },
+            Stall {
+                victim: v,
+                msg_type: mt,
+            } => Crime::Stall {
+                victim: *v,
+                msg_type: mt.clone(),
+            },
             R1BadCommit => Crime::R3BadReveal,
             R2BadShare { victim: v } => Crime::R4FailBadVss { victim: *v },
             R2BadEncryption { victim: v } => Crime::R4FailBadEncryption { victim: *v },
@@ -76,7 +93,7 @@ impl Behaviour {
 // #[rustfmt::skip] // skip formatting to make file more readable
 pub(super) fn generate_basic_cases() -> Vec<TestCase> {
     Behaviour::iter()
-        .filter(|b| !b.is_honest() && !b.is_spoofer())
+        .filter(|b| !b.is_honest() && !b.is_spoofer() && !b.is_staller())
         .map(|b| TestCase {
             threshold: 1,
             expect_success: false,
