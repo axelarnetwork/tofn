@@ -54,8 +54,8 @@ pub mod malicious;
 pub mod crimes;
 mod protocol;
 
-#[derive(Debug, Serialize, Deserialize)]
-enum MsgType {
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum MsgType {
     R1Bcast,
     R1P2p { to: usize },
     R2P2p { to: usize },
