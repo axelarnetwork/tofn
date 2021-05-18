@@ -5,7 +5,7 @@
 //! [Implementing Serialize · Serde](https://serde.rs/impl-serialize.html)
 //! [Implementing Deserialize · Serde](https://serde.rs/impl-deserialize.html)
 
-use k256::elliptic_curve::sec1::FromEncodedPoint;
+use k256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
 use serde::{de, de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 
 /// newtype wrapper for k256::AffinePoint
@@ -98,6 +98,22 @@ impl<'de> Deserialize<'de> for ProjectivePoint {
             AffinePoint::deserialize(deserializer)?.0.into(),
         ))
     }
+}
+
+/// Trying to make this look like a method of k256::ProjectivePoint
+/// Unfortunately, `p.into().bytes()` needs type annotations
+impl ProjectivePoint {
+    pub(crate) fn bytes(&self) -> Vec<u8> {
+        self.0
+            .to_affine()
+            .to_encoded_point(true)
+            .as_bytes()
+            .to_vec()
+    }
+}
+
+pub(crate) fn to_bytes(p: &k256::ProjectivePoint) -> Vec<u8> {
+    p.to_affine().to_encoded_point(true).as_bytes().to_vec()
 }
 
 #[cfg(test)]

@@ -1,5 +1,7 @@
 //! Helpers for verifiable secret sharing
 
+use std::ops::{Add, Mul};
+
 use k256::elliptic_curve::Field;
 
 pub fn share(
@@ -38,4 +40,14 @@ pub fn share(
         .collect();
 
     (commit, shares)
+}
+
+pub fn point_commit(commits: &[k256::ProjectivePoint], index: usize) -> k256::ProjectivePoint {
+    let index_scalar = k256::Scalar::from(index as u32 + 1); // vss indices start at 1
+    commits
+        .iter()
+        .rev()
+        .fold(k256::ProjectivePoint::identity(), |acc, commit| {
+            acc.mul(&index_scalar).add(commit)
+        })
 }

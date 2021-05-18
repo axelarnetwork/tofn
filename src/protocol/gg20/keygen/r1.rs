@@ -1,11 +1,11 @@
 use super::{Keygen, Status};
-use crate::{hash, zkp::paillier::ZkSetup};
+use crate::{hash, k256_serde::to_bytes, zkp::paillier::ZkSetup};
 use curv::{
     cryptographic_primitives::commitments::{hash_commitment::HashCommitment, traits::Commitment},
     elliptic::curves::traits::{ECPoint, ECScalar},
     BigInt, FE, GE,
 };
-use k256::elliptic_curve::sec1::ToEncodedPoint;
+use k256::elliptic_curve::Field;
 use paillier::{DecryptionKey, EncryptionKey};
 use paillier::{KeyGeneration, Paillier};
 use serde::{Deserialize, Serialize};
@@ -32,8 +32,8 @@ pub(super) struct State {
     pub(super) my_y_i: GE,
     pub(super) my_y_i_reveal: BigInt,
 
-    pub(super) my_u_i_k256: k256::NonZeroScalar,
-    // pub(super) my_y_i_k256: k256::AffinePoint,
+    pub(super) my_u_i_k256: k256::Scalar,
+    pub(super) my_y_i_k256: k256::ProjectivePoint,
     pub(super) my_y_i_reveal_k256: hash::Randomness,
 
     // TODO Paillier
@@ -45,11 +45,10 @@ pub(super) struct State {
 impl Keygen {
     pub(super) fn r1(&self) -> (State, Bcast) {
         assert!(matches!(self.status, Status::New));
-        let my_u_i_k256 = k256::NonZeroScalar::random(rand::thread_rng());
-        let my_y_i_k256 = k256::AffinePoint::generator() * my_u_i_k256;
+        let my_u_i_k256 = k256::Scalar::random(rand::thread_rng());
+        let my_y_i_k256 = k256::ProjectivePoint::generator() * my_u_i_k256;
 
-        let (my_y_i_commit_k256, my_y_i_reveal_k256) =
-            hash::commit(my_y_i_k256.to_encoded_point(true).as_bytes());
+        let (my_y_i_commit_k256, my_y_i_reveal_k256) = hash::commit(to_bytes(&my_y_i_k256));
 
         #[cfg(feature = "malicious")]
         let my_y_i_commit_k256 = if matches!(self.behaviour, Behaviour::R1BadCommit) {
@@ -85,7 +84,7 @@ impl Keygen {
                 my_y_i,
                 my_y_i_reveal,
                 my_u_i_k256,
-                // my_y_i_k256,
+                my_y_i_k256,
                 my_y_i_reveal_k256,
                 my_dk,
                 my_ek: ek.clone(),
