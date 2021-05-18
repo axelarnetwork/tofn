@@ -151,7 +151,6 @@ impl Protocol for Keygen {
     }
 
     fn expecting_more_msgs_this_round(&self) -> bool {
-        let me = self.my_index;
         match self.status {
             New => false,
             R1 => !self.in_r1bcasts.is_full(),
@@ -160,9 +159,6 @@ impl Protocol for Keygen {
                     return true;
                 }
                 for (i, in_r2p2ps) in self.in_all_r2p2ps.iter().enumerate() {
-                    if i == me {
-                        continue;
-                    }
                     if !in_r2p2ps.is_full_except(i) {
                         return true;
                     }
