@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::{Keygen, Status};
 use crate::{
     fillvec::FillVec,
-    hash, k256_serde,
+    hash,
     protocol::gg20::{vss, vss_k256},
 };
 
@@ -18,7 +18,7 @@ pub(super) struct Bcast {
     pub(super) u_i_share_commitments: Vec<GE>,
 
     pub(super) y_i_reveal_k256: hash::Randomness,
-    pub(super) u_i_share_commits_k256: Vec<k256_serde::ProjectivePoint>,
+    pub(super) u_i_share_commits_k256: vss_k256::Commit,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -32,8 +32,7 @@ pub(super) struct State {
     pub(super) my_share_of_my_u_i: FE,
     pub(super) my_u_i_share_commitments: Vec<GE>,
 
-    pub(super) my_share_of_my_u_i_k256: k256::Scalar,
-    // do not duplicate encrypted_u_i_share_k256 from Bcast
+    pub(super) my_share_of_my_u_i_k256: vss_k256::Share,
 }
 
 impl Keygen {
@@ -64,10 +63,7 @@ impl Keygen {
             }
         }
 
-        let (my_u_i_share_commits_k256, my_u_i_shares_k256) =
-            vss_k256::share(self.threshold, self.share_count, &r1state.my_u_i_k256);
-
-        assert_eq!(my_u_i_share_commits_k256[0], r1state.my_y_i_k256);
+        let my_u_i_shares_k256 = r1state.my_u_i_vss_k256.shares(self.share_count);
 
         let (my_u_i_share_commitments, my_u_i_shares) =
             vss::share(self.threshold, self.share_count, &r1state.my_u_i);
@@ -95,7 +91,7 @@ impl Keygen {
 
         let mut out_p2ps = FillVec::with_len(self.share_count);
         let my_share_of_my_u_i = my_u_i_shares[self.my_index];
-        let my_share_of_my_u_i_k256 = my_u_i_shares_k256[self.my_index];
+        let my_share_of_my_u_i_k256 = &my_u_i_shares_k256[self.my_index];
         for (i, my_u_i_share) in my_u_i_shares.into_iter().enumerate() {
             if i == self.my_index {
                 continue;
@@ -104,7 +100,8 @@ impl Keygen {
 
             // k256: encrypt the share for party i
             let ek_256 = crate::paillier::EncryptionKey::from(ek);
-            let my_u_i_share_k256 = crate::paillier::Plaintext::from(&my_u_i_shares_k256[i]);
+            let my_u_i_share_k256 =
+                crate::paillier::Plaintext::from(my_u_i_shares_k256[i].unwrap());
             let (encrypted_u_i_share_k256, _) =
                 crate::paillier::encrypt(&ek_256, &my_u_i_share_k256);
 
@@ -142,16 +139,13 @@ impl Keygen {
             y_i_reveal: r1state.my_y_i_reveal.clone(),
             u_i_share_commitments: my_u_i_share_commitments.clone(),
             y_i_reveal_k256: r1state.my_y_i_reveal_k256.clone(),
-            u_i_share_commits_k256: my_u_i_share_commits_k256
-                .into_iter()
-                .map(|c| c.into())
-                .collect(),
+            u_i_share_commits_k256: r1state.my_u_i_vss_k256.get_commit().clone(),
         };
         (
             State {
                 my_share_of_my_u_i,
                 my_u_i_share_commitments,
-                my_share_of_my_u_i_k256,
+                my_share_of_my_u_i_k256: my_share_of_my_u_i_k256.clone(),
             },
             out_bcast,
             out_p2ps,

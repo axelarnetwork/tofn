@@ -12,13 +12,18 @@ use serde::{de, de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct AffinePoint(k256::AffinePoint);
 
-/// impl `Deref` as a workaround for lack of delegation in Rust
-impl std::ops::Deref for AffinePoint {
-    type Target = k256::AffinePoint;
-    fn deref(&self) -> &Self::Target {
+impl AffinePoint {
+    pub(crate) fn unwrap(&self) -> &k256::AffinePoint {
         &self.0
     }
 }
+
+// impl std::ops::Deref for AffinePoint {
+//     type Target = k256::AffinePoint;
+//     fn deref(&self) -> &Self::Target {
+//         &self.0
+//     }
+// }
 
 impl Serialize for AffinePoint {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -66,13 +71,32 @@ impl<'de> Visitor<'de> for AffinePointVisitor {
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct ProjectivePoint(k256::ProjectivePoint);
 
-/// impl `Deref` as a workaround for lack of delegation in Rust
-impl std::ops::Deref for ProjectivePoint {
-    type Target = k256::ProjectivePoint;
-    fn deref(&self) -> &Self::Target {
+impl ProjectivePoint {
+    pub(crate) fn unwrap(&self) -> &k256::ProjectivePoint {
         &self.0
     }
+
+    /// Trying to make this look like a method of k256::ProjectivePoint
+    /// Unfortunately, `p.into().bytes()` needs type annotations
+    pub(crate) fn bytes(&self) -> Vec<u8> {
+        self.0
+            .to_affine()
+            .to_encoded_point(true)
+            .as_bytes()
+            .to_vec()
+    }
 }
+
+pub(crate) fn to_bytes(p: &k256::ProjectivePoint) -> Vec<u8> {
+    p.to_affine().to_encoded_point(true).as_bytes().to_vec()
+}
+
+// impl std::ops::Deref for ProjectivePoint {
+//     type Target = k256::ProjectivePoint;
+//     fn deref(&self) -> &Self::Target {
+//         &self.0
+//     }
+// }
 
 impl From<k256::ProjectivePoint> for ProjectivePoint {
     fn from(s: k256::ProjectivePoint) -> Self {
@@ -98,22 +122,6 @@ impl<'de> Deserialize<'de> for ProjectivePoint {
             AffinePoint::deserialize(deserializer)?.0.into(),
         ))
     }
-}
-
-/// Trying to make this look like a method of k256::ProjectivePoint
-/// Unfortunately, `p.into().bytes()` needs type annotations
-impl ProjectivePoint {
-    pub(crate) fn bytes(&self) -> Vec<u8> {
-        self.0
-            .to_affine()
-            .to_encoded_point(true)
-            .as_bytes()
-            .to_vec()
-    }
-}
-
-pub(crate) fn to_bytes(p: &k256::ProjectivePoint) -> Vec<u8> {
-    p.to_affine().to_encoded_point(true).as_bytes().to_vec()
 }
 
 #[cfg(test)]
