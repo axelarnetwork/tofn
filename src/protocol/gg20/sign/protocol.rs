@@ -1,5 +1,5 @@
 use super::{crimes::Crime, Status::*, *};
-use crate::protocol::{IndexRange, MsgBytes, Protocol, ProtocolResult};
+use crate::protocol::{gg20::GeneralCrime, IndexRange, MsgBytes, Protocol, ProtocolResult};
 
 use tracing::debug;
 
@@ -381,6 +381,10 @@ impl Protocol for Sign {
             Done => false,
             Fail => false,
         }
+    }
+
+    fn waiting_on(&self) -> Vec<Vec<GeneralCrime>> {
+        vec![vec![]]
     }
 
     fn done(&self) -> bool {

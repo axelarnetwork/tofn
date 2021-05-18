@@ -1,6 +1,7 @@
 use super::{r2, r3, r4, r5, r6, r7, ParamsError, Sign, SignOutput, Status};
 use crate::protocol::{
-    gg20::keygen::SecretKeyShare, IndexRange, MsgBytes, Protocol, ProtocolResult,
+    gg20::{keygen::SecretKeyShare, GeneralCrime},
+    IndexRange, MsgBytes, Protocol, ProtocolResult,
 };
 use crate::zkp::{
     paillier::{mta, range},
@@ -708,6 +709,9 @@ impl Protocol for BadSign {
     }
     fn expecting_more_msgs_this_round(&self) -> bool {
         self.sign.expecting_more_msgs_this_round()
+    }
+    fn waiting_on(&self) -> Vec<Vec<GeneralCrime>> {
+        self.sign.waiting_on()
     }
     fn done(&self) -> bool {
         self.sign.done()

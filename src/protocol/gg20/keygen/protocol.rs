@@ -1,5 +1,10 @@
 use super::{crimes::Crime, r3, Keygen, MsgMeta, MsgType, Status::*};
-use crate::protocol::{IndexRange, MsgBytes, Protocol, ProtocolResult};
+use crate::{
+    fillvec::FillVec,
+    protocol::{
+        gg20::GeneralMsgType, GeneralCrime, IndexRange, MsgBytes, Protocol, ProtocolResult,
+    },
+};
 
 impl Protocol for Keygen {
     fn next_round(&mut self) -> ProtocolResult {
@@ -177,9 +182,74 @@ impl Protocol for Keygen {
         }
     }
 
+    fn waiting_on(&self) -> Vec<Vec<GeneralCrime>> {
+        match self.status {
+            New => vec![vec![]; self.in_r1bcasts.vec_ref().len()],
+            R1 => crimes_from_fillvec(&self.in_r1bcasts, MsgType::R1Bcast, self.my_index),
+            R2 => {
+                // bcasts are sent before p2ps. If we don't have all bcasts we can safely determine the staller
+                if !self.in_r2bcasts.is_full() {
+                    return crimes_from_fillvec(&self.in_r2bcasts, MsgType::R2Bcast, self.my_index);
+                }
+                crimes_from_vec_fillvec(&self.in_all_r2p2ps)
+            }
+            R3 => crimes_from_fillvec(&self.in_r3bcasts, MsgType::R3Bcast, self.my_index),
+            R3Fail => {
+                crimes_from_fillvec(&self.in_r3bcasts_fail, MsgType::R3FailBcast, self.my_index)
+            }
+            Done | Fail => vec![vec![]; self.in_r1bcasts.vec_ref().len()],
+        }
+    }
+
     fn done(&self) -> bool {
         matches!(self.status, Done | Fail)
     }
+}
+
+fn crimes_from_fillvec<T>(
+    fillvec: &FillVec<T>,
+    msg_type: MsgType,
+    victim: usize,
+) -> Vec<Vec<GeneralCrime>> {
+    fillvec
+        .vec_ref()
+        .iter()
+        .map(|element| {
+            // if we have a msg from ith party, he is not a staller
+            if element.is_some() {
+                return vec![];
+            }
+            // construct the crime. If the stall was over p2ps, insert the victim
+            let msg_type = match msg_type {
+                MsgType::R2P2p { to: _ } => MsgType::R2P2p { to: victim },
+                _ => msg_type.clone(),
+            };
+            let gen_msg_type = GeneralMsgType::KeygenMsgType { msg_type };
+            vec![GeneralCrime::Stall {
+                msg_type: gen_msg_type,
+            }]
+        })
+        .collect()
+}
+
+fn crimes_from_vec_fillvec<T>(vec_fillvec: &Vec<FillVec<T>>) -> Vec<Vec<GeneralCrime>> {
+    // combine all crime reports from all parties
+    let mut all_p2p_crimes = vec![];
+    for (victim, p2ps) in vec_fillvec.iter().enumerate() {
+        all_p2p_crimes.push(crimes_from_fillvec(
+            &p2ps,
+            MsgType::R2P2p { to: victim },
+            victim,
+        ));
+    }
+    // aggregate crimes for the same criminal reported by different parties
+    let mut crimes = vec![vec![]; all_p2p_crimes[0].len()];
+    for ith_reported_crimes in all_p2p_crimes {
+        for (criminal_idx, ith_crimes) in ith_reported_crimes.iter().enumerate() {
+            crimes[criminal_idx].extend(ith_crimes.clone());
+        }
+    }
+    crimes
 }
 
 impl Keygen {
@@ -199,5 +269,79 @@ impl Keygen {
             // because otherwise you'll forget to update this match statement when you add a variant
             R1 | R2 | R3Fail | New | Done | Fail => {}
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        fillvec::FillVec,
+        protocol::gg20::{
+            keygen::{
+                protocol::{crimes_from_fillvec, crimes_from_vec_fillvec},
+                MsgType,
+            },
+            GeneralCrime,
+            GeneralMsgType::KeygenMsgType,
+        },
+    };
+
+    #[test]
+    fn test_crimes_from_fillvec() {
+        let mut fillvec: FillVec<bool> = FillVec::with_len(3);
+        fillvec.overwrite(0, true);
+        // fillvec.overwrite(1, true); <- p1 didn't broadcast
+        fillvec.overwrite(2, true);
+        let expected_crimes = vec![
+            vec![],
+            vec![GeneralCrime::Stall {
+                msg_type: KeygenMsgType {
+                    msg_type: MsgType::R1Bcast,
+                },
+            }],
+            vec![],
+        ];
+        assert_eq!(
+            expected_crimes,
+            crimes_from_fillvec(&fillvec, MsgType::R1Bcast, 0)
+        );
+    }
+
+    #[test]
+    fn test_crimes_from_vec_fillvec() {
+        let mut p0_reports: FillVec<bool> = FillVec::with_len(3);
+        p0_reports.overwrite(0, true);
+        // p0_reports.overwrite(1, true); // p1 didn't send p2p p1->p0
+        p0_reports.overwrite(2, true);
+
+        let mut p1_reports: FillVec<bool> = FillVec::with_len(3);
+        p1_reports.overwrite(0, true);
+        p1_reports.overwrite(1, true);
+        p1_reports.overwrite(2, true);
+
+        let mut p2_reports: FillVec<bool> = FillVec::with_len(3);
+        p2_reports.overwrite(0, true);
+        // p2_reports.overwrite(1, true); // p1 didn't send p2p p1->p2
+        p2_reports.overwrite(2, true);
+
+        let expected_crimes: Vec<Vec<GeneralCrime>> = vec![
+            vec![],
+            vec![
+                GeneralCrime::Stall {
+                    msg_type: KeygenMsgType {
+                        msg_type: MsgType::R2P2p { to: 0 },
+                    },
+                },
+                GeneralCrime::Stall {
+                    msg_type: KeygenMsgType {
+                        msg_type: MsgType::R2P2p { to: 2 },
+                    },
+                },
+            ],
+            vec![],
+        ];
+
+        let in_all_p2ps = vec![p0_reports, p1_reports, p2_reports];
+        assert_eq!(expected_crimes, crimes_from_vec_fillvec(&in_all_p2ps));
     }
 }
