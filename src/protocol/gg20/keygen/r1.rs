@@ -33,7 +33,7 @@ pub(super) struct State {
     pub(super) my_y_i_reveal: BigInt,
 
     pub(super) my_u_i_k256: k256::NonZeroScalar,
-    pub(super) my_y_i_k256: k256::AffinePoint,
+    // pub(super) my_y_i_k256: k256::AffinePoint,
     pub(super) my_y_i_reveal_k256: hash::Randomness,
 
     // TODO Paillier
@@ -85,7 +85,7 @@ impl Keygen {
                 my_y_i,
                 my_y_i_reveal,
                 my_u_i_k256,
-                my_y_i_k256,
+                // my_y_i_k256,
                 my_y_i_reveal_k256,
                 my_dk,
                 my_ek: ek.clone(),

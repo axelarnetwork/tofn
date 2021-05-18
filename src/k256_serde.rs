@@ -10,7 +10,7 @@ use serde::{de, de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 
 /// newtype wrapper for k256::AffinePoint
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) struct AffinePoint(pub(crate) k256::AffinePoint);
+pub(crate) struct AffinePoint(k256::AffinePoint);
 
 /// impl `Deref` as a workaround for lack of delegation in Rust
 impl std::ops::Deref for AffinePoint {
@@ -62,16 +62,63 @@ impl<'de> Visitor<'de> for AffinePointVisitor {
     }
 }
 
+/// newtype wrapper for k256::ProjectivePoint
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct ProjectivePoint(k256::ProjectivePoint);
+
+/// impl `Deref` as a workaround for lack of delegation in Rust
+impl std::ops::Deref for ProjectivePoint {
+    type Target = k256::ProjectivePoint;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<k256::ProjectivePoint> for ProjectivePoint {
+    fn from(s: k256::ProjectivePoint) -> Self {
+        ProjectivePoint(s)
+    }
+}
+
+impl Serialize for ProjectivePoint {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        AffinePoint(self.0.to_affine()).serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for ProjectivePoint {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(ProjectivePoint(
+            AffinePoint::deserialize(deserializer)?.0.into(),
+        ))
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use k256::elliptic_curve::Field;
+
     #[test]
     fn basic_round_trip() -> Result<(), Box<dyn std::error::Error>> {
-        let random_point = super::AffinePoint(
+        let a = super::AffinePoint(
             k256::AffinePoint::generator() * k256::NonZeroScalar::random(rand::thread_rng()),
         );
-        let random_point_serialized = bincode::serialize(&random_point)?;
-        let random_point_deserialized = bincode::deserialize(&random_point_serialized)?;
-        assert_eq!(random_point, random_point_deserialized);
+        let a_serialized = bincode::serialize(&a)?;
+        let a_deserialized = bincode::deserialize(&a_serialized)?;
+        assert_eq!(a, a_deserialized);
+
+        let p = super::ProjectivePoint(
+            k256::ProjectivePoint::generator() * k256::Scalar::random(rand::thread_rng()),
+        );
+        let p_serialized = bincode::serialize(&p)?;
+        let p_deserialized = bincode::deserialize(&p_serialized)?;
+        assert_eq!(p, p_deserialized);
         Ok(())
     }
 }
