@@ -33,9 +33,9 @@ impl Vss {
     pub fn get_secret(&self) -> &k256::Scalar {
         &self.secret_coeffs[0]
     }
-    // pub fn get_secret_commit(&self) -> &k256::ProjectivePoint {
-    //     &self.commit.0[0].unwrap()
-    // }
+    pub fn get_secret_commit(&self) -> &k256::ProjectivePoint {
+        &self.get_commit().secret_commit()
+    }
     pub fn get_commit(&self) -> &Commit {
         &self.commit
     }
@@ -84,7 +84,7 @@ impl Commit {
     ) -> bool {
         self.share_commit(index) == *share_commit
     }
-    pub fn validate_share(&self, share: Share, index: usize) -> bool {
+    pub fn validate_share(&self, share: &Share, index: usize) -> bool {
         self.validate_share_commit(&(k256::ProjectivePoint::generator() * share.0), index)
     }
 }
@@ -98,9 +98,8 @@ impl Share {
     }
 }
 
-// impl std::ops::Deref for Share {
-//     type Target = k256::Scalar;
-//     fn deref(&self) -> &Self::Target {
-//         &self.0
-//     }
-// }
+impl From<k256::Scalar> for Share {
+    fn from(s: k256::Scalar) -> Self {
+        Share(s)
+    }
+}

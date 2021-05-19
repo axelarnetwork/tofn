@@ -1,5 +1,10 @@
 use super::{crimes::Crime, Keygen, Status};
-use crate::{hash, k256_serde::to_bytes, protocol::gg20::vss};
+use crate::{
+    hash,
+    k256_serde::to_bytes,
+    paillier_k256,
+    protocol::gg20::{vss, vss_k256},
+};
 use curv::{
     cryptographic_primitives::{
         commitments::{hash_commitment::HashCommitment, traits::Commitment},
@@ -66,7 +71,7 @@ impl Keygen {
 
         // k256
         let mut ecdsa_public_key_k256 = *r1state.my_u_i_vss_k256.get_commit().secret_commit();
-        let mut my_ecdsa_secret_key_share_k256 = r2state.my_share_of_my_u_i_k256;
+        let mut my_ecdsa_secret_key_share_k256 = r2state.my_share_of_my_u_i_k256.unwrap().clone();
         let mut all_ecdsa_public_key_shares_k256: Vec<k256::ProjectivePoint> = (0..self
             .share_count)
             // start each summation with my contribution
@@ -105,20 +110,27 @@ impl Keygen {
             if y_i_commit_k256 != r1bcast.y_i_commit_k256 {
                 let crime = Crime::R3BadReveal;
                 warn!("party {} detect {:?} by {}", self.my_index, crime, i);
-                criminals[i].push(crime);
+                // TODO uncomment after the k256 migration
+                // criminals[i].push(crime);
             }
 
-            // decrypt share
-
-            // curv
+            // curv: decrypt share
             let (u_i_share_plaintext, u_i_share_randomness) = Paillier::open(
                 &self.r1state.as_ref().unwrap().my_dk,
                 &RawCiphertext::from(&my_r2p2p.encrypted_u_i_share),
             );
             let u_i_share: FE = ECScalar::from(&u_i_share_plaintext.0);
 
-            // k256
+            // k256: decrypt share
+            let dk_k256 = paillier_k256::DecryptionKey::from(&self.r1state.as_ref().unwrap().my_dk);
+            let (u_i_share_plaintext_k256, u_i_share_randomness_k256) =
+                paillier_k256::decrypt_with_randomness(
+                    &dk_k256,
+                    &my_r2p2p.encrypted_u_i_share_k256,
+                );
+            let u_i_share_k256 = vss_k256::Share::from(u_i_share_plaintext_k256.to_scalar());
 
+            // curv
             let vss_valid =
                 vss::validate_share(&r2bcast.u_i_share_commitments, &u_i_share, self.my_index)
                     .is_ok();
@@ -148,12 +160,40 @@ impl Keygen {
                 });
             }
 
+            // k256
+            if !r2bcast
+                .u_i_share_commits_k256
+                .validate_share(&u_i_share_k256, self.my_index)
+            {
+                warn!(
+                    "party {} accuse {} of {:?} TODO go to r4_fail",
+                    self.my_index,
+                    i,
+                    Crime::R4FailBadVss {
+                        victim: self.my_index
+                    },
+                );
+            }
+
+            // curv
             ecdsa_public_key = ecdsa_public_key + y_i;
             my_ecdsa_secret_key_share = my_ecdsa_secret_key_share + u_i_share;
 
             for (j, ecdsa_public_key_share) in all_ecdsa_public_key_shares.iter_mut().enumerate() {
                 *ecdsa_public_key_share = *ecdsa_public_key_share
                     + vss::get_point_commitment(&r2bcast.u_i_share_commitments, j);
+            }
+
+            // k256
+            ecdsa_public_key_k256 = ecdsa_public_key_k256 + y_i_k256;
+            my_ecdsa_secret_key_share_k256 =
+                my_ecdsa_secret_key_share_k256 + u_i_share_k256.unwrap();
+
+            for (j, ecdsa_public_key_share_k256) in
+                all_ecdsa_public_key_shares_k256.iter_mut().enumerate()
+            {
+                *ecdsa_public_key_share_k256 =
+                    *ecdsa_public_key_share_k256 + r2bcast.u_i_share_commits_k256.share_commit(j);
             }
         }
 
@@ -183,7 +223,11 @@ impl Keygen {
             };
         }
 
+        // curv
         all_ecdsa_public_key_shares[self.my_index] = GE::generator() * my_ecdsa_secret_key_share;
+        // k256
+        all_ecdsa_public_key_shares_k256[self.my_index] =
+            k256::ProjectivePoint::generator() * my_ecdsa_secret_key_share_k256;
 
         Output::Success {
             state: State {

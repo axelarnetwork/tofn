@@ -46,7 +46,7 @@ impl Keygen {
         let my_u_i_vss_k256 = vss_k256::Vss::new(self.threshold);
 
         let (my_y_i_commit_k256, my_y_i_reveal_k256) =
-            hash::commit(to_bytes(my_u_i_vss_k256.get_commit().secret_commit()));
+            hash::commit(to_bytes(my_u_i_vss_k256.get_secret_commit()));
 
         #[cfg(feature = "malicious")]
         let my_y_i_commit_k256 = if matches!(self.behaviour, Behaviour::R1BadCommit) {
