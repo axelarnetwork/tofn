@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::{Keygen, Status};
 use crate::{
     fillvec::FillVec,
-    hash,
+    hash, paillier_k256,
     protocol::gg20::{vss, vss_k256},
 };
 
@@ -24,7 +24,7 @@ pub(super) struct Bcast {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct P2p {
     pub(crate) encrypted_u_i_share: BigInt, // threshold share of my_ecdsa_secret_summand
-    pub(crate) encrypted_u_i_share_k256: crate::paillier_k256::Ciphertext,
+    pub(crate) encrypted_u_i_share_k256: paillier_k256::Ciphertext,
 }
 
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
@@ -99,13 +99,11 @@ impl Keygen {
             let ek = &self.in_r1bcasts.vec_ref()[i].as_ref().unwrap().ek;
 
             // k256: encrypt the share for party i
-            let ek_256 = crate::paillier_k256::EncryptionKey::from(ek);
-            let my_u_i_share_k256 =
-                crate::paillier_k256::Plaintext::from(my_u_i_shares_k256[i].unwrap());
-            let (encrypted_u_i_share_k256, _) =
-                crate::paillier_k256::encrypt(&ek_256, &my_u_i_share_k256);
+            let ek_256 = paillier_k256::EncryptionKey::from(ek);
+            let my_u_i_share_k256 = paillier_k256::Plaintext::from(my_u_i_shares_k256[i].unwrap());
+            let (encrypted_u_i_share_k256, _) = paillier_k256::encrypt(&ek_256, &my_u_i_share_k256);
 
-            // encrypt the share for party i
+            // curv: encrypt the share for party i
             let randomness = Randomness::sample(ek);
             let encrypted_u_i_share = Paillier::encrypt_with_chosen_randomness(
                 ek,
