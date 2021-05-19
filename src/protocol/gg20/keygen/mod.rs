@@ -1,4 +1,4 @@
-use crate::{fillvec::FillVec, protocol::MsgBytes, zkp::paillier::ZkSetup};
+use crate::{fillvec::FillVec, k256_serde, protocol::MsgBytes, zkp::paillier::ZkSetup};
 use curv::{FE, GE};
 use paillier::{DecryptionKey, EncryptionKey};
 use serde::{Deserialize, Serialize};
@@ -18,6 +18,10 @@ pub struct SecretKeyShare {
     pub all_ecdsa_public_key_shares: Vec<GE>,
     pub all_eks: Vec<EncryptionKey>,
     pub all_zkps: Vec<ZkSetup>,
+
+    pub ecdsa_public_key_k256: k256_serde::ProjectivePoint,
+    pub my_ecdsa_secret_key_share_k256: k256_serde::Scalar,
+    pub all_ecdsa_public_key_shares_k256: Vec<k256_serde::ProjectivePoint>,
 }
 
 pub use curv::elliptic::curves::traits::{ECPoint, ECScalar};

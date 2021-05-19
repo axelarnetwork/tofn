@@ -1,4 +1,5 @@
 use super::{Keygen, SecretKeyShare, Status};
+use crate::k256_serde;
 use curv::cryptographic_primitives::proofs::sigma_dlog::{DLogProof, ProveDLog};
 
 impl Keygen {
@@ -48,6 +49,14 @@ impl Keygen {
             all_ecdsa_public_key_shares: r3state.all_ecdsa_public_key_shares.clone(),
             all_eks,
             all_zkps,
+
+            ecdsa_public_key_k256: r3state.ecdsa_public_key_k256.into(),
+            my_ecdsa_secret_key_share_k256: r3state.my_ecdsa_secret_key_share_k256.into(),
+            all_ecdsa_public_key_shares_k256: r3state
+                .all_ecdsa_public_key_shares_k256
+                .iter()
+                .map(k256_serde::ProjectivePoint::from)
+                .collect(),
         }
     }
 }
