@@ -1,8 +1,4 @@
-use super::{
-    crimes::Crime,
-    r3, Keygen, MsgMeta, MsgType,
-    Status::{self, *},
-};
+use super::{crimes::Crime, r3, Keygen, MsgMeta, MsgType, Status::*};
 use crate::{
     fillvec::FillVec,
     protocol::{
@@ -250,7 +246,7 @@ impl Keygen {
         }
     }
 
-    // create crimes out the missing entires in a fillvec; see test_crimes_from_fillvec()
+    // create crimes out the missing entires in a fillvec; see test_waiting_on_bcast()
     // - fillvec [Some, Some, Some] returns [[], [], []]
     // - fillvec [Some, Some, None] returns [[], [], [GeneralCrime::Stall{msg_type: RXBcast}]]
     fn crimes_from_fillvec<T>(
@@ -284,7 +280,7 @@ impl Keygen {
         }
     }
 
-    // create crimes out of the missing entries in a vec of fillvecs; see test_crimes_from_vec_fillvec()
+    // create crimes out of the missing entries in a vec of fillvecs; see test_waiting_on_p2p()
     // - vec<fillvec> [[Some(), Some(), Some()], <- party 0 list
     //                 [Some(), Some(), Some()], <- party 1 list
     //                 [Some(), Some(), Some()]] <- party 2 list
@@ -295,7 +291,7 @@ impl Keygen {
     //        returns [[],
     //                 [GeneralCrime::Stall{msg_type: RXP2p{to: 0}}, GeneralCrime::Stall{msg_type: RXP2p{to: 2}}],
     //                 []]
-    fn crimes_from_vec_fillvec<T>(&self, vec_fillvec: &Vec<FillVec<T>>) -> Vec<Vec<GeneralCrime>> {
+    fn crimes_from_vec_fillvec<T>(&self, vec_fillvec: &[FillVec<T>]) -> Vec<Vec<GeneralCrime>> {
         // retrieve all crime reports from all parties
         let mut all_p2p_crimes = vec![];
         for (victim, p2ps) in vec_fillvec.iter().enumerate() {
@@ -321,24 +317,35 @@ impl Keygen {
 
 #[cfg(test)]
 mod test {
-    use curv::BigInt;
+    use curv::{elliptic::curves::secp256_k1::Secp256k1Point, BigInt};
 
     use crate::{
         fillvec::FillVec,
-        protocol::gg20::{
-            keygen::{r2::P2p, Keygen, MsgType, Status},
-            GeneralCrime,
-            GeneralMsgType::{self, KeygenMsgType},
+        protocol::{
+            gg20::{
+                keygen::{r2::Bcast, r2::P2p, Keygen, MsgType, Status},
+                GeneralCrime,
+                GeneralMsgType::{self, KeygenMsgType},
+            },
+            Protocol,
         },
     };
 
-    // gain direct access to bcast msgs to make our live easier for testing
+    // grand direct access to bcast msgs to make our life easier for testing
     impl Keygen {
-        fn set_in_r2p2ps(&mut self, in_all_r2p2ps: Vec<FillVec<P2p>>) {
-            self.in_all_r2p2ps = in_all_r2p2ps
+        fn get_in_r2bcasts(&mut self) -> &mut FillVec<Bcast> {
+            &mut self.in_r2bcasts
         }
-        fn get_in_r2p2ps(&self) -> Vec<FillVec<P2p>> {
-            self.in_all_r2p2ps.clone()
+        fn get_in_r2p2ps(&mut self) -> &mut Vec<FillVec<P2p>> {
+            &mut self.in_all_r2p2ps
+        }
+    }
+    impl Default for Bcast {
+        fn default() -> Bcast {
+            Bcast {
+                y_i_reveal: BigInt::zero(),
+                u_i_share_commitments: vec![Secp256k1Point::random_point()],
+            }
         }
     }
     impl Default for P2p {
@@ -350,7 +357,15 @@ mod test {
     }
 
     #[test]
-    fn test_crimes_from_fillvec() {
+    fn test_waiting_on_bcast() {
+        let mut k = Keygen::new(3, 1, 0).unwrap();
+        k.status = Status::R2; // set the round that has r2bcast messages
+
+        // set bcasts p1 is staller
+        k.get_in_r2bcasts().overwrite(0, Bcast::default());
+        // k.get_in_r2bcasts().overwrite(1, Bcast::default()); <- p1 doesn't send bcast
+        k.get_in_r2bcasts().overwrite(2, Bcast::default());
+
         // create a fillvec and fill some cells
         let mut fillvec: FillVec<bool> = FillVec::with_len(3);
         fillvec.overwrite(0, true);
@@ -367,6 +382,7 @@ mod test {
             vec![],
         ];
 
+        assert!(k.expecting_more_msgs_this_round());
         assert_eq!(
             expected_crimes,
             Keygen::crimes_from_fillvec(
@@ -376,30 +392,29 @@ mod test {
                 }
             )
         );
+        assert_eq!(expected_crimes, k.waiting_on());
     }
 
     #[test]
-    fn test_crimes_from_vec_fillvec() {
-        let mut p0_reports: FillVec<P2p> = FillVec::with_len(3);
-        p0_reports.overwrite(0, P2p::default());
-        // p0_reports.overwrite(1, P2p::default()); <- p1 didn't send p2p p1->p0
-        p0_reports.overwrite(2, P2p::default());
-
-        let mut p1_reports: FillVec<P2p> = FillVec::with_len(3);
-        p1_reports.overwrite(0, P2p::default());
-        p1_reports.overwrite(1, P2p::default());
-        p1_reports.overwrite(2, P2p::default());
-
-        let mut p2_reports: FillVec<P2p> = FillVec::with_len(3);
-        p2_reports.overwrite(0, P2p::default());
-        // p2_reports.overwrite(1, P2p::default()); <- p2 didn't send p2p p1->p2
-        p2_reports.overwrite(2, P2p::default());
-
-        let in_all_r2p2ps: Vec<FillVec<P2p>> = vec![p0_reports, p1_reports, p2_reports];
-
+    fn test_waiting_on_p2p() {
         let mut k = Keygen::new(3, 1, 0).unwrap();
-        k.set_in_r2p2ps(in_all_r2p2ps);
-        k.status = Status::R2; // set a round that has p2p messages
+        k.status = Status::R2; // set to round that has r2p2p messages
+
+        // set bcasts
+        k.get_in_r2bcasts().overwrite(0, Bcast::default());
+        k.get_in_r2bcasts().overwrite(1, Bcast::default());
+        k.get_in_r2bcasts().overwrite(2, Bcast::default());
+
+        // set p2ps; p1 is staller
+        k.get_in_r2p2ps()[0].overwrite(0, P2p::default());
+        // k.get_in_r2p2ps()[0].overwrite(1, P2p::default()); <- p1 didn't send p2p p1->p0
+        k.get_in_r2p2ps()[0].overwrite(2, P2p::default());
+        k.get_in_r2p2ps()[1].overwrite(0, P2p::default());
+        k.get_in_r2p2ps()[1].overwrite(1, P2p::default());
+        k.get_in_r2p2ps()[1].overwrite(2, P2p::default());
+        k.get_in_r2p2ps()[2].overwrite(0, P2p::default());
+        // k.get_in_r2p2ps()[2].overwrite(1, P2p::default()); <- p1 didn't send p2p p1->p2
+        k.get_in_r2p2ps()[2].overwrite(2, P2p::default());
 
         let expected_crimes: Vec<Vec<GeneralCrime>> = vec![
             vec![],
@@ -418,9 +433,7 @@ mod test {
             vec![],
         ];
 
-        assert_eq!(
-            expected_crimes,
-            k.crimes_from_vec_fillvec(&k.get_in_r2p2ps())
-        );
+        assert!(k.expecting_more_msgs_this_round());
+        assert_eq!(expected_crimes, k.waiting_on());
     }
 }

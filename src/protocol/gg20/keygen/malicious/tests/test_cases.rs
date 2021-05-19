@@ -1,7 +1,7 @@
 use strum::IntoEnumIterator;
 
 use super::{Behaviour, Behaviour::*};
-use crate::protocol::gg20::keygen::{crimes::Crime, KeygenOutput, MsgType, Status};
+use crate::protocol::gg20::keygen::{crimes::Crime, KeygenOutput, Status};
 
 pub(super) struct TestCaseParty {
     pub(super) behaviour: Behaviour,
