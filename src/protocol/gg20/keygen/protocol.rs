@@ -1,6 +1,6 @@
 use super::{crimes::Crime, r3, Keygen, MsgMeta, MsgType, Status::*};
 use crate::{
-    fillvec::FillVec,
+    fillvec::{self, FillVec},
     protocol::{
         gg20::GeneralMsgType, GeneralCrime, IndexRange, MsgBytes, Protocol, ProtocolResult,
     },
@@ -281,34 +281,29 @@ impl Keygen {
     }
 
     // create crimes out of the missing entries in a vec of fillvecs; see test_waiting_on_p2p()
-    // - vec<fillvec> [[Some(), Some(), Some()], <- party 0 list
-    //                 [Some(), Some(), Some()], <- party 1 list
-    //                 [Some(), Some(), Some()]] <- party 2 list
+    // - vec<fillvec> [[  --  , Some(), Some()], <- party 0 list
+    //                 [Some(),   --  , Some()], <- party 1 list
+    //                 [Some(), Some(),   --  ]] <- party 2 list
     //        returns [[], [], []]
-    // - vec<fillvec> [[Some(),  None , Some()], <- party 0 list; didn't recv p2p from p1
-    //                 [Some(), Some(), Some()], <- party 1 list
-    //                 [Some(),  None , Some()]] <- party 2 list; didn;t recv p2p from p1
+    // - vec<fillvec> [[  --  , Some(), Some()], <- party 0 list;
+    //                 [ None ,   --  , Some()], <- party 1 list; p0 didn't recv p2p from p1
+    //                 [Some(), Some(),   --  ]] <- party 2 list;
     //        returns [[],
-    //                 [GeneralCrime::Stall{msg_type: RXP2p{to: 0}}, GeneralCrime::Stall{msg_type: RXP2p{to: 2}}],
+    //                 [GeneralCrime::Stall{msg_type: RXP2p{to: 0}}]
     //                 []]
     fn crimes_from_vec_fillvec<T>(&self, vec_fillvec: &[FillVec<T>]) -> Vec<Vec<GeneralCrime>> {
-        // retrieve all crime reports from all parties
-        let mut all_p2p_crimes = vec![];
-        for (victim, p2ps) in vec_fillvec.iter().enumerate() {
-            // for p2p mesages, we don't know the victim until we get to iterate each p2p fillvec
-            // so we need to pass the victim here to create the potential crime vec
-            all_p2p_crimes.push(Self::crimes_from_fillvec(
-                &p2ps,
-                GeneralMsgType::KeygenMsgType {
-                    msg_type: self.current_p2p_msg(victim).unwrap(),
-                },
-            ));
-        }
-        // aggregate crimes of the same criminal that are reported by different parties
-        let mut crimes = vec![vec![]; all_p2p_crimes[0].len()];
-        for ith_reported_crimes in all_p2p_crimes {
-            for (criminal_idx, ith_crimes) in ith_reported_crimes.iter().enumerate() {
-                crimes[criminal_idx].extend(ith_crimes.clone());
+        let mut crimes = vec![vec![]; vec_fillvec.len()];
+        for (criminal, p2ps) in vec_fillvec.iter().enumerate() {
+            for (victim, p2p) in p2ps.vec_ref().iter().enumerate() {
+                if p2p.is_some() || victim == criminal {
+                    crimes[criminal].extend(vec![]);
+                } else {
+                    crimes[criminal].extend(vec![GeneralCrime::Stall {
+                        msg_type: GeneralMsgType::KeygenMsgType {
+                            msg_type: self.current_p2p_msg(victim).unwrap(),
+                        },
+                    }]);
+                }
             }
         }
         crimes
