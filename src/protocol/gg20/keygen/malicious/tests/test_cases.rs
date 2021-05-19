@@ -220,3 +220,47 @@ pub(super) fn self_accusation_cases() -> Vec<TestCase> {
         ],
     }]
 }
+
+fn map_staller_to_crime(staller: &Behaviour) -> GeneralCrime {
+    let msg_type = match staller {
+        Stall { msg_type } => msg_type,
+        _ => panic!("Mapping non-stall behaviour to stall crime"),
+    };
+    GeneralCrime::Stall {
+        msg_type: crate::protocol::gg20::GeneralMsgType::KeygenMsgType {
+            msg_type: msg_type.clone(),
+        },
+    }
+}
+
+// create a staller
+pub(super) fn generate_stall_cases() -> Vec<StallTestCase> {
+    use MsgType::*;
+    let stallers = MsgType::iter()
+        // .filter(|msg_type| matches!(msg_type, R3FailBcast)) // don't match fail types
+        // .filter(|msg_type| matches!(msg_type, R2P2p { to: _ })) // don't match fail types
+        .filter(|msg_type| matches!(msg_type, R1Bcast | R2Bcast | R2P2p { to: _ } | R3Bcast)) // don't match fail types
+        .map(|msg_type| Stall { msg_type })
+        .collect::<Vec<Behaviour>>();
+
+    stallers
+        .iter()
+        .map(|staller| StallTestCase {
+            threshold: 1,
+            parties: vec![
+                StallTestCaseParty {
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+                StallTestCaseParty {
+                    behaviour: staller.clone(),
+                    expected_crimes: vec![map_staller_to_crime(&staller)],
+                },
+                StallTestCaseParty {
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+            ],
+        })
+        .collect()
+}

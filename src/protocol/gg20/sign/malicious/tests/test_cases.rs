@@ -215,6 +215,54 @@ pub(super) fn generate_spoof_after_honest_cases() -> Vec<TestCase> {
         .collect()
 }
 
+// create a staller
+pub(super) fn generate_stall_cases() -> Vec<TestCase> {
+    let stallers = Status::iter()
+        .filter(|s| {
+            matches!(
+                s,
+                Status::R1
+                    | Status::R2
+                    | Status::R3
+                    | Status::R4
+                    | Status::R5
+                    | Status::R6
+                    | Status::R7
+            )
+        })
+        .map(|s| UnauthenticatedSender {
+            victim: 0,
+            status: s,
+        })
+        .collect::<Vec<MaliciousType>>();
+
+    stallers
+        .iter()
+        .map(|staller| TestCase {
+            share_count: 3,
+            threshold: 1,
+            expect_success: false,
+            sign_participants: vec![
+                SignParticipant {
+                    party_index: 1,
+                    behaviour: staller.clone(),
+                    expected_crimes: map_type_to_crime(&staller),
+                },
+                SignParticipant {
+                    party_index: 0,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+                SignParticipant {
+                    party_index: 2,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+            ],
+        })
+        .collect()
+}
+
 // Test all cases where malicious behaviours are skipped due to self-targeting
 #[rustfmt::skip] // skip formatting to make file more readable
 pub(super) fn generate_skipping_cases() -> Vec<TestCase> {

@@ -16,6 +16,7 @@ lazy_static::lazy_static! {
     static ref SELF_ACCUSATION: Vec<TestCase> = self_accusation_cases();
     static ref SPOOF_BEFORE_CASES: Vec<TestCase> = generate_spoof_before_honest_cases();
     static ref SPOOF_AFTER_CASES: Vec<TestCase> = generate_spoof_after_honest_cases();
+    static ref STALL_CASES: Vec<StallTestCase> = generate_stall_cases();
 }
 
 struct KeygenSpoofer {
@@ -148,5 +149,69 @@ fn execute_test_case(t: &test_cases::TestCase) {
             .clone_output()
             .unwrap_or_else(|| panic!("honest party {} did not finish", keygen_party.my_index,));
         t.assert_expected_output(&output);
+    }
+}
+
+#[test]
+fn test_stall_cases() {
+    execute_stall_test_case_list(&STALL_CASES);
+}
+
+fn execute_stall_test_case_list(test_cases: &[test_cases::StallTestCase]) {
+    for t in test_cases {
+        info!(
+            "share_count [{}] threshold [{}]",
+            t.share_count(),
+            t.threshold
+        );
+        let malicious_parties: Vec<(usize, Behaviour)> = t
+            .parties
+            .iter()
+            .enumerate()
+            .filter(|(_, p)| p.behaviour.is_staller())
+            .map(|(i, p)| (i, p.behaviour.clone()))
+            .collect();
+        info!("malicious participants {:?}", malicious_parties);
+        execute_stall_test_case(t);
+    }
+}
+
+fn execute_stall_test_case(t: &test_cases::StallTestCase) {
+    let mut keygen_parties: Vec<Keygen> = t
+        .parties
+        .iter()
+        .enumerate()
+        .map(|(i, p)| {
+            let mut k = Keygen::new(t.share_count(), t.threshold, i).unwrap();
+            k.behaviour = p.behaviour.clone();
+            k
+        })
+        .collect();
+
+    let stallers: Vec<KeygenStaller> = keygen_parties
+        .iter_mut()
+        .enumerate()
+        .map(|(index, s)| match s.behaviour.clone() {
+            Behaviour::Stall { msg_type } => Some(KeygenStaller { index, msg_type }),
+            _ => None,
+        })
+        .filter(|staller| staller.is_some())
+        .map(|staller| staller.unwrap())
+        .collect();
+
+    // need to do an extra iteration because we can't return reference to temp objects
+    let stallers: Vec<&dyn Staller> = stallers.iter().map(|s| s as &dyn Staller).collect();
+
+    let mut protocols: Vec<&mut dyn Protocol> = keygen_parties
+        .iter_mut()
+        .map(|p| p as &mut dyn Protocol)
+        .collect();
+
+    execute_protocol_vec_stall(&mut protocols, &stallers);
+
+    // all honest parties are waiting on the same messages
+    for keygen_party in keygen_parties.iter().filter(|k| k.behaviour.is_honest()) {
+        let waiting_on = keygen_party.waiting_on();
+        t.assert_expected_waiting_on(&waiting_on);
     }
 }
