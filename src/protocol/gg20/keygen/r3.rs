@@ -1,5 +1,5 @@
 use super::{crimes::Crime, Keygen, Status};
-use crate::protocol::gg20::vss;
+use crate::{hash, k256_serde::to_bytes, protocol::gg20::vss};
 use curv::{
     cryptographic_primitives::{
         commitments::{hash_commitment::HashCommitment, traits::Commitment},
@@ -55,11 +55,22 @@ impl Keygen {
 
         // check commitments
         // compute my_ecdsa_secret_key_share, ecdsa_public_key, all_ecdsa_public_key_shares
+
+        // curv
         let mut ecdsa_public_key = r1state.my_y_i;
         let mut my_ecdsa_secret_key_share = r2state.my_share_of_my_u_i;
         let mut all_ecdsa_public_key_shares: Vec<GE> = (0..self.share_count)
             // start each summation with my contribution
             .map(|i| vss::get_point_commitment(&r2state.my_u_i_share_commitments, i))
+            .collect();
+
+        // k256
+        let mut ecdsa_public_key_k256 = *r1state.my_u_i_vss_k256.get_commit().secret_commit();
+        let mut my_ecdsa_secret_key_share_k256 = r2state.my_share_of_my_u_i_k256;
+        let mut all_ecdsa_public_key_shares_k256: Vec<k256::ProjectivePoint> = (0..self
+            .share_count)
+            // start each summation with my contribution
+            .map(|i| r1state.my_u_i_vss_k256.get_commit().share_commit(i))
             .collect();
 
         #[allow(clippy::needless_range_loop)]
@@ -72,6 +83,8 @@ impl Keygen {
             let my_r2p2p = self.in_all_r2p2ps[i].vec_ref()[self.my_index]
                 .as_ref()
                 .unwrap();
+
+            // curv
             let y_i = &r2bcast.u_i_share_commitments[0];
             let y_i_commit = HashCommitment::create_commitment_with_user_defined_randomness(
                 &y_i.bytes_compressed_to_big_int(),
@@ -84,12 +97,27 @@ impl Keygen {
                 criminals[i].push(crime);
             }
 
+            // k256
+            let y_i_k256 = r2bcast.u_i_share_commits_k256.secret_commit();
+            let y_i_commit_k256 =
+                hash::commit_with_randomness(to_bytes(y_i_k256), &r2bcast.y_i_reveal_k256);
+
+            if y_i_commit_k256 != r1bcast.y_i_commit_k256 {
+                let crime = Crime::R3BadReveal;
+                warn!("party {} detect {:?} by {}", self.my_index, crime, i);
+                criminals[i].push(crime);
+            }
+
             // decrypt share
+
+            // curv
             let (u_i_share_plaintext, u_i_share_randomness) = Paillier::open(
                 &self.r1state.as_ref().unwrap().my_dk,
                 &RawCiphertext::from(&my_r2p2p.encrypted_u_i_share),
             );
             let u_i_share: FE = ECScalar::from(&u_i_share_plaintext.0);
+
+            // k256
 
             let vss_valid =
                 vss::validate_share(&r2bcast.u_i_share_commitments, &u_i_share, self.my_index)

@@ -33,9 +33,9 @@ impl Vss {
     pub fn get_secret(&self) -> &k256::Scalar {
         &self.secret_coeffs[0]
     }
-    pub fn get_secret_commit(&self) -> &k256::ProjectivePoint {
-        &self.commit.0[0].unwrap()
-    }
+    // pub fn get_secret_commit(&self) -> &k256::ProjectivePoint {
+    //     &self.commit.0[0].unwrap()
+    // }
     pub fn get_commit(&self) -> &Commit {
         &self.commit
     }
@@ -71,6 +71,12 @@ impl Commit {
                 acc.mul(&index_scalar).add(p.unwrap())
             })
     }
+
+    /// Equal to share_commit(0)
+    pub fn secret_commit(&self) -> &k256::ProjectivePoint {
+        &self.0[0].unwrap()
+    }
+
     pub fn validate_share_commit(
         &self,
         share_commit: &k256::ProjectivePoint,
@@ -83,7 +89,7 @@ impl Commit {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Share(k256::Scalar);
 
 impl Share {

@@ -4,7 +4,7 @@ use sha3::{Digest, Sha3_256};
 
 // can't derive Serialize, Deserialize for sha3::digest::Output<Sha3_256>
 // so use [u8; 32] instead
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub(crate) struct Output([u8; 32]);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
