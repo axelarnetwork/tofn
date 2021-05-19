@@ -132,7 +132,7 @@ impl Keygen {
 
             // k256: decrypt share
             let dk_k256 = paillier_k256::DecryptionKey::from(&self.r1state.as_ref().unwrap().my_dk);
-            let (u_i_share_plaintext_k256, u_i_share_randomness_k256) =
+            let (u_i_share_plaintext_k256, _u_i_share_randomness_k256) =
                 paillier_k256::decrypt_with_randomness(
                     &dk_k256,
                     &my_r2p2p.encrypted_u_i_share_k256,
