@@ -74,13 +74,17 @@ impl Keygen {
             .collect();
 
         // k256
-        let mut ecdsa_public_key_k256 = *r1state.my_u_i_vss_k256.get_commit().secret_commit();
+        let my_vss_commit_k256 = &self.in_r2bcasts.vec_ref()[self.my_index]
+            .as_ref()
+            .unwrap()
+            .u_i_share_commits_k256;
+        let mut ecdsa_public_key_k256 = my_vss_commit_k256.secret_commit().clone();
         let mut my_ecdsa_secret_key_share_k256 =
             r2state.my_share_of_my_u_i_k256.get_scalar().clone();
         let mut all_ecdsa_public_key_shares_k256: Vec<k256::ProjectivePoint> = (0..self
             .share_count)
             // start each summation with my contribution
-            .map(|i| r1state.my_u_i_vss_k256.get_commit().share_commit(i))
+            .map(|i| my_vss_commit_k256.share_commit(i))
             .collect();
 
         #[allow(clippy::needless_range_loop)]

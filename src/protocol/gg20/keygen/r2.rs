@@ -138,7 +138,7 @@ impl Keygen {
             y_i_reveal: r1state.my_y_i_reveal.clone(),
             u_i_share_commitments: my_u_i_share_commitments.clone(),
             y_i_reveal_k256: r1state.my_y_i_reveal_k256.clone(),
-            u_i_share_commits_k256: r1state.my_u_i_vss_k256.get_commit().clone(),
+            u_i_share_commits_k256: r1state.my_u_i_vss_k256.commit(),
         };
         (
             State {

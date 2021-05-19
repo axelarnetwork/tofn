@@ -6,24 +6,14 @@ use crate::k256_serde;
 
 pub struct Vss {
     secret_coeffs: Vec<k256::Scalar>,
-    commit: Commit,
 }
 
 impl Vss {
-    pub fn new(t: usize) -> Self {
-        let secret_coeffs: Vec<k256::Scalar> = (0..=t)
+    pub fn new(threshold: usize) -> Self {
+        let secret_coeffs: Vec<k256::Scalar> = (0..=threshold)
             .map(|_| k256::Scalar::random(rand::thread_rng()))
             .collect();
-        let commit = Commit(
-            secret_coeffs
-                .iter()
-                .map(|coeff| (k256::ProjectivePoint::generator() * coeff).into())
-                .collect(),
-        );
-        Self {
-            secret_coeffs,
-            commit,
-        }
+        Self { secret_coeffs }
     }
     pub fn get_threshold(&self) -> usize {
         self.secret_coeffs.len() - 1
@@ -31,11 +21,13 @@ impl Vss {
     pub fn get_secret(&self) -> &k256::Scalar {
         &self.secret_coeffs[0]
     }
-    pub fn get_secret_commit(&self) -> &k256::ProjectivePoint {
-        &self.get_commit().secret_commit()
-    }
-    pub fn get_commit(&self) -> &Commit {
-        &self.commit
+    pub fn commit(&self) -> Commit {
+        Commit(
+            self.secret_coeffs
+                .iter()
+                .map(|coeff| (k256::ProjectivePoint::generator() * coeff).into())
+                .collect(),
+        )
     }
     pub fn shares(&self, n: usize) -> Vec<Share> {
         assert!(self.get_threshold() < n); // also ensures n > 0
@@ -169,7 +161,6 @@ mod tests {
                 k256::Scalar::from(2u32),
                 k256::Scalar::from(2u32),
             ],
-            commit: Commit(Vec::new()), // ignore commit, we are testing only secret_coeffs
         };
         let shares = vss.shares(3);
         let expected_shares = vec![
@@ -194,7 +185,7 @@ mod tests {
         let (t, n) = (2, 5);
         let vss = Vss::new(t);
         let shares = vss.shares(n);
-        let commit = vss.get_commit();
+        let commit = vss.commit();
         for s in shares.iter() {
             assert!(commit.validate_share(s));
         }

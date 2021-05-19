@@ -43,10 +43,12 @@ pub(super) struct State {
 impl Keygen {
     pub(super) fn r1(&self) -> (State, Bcast) {
         assert!(matches!(self.status, Status::New));
-        let my_u_i_vss_k256 = vss_k256::Vss::new(self.threshold);
 
-        let (my_y_i_commit_k256, my_y_i_reveal_k256) =
-            hash::commit(to_bytes(my_u_i_vss_k256.get_secret_commit()));
+        // k256
+        let my_u_i_vss_k256 = vss_k256::Vss::new(self.threshold);
+        let (my_y_i_commit_k256, my_y_i_reveal_k256) = hash::commit(to_bytes(
+            &(k256::ProjectivePoint::generator() * my_u_i_vss_k256.get_secret()),
+        ));
 
         #[cfg(feature = "malicious")]
         let my_y_i_commit_k256 = if matches!(self.behaviour, Behaviour::R1BadCommit) {
@@ -56,8 +58,7 @@ impl Keygen {
             my_y_i_commit_k256
         };
 
-        // DONE TO HERE
-
+        // curv
         let my_u_i = FE::new_random();
         let my_y_i = GE::generator() * my_u_i;
         let (my_y_i_commit, my_y_i_reveal) =
