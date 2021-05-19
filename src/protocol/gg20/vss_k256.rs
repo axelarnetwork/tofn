@@ -1,8 +1,6 @@
 //! Helpers for verifiable secret sharing
-
 use k256::elliptic_curve::Field;
 use serde::{Deserialize, Serialize};
-use std::ops::{Add, Mul};
 
 use crate::k256_serde;
 
@@ -50,8 +48,8 @@ impl Vss {
                         .secret_coeffs
                         .iter()
                         .rev()
-                        .fold(k256::Scalar::one(), |acc, coeff| {
-                            acc.mul(&index_scalar).add(coeff)
+                        .fold(k256::Scalar::zero(), |acc, coeff| {
+                            acc * &index_scalar + coeff
                         }),
                     index,
                 }
@@ -70,7 +68,7 @@ impl Commit {
             .iter()
             .rev()
             .fold(k256::ProjectivePoint::identity(), |acc, p| {
-                acc.mul(&index_scalar).add(p.unwrap())
+                acc * &index_scalar + p.unwrap()
             })
     }
     pub fn secret_commit(&self) -> &k256::ProjectivePoint {
@@ -91,7 +89,7 @@ impl Commit {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Share {
     scalar: k256::Scalar,
     index: usize,
@@ -109,8 +107,96 @@ impl Share {
     }
 }
 
-// impl From<k256::Scalar> for Share {
-//     fn from(s: k256::Scalar) -> Self {
-//         Share(s)
-//     }
-// }
+pub fn recover_secret(shares: &[Share], threshold: usize) -> k256::Scalar {
+    assert!(shares.len() > threshold);
+    let points: Vec<Point> = shares
+        .iter()
+        .take(threshold + 1)
+        .map(|s| Point {
+            x: k256::Scalar::from(s.index as u32 + 1), // vss indices start at 1
+            y: s.scalar,
+        })
+        .collect();
+    points
+        .iter()
+        .enumerate()
+        .fold(k256::Scalar::zero(), |sum, (i, point_i)| {
+            sum + point_i.y * {
+                let (numerator, denominator) = points.iter().enumerate().fold(
+                    (k256::Scalar::one(), k256::Scalar::one()),
+                    |(num, den), (j, point_j)| {
+                        if j == i {
+                            (num, den)
+                        } else {
+                            (num * point_j.x, den * (point_j.x - point_i.x))
+                        }
+                    },
+                );
+                numerator * denominator.invert().unwrap()
+            }
+        })
+}
+
+struct Point {
+    x: k256::Scalar,
+    y: k256::Scalar,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand::prelude::SliceRandom;
+
+    #[test]
+    fn recover_secret_correctness() {
+        let (t, n) = (2, 5);
+        let vss = Vss::new(t);
+        let secret = vss.get_secret();
+        let shuffled_shares = {
+            let mut shares = vss.shares(n);
+            shares.shuffle(&mut rand::thread_rng());
+            shares
+        };
+        let recovered_secret = recover_secret(&shuffled_shares, t);
+        assert_eq!(recovered_secret, *secret);
+    }
+
+    #[test]
+    fn polynomial_evaluation() {
+        let vss = Vss {
+            secret_coeffs: vec![
+                k256::Scalar::from(2u32),
+                k256::Scalar::from(2u32),
+                k256::Scalar::from(2u32),
+            ],
+            commit: Commit(Vec::new()), // ignore commit, we are testing only secret_coeffs
+        };
+        let shares = vss.shares(3);
+        let expected_shares = vec![
+            Share {
+                scalar: k256::Scalar::from(6u32),
+                index: 0,
+            },
+            Share {
+                scalar: k256::Scalar::from(14u32),
+                index: 1,
+            },
+            Share {
+                scalar: k256::Scalar::from(26u32),
+                index: 2,
+            },
+        ];
+        assert_eq!(shares, expected_shares);
+    }
+
+    #[test]
+    fn share_validation() {
+        let (t, n) = (2, 5);
+        let vss = Vss::new(t);
+        let shares = vss.shares(n);
+        let commit = vss.get_commit();
+        for s in shares.iter() {
+            assert!(commit.validate_share(s));
+        }
+    }
+}
