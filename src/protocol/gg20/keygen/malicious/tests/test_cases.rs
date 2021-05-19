@@ -51,13 +51,7 @@ impl Behaviour {
     }
 
     pub(super) fn is_staller(&self) -> bool {
-        matches!(
-            self,
-            Stall {
-                victim: _,
-                msg_type: _
-            }
-        )
+        matches!(self, Stall { msg_type: _ })
     }
 
     /// Return the `Crime` variant `c` such that
@@ -73,13 +67,6 @@ impl Behaviour {
             } => Crime::SpoofedMessage {
                 victim: *v,
                 status: s.clone(),
-            },
-            Stall {
-                victim: v,
-                msg_type: mt,
-            } => Crime::Stall {
-                victim: *v,
-                msg_type: mt.clone(),
             },
             R1BadCommit => Crime::R3BadReveal,
             R2BadShare { victim: v } => Crime::R4FailBadVss { victim: *v },

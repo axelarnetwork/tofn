@@ -10,7 +10,7 @@ use super::MsgType;
 #[derive(Clone, Debug, EnumIter)]
 pub enum Behaviour {
     Honest,
-    Stall { victim: usize, msg_type: MsgType },
+    Stall { msg_type: MsgType },
     UnauthenticatedSender { victim: usize, status: Status },
     R1BadCommit,
     R2BadShare { victim: usize },
