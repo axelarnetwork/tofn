@@ -90,6 +90,7 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
                     victim: _,
                     status: _
                 }
+                | Stall { msg_type: _ }
         )
     }) {
         basic_test_cases.push(TestCase {

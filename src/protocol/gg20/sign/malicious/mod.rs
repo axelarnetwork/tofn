@@ -85,7 +85,7 @@ impl Protocol for BadSign {
                 victim: _,
                 status: _,
             } => self.sign.next_round(), // act normally; message stall occurs at the routing level
-            Stall { msg_type } => self.sign.next_round(),
+            Stall { msg_type: _ } => self.sign.next_round(),
             R3BadNonceXKeyshareSummand => self.sign.next_round(), // TODO hack type7 fault
             R1BadProof { victim } => {
                 if !matches!(self.sign.status, Status::New) {
