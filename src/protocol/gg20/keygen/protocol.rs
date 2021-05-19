@@ -200,7 +200,7 @@ impl Protocol for Keygen {
                     return Self::crimes_from_fillvec(
                         &self.in_r2bcasts,
                         GeneralMsgType::KeygenMsgType {
-                            msg_type: MsgType::R1Bcast,
+                            msg_type: MsgType::R2Bcast,
                         },
                     );
                 }
@@ -247,8 +247,8 @@ impl Keygen {
     }
 
     // create crimes out the missing entires in a fillvec; see test_waiting_on_bcast()
-    // - fillvec [Some, Some, Some] returns [[], [], []]
-    // - fillvec [Some, Some, None] returns [[], [], [GeneralCrime::Stall{msg_type: RXBcast}]]
+    // - fillvec [Some(), Some(), Some()] returns [[], [], []]
+    // - fillvec [Some(), Some(),  None ] returns [[], [], [GeneralCrime::Stall{msg_type: RXBcast}]]
     fn crimes_from_fillvec<T>(
         fillvec: &FillVec<T>,
         msg_type: GeneralMsgType,
@@ -320,7 +320,7 @@ mod test {
             gg20::{
                 keygen::{r2::Bcast, r2::P2p, Keygen, MsgType, Status},
                 GeneralCrime,
-                GeneralMsgType::{self, KeygenMsgType},
+                GeneralMsgType::KeygenMsgType,
             },
             Protocol,
         },
@@ -378,15 +378,6 @@ mod test {
         ];
 
         assert!(k.expecting_more_msgs_this_round());
-        assert_eq!(
-            expected_crimes,
-            Keygen::crimes_from_fillvec(
-                &fillvec,
-                GeneralMsgType::KeygenMsgType {
-                    msg_type: MsgType::R1Bcast
-                }
-            )
-        );
         assert_eq!(expected_crimes, k.waiting_on());
     }
 
