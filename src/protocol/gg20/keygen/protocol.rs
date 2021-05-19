@@ -186,9 +186,12 @@ impl Protocol for Keygen {
         }
     }
 
+    // return timeout crimes derived by messages that have not been received at the current round
     fn waiting_on(&self) -> Vec<Vec<GeneralCrime>> {
+        // vec without crimes to return in trivial cases
+        let no_crimes = vec![vec![]; self.in_r1bcasts.vec_ref().len()];
         match self.status {
-            New => vec![vec![]; self.in_r1bcasts.vec_ref().len()],
+            New => no_crimes,
             R1 => Self::crimes_from_fillvec(
                 &self.in_r1bcasts,
                 GeneralMsgType::KeygenMsgType {
@@ -210,16 +213,16 @@ impl Protocol for Keygen {
             R3 => Self::crimes_from_fillvec(
                 &self.in_r3bcasts,
                 GeneralMsgType::KeygenMsgType {
-                    msg_type: MsgType::R1Bcast,
+                    msg_type: MsgType::R3Bcast,
                 },
             ),
             R3Fail => Self::crimes_from_fillvec(
                 &self.in_r3bcasts_fail,
                 GeneralMsgType::KeygenMsgType {
-                    msg_type: MsgType::R1Bcast,
+                    msg_type: MsgType::R3FailBcast,
                 },
             ),
-            Done | Fail => vec![vec![]; self.in_r1bcasts.vec_ref().len()],
+            Done | Fail => no_crimes,
         }
     }
 
@@ -247,7 +250,9 @@ impl Keygen {
         }
     }
 
-    // create crimes out the missing entires in a fillvec
+    // create crimes out the missing entires in a fillvec; see test_crimes_from_fillvec()
+    // - fillvec [Some, Some, Some] returns [[], [], []]
+    // - fillvec [Some, Some, None] returns [[], [], [GeneralCrime::Stall{msg_type: RXBcast}]]
     fn crimes_from_fillvec<T>(
         fillvec: &FillVec<T>,
         msg_type: GeneralMsgType,
@@ -272,11 +277,24 @@ impl Keygen {
     fn current_p2p_msg(&self, to: usize) -> Option<MsgType> {
         match self.status {
             R2 => Some(MsgType::R2P2p { to }),
-            _ => None,
+            // do not use catch-all pattern `_ => None,`
+            // instead, list all variants explicity
+            // because otherwise you'll forget to update this match statement when you add a variant
+            R1 | R3 | R3Fail | New | Done | Fail => None,
         }
     }
 
-    // create crimes out of the missing entries in a vec of fillvecs
+    // create crimes out of the missing entries in a vec of fillvecs; see test_crimes_from_vec_fillvec()
+    // - vec<fillvec> [[Some(), Some(), Some()], <- party 0 list
+    //                 [Some(), Some(), Some()], <- party 1 list
+    //                 [Some(), Some(), Some()]] <- party 2 list
+    //        returns [[], [], []]
+    // - vec<fillvec> [[Some(),  None , Some()], <- party 0 list; didn't recv p2p from p1
+    //                 [Some(), Some(), Some()], <- party 1 list
+    //                 [Some(),  None , Some()]] <- party 2 list; didn;t recv p2p from p1
+    //        returns [[],
+    //                 [GeneralCrime::Stall{msg_type: RXP2p{to: 0}}, GeneralCrime::Stall{msg_type: RXP2p{to: 2}}],
+    //                 []]
     fn crimes_from_vec_fillvec<T>(&self, vec_fillvec: &Vec<FillVec<T>>) -> Vec<Vec<GeneralCrime>> {
         // retrieve all crime reports from all parties
         let mut all_p2p_crimes = vec![];
@@ -314,7 +332,7 @@ mod test {
         },
     };
 
-    // make our live easier for testing
+    // gain direct access to bcast msgs to make our live easier for testing
     impl Keygen {
         fn set_in_r2p2ps(&mut self, in_all_r2p2ps: Vec<FillVec<P2p>>) {
             self.in_all_r2p2ps = in_all_r2p2ps
