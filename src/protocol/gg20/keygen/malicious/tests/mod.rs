@@ -2,7 +2,7 @@
 use super::Behaviour;
 use crate::protocol::{
     gg20::keygen::{Keygen, MsgMeta, MsgType, Status},
-    tests::{execute_protocol_vec_spoof, Spoofer},
+    tests::{execute_protocol_vec_spoof, execute_protocol_vec_stall, Spoofer, Staller},
     Protocol,
 };
 use tracing::info;
@@ -44,6 +44,24 @@ impl Spoofer for KeygenSpoofer {
             MsgType::R3FailBcast => Status::R3,
         };
         curr_status == self.status // why can't I use matches?
+    }
+}
+
+struct KeygenStaller {
+    index: usize,
+    msg_type: MsgType,
+}
+
+impl Staller for KeygenStaller {
+    fn index(&self) -> usize {
+        self.index
+    }
+    fn should_stall(&self, sender_idx: usize, msg: &[u8]) -> bool {
+        let msg: MsgMeta = bincode::deserialize(msg).unwrap();
+        if sender_idx != self.index || msg.msg_type != self.msg_type {
+            return false;
+        }
+        true
     }
 }
 

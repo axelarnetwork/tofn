@@ -1,7 +1,10 @@
 use strum::IntoEnumIterator;
 
 use super::{Behaviour, Behaviour::*};
-use crate::protocol::gg20::keygen::{crimes::Crime, KeygenOutput, Status};
+use crate::protocol::gg20::{
+    keygen::{crimes::Crime, KeygenOutput, MsgType, Status},
+    GeneralCrime,
+};
 
 pub(super) struct TestCaseParty {
     pub(super) behaviour: Behaviour,
@@ -35,6 +38,29 @@ impl TestCase {
     }
 }
 
+pub(super) struct StallTestCaseParty {
+    pub(super) behaviour: Behaviour,
+    pub(super) expected_crimes: Vec<GeneralCrime>,
+}
+
+pub(super) struct StallTestCase {
+    pub(super) threshold: usize,
+    pub(super) parties: Vec<StallTestCaseParty>,
+}
+
+impl StallTestCase {
+    pub(crate) fn share_count(&self) -> usize {
+        self.parties.len()
+    }
+    pub(crate) fn assert_expected_waiting_on(&self, output: &[Vec<GeneralCrime>]) {
+        let mut expected_output = vec![];
+        for p in &self.parties {
+            expected_output.push(p.expected_crimes.clone());
+        }
+        assert_eq!(output, expected_output);
+    }
+}
+
 impl Behaviour {
     pub(super) fn is_honest(&self) -> bool {
         matches!(self, Honest)
@@ -61,6 +87,7 @@ impl Behaviour {
     pub(super) fn to_crime(&self) -> Crime {
         match self {
             Honest => panic!("`to_crime` called with `Honest`"),
+            Stall { msg_type: _ } => panic!("`to_crime` called with `Stall`"),
             UnauthenticatedSender {
                 victim: v,
                 status: s,

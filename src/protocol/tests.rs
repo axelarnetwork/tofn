@@ -6,6 +6,11 @@ pub(crate) trait Spoofer {
     fn is_spoof_round(&self, msg: &[u8]) -> bool;
 }
 
+pub(crate) trait Staller {
+    fn index(&self) -> usize;
+    fn should_stall(&self, my_index: usize, msg: &[u8]) -> bool;
+}
+
 pub(crate) fn execute_protocol_vec(parties: &mut [&mut dyn Protocol]) {
     execute_protocol_vec_spoof(
         parties,
@@ -18,7 +23,18 @@ fn all_parties_expect_the_same(parties: &[&mut dyn Protocol]) -> bool {
     let expecting_more = parties[0].expecting_more_msgs_this_round();
     for (i, p) in parties.iter().enumerate() {
         if expecting_more != p.expecting_more_msgs_this_round() {
-            println!("Party {} disagree", i);
+            println!("Party {} disagree in expecting more messages", i);
+            return false;
+        }
+    }
+    true
+}
+
+fn all_parties_found_same_crimes(parties: &[&mut dyn Protocol]) -> bool {
+    let expected_crimes = parties[0].waiting_on();
+    for (i, p) in parties.iter().enumerate() {
+        if expected_crimes != p.waiting_on() {
+            println!("Party {} disagree on stalling crimes", i);
             return false;
         }
     }
