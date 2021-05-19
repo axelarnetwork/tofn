@@ -2,8 +2,14 @@
 //! * tidy some API ergonomics in rust-paillier
 //! * facilitate easy swap-out of rust-paillier crate for something else
 
-use paillier::{BigInt, EncryptWithChosenRandomness, Open, Paillier};
+use paillier::{BigInt, EncryptWithChosenRandomness, KeyGeneration, Open, Paillier};
 use serde::{Deserialize, Serialize};
+
+pub(crate) fn keygen() -> (EncryptionKey, DecryptionKey) {
+    // TODO safe primes
+    let (ek, dk) = Paillier::keypair().keys();
+    (EncryptionKey(ek), DecryptionKey(dk))
+}
 
 pub(crate) fn encrypt(ek: &EncryptionKey, msg: &Plaintext) -> (Ciphertext, Randomness) {
     let r = Randomness(paillier::Randomness::sample(&ek.0).0);
@@ -51,6 +57,7 @@ impl From<&paillier::DecryptionKey> for DecryptionKey {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Plaintext(paillier::BigInt);
 
 impl Plaintext {
@@ -61,22 +68,28 @@ impl Plaintext {
         let r_bytes = *k256::FieldBytes::from_slice(&r_pad);
         k256::Scalar::from_bytes_reduced(&r_bytes)
     }
+    pub(crate) fn from_scalar(s: &k256::Scalar) -> Self {
+        Self(paillier::BigInt::from(s.to_bytes().as_slice()))
+    }
 }
 
+/// prefer `Plaintext` associated functions over `From` impls
+/// because my IDE can follow the links
 impl From<&Plaintext> for k256::Scalar {
     fn from(p: &Plaintext) -> Self {
         p.to_scalar()
     }
 }
-
 impl From<&k256::Scalar> for Plaintext {
     fn from(s: &k256::Scalar) -> Self {
-        Plaintext(paillier::BigInt::from(s.to_bytes().as_slice()))
+        Plaintext::from_scalar(s)
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct Ciphertext(paillier::BigInt);
+
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Randomness(paillier::BigInt);
 
 /// reduce `n` modulo the order of the secp256k1 curve
@@ -101,4 +114,25 @@ pub(crate) fn pad32(v: Vec<u8>) -> Vec<u8> {
     let mut v_pad = vec![0; 32];
     v_pad[(32 - v.len())..].copy_from_slice(&v);
     v_pad
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use k256::elliptic_curve::Field;
+
+    #[test]
+    fn basic_round_trip() {
+        let s = k256::Scalar::random(rand::thread_rng());
+        let pt = Plaintext::from(&s);
+        let (ek, dk) = keygen();
+        let (ct, r) = encrypt(&ek, &pt);
+        let (pt2, r2) = decrypt_with_randomness(&dk, &ct);
+        assert_eq!(pt, pt2);
+        assert_eq!(r, r2);
+        let s2 = pt2.to_scalar();
+        assert_eq!(s, s2);
+    }
+
+    // TODO test for round trip after homomorphic ops
 }

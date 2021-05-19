@@ -25,10 +25,14 @@ pub struct Bcast {
     pub dlog_proof: DLogProof,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
-pub struct State {
+pub(super) struct State {
     pub(super) ecdsa_public_key: GE,                 // the final pub key
     pub(super) my_ecdsa_secret_key_share: FE,        // my final secret key share
     pub(super) all_ecdsa_public_key_shares: Vec<GE>, // these sum to ecdsa_public_key
+
+    pub(super) ecdsa_public_key_k256: k256::ProjectivePoint,
+    pub(super) my_ecdsa_secret_key_share_k256: k256::Scalar,
+    pub(super) all_ecdsa_public_key_shares_k256: Vec<k256::ProjectivePoint>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -234,6 +238,9 @@ impl Keygen {
                 ecdsa_public_key,
                 my_ecdsa_secret_key_share,
                 all_ecdsa_public_key_shares,
+                ecdsa_public_key_k256,
+                my_ecdsa_secret_key_share_k256,
+                all_ecdsa_public_key_shares_k256,
             },
             out_bcast: Bcast {
                 dlog_proof: DLogProof::prove(&my_ecdsa_secret_key_share),
