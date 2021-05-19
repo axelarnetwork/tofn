@@ -100,7 +100,8 @@ impl Keygen {
 
             // k256: encrypt the share for party i
             let ek_256 = paillier_k256::EncryptionKey::from(ek);
-            let my_u_i_share_k256 = paillier_k256::Plaintext::from(my_u_i_shares_k256[i].unwrap());
+            let my_u_i_share_k256 =
+                paillier_k256::Plaintext::from(my_u_i_shares_k256[i].get_scalar());
             let (encrypted_u_i_share_k256, _) = paillier_k256::encrypt(&ek_256, &my_u_i_share_k256);
 
             // curv: encrypt the share for party i

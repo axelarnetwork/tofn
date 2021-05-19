@@ -219,3 +219,6 @@ impl std::fmt::Display for ParamsError {
 
 #[cfg(test)]
 pub(super) mod tests; // pub(super) so that sign module can see tests::execute_keygen
+
+// #[cfg(test)]
+// pub(super) mod tests_k256; // pub(super) so that sign module can see tests::execute_keygen

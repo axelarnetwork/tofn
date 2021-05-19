@@ -75,7 +75,8 @@ impl Keygen {
 
         // k256
         let mut ecdsa_public_key_k256 = *r1state.my_u_i_vss_k256.get_commit().secret_commit();
-        let mut my_ecdsa_secret_key_share_k256 = r2state.my_share_of_my_u_i_k256.unwrap().clone();
+        let mut my_ecdsa_secret_key_share_k256 =
+            r2state.my_share_of_my_u_i_k256.get_scalar().clone();
         let mut all_ecdsa_public_key_shares_k256: Vec<k256::ProjectivePoint> = (0..self
             .share_count)
             // start each summation with my contribution
@@ -132,7 +133,8 @@ impl Keygen {
                     &dk_k256,
                     &my_r2p2p.encrypted_u_i_share_k256,
                 );
-            let u_i_share_k256 = vss_k256::Share::from(u_i_share_plaintext_k256.to_scalar());
+            let u_i_share_k256 =
+                vss_k256::Share::from_scalar(u_i_share_plaintext_k256.to_scalar(), self.my_index);
 
             // curv
             let vss_valid =
@@ -167,10 +169,10 @@ impl Keygen {
             // k256
             if !r2bcast
                 .u_i_share_commits_k256
-                .validate_share(&u_i_share_k256, self.my_index)
+                .validate_share(&u_i_share_k256)
             {
                 warn!(
-                    "party {} accuse {} of {:?} TODO go to r4_fail",
+                    "party {} accuse {} of {:?} TODO k256 go to r4_fail",
                     self.my_index,
                     i,
                     Crime::R4FailBadVss {
@@ -191,7 +193,7 @@ impl Keygen {
             // k256
             ecdsa_public_key_k256 = ecdsa_public_key_k256 + y_i_k256;
             my_ecdsa_secret_key_share_k256 =
-                my_ecdsa_secret_key_share_k256 + u_i_share_k256.unwrap();
+                my_ecdsa_secret_key_share_k256 + u_i_share_k256.get_scalar();
 
             for (j, ecdsa_public_key_share_k256) in
                 all_ecdsa_public_key_shares_k256.iter_mut().enumerate()

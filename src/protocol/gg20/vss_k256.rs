@@ -41,18 +41,20 @@ impl Vss {
     }
     pub fn shares(&self, n: usize) -> Vec<Share> {
         assert!(self.get_threshold() < n); // also ensures n > 0
-        (1..=n as u32)
-            .map(|i| {
-                let i_scalar = k256::Scalar::from(i);
-                Share(
+        (0..n)
+            .map(|index| {
+                let index_scalar = k256::Scalar::from(index as u32 + 1); // vss indices start at 1
+                Share {
                     // evaluate the polynomial at i using Horner's method
-                    self.secret_coeffs
+                    scalar: self
+                        .secret_coeffs
                         .iter()
                         .rev()
                         .fold(k256::Scalar::one(), |acc, coeff| {
-                            acc.mul(&i_scalar).add(coeff)
+                            acc.mul(&index_scalar).add(coeff)
                         }),
-                )
+                    index,
+                }
             })
             .collect()
     }
@@ -71,12 +73,9 @@ impl Commit {
                 acc.mul(&index_scalar).add(p.unwrap())
             })
     }
-
-    /// Equal to share_commit(0)
     pub fn secret_commit(&self) -> &k256::ProjectivePoint {
         &self.0[0].unwrap()
     }
-
     pub fn validate_share_commit(
         &self,
         share_commit: &k256::ProjectivePoint,
@@ -84,22 +83,34 @@ impl Commit {
     ) -> bool {
         self.share_commit(index) == *share_commit
     }
-    pub fn validate_share(&self, share: &Share, index: usize) -> bool {
-        self.validate_share_commit(&(k256::ProjectivePoint::generator() * share.0), index)
+    pub fn validate_share(&self, share: &Share) -> bool {
+        self.validate_share_commit(
+            &(k256::ProjectivePoint::generator() * share.get_scalar()),
+            share.get_index(),
+        )
     }
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct Share(k256::Scalar);
+pub struct Share {
+    scalar: k256::Scalar,
+    index: usize,
+}
 
 impl Share {
-    pub fn unwrap(&self) -> &k256::Scalar {
-        &self.0
+    pub fn from_scalar(scalar: k256::Scalar, index: usize) -> Self {
+        Self { scalar, index }
+    }
+    pub fn get_scalar(&self) -> &k256::Scalar {
+        &self.scalar
+    }
+    pub fn get_index(&self) -> usize {
+        self.index
     }
 }
 
-impl From<k256::Scalar> for Share {
-    fn from(s: k256::Scalar) -> Self {
-        Share(s)
-    }
-}
+// impl From<k256::Scalar> for Share {
+//     fn from(s: k256::Scalar) -> Self {
+//         Share(s)
+//     }
+// }
