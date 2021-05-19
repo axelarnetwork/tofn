@@ -4,7 +4,7 @@ use crate::protocol::{
         keygen::tests::execute_keygen,
         sign::{MsgMeta, MsgType},
     },
-    tests::{execute_protocol_vec_spoof, Spoofer},
+    tests::{execute_protocol_vec_spoof, execute_protocol_vec_stall, Spoofer, Staller},
     Protocol,
 };
 use tracing_test::traced_test; // enable logs in tests
@@ -186,5 +186,101 @@ fn execute_test_case(t: &test_cases::TestCase) {
             )
         });
         t.assert_expected_output(&output);
+    }
+}
+
+lazy_static::lazy_static! {
+    static ref STALL_CASES: Vec<StallTestCase> = generate_stall_cases();
+}
+
+struct SignStaller {
+    index: usize,
+    msg_type: MsgType,
+}
+
+impl Staller for SignStaller {
+    fn index(&self) -> usize {
+        self.index
+    }
+    fn should_stall(&self, sender_idx: usize, msg: &[u8]) -> bool {
+        let msg: MsgMeta = bincode::deserialize(msg).unwrap();
+        if sender_idx != self.index || msg.msg_type != self.msg_type {
+            return false;
+        }
+        true
+    }
+}
+
+#[test]
+fn test_stall_cases() {
+    execute_stall_test_case_list(&STALL_CASES);
+}
+
+fn execute_stall_test_case_list(test_cases: &[test_cases::StallTestCase]) {
+    for t in test_cases {
+        let malicious_participants: Vec<(usize, MaliciousType)> = t
+            .sign_participants
+            .iter()
+            .enumerate()
+            .filter(|p| !matches!(p.1.behaviour, Honest))
+            .map(|p| (p.0, p.1.behaviour.clone()))
+            .collect();
+        info!(
+            "share_count [{}] threshold [{}]",
+            t.share_count, t.threshold
+        );
+        info!("malicious participants {:?}", malicious_participants);
+        execute_stall_test_case(t);
+    }
+}
+
+fn execute_stall_test_case(t: &test_cases::StallTestCase) {
+    let participant_indices: Vec<usize> =
+        t.sign_participants.iter().map(|p| p.party_index).collect();
+    let key_shares = execute_keygen(t.share_count, t.threshold);
+
+    let mut signers: Vec<BadSign> = t
+        .sign_participants
+        .iter()
+        .map(|p| {
+            BadSign::new(
+                &key_shares[p.party_index],
+                &participant_indices,
+                &MESSAGE_TO_SIGN,
+                p.behaviour.clone(),
+            )
+            .unwrap()
+        })
+        .collect();
+
+    let stallers: Vec<SignStaller> = signers
+        .iter()
+        .enumerate()
+        .map(|(index, s)| match s.malicious_type.clone() {
+            Stall { msg_type } => Some(SignStaller {
+                index,
+                msg_type: msg_type.clone(),
+            }),
+            _ => None,
+        })
+        .filter(|staller| staller.is_some())
+        .map(|staller| staller.unwrap())
+        .collect();
+
+    // need to do an extra iteration because we can't return reference to temp objects
+    let stallers: Vec<&dyn Staller> = stallers.iter().map(|s| s as &dyn Staller).collect();
+
+    let mut protocols: Vec<&mut dyn Protocol> =
+        signers.iter_mut().map(|p| p as &mut dyn Protocol).collect();
+
+    execute_protocol_vec_stall(&mut protocols, &stallers);
+
+    // all honest parties are waiting on the same messages
+    for signer in signers
+        .iter()
+        .filter(|k| matches!(k.malicious_type, Honest))
+    {
+        let waiting_on = signer.waiting_on();
+        t.assert_expected_waiting_on(&waiting_on);
     }
 }

@@ -233,12 +233,10 @@ fn map_staller_to_crime(staller: &Behaviour) -> GeneralCrime {
     }
 }
 
-// create a staller
+// create stallers
 pub(super) fn generate_stall_cases() -> Vec<StallTestCase> {
     use MsgType::*;
     let stallers = MsgType::iter()
-        // .filter(|msg_type| matches!(msg_type, R3FailBcast)) // don't match fail types
-        // .filter(|msg_type| matches!(msg_type, R2P2p { to: _ })) // don't match fail types
         .filter(|msg_type| matches!(msg_type, R1Bcast | R2Bcast | R2P2p { to: _ } | R3Bcast)) // don't match fail types
         .map(|msg_type| Stall { msg_type })
         .collect::<Vec<Behaviour>>();

@@ -1,9 +1,5 @@
 pub mod keygen {
-    use crate::protocol::{
-        gg20::keygen::Keygen,
-        tests::{execute_protocol_vec, execute_protocol_vec_stall},
-        Protocol,
-    };
+    use crate::protocol::{gg20::keygen::Keygen, tests::execute_protocol_vec, Protocol};
 
     lazy_static::lazy_static! {
         pub static ref TEST_CASES: Vec<(usize,usize)> // (share_count, threshold)

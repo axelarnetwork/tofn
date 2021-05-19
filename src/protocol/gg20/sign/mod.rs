@@ -54,7 +54,7 @@ pub mod malicious;
 pub mod crimes;
 mod protocol;
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, EnumIter)]
 pub enum MsgType {
     R1Bcast,
     R1P2p { to: usize },
@@ -70,6 +70,16 @@ pub enum MsgType {
     R6FailType5Bcast,
     R7Bcast,
     R7FailType7Bcast,
+}
+
+// Behaviour includes Stall{victim, msg_type} and we use
+// strum to make Behaviour iterable. Strum needs for all included enums
+// that contain complex data to provide a default method:
+// https://docs.rs/strum/0.14.0/strum/?search=#strum-macros
+impl Default for MsgType {
+    fn default() -> Self {
+        MsgType::R1Bcast
+    }
 }
 
 // TODO identical to keygen::MsgMeta except for MsgType---use generic

@@ -30,17 +30,6 @@ fn all_parties_expect_the_same(parties: &[&mut dyn Protocol]) -> bool {
     true
 }
 
-fn all_parties_found_same_crimes(parties: &[&mut dyn Protocol]) -> bool {
-    let expected_crimes = parties[0].waiting_on();
-    for (i, p) in parties.iter().enumerate() {
-        if expected_crimes != p.waiting_on() {
-            println!("Party {} disagree on stalling crimes", i);
-            return false;
-        }
-    }
-    true
-}
-
 pub(crate) fn execute_protocol_vec_spoof(
     parties: &mut [&mut dyn Protocol],
     spoofers: &[&dyn Spoofer],

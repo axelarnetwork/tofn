@@ -1,6 +1,6 @@
 use super::{crimes::Crime, r3, Keygen, MsgMeta, MsgType, Status::*};
 use crate::{
-    fillvec::{self, FillVec},
+    fillvec::FillVec,
     protocol::{
         gg20::GeneralMsgType, GeneralCrime, IndexRange, MsgBytes, Protocol, ProtocolResult,
     },

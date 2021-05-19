@@ -1,4 +1,4 @@
-use super::{r2, r3, r4, r5, r6, r7, ParamsError, Sign, SignOutput, Status};
+use super::{r2, r3, r4, r5, r6, r7, MsgType, ParamsError, Sign, SignOutput, Status};
 use crate::protocol::{
     gg20::{keygen::SecretKeyShare, GeneralCrime},
     IndexRange, MsgBytes, Protocol, ProtocolResult,
@@ -21,6 +21,7 @@ pub enum MaliciousType {
     // TODO R1BadCommit,
     Honest,
     UnauthenticatedSender { victim: usize, status: Status },
+    Stall { msg_type: MsgType },
     R3BadNonceXKeyshareSummand, // triggers r7::Output::FailType7
     R1BadProof { victim: usize },
     R1BadSecretBlindSummand, // triggers r6::Output::FailType5
@@ -83,7 +84,8 @@ impl Protocol for BadSign {
             UnauthenticatedSender {
                 victim: _,
                 status: _,
-            } => self.sign.next_round(), // act normally; message corruption occurs at the routing level
+            } => self.sign.next_round(), // act normally; message stall occurs at the routing level
+            Stall { msg_type } => self.sign.next_round(),
             R3BadNonceXKeyshareSummand => self.sign.next_round(), // TODO hack type7 fault
             R1BadProof { victim } => {
                 if !matches!(self.sign.status, Status::New) {
