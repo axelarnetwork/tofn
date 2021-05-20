@@ -686,7 +686,7 @@ impl Sign {
 
     // create crimes out the missing entires in a fillvec; see test_waiting_on_bcast()
     // - fillvec [Some(), Some(), Some()] returns [[], [], []]
-    // - fillvec [Some(), Some(),  None ] returns [[], [], [GeneralCrime::Staller{msg_type: RXBcast}]]
+    // - fillvec [Some(), Some(),  None ] returns [[], [], [Crime::Staller{msg_type: RXBcast}]]
     fn crimes_from_fillvec<T>(fillvec: &FillVec<T>, msg_type: MsgType) -> Vec<Vec<Crime>> {
         fillvec
             .vec_ref()
@@ -727,18 +727,16 @@ impl Sign {
     //                 [ None ,   --  , Some()], <- party 1 list; p0 didn't recv p2p from p1
     //                 [Some(), Some(),   --  ]] <- party 2 list;
     //        returns [[],
-    //                 [GeneralCrime::Staller{msg_type: RXP2p{to: 0}}]
+    //                 [Crime::Staller{msg_type: RXP2p{to: 0}}]
     //                 []]
     fn crimes_from_vec_fillvec<T>(&self, vec_fillvec: &[FillVec<T>]) -> Vec<Vec<Crime>> {
         let mut crimes = vec![vec![]; vec_fillvec.len()];
         for (criminal, p2ps) in vec_fillvec.iter().enumerate() {
             for (victim, p2p) in p2ps.vec_ref().iter().enumerate() {
-                if p2p.is_some() || victim == criminal {
-                    crimes[criminal].extend(vec![]);
-                } else {
-                    crimes[criminal].extend(vec![Crime::StalledMessage {
+                if p2p.is_none() && victim != criminal {
+                    crimes[criminal].push(Crime::StalledMessage {
                         msg_type: self.current_p2p_msg(victim).unwrap(),
-                    }]);
+                    });
                 }
             }
         }

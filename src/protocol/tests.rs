@@ -6,11 +6,6 @@ pub(crate) trait Criminal {
     fn is_crime_round(&self, sender_idx: usize, msg: &[u8]) -> bool;
 }
 
-pub(crate) trait Staller {
-    fn index(&self) -> usize;
-    fn should_stall(&self, my_index: usize, msg: &[u8]) -> bool;
-}
-
 pub(crate) fn execute_protocol_vec(parties: &mut [&mut dyn Protocol]) {
     execute_protocol_vec_spoof(
         parties,
@@ -93,6 +88,7 @@ pub(crate) fn execute_protocol_vec_spoof(
 
         // all parties are at the same state. If they wait for more messages, someone stalled
         if parties[0].expecting_more_msgs_this_round() {
+            info!("Parties expecting more messages before protocal ends");
             break;
         }
 
@@ -103,7 +99,7 @@ pub(crate) fn execute_protocol_vec_spoof(
     }
 }
 
-use tracing::warn;
+use tracing::{info, warn};
 fn nobody_done(parties: &[&mut dyn Protocol]) -> bool {
     // warn if there's disagreement
     let (mut done, mut not_done) = (
