@@ -2,8 +2,8 @@ use super::*;
 
 pub(crate) trait Criminal {
     fn index(&self) -> usize;
-    fn spoof(&self, msg: &[u8], victim: &mut dyn Protocol);
-    fn is_spoof_round(&self, sender_idx: usize, msg: &[u8]) -> bool;
+    fn do_crime(&self, msg: &[u8], victim: &mut dyn Protocol);
+    fn is_crime_round(&self, sender_idx: usize, msg: &[u8]) -> bool;
 }
 
 pub(crate) trait Staller {
@@ -57,10 +57,10 @@ pub(crate) fn execute_protocol_vec_spoof(
             if let Some(bcast) = parties[i].get_bcast_out() {
                 let bcast = bcast.clone();
                 for j in 0..parties.len() {
-                    // if I am a criminal and I am acting in this round, let me handle the sending
+                    // if I am a criminal and I am acting in this round, I will handle the sending
                     if let Some(criminal) = criminal {
-                        if criminal.is_spoof_round(i, &bcast) {
-                            criminal.spoof(&bcast, parties[j]);
+                        if criminal.is_crime_round(i, &bcast) {
+                            criminal.do_crime(&bcast, parties[j]);
                             continue;
                         }
                     }
@@ -74,10 +74,10 @@ pub(crate) fn execute_protocol_vec_spoof(
                 for j in 0..parties.len() {
                     for opt in &p2ps {
                         if let Some(p2p) = opt {
-                            // if I am a criminal and I am acting in this round, let me handle the sending
+                            // if I am a criminal and I am acting in this round, i will handle the sending
                             if let Some(criminal) = criminal {
-                                if criminal.is_spoof_round(i, &p2p) {
-                                    criminal.spoof(&p2p, parties[j]);
+                                if criminal.is_crime_round(i, &p2p) {
+                                    criminal.do_crime(&p2p, parties[j]);
                                     continue;
                                 }
                             }

@@ -21,7 +21,8 @@ impl Criminal for SignSpoofer {
     fn index(&self) -> usize {
         self.index
     }
-    fn spoof(&self, original_msg: &[u8], victim: &mut dyn Protocol) {
+    // send to the victim the original message and a spoofed duplicated one
+    fn do_crime(&self, original_msg: &[u8], victim: &mut dyn Protocol) {
         // first, send the message to receiver and then create a _duplicate_ message
         victim
             .set_msg_in(
@@ -48,7 +49,8 @@ impl Criminal for SignSpoofer {
             )
             .unwrap();
     }
-    fn is_spoof_round(&self, sender_idx: usize, msg: &[u8]) -> bool {
+    // check if the current round is the spoof round
+    fn is_crime_round(&self, sender_idx: usize, msg: &[u8]) -> bool {
         if sender_idx != self.index {
             return false;
         }
@@ -82,11 +84,12 @@ impl Criminal for SignStaller {
     fn index(&self) -> usize {
         self.index
     }
-    fn spoof(&self, _bytes: &[u8], _receiver: &mut dyn Protocol) {
+    // don't send message to receiver
+    fn do_crime(&self, _bytes: &[u8], _receiver: &mut dyn Protocol) {
         // hard is the life of a staller
     }
-    // map message types to the round they are created
-    fn is_spoof_round(&self, sender_idx: usize, msg: &[u8]) -> bool {
+    // check if the current message is the one we want to stall
+    fn is_crime_round(&self, sender_idx: usize, msg: &[u8]) -> bool {
         let msg: MsgMeta = bincode::deserialize(msg).unwrap();
         sender_idx == self.index && msg.msg_type == self.msg_type
     }
