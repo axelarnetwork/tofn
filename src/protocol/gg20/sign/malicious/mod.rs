@@ -1,7 +1,8 @@
-use super::{r2, r3, r4, r5, r6, r7, MsgType, ParamsError, Sign, SignOutput, Status};
+use super::{
+    crimes::Crime, r2, r3, r4, r5, r6, r7, MsgType, ParamsError, Sign, SignOutput, Status,
+};
 use crate::protocol::{
-    gg20::{keygen::SecretKeyShare, GeneralCrime},
-    IndexRange, MsgBytes, Protocol, ProtocolResult,
+    gg20::keygen::SecretKeyShare, IndexRange, MsgBytes, Protocol, ProtocolResult,
 };
 use crate::zkp::{
     paillier::{mta, range},
@@ -65,7 +66,7 @@ impl BadSign {
         })
     }
 
-    pub fn waiting_on(&self) -> Vec<Vec<GeneralCrime>> {
+    pub fn waiting_on(&self) -> Vec<Vec<Crime>> {
         self.sign.waiting_on()
     }
 

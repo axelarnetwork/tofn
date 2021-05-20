@@ -1,4 +1,4 @@
-use crate::protocol::gg20::sign::Status;
+use crate::protocol::gg20::sign::{MsgType, Status};
 // all crimes
 // names have the form <round><crime> where
 // <round> indicates round where the crime is detected, and
@@ -7,6 +7,7 @@ use crate::protocol::gg20::sign::Status;
 #[derive(Debug, Clone, PartialEq)]
 pub enum Crime {
     SpoofedMessage { victim: usize, status: Status },
+    StalledMessage { msg_type: MsgType },
     R3FailBadRangeProof { victim: usize },
     R3FailFalseAccusation { victim: usize },
     R4BadPedersenProof,

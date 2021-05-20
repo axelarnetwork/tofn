@@ -190,7 +190,7 @@ fn execute_test_case(t: &test_cases::TestCase) {
 }
 
 lazy_static::lazy_static! {
-    static ref STALL_CASES: Vec<StallTestCase> = generate_stall_cases();
+    static ref STALL_CASES: Vec<TestCase> = generate_stall_cases();
 }
 
 struct SignStaller {
@@ -216,7 +216,7 @@ fn test_stall_cases() {
     execute_stall_test_case_list(&STALL_CASES);
 }
 
-fn execute_stall_test_case_list(test_cases: &[test_cases::StallTestCase]) {
+fn execute_stall_test_case_list(test_cases: &[test_cases::TestCase]) {
     for t in test_cases {
         let malicious_participants: Vec<(usize, MaliciousType)> = t
             .sign_participants
@@ -234,7 +234,7 @@ fn execute_stall_test_case_list(test_cases: &[test_cases::StallTestCase]) {
     }
 }
 
-fn execute_stall_test_case(t: &test_cases::StallTestCase) {
+fn execute_stall_test_case(t: &test_cases::TestCase) {
     let participant_indices: Vec<usize> =
         t.sign_participants.iter().map(|p| p.party_index).collect();
     let key_shares = execute_keygen(t.share_count, t.threshold);
