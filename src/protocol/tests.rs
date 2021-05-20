@@ -2,8 +2,8 @@ use super::*;
 
 pub(crate) trait Spoofer {
     fn index(&self) -> usize;
-    fn spoof(&self, original_msg: &[u8]) -> Vec<u8>;
-    fn is_spoof_round(&self, msg: &[u8]) -> bool;
+    fn spoof(&self, msg: &[u8], victim: &mut dyn Protocol);
+    fn is_spoof_round(&self, sender_idx: usize, msg: &[u8]) -> bool;
 }
 
 pub(crate) trait Staller {
@@ -50,17 +50,14 @@ pub(crate) fn execute_protocol_vec_spoof(
             if let Some(bcast) = parties[i].get_bcast_out() {
                 let bcast = bcast.clone();
                 for j in 0..parties.len() {
-                    parties[j].set_msg_in(&bcast, &from_index_range).unwrap();
-
-                    // if I am a spoofer, create a *duplicate* message and change
-                    // the 'from' field of the new message into 'victim'
+                    // if I am a criminal and I am acting in this round, let me handle the sending
                     if let Some(spoofer) = spoofer {
-                        if spoofer.is_spoof_round(&bcast) {
-                            parties[j]
-                                .set_msg_in(&spoofer.spoof(&bcast), &from_index_range)
-                                .unwrap();
+                        if spoofer.is_spoof_round(i, &bcast) {
+                            spoofer.spoof(&bcast, parties[j]);
+                            continue;
                         }
                     }
+                    parties[j].set_msg_in(&bcast, &from_index_range).unwrap();
                 }
             }
 
@@ -70,16 +67,14 @@ pub(crate) fn execute_protocol_vec_spoof(
                 for j in 0..parties.len() {
                     for opt in &p2ps {
                         if let Some(p2p) = opt {
-                            parties[j].set_msg_in(&p2p, &from_index_range).unwrap();
-                            // if I am a spoofer, create a *duplicate* message and change
-                            // the 'from' field of the new message into 'victim'
+                            // if I am a criminal and I am acting in this round, let me handle the sending
                             if let Some(spoofer) = spoofer {
-                                if spoofer.is_spoof_round(&p2p) {
-                                    parties[j]
-                                        .set_msg_in(&spoofer.spoof(&p2p), &from_index_range)
-                                        .unwrap();
+                                if spoofer.is_spoof_round(i, &p2p) {
+                                    spoofer.spoof(&p2p, parties[j]);
+                                    continue;
                                 }
                             }
+                            parties[j].set_msg_in(&p2p, &from_index_range).unwrap();
                         }
                     }
                 }

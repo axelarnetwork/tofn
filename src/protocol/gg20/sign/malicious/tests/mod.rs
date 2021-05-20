@@ -21,12 +21,37 @@ impl Spoofer for SignSpoofer {
     fn index(&self) -> usize {
         self.index
     }
-    fn spoof(&self, original_msg: &[u8]) -> Vec<u8> {
+    fn spoof(&self, original_msg: &[u8], victim: &mut dyn Protocol) {
+        // first, send the message to receiver and then create a _duplicate_ message
+        victim
+            .set_msg_in(
+                &original_msg,
+                &IndexRange {
+                    first: self.index,
+                    last: self.index,
+                },
+            )
+            .unwrap();
+
+        // deserialize message and change `from` field
         let mut msg: MsgMeta = bincode::deserialize(original_msg).unwrap();
         msg.from = self.victim;
-        bincode::serialize(&msg).unwrap()
+        let msg = bincode::serialize(&msg).unwrap();
+        // send spoofed message to victim
+        victim
+            .set_msg_in(
+                &msg,
+                &IndexRange {
+                    first: self.index,
+                    last: self.index,
+                },
+            )
+            .unwrap();
     }
-    fn is_spoof_round(&self, msg: &[u8]) -> bool {
+    fn is_spoof_round(&self, sender_idx: usize, msg: &[u8]) -> bool {
+        if sender_idx != self.index {
+            return false;
+        }
         let msg: MsgMeta = bincode::deserialize(msg).unwrap();
         let msg_type = match msg.msg_type {
             MsgType::R1Bcast => Status::R1,
