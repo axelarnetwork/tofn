@@ -2,8 +2,8 @@
 use super::Behaviour;
 use crate::protocol::{
     gg20::keygen::{Keygen, MsgMeta, MsgType, Status},
-    tests::{execute_protocol_vec_spoof, execute_protocol_vec_stall, Spoofer, Staller},
-    Protocol,
+    tests::{execute_protocol_vec_spoof, Spoofer},
+    IndexRange, Protocol,
 };
 use tracing::info;
 use tracing_test::traced_test; // enable logs in tests
@@ -77,16 +77,17 @@ struct KeygenStaller {
     msg_type: MsgType,
 }
 
-impl Staller for KeygenStaller {
+impl Spoofer for KeygenStaller {
     fn index(&self) -> usize {
         self.index
     }
-    fn should_stall(&self, sender_idx: usize, msg: &[u8]) -> bool {
+    fn spoof(&self, _bytes: &[u8], _receiver: &mut dyn Protocol) {
+        // hard is the life of a staller
+    }
+    // map message types to the round they are created
+    fn is_spoof_round(&self, sender_idx: usize, msg: &[u8]) -> bool {
         let msg: MsgMeta = bincode::deserialize(msg).unwrap();
-        if sender_idx != self.index || msg.msg_type != self.msg_type {
-            return false;
-        }
-        true
+        sender_idx == self.index && msg.msg_type == self.msg_type
     }
 }
 
@@ -109,6 +110,11 @@ fn self_accusation() {
 fn spoof_messages() {
     execute_test_case_list(&SPOOF_BEFORE_CASES);
     execute_test_case_list(&SPOOF_AFTER_CASES);
+}
+
+#[test]
+fn test_stall_cases() {
+    execute_test_case_list(&STALL_CASES);
 }
 
 fn execute_test_case_list(test_cases: &[test_cases::TestCase]) {
@@ -157,61 +163,6 @@ fn execute_test_case(t: &test_cases::TestCase) {
         .map(|spoofer| spoofer.unwrap())
         .collect();
 
-    // need to do an extra iteration because we can't return reference to temp objects
-    let spoofers: Vec<&dyn Spoofer> = spoofers.iter().map(|s| s as &dyn Spoofer).collect();
-
-    let mut protocols: Vec<&mut dyn Protocol> = keygen_parties
-        .iter_mut()
-        .map(|p| p as &mut dyn Protocol)
-        .collect();
-
-    execute_protocol_vec_spoof(&mut protocols, &spoofers);
-
-    // TEST: honest parties finished and correctly computed the criminals list
-    for keygen_party in keygen_parties.iter().filter(|k| k.behaviour.is_honest()) {
-        let output = keygen_party
-            .clone_output()
-            .unwrap_or_else(|| panic!("honest party {} did not finish", keygen_party.my_index,));
-        t.assert_expected_output(&output);
-    }
-}
-
-#[test]
-fn test_stall_cases() {
-    execute_stall_test_case_list(&STALL_CASES);
-}
-
-fn execute_stall_test_case_list(test_cases: &[test_cases::TestCase]) {
-    for t in test_cases {
-        info!(
-            "share_count [{}] threshold [{}]",
-            t.share_count(),
-            t.threshold
-        );
-        let malicious_parties: Vec<(usize, Behaviour)> = t
-            .parties
-            .iter()
-            .enumerate()
-            .filter(|(_, p)| p.behaviour.is_staller())
-            .map(|(i, p)| (i, p.behaviour.clone()))
-            .collect();
-        info!("malicious participants {:?}", malicious_parties);
-        execute_stall_test_case(t);
-    }
-}
-
-fn execute_stall_test_case(t: &test_cases::TestCase) {
-    let mut keygen_parties: Vec<Keygen> = t
-        .parties
-        .iter()
-        .enumerate()
-        .map(|(i, p)| {
-            let mut k = Keygen::new(t.share_count(), t.threshold, i).unwrap();
-            k.behaviour = p.behaviour.clone();
-            k
-        })
-        .collect();
-
     let stallers: Vec<KeygenStaller> = keygen_parties
         .iter_mut()
         .enumerate()
@@ -224,18 +175,28 @@ fn execute_stall_test_case(t: &test_cases::TestCase) {
         .collect();
 
     // need to do an extra iteration because we can't return reference to temp objects
-    let stallers: Vec<&dyn Staller> = stallers.iter().map(|s| s as &dyn Staller).collect();
+    let mut spoofers: Vec<&dyn Spoofer> = spoofers.iter().map(|s| s as &dyn Spoofer).collect();
+    let stallers: Vec<&dyn Spoofer> = stallers.iter().map(|s| s as &dyn Spoofer).collect();
+
+    spoofers.extend(stallers);
 
     let mut protocols: Vec<&mut dyn Protocol> = keygen_parties
         .iter_mut()
         .map(|p| p as &mut dyn Protocol)
         .collect();
 
-    execute_protocol_vec_stall(&mut protocols, &stallers);
+    execute_protocol_vec_spoof(&mut protocols, &spoofers);
 
-    // all honest parties are waiting on the same messages
+    // TEST: honest parties finished and correctly computed the criminals list
     for keygen_party in keygen_parties.iter().filter(|k| k.behaviour.is_honest()) {
-        let waiting_on = keygen_party.waiting_on();
-        t.assert_expected_waiting_on(&waiting_on);
+        // if party has finished, check that result was the expected one
+        if let Some(output) = keygen_party.clone_output() {
+            t.assert_expected_output(&output);
+        }
+        // else check for stalling parties
+        else {
+            let output = keygen_party.waiting_on();
+            t.assert_expected_waiting_on(&output);
+        }
     }
 }

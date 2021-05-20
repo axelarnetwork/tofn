@@ -4,7 +4,7 @@ use crate::protocol::{
         keygen::tests::execute_keygen,
         sign::{MsgMeta, MsgType},
     },
-    tests::{execute_protocol_vec_spoof, execute_protocol_vec_stall, Spoofer, Staller},
+    tests::{execute_protocol_vec_spoof, Spoofer},
     Protocol,
 };
 use tracing_test::traced_test; // enable logs in tests
@@ -73,6 +73,25 @@ impl Spoofer for SignSpoofer {
     }
 }
 
+struct SignStaller {
+    index: usize,
+    msg_type: MsgType,
+}
+
+impl Spoofer for SignStaller {
+    fn index(&self) -> usize {
+        self.index
+    }
+    fn spoof(&self, _bytes: &[u8], _receiver: &mut dyn Protocol) {
+        // hard is the life of a staller
+    }
+    // map message types to the round they are created
+    fn is_spoof_round(&self, sender_idx: usize, msg: &[u8]) -> bool {
+        let msg: MsgMeta = bincode::deserialize(msg).unwrap();
+        sender_idx == self.index && msg.msg_type == self.msg_type
+    }
+}
+
 mod test_cases;
 use test_cases::*;
 
@@ -80,6 +99,7 @@ lazy_static::lazy_static! {
     static ref BASIC_CASES: Vec<TestCase> = generate_basic_cases();
     static ref SPOOF_BEFORE_CASES: Vec<TestCase> = generate_spoof_before_honest_cases();
     static ref SPOOF_AFTER_CASES: Vec<TestCase> = generate_spoof_after_honest_cases();
+    static ref STALL_CASES: Vec<TestCase> = generate_stall_cases();
     static ref SKIPPING_CASES: Vec<TestCase> = generate_skipping_cases();
     static ref SAME_ROUND_CASES: Vec<TestCase> = generate_multiple_faults_in_same_round();
     static ref MULTIPLE_VICTIMS: Vec<TestCase> = generate_target_multiple_parties();
@@ -139,6 +159,11 @@ fn panic_out_of_index() {
     execute_test_case_list(&PANIC_INDEX);
 }
 
+#[test]
+fn test_stall_cases() {
+    execute_test_case_list(&STALL_CASES);
+}
+
 fn execute_test_case_list(test_cases: &[test_cases::TestCase]) {
     for t in test_cases {
         let malicious_participants: Vec<(usize, MaliciousType)> = t
@@ -191,93 +216,6 @@ fn execute_test_case(t: &test_cases::TestCase) {
         .map(|spoofer| spoofer.unwrap())
         .collect();
 
-    // need to do an extra iteration because we can't return reference to temp objects
-    let spoofers: Vec<&dyn Spoofer> = spoofers.iter().map(|s| s as &dyn Spoofer).collect();
-
-    let mut protocols: Vec<&mut dyn Protocol> =
-        signers.iter_mut().map(|p| p as &mut dyn Protocol).collect();
-
-    execute_protocol_vec_spoof(&mut protocols, &spoofers);
-
-    // TEST: honest parties finished and correctly computed the criminals list
-    for signer in signers
-        .iter()
-        .filter(|s| matches!(s.malicious_type, Honest))
-    {
-        let output = signer.sign.final_output.clone().unwrap_or_else(|| {
-            panic!(
-                "honest participant {} did not finish",
-                signer.sign.my_participant_index
-            )
-        });
-        t.assert_expected_output(&output);
-    }
-}
-
-lazy_static::lazy_static! {
-    static ref STALL_CASES: Vec<TestCase> = generate_stall_cases();
-}
-
-struct SignStaller {
-    index: usize,
-    msg_type: MsgType,
-}
-
-impl Staller for SignStaller {
-    fn index(&self) -> usize {
-        self.index
-    }
-    fn should_stall(&self, sender_idx: usize, msg: &[u8]) -> bool {
-        let msg: MsgMeta = bincode::deserialize(msg).unwrap();
-        if sender_idx != self.index || msg.msg_type != self.msg_type {
-            return false;
-        }
-        true
-    }
-}
-
-#[test]
-fn test_stall_cases() {
-    execute_stall_test_case_list(&STALL_CASES);
-}
-
-fn execute_stall_test_case_list(test_cases: &[test_cases::TestCase]) {
-    for t in test_cases {
-        let malicious_participants: Vec<(usize, MaliciousType)> = t
-            .sign_participants
-            .iter()
-            .enumerate()
-            .filter(|p| !matches!(p.1.behaviour, Honest))
-            .map(|p| (p.0, p.1.behaviour.clone()))
-            .collect();
-        info!(
-            "share_count [{}] threshold [{}]",
-            t.share_count, t.threshold
-        );
-        info!("malicious participants {:?}", malicious_participants);
-        execute_stall_test_case(t);
-    }
-}
-
-fn execute_stall_test_case(t: &test_cases::TestCase) {
-    let participant_indices: Vec<usize> =
-        t.sign_participants.iter().map(|p| p.party_index).collect();
-    let key_shares = execute_keygen(t.share_count, t.threshold);
-
-    let mut signers: Vec<BadSign> = t
-        .sign_participants
-        .iter()
-        .map(|p| {
-            BadSign::new(
-                &key_shares[p.party_index],
-                &participant_indices,
-                &MESSAGE_TO_SIGN,
-                p.behaviour.clone(),
-            )
-            .unwrap()
-        })
-        .collect();
-
     let stallers: Vec<SignStaller> = signers
         .iter()
         .enumerate()
@@ -293,19 +231,28 @@ fn execute_stall_test_case(t: &test_cases::TestCase) {
         .collect();
 
     // need to do an extra iteration because we can't return reference to temp objects
-    let stallers: Vec<&dyn Staller> = stallers.iter().map(|s| s as &dyn Staller).collect();
+    let mut spoofers: Vec<&dyn Spoofer> = spoofers.iter().map(|s| s as &dyn Spoofer).collect();
+    let stallers: Vec<&dyn Spoofer> = stallers.iter().map(|s| s as &dyn Spoofer).collect();
+    spoofers.extend(stallers);
 
     let mut protocols: Vec<&mut dyn Protocol> =
         signers.iter_mut().map(|p| p as &mut dyn Protocol).collect();
 
-    execute_protocol_vec_stall(&mut protocols, &stallers);
+    execute_protocol_vec_spoof(&mut protocols, &spoofers);
 
-    // all honest parties are waiting on the same messages
+    // TEST: honest parties finished and correctly computed the criminals list
     for signer in signers
         .iter()
-        .filter(|k| matches!(k.malicious_type, Honest))
+        .filter(|s| matches!(s.malicious_type, Honest))
     {
-        let waiting_on = signer.waiting_on();
-        t.assert_expected_waiting_on(&waiting_on);
+        // if party has finished, check that result was the expected one
+        if let Some(output) = signer.clone_output() {
+            t.assert_expected_output(&output);
+        }
+        // else check for stalling parties
+        else {
+            let output = signer.waiting_on();
+            t.assert_expected_waiting_on(&output);
+        }
     }
 }
