@@ -4,7 +4,7 @@ use crate::protocol::{
         keygen::tests::execute_keygen,
         sign::{MsgMeta, MsgType},
     },
-    tests::{execute_protocol_vec_spoof, Spoofer},
+    tests::{execute_protocol_vec_spoof, Criminal},
     Protocol,
 };
 use tracing_test::traced_test; // enable logs in tests
@@ -17,7 +17,7 @@ struct SignSpoofer {
     status: Status,
 }
 
-impl Spoofer for SignSpoofer {
+impl Criminal for SignSpoofer {
     fn index(&self) -> usize {
         self.index
     }
@@ -78,7 +78,7 @@ struct SignStaller {
     msg_type: MsgType,
 }
 
-impl Spoofer for SignStaller {
+impl Criminal for SignStaller {
     fn index(&self) -> usize {
         self.index
     }
@@ -231,14 +231,13 @@ fn execute_test_case(t: &test_cases::TestCase) {
         .collect();
 
     // need to do an extra iteration because we can't return reference to temp objects
-    let mut spoofers: Vec<&dyn Spoofer> = spoofers.iter().map(|s| s as &dyn Spoofer).collect();
-    let stallers: Vec<&dyn Spoofer> = stallers.iter().map(|s| s as &dyn Spoofer).collect();
-    spoofers.extend(stallers);
+    let mut criminals: Vec<&dyn Criminal> = spoofers.iter().map(|s| s as &dyn Criminal).collect();
+    criminals.extend(stallers.iter().map(|s| s as &dyn Criminal));
 
     let mut protocols: Vec<&mut dyn Protocol> =
         signers.iter_mut().map(|p| p as &mut dyn Protocol).collect();
 
-    execute_protocol_vec_spoof(&mut protocols, &spoofers);
+    execute_protocol_vec_spoof(&mut protocols, &criminals);
 
     // TEST: honest parties finished and correctly computed the criminals list
     for signer in signers

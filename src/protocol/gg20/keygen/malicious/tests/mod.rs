@@ -2,7 +2,7 @@
 use super::Behaviour;
 use crate::protocol::{
     gg20::keygen::{Keygen, MsgMeta, MsgType, Status},
-    tests::{execute_protocol_vec_spoof, Spoofer},
+    tests::{execute_protocol_vec_spoof, Criminal},
     IndexRange, Protocol,
 };
 use tracing::info;
@@ -25,7 +25,7 @@ struct KeygenSpoofer {
     status: Status,
 }
 
-impl Spoofer for KeygenSpoofer {
+impl Criminal for KeygenSpoofer {
     fn index(&self) -> usize {
         self.index
     }
@@ -77,7 +77,7 @@ struct KeygenStaller {
     msg_type: MsgType,
 }
 
-impl Spoofer for KeygenStaller {
+impl Criminal for KeygenStaller {
     fn index(&self) -> usize {
         self.index
     }
@@ -175,17 +175,15 @@ fn execute_test_case(t: &test_cases::TestCase) {
         .collect();
 
     // need to do an extra iteration because we can't return reference to temp objects
-    let mut spoofers: Vec<&dyn Spoofer> = spoofers.iter().map(|s| s as &dyn Spoofer).collect();
-    let stallers: Vec<&dyn Spoofer> = stallers.iter().map(|s| s as &dyn Spoofer).collect();
-
-    spoofers.extend(stallers);
+    let mut criminals: Vec<&dyn Criminal> = spoofers.iter().map(|s| s as &dyn Criminal).collect();
+    criminals.extend(stallers.iter().map(|s| s as &dyn Criminal));
 
     let mut protocols: Vec<&mut dyn Protocol> = keygen_parties
         .iter_mut()
         .map(|p| p as &mut dyn Protocol)
         .collect();
 
-    execute_protocol_vec_spoof(&mut protocols, &spoofers);
+    execute_protocol_vec_spoof(&mut protocols, &criminals);
 
     // TEST: honest parties finished and correctly computed the criminals list
     for keygen_party in keygen_parties.iter().filter(|k| k.behaviour.is_honest()) {

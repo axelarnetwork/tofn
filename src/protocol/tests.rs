@@ -1,6 +1,6 @@
 use super::*;
 
-pub(crate) trait Spoofer {
+pub(crate) trait Criminal {
     fn index(&self) -> usize;
     fn spoof(&self, msg: &[u8], victim: &mut dyn Protocol);
     fn is_spoof_round(&self, sender_idx: usize, msg: &[u8]) -> bool;
@@ -14,19 +14,19 @@ pub(crate) trait Staller {
 pub(crate) fn execute_protocol_vec(parties: &mut [&mut dyn Protocol]) {
     execute_protocol_vec_spoof(
         parties,
-        &[], // create an empty slice of spoofers
+        &[], // create an empty slice of criminals
     )
 }
 
 // check that all parties agree on expecting new messages
 fn all_honest_parties_expect_the_same(
     parties: &[&mut dyn Protocol],
-    spoofers: &[&dyn Spoofer],
+    criminals: &[&dyn Criminal],
 ) -> bool {
     let expecting_more = parties[0].expecting_more_msgs_this_round();
     for (i, p) in parties.iter().enumerate() {
         // we don't care what criminals say
-        if spoofers.iter().any(|s| s.index() == i) {
+        if criminals.iter().any(|s| s.index() == i) {
             continue;
         }
         if expecting_more != p.expecting_more_msgs_this_round() {
@@ -39,7 +39,7 @@ fn all_honest_parties_expect_the_same(
 
 pub(crate) fn execute_protocol_vec_spoof(
     parties: &mut [&mut dyn Protocol],
-    spoofers: &[&dyn Spoofer],
+    criminals: &[&dyn Criminal],
 ) {
     #[allow(clippy::needless_range_loop)] // see explanation below
     while nobody_done(parties) {
@@ -50,17 +50,17 @@ pub(crate) fn execute_protocol_vec_spoof(
             // set up index range. We check if 'from' index is the current share
             let from_index_range = IndexRange { first: i, last: i };
 
-            // pick spoofer if exists and acts in the current round
-            let spoofer = spoofers.iter().find(|s| s.index() == i);
+            // pick criminal if exists and acts in the current round
+            let criminal = criminals.iter().find(|s| s.index() == i);
 
             // deliver bcast message to all other parties
             if let Some(bcast) = parties[i].get_bcast_out() {
                 let bcast = bcast.clone();
                 for j in 0..parties.len() {
                     // if I am a criminal and I am acting in this round, let me handle the sending
-                    if let Some(spoofer) = spoofer {
-                        if spoofer.is_spoof_round(i, &bcast) {
-                            spoofer.spoof(&bcast, parties[j]);
+                    if let Some(criminal) = criminal {
+                        if criminal.is_spoof_round(i, &bcast) {
+                            criminal.spoof(&bcast, parties[j]);
                             continue;
                         }
                     }
@@ -75,9 +75,9 @@ pub(crate) fn execute_protocol_vec_spoof(
                     for opt in &p2ps {
                         if let Some(p2p) = opt {
                             // if I am a criminal and I am acting in this round, let me handle the sending
-                            if let Some(spoofer) = spoofer {
-                                if spoofer.is_spoof_round(i, &p2p) {
-                                    spoofer.spoof(&p2p, parties[j]);
+                            if let Some(criminal) = criminal {
+                                if criminal.is_spoof_round(i, &p2p) {
+                                    criminal.spoof(&p2p, parties[j]);
                                     continue;
                                 }
                             }
@@ -88,7 +88,7 @@ pub(crate) fn execute_protocol_vec_spoof(
             }
 
             // check that all parties agree on expecting more messages after the end of every party's round
-            assert!(all_honest_parties_expect_the_same(parties, spoofers));
+            assert!(all_honest_parties_expect_the_same(parties, criminals));
         }
 
         // all parties are at the same state. If they wait for more messages, someone stalled
