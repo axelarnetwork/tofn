@@ -206,21 +206,25 @@ impl Keygen {
 
     // return timeout crimes derived by messages that have not been received at the current round
     pub fn waiting_on(&self) -> Vec<Vec<Crime>> {
-        // vec without crimes to return in trivial cases
-        let no_crimes = vec![vec![]; self.in_r1bcasts.vec_ref().len()];
+        // vec with crimes starts empty; return it as is in trivial cases
+        let mut crimes = vec![vec![]; self.in_r1bcasts.vec_ref().len()];
         match self.status {
-            New => no_crimes,
+            New => crimes,
             R1 => Self::crimes_from_fillvec(&self.in_r1bcasts, MsgType::R1Bcast),
             R2 => {
                 // bcasts are sent before p2ps. If we don't have all bcasts we can safely determine the staller
-                if !self.in_r2bcasts.is_full() {
-                    return Self::crimes_from_fillvec(&self.in_r2bcasts, MsgType::R2Bcast);
-                }
+                crimes = Self::crimes_from_fillvec(&self.in_r2bcasts, MsgType::R2Bcast);
+                // get bcast crimes
                 self.crimes_from_vec_fillvec(&self.in_all_r2p2ps)
+                    .into_iter()
+                    .enumerate()
+                    // accumulate all party's bcast crimes with all his p2p crimes
+                    .for_each(|(i, p2p_crimes)| crimes[i].extend(p2p_crimes));
+                crimes
             }
             R3 => Self::crimes_from_fillvec(&self.in_r3bcasts, MsgType::R3Bcast),
             R3Fail => Self::crimes_from_fillvec(&self.in_r3bcasts_fail, MsgType::R3FailBcast),
-            Done | Fail => no_crimes,
+            Done | Fail => crimes,
         }
     }
 
@@ -228,6 +232,9 @@ impl Keygen {
     // - fillvec [Some(), Some(), Some()] returns [[], [], []]
     // - fillvec [Some(), Some(),  None ] returns [[], [], [Crime::Staller{msg_type: RXBcast}]]
     fn crimes_from_fillvec<T>(fillvec: &FillVec<T>, msg_type: MsgType) -> Vec<Vec<Crime>> {
+        if fillvec.is_full() {
+            return vec![vec![]; fillvec.vec_ref().len()];
+        }
         fillvec
             .vec_ref()
             .iter()
@@ -270,12 +277,10 @@ impl Keygen {
         let mut crimes = vec![vec![]; vec_fillvec.len()];
         for (criminal, p2ps) in vec_fillvec.iter().enumerate() {
             for (victim, p2p) in p2ps.vec_ref().iter().enumerate() {
-                if p2p.is_some() || victim == criminal {
-                    crimes[criminal].extend(vec![]);
-                } else {
-                    crimes[criminal].extend(vec![Crime::StalledMessage {
+                if p2p.is_none() && victim != criminal {
+                    crimes[criminal].push(Crime::StalledMessage {
                         msg_type: self.current_p2p_msg(victim).unwrap(),
-                    }]);
+                    });
                 }
             }
         }
