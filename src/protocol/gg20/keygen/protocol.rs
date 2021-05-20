@@ -226,7 +226,7 @@ impl Keygen {
 
     // create crimes out the missing entires in a fillvec; see test_waiting_on_bcast()
     // - fillvec [Some(), Some(), Some()] returns [[], [], []]
-    // - fillvec [Some(), Some(),  None ] returns [[], [], [Crime::Stall{msg_type: RXBcast}]]
+    // - fillvec [Some(), Some(),  None ] returns [[], [], [Crime::Staller{msg_type: RXBcast}]]
     fn crimes_from_fillvec<T>(fillvec: &FillVec<T>, msg_type: MsgType) -> Vec<Vec<Crime>> {
         fillvec
             .vec_ref()
@@ -264,7 +264,7 @@ impl Keygen {
     //                 [ None ,   --  , Some()], <- party 1 list; p0 didn't recv p2p from p1
     //                 [Some(), Some(),   --  ]] <- party 2 list;
     //        returns [[],
-    //                 [Crime::Stall{msg_type: RXP2p{to: 0}}]
+    //                 [Crime::Staller{msg_type: RXP2p{to: 0}}]
     //                 []]
     fn crimes_from_vec_fillvec<T>(&self, vec_fillvec: &[FillVec<T>]) -> Vec<Vec<Crime>> {
         let mut crimes = vec![vec![]; vec_fillvec.len()];

@@ -220,7 +220,7 @@ fn execute_test_case(t: &test_cases::TestCase) {
         .iter()
         .enumerate()
         .map(|(index, s)| match s.malicious_type.clone() {
-            Stall { msg_type } => Some(SignStaller {
+            Staller { msg_type } => Some(SignStaller {
                 index,
                 msg_type: msg_type.clone(),
             }),

@@ -47,7 +47,7 @@ impl TestCase {
 pub(super) fn map_type_to_crime(t: &MaliciousType) -> Vec<Crime> {
     match t {
         Honest => vec![],
-        Stall { msg_type: mt } => vec![Crime::StalledMessage {
+        Staller { msg_type: mt } => vec![Crime::StalledMessage {
             msg_type: mt.clone(),
         }],
         UnauthenticatedSender {
@@ -99,7 +99,7 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
                     victim: _,
                     status: _
                 }
-                | Stall { msg_type: _ }
+                | Staller { msg_type: _ }
         )
     }) {
         basic_test_cases.push(TestCase {
@@ -450,7 +450,7 @@ pub(super) fn generate_stall_cases() -> Vec<TestCase> {
                     | R7Bcast
             )
         }) // don't match fail types
-        .map(|msg_type| Stall { msg_type })
+        .map(|msg_type| Staller { msg_type })
         .collect::<Vec<MaliciousType>>();
 
     stallers

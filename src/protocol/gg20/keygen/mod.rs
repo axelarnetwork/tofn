@@ -52,7 +52,7 @@ pub enum MsgType {
     R3FailBcast,
 }
 
-// Behaviour includes Stall{victim, msg_type} and we use
+// Behaviour includes Staller{victim, msg_type} and we use
 // strum to make Behaviour iterable. Strum needs for all included enums
 // that contain complex data to provide a default method:
 // https://docs.rs/strum/0.14.0/strum/?search=#strum-macros

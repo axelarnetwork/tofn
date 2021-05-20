@@ -167,7 +167,7 @@ fn execute_test_case(t: &test_cases::TestCase) {
         .iter_mut()
         .enumerate()
         .map(|(index, s)| match s.behaviour.clone() {
-            Behaviour::Stall { msg_type } => Some(KeygenStaller { index, msg_type }),
+            Behaviour::Staller { msg_type } => Some(KeygenStaller { index, msg_type }),
             _ => None,
         })
         .filter(|staller| staller.is_some())

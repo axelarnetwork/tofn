@@ -58,7 +58,7 @@ impl Behaviour {
     }
 
     pub(super) fn is_staller(&self) -> bool {
-        matches!(self, Stall { msg_type: _ })
+        matches!(self, Staller { msg_type: _ })
     }
 
     /// Return the `Crime` variant `c` such that
@@ -68,7 +68,7 @@ impl Behaviour {
     pub(super) fn to_crime(&self) -> Crime {
         match self {
             Honest => panic!("`to_crime` called with `Honest`"),
-            Stall { msg_type: mt } => Crime::StalledMessage {
+            Staller { msg_type: mt } => Crime::StalledMessage {
                 msg_type: mt.clone(),
             },
             UnauthenticatedSender {
@@ -209,7 +209,7 @@ pub(super) fn generate_stall_cases() -> Vec<TestCase> {
     use MsgType::*;
     let stallers = MsgType::iter()
         .filter(|msg_type| matches!(msg_type, R1Bcast | R2Bcast | R2P2p { to: _ } | R3Bcast)) // don't match fail types
-        .map(|msg_type| Stall { msg_type })
+        .map(|msg_type| Staller { msg_type })
         .collect::<Vec<Behaviour>>();
 
     stallers
