@@ -182,8 +182,32 @@ impl Protocol for Keygen {
         }
     }
 
+    fn done(&self) -> bool {
+        matches!(self.status, Done | Fail)
+    }
+}
+
+impl Keygen {
+    fn update_state_fail(&mut self, criminals: Vec<Vec<Crime>>) {
+        self.final_output = Some(Err(criminals));
+        self.status = Fail;
+    }
+    fn move_to_sad_path(&mut self) {
+        match self.status {
+            R3 => {
+                if self.in_r3bcasts_fail.some_count() > 0 {
+                    self.status = R3Fail;
+                }
+            }
+            // do not use catch-all pattern `_ => (),`
+            // instead, list all variants explicity
+            // because otherwise you'll forget to update this match statement when you add a variant
+            R1 | R2 | R3Fail | New | Done | Fail => {}
+        }
+    }
+
     // return timeout crimes derived by messages that have not been received at the current round
-    fn waiting_on(&self) -> Vec<Vec<GeneralCrime>> {
+    pub fn waiting_on(&self) -> Vec<Vec<GeneralCrime>> {
         // vec without crimes to return in trivial cases
         let no_crimes = vec![vec![]; self.in_r1bcasts.vec_ref().len()];
         match self.status {
@@ -219,30 +243,6 @@ impl Protocol for Keygen {
                 },
             ),
             Done | Fail => no_crimes,
-        }
-    }
-
-    fn done(&self) -> bool {
-        matches!(self.status, Done | Fail)
-    }
-}
-
-impl Keygen {
-    fn update_state_fail(&mut self, criminals: Vec<Vec<Crime>>) {
-        self.final_output = Some(Err(criminals));
-        self.status = Fail;
-    }
-    fn move_to_sad_path(&mut self) {
-        match self.status {
-            R3 => {
-                if self.in_r3bcasts_fail.some_count() > 0 {
-                    self.status = R3Fail;
-                }
-            }
-            // do not use catch-all pattern `_ => (),`
-            // instead, list all variants explicity
-            // because otherwise you'll forget to update this match statement when you add a variant
-            R1 | R2 | R3Fail | New | Done | Fail => {}
         }
     }
 

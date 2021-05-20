@@ -386,102 +386,6 @@ impl Protocol for Sign {
         }
     }
 
-    // return timeout crimes derived by messages that have not been received at the current round
-    fn waiting_on(&self) -> Vec<Vec<GeneralCrime>> {
-        // vec without crimes to return in trivial cases
-        let no_crimes = vec![vec![]; self.in_r1bcasts.vec_ref().len()];
-        match self.status {
-            New => no_crimes,
-            R1 => {
-                // bcasts are sent before p2ps. If we don't have all bcasts we can safely determine the staller
-                if !self.in_r1bcasts.is_full() {
-                    return Self::crimes_from_fillvec(
-                        &self.in_r1bcasts,
-                        GeneralMsgType::SignMsgType {
-                            msg_type: MsgType::R1Bcast,
-                        },
-                    );
-                }
-                self.crimes_from_vec_fillvec(&self.in_all_r1p2ps)
-            }
-            R2 => self.crimes_from_vec_fillvec(&self.in_all_r2p2ps),
-            R2Fail => {
-                // bcasts are sent before p2ps. If we don't have all bcasts we can safely determine the staller
-                if !self.in_r2bcasts_fail.is_full() {
-                    return Self::crimes_from_fillvec(
-                        &self.in_r2bcasts_fail,
-                        GeneralMsgType::SignMsgType {
-                            msg_type: MsgType::R2FailBcast,
-                        },
-                    );
-                }
-                self.crimes_from_vec_fillvec(&self.in_all_r1p2ps)
-            }
-            R3 => Self::crimes_from_fillvec(
-                &self.in_r3bcasts,
-                GeneralMsgType::SignMsgType {
-                    msg_type: MsgType::R3Bcast,
-                },
-            ),
-            R3Fail => Self::crimes_from_fillvec(
-                &self.in_r3bcasts_fail,
-                GeneralMsgType::SignMsgType {
-                    msg_type: MsgType::R3FailBcast,
-                },
-            ),
-            R4 => Self::crimes_from_fillvec(
-                &self.in_r4bcasts,
-                GeneralMsgType::SignMsgType {
-                    msg_type: MsgType::R4Bcast,
-                },
-            ),
-            R5 => {
-                // bcasts are sent before p2ps. If we don't have all bcasts we can safely determine the staller
-                if !self.in_r5bcasts.is_full() {
-                    return Self::crimes_from_fillvec(
-                        &self.in_r5bcasts,
-                        GeneralMsgType::SignMsgType {
-                            msg_type: MsgType::R5Bcast,
-                        },
-                    );
-                }
-                self.crimes_from_vec_fillvec(&self.in_all_r5p2ps)
-            }
-            R6 => Self::crimes_from_fillvec(
-                &self.in_r6bcasts,
-                GeneralMsgType::SignMsgType {
-                    msg_type: MsgType::R6Bcast,
-                },
-            ),
-            R6Fail => Self::crimes_from_fillvec(
-                &self.in_r6bcasts_fail,
-                GeneralMsgType::SignMsgType {
-                    msg_type: MsgType::R6FailBcast,
-                },
-            ),
-            R6FailType5 => Self::crimes_from_fillvec(
-                &self.in_r6bcasts_fail_type5,
-                GeneralMsgType::SignMsgType {
-                    msg_type: MsgType::R6FailType5Bcast,
-                },
-            ),
-            R7 => Self::crimes_from_fillvec(
-                &self.in_r7bcasts,
-                GeneralMsgType::SignMsgType {
-                    msg_type: MsgType::R7Bcast,
-                },
-            ),
-            R7FailType7 => Self::crimes_from_fillvec(
-                &self.in_r7bcasts_fail_type7,
-                GeneralMsgType::SignMsgType {
-                    msg_type: MsgType::R7FailType7Bcast,
-                },
-            ),
-            Done => no_crimes,
-            Fail => no_crimes,
-        }
-    }
-
     fn done(&self) -> bool {
         matches!(self.status, Done | Fail)
     }
@@ -736,6 +640,102 @@ impl Sign {
     pub(super) fn update_state_fail(&mut self, crimes: Vec<Vec<Crime>>) {
         self.final_output = Some(Err(crimes));
         self.status = Fail;
+    }
+
+    // return timeout crimes derived by messages that have not been received at the current round
+    pub fn waiting_on(&self) -> Vec<Vec<GeneralCrime>> {
+        // vec without crimes to return in trivial cases
+        let no_crimes = vec![vec![]; self.in_r1bcasts.vec_ref().len()];
+        match self.status {
+            New => no_crimes,
+            R1 => {
+                // bcasts are sent before p2ps. If we don't have all bcasts we can safely determine the staller
+                if !self.in_r1bcasts.is_full() {
+                    return Self::crimes_from_fillvec(
+                        &self.in_r1bcasts,
+                        GeneralMsgType::SignMsgType {
+                            msg_type: MsgType::R1Bcast,
+                        },
+                    );
+                }
+                self.crimes_from_vec_fillvec(&self.in_all_r1p2ps)
+            }
+            R2 => self.crimes_from_vec_fillvec(&self.in_all_r2p2ps),
+            R2Fail => {
+                // bcasts are sent before p2ps. If we don't have all bcasts we can safely determine the staller
+                if !self.in_r2bcasts_fail.is_full() {
+                    return Self::crimes_from_fillvec(
+                        &self.in_r2bcasts_fail,
+                        GeneralMsgType::SignMsgType {
+                            msg_type: MsgType::R2FailBcast,
+                        },
+                    );
+                }
+                self.crimes_from_vec_fillvec(&self.in_all_r1p2ps)
+            }
+            R3 => Self::crimes_from_fillvec(
+                &self.in_r3bcasts,
+                GeneralMsgType::SignMsgType {
+                    msg_type: MsgType::R3Bcast,
+                },
+            ),
+            R3Fail => Self::crimes_from_fillvec(
+                &self.in_r3bcasts_fail,
+                GeneralMsgType::SignMsgType {
+                    msg_type: MsgType::R3FailBcast,
+                },
+            ),
+            R4 => Self::crimes_from_fillvec(
+                &self.in_r4bcasts,
+                GeneralMsgType::SignMsgType {
+                    msg_type: MsgType::R4Bcast,
+                },
+            ),
+            R5 => {
+                // bcasts are sent before p2ps. If we don't have all bcasts we can safely determine the staller
+                if !self.in_r5bcasts.is_full() {
+                    return Self::crimes_from_fillvec(
+                        &self.in_r5bcasts,
+                        GeneralMsgType::SignMsgType {
+                            msg_type: MsgType::R5Bcast,
+                        },
+                    );
+                }
+                self.crimes_from_vec_fillvec(&self.in_all_r5p2ps)
+            }
+            R6 => Self::crimes_from_fillvec(
+                &self.in_r6bcasts,
+                GeneralMsgType::SignMsgType {
+                    msg_type: MsgType::R6Bcast,
+                },
+            ),
+            R6Fail => Self::crimes_from_fillvec(
+                &self.in_r6bcasts_fail,
+                GeneralMsgType::SignMsgType {
+                    msg_type: MsgType::R6FailBcast,
+                },
+            ),
+            R6FailType5 => Self::crimes_from_fillvec(
+                &self.in_r6bcasts_fail_type5,
+                GeneralMsgType::SignMsgType {
+                    msg_type: MsgType::R6FailType5Bcast,
+                },
+            ),
+            R7 => Self::crimes_from_fillvec(
+                &self.in_r7bcasts,
+                GeneralMsgType::SignMsgType {
+                    msg_type: MsgType::R7Bcast,
+                },
+            ),
+            R7FailType7 => Self::crimes_from_fillvec(
+                &self.in_r7bcasts_fail_type7,
+                GeneralMsgType::SignMsgType {
+                    msg_type: MsgType::R7FailType7Bcast,
+                },
+            ),
+            Done => no_crimes,
+            Fail => no_crimes,
+        }
     }
 
     // create crimes out the missing entires in a fillvec; see test_waiting_on_bcast()

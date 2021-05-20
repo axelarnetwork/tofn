@@ -65,6 +65,10 @@ impl BadSign {
         })
     }
 
+    pub fn waiting_on(&self) -> Vec<Vec<GeneralCrime>> {
+        self.sign.waiting_on()
+    }
+
     pub fn clone_output(&self) -> Option<SignOutput> {
         self.sign.clone_output()
     }
@@ -711,9 +715,6 @@ impl Protocol for BadSign {
     }
     fn expecting_more_msgs_this_round(&self) -> bool {
         self.sign.expecting_more_msgs_this_round()
-    }
-    fn waiting_on(&self) -> Vec<Vec<GeneralCrime>> {
-        self.sign.waiting_on()
     }
     fn done(&self) -> bool {
         self.sign.done()

@@ -9,7 +9,6 @@ pub trait Protocol {
     fn get_bcast_out(&self) -> &Option<MsgBytes>; // TODO Option<&MsgBytes> instead
     fn get_p2p_out(&self) -> &Option<Vec<Option<MsgBytes>>>; // TODO Option<&Vec<Option<MsgBytes>>> instead
     fn expecting_more_msgs_this_round(&self) -> bool;
-    fn waiting_on(&self) -> Vec<Vec<GeneralCrime>>;
     fn done(&self) -> bool;
 }
 
