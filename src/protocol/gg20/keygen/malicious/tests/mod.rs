@@ -2,7 +2,7 @@
 use super::Behaviour;
 use crate::protocol::{
     gg20::keygen::{Keygen, MsgMeta, MsgType, Status},
-    tests::{execute_protocol_vec_spoof, Criminal},
+    tests::{execute_protocol_vec_with_criminals, Criminal},
     IndexRange, Protocol,
 };
 use tracing::info;
@@ -185,7 +185,7 @@ fn execute_test_case(t: &test_cases::TestCase) {
         .map(|p| p as &mut dyn Protocol)
         .collect();
 
-    execute_protocol_vec_spoof(&mut protocols, &criminals);
+    execute_protocol_vec_with_criminals(&mut protocols, &criminals);
 
     // TEST: honest parties finished and correctly computed the criminals list
     for keygen_party in keygen_parties.iter().filter(|k| k.behaviour.is_honest()) {

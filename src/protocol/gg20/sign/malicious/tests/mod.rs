@@ -4,7 +4,7 @@ use crate::protocol::{
         keygen::tests::execute_keygen,
         sign::{MsgMeta, MsgType},
     },
-    tests::{execute_protocol_vec_spoof, Criminal},
+    tests::{execute_protocol_vec_with_criminals, Criminal},
     Protocol,
 };
 use tracing_test::traced_test; // enable logs in tests
@@ -240,7 +240,7 @@ fn execute_test_case(t: &test_cases::TestCase) {
     let mut protocols: Vec<&mut dyn Protocol> =
         signers.iter_mut().map(|p| p as &mut dyn Protocol).collect();
 
-    execute_protocol_vec_spoof(&mut protocols, &criminals);
+    execute_protocol_vec_with_criminals(&mut protocols, &criminals);
 
     // TEST: honest parties finished and correctly computed the criminals list
     for signer in signers

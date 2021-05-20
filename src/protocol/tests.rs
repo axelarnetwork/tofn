@@ -7,7 +7,7 @@ pub(crate) trait Criminal {
 }
 
 pub(crate) fn execute_protocol_vec(parties: &mut [&mut dyn Protocol]) {
-    execute_protocol_vec_spoof(
+    execute_protocol_vec_with_criminals(
         parties,
         &[], // create an empty slice of criminals
     )
@@ -32,7 +32,7 @@ fn all_honest_parties_expect_the_same(
     true
 }
 
-pub(crate) fn execute_protocol_vec_spoof(
+pub(crate) fn execute_protocol_vec_with_criminals(
     parties: &mut [&mut dyn Protocol],
     criminals: &[&dyn Criminal],
 ) {
