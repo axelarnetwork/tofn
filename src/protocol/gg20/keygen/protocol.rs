@@ -1,5 +1,8 @@
 use super::{crimes::Crime, r3, Keygen, MsgMeta, MsgType, Status::*};
-use crate::protocol::{IndexRange, MsgBytes, Protocol, ProtocolResult};
+use crate::{
+    fillvec::FillVec,
+    protocol::{IndexRange, MsgBytes, Protocol, ProtocolResult},
+};
 
 impl Protocol for Keygen {
     fn next_round(&mut self) -> ProtocolResult {
@@ -151,7 +154,6 @@ impl Protocol for Keygen {
     }
 
     fn expecting_more_msgs_this_round(&self) -> bool {
-        let me = self.my_index;
         match self.status {
             New => false,
             R1 => !self.in_r1bcasts.is_full(),
@@ -160,9 +162,6 @@ impl Protocol for Keygen {
                     return true;
                 }
                 for (i, in_r2p2ps) in self.in_all_r2p2ps.iter().enumerate() {
-                    if i == me {
-                        continue;
-                    }
                     if !in_r2p2ps.is_full_except(i) {
                         return true;
                     }
@@ -203,5 +202,88 @@ impl Keygen {
             // because otherwise you'll forget to update this match statement when you add a variant
             R1 | R2 | R3Fail | New | Done | Fail => {}
         }
+    }
+
+    // return timeout crimes derived by messages that have not been received at the current round
+    pub fn waiting_on(&self) -> Vec<Vec<Crime>> {
+        // vec with crimes starts empty; return it as is in trivial cases
+        let mut crimes = vec![vec![]; self.in_r1bcasts.vec_ref().len()];
+        match self.status {
+            New => crimes,
+            R1 => Self::crimes_from_fillvec(&self.in_r1bcasts, MsgType::R1Bcast),
+            R2 => {
+                // find bcast crimes
+                crimes = Self::crimes_from_fillvec(&self.in_r2bcasts, MsgType::R2Bcast);
+                // get bcast crimes
+                self.crimes_from_vec_fillvec(&self.in_all_r2p2ps)
+                    .into_iter()
+                    .enumerate()
+                    // accumulate all party's bcast crimes with all his p2p crimes
+                    .for_each(|(i, p2p_crimes)| crimes[i].extend(p2p_crimes));
+                crimes
+            }
+            R3 => Self::crimes_from_fillvec(&self.in_r3bcasts, MsgType::R3Bcast),
+            R3Fail => Self::crimes_from_fillvec(&self.in_r3bcasts_fail, MsgType::R3FailBcast),
+            Done | Fail => crimes,
+        }
+    }
+
+    // create crimes out the missing entires in a fillvec; see test_waiting_on_bcast()
+    // - fillvec [Some(), Some(), Some()] returns [[], [], []]
+    // - fillvec [Some(), Some(),  None ] returns [[], [], [Crime::Staller{msg_type: RXBcast}]]
+    fn crimes_from_fillvec<T>(fillvec: &FillVec<T>, msg_type: MsgType) -> Vec<Vec<Crime>> {
+        if fillvec.is_full() {
+            return vec![vec![]; fillvec.vec_ref().len()];
+        }
+        fillvec
+            .vec_ref()
+            .iter()
+            .map(|element| {
+                // if we have a msg from the ith party, he is not a staller
+                if element.is_some() {
+                    return vec![];
+                }
+                // else add a crime in that index
+                vec![Crime::StalledMessage {
+                    msg_type: msg_type.clone(),
+                }]
+            })
+            .collect()
+    }
+
+    // get the p2p message type that corresponds to this state
+    fn current_p2p_msg(&self, to: usize) -> Option<MsgType> {
+        match self.status {
+            R2 => Some(MsgType::R2P2p { to }),
+            // do not use catch-all pattern `_ => None,`
+            // instead, list all variants explicity
+            // because otherwise you'll forget to update this match statement when you add a variant
+            R1 | R3 | R3Fail | New | Done | Fail => None,
+        }
+    }
+
+    // create crimes out of the missing entries in a vec of fillvecs; see test_waiting_on_p2p()
+    // - vec<fillvec> [[  --  , Some(), Some()], <- party 0 list
+    //                 [Some(),   --  , Some()], <- party 1 list
+    //                 [Some(), Some(),   --  ]] <- party 2 list
+    //        returns [[], [], []]
+    // - vec<fillvec> [[  --  , Some(), Some()], <- party 0 list;
+    //                 [ None ,   --  , Some()], <- party 1 list; p0 didn't recv p2p from p1
+    //                 [Some(), Some(),   --  ]] <- party 2 list;
+    //        returns [[],
+    //                 [Crime::Staller{msg_type: RXP2p{to: 0}}]
+    //                 []]
+    fn crimes_from_vec_fillvec<T>(&self, vec_fillvec: &[FillVec<T>]) -> Vec<Vec<Crime>> {
+        let mut crimes = vec![vec![]; vec_fillvec.len()];
+        for (criminal, p2ps) in vec_fillvec.iter().enumerate() {
+            for (victim, p2p) in p2ps.vec_ref().iter().enumerate() {
+                if p2p.is_none() && victim != criminal {
+                    crimes[criminal].push(Crime::StalledMessage {
+                        msg_type: self.current_p2p_msg(victim).unwrap(),
+                    });
+                }
+            }
+        }
+        crimes
     }
 }

@@ -2,8 +2,8 @@
 use super::Behaviour;
 use crate::protocol::{
     gg20::keygen::{Keygen, MsgMeta, MsgType, Status},
-    tests::{execute_protocol_vec_spoof, Spoofer},
-    Protocol,
+    tests::{execute_protocol_vec_with_criminals, Criminal},
+    IndexRange, Protocol,
 };
 use tracing::info;
 use tracing_test::traced_test; // enable logs in tests
@@ -16,6 +16,7 @@ lazy_static::lazy_static! {
     static ref SELF_ACCUSATION: Vec<TestCase> = self_accusation_cases();
     static ref SPOOF_BEFORE_CASES: Vec<TestCase> = generate_spoof_before_honest_cases();
     static ref SPOOF_AFTER_CASES: Vec<TestCase> = generate_spoof_after_honest_cases();
+    static ref STALL_CASES: Vec<TestCase> = generate_stall_cases();
 }
 
 struct KeygenSpoofer {
@@ -24,17 +25,43 @@ struct KeygenSpoofer {
     status: Status,
 }
 
-impl Spoofer for KeygenSpoofer {
+impl Criminal for KeygenSpoofer {
     fn index(&self) -> usize {
         self.index
     }
-    fn spoof(&self, original_msg: &[u8]) -> Vec<u8> {
+    // send to the victim the original message and a spoofed duplicated one
+    fn do_crime(&self, original_msg: &[u8], victim: &mut dyn Protocol) {
+        // first, send the message to receiver and then create a _duplicate_ message
+        victim
+            .set_msg_in(
+                &original_msg,
+                &IndexRange {
+                    first: self.index,
+                    last: self.index,
+                },
+            )
+            .unwrap();
+
+        // deserialize message and change `from` field
         let mut msg: MsgMeta = bincode::deserialize(original_msg).unwrap();
         msg.from = self.victim;
-        bincode::serialize(&msg).unwrap()
+        let msg = bincode::serialize(&msg).unwrap();
+        // send spoofed message to victim
+        victim
+            .set_msg_in(
+                &msg,
+                &IndexRange {
+                    first: self.index,
+                    last: self.index,
+                },
+            )
+            .unwrap();
     }
-    // map message types to the round they are created
-    fn is_spoof_round(&self, msg: &[u8]) -> bool {
+    // check if the current round is the spoof round
+    fn is_crime_round(&self, sender_idx: usize, msg: &[u8]) -> bool {
+        if sender_idx != self.index {
+            return false;
+        }
         let msg: MsgMeta = bincode::deserialize(msg).unwrap();
         let curr_status = match msg.msg_type {
             MsgType::R1Bcast => Status::R1,
@@ -44,6 +71,25 @@ impl Spoofer for KeygenSpoofer {
             MsgType::R3FailBcast => Status::R3,
         };
         curr_status == self.status // why can't I use matches?
+    }
+}
+struct KeygenStaller {
+    index: usize,
+    msg_type: MsgType,
+}
+
+impl Criminal for KeygenStaller {
+    fn index(&self) -> usize {
+        self.index
+    }
+    // don't send message to receiver
+    fn do_crime(&self, _bytes: &[u8], _receiver: &mut dyn Protocol) {
+        // hard is the life of a staller
+    }
+    // check if the current message is the one we want to stall
+    fn is_crime_round(&self, sender_idx: usize, msg: &[u8]) -> bool {
+        let msg: MsgMeta = bincode::deserialize(msg).unwrap();
+        sender_idx == self.index && msg.msg_type == self.msg_type
     }
 }
 
@@ -66,6 +112,11 @@ fn self_accusation() {
 fn spoof_messages() {
     execute_test_case_list(&SPOOF_BEFORE_CASES);
     execute_test_case_list(&SPOOF_AFTER_CASES);
+}
+
+#[test]
+fn test_stall_cases() {
+    execute_test_case_list(&STALL_CASES);
 }
 
 fn execute_test_case_list(test_cases: &[test_cases::TestCase]) {
@@ -114,21 +165,38 @@ fn execute_test_case(t: &test_cases::TestCase) {
         .map(|spoofer| spoofer.unwrap())
         .collect();
 
+    let stallers: Vec<KeygenStaller> = keygen_parties
+        .iter_mut()
+        .enumerate()
+        .map(|(index, s)| match s.behaviour.clone() {
+            Behaviour::Staller { msg_type } => Some(KeygenStaller { index, msg_type }),
+            _ => None,
+        })
+        .filter(|staller| staller.is_some())
+        .map(|staller| staller.unwrap())
+        .collect();
+
     // need to do an extra iteration because we can't return reference to temp objects
-    let spoofers: Vec<&dyn Spoofer> = spoofers.iter().map(|s| s as &dyn Spoofer).collect();
+    let mut criminals: Vec<&dyn Criminal> = spoofers.iter().map(|s| s as &dyn Criminal).collect();
+    criminals.extend(stallers.iter().map(|s| s as &dyn Criminal));
 
     let mut protocols: Vec<&mut dyn Protocol> = keygen_parties
         .iter_mut()
         .map(|p| p as &mut dyn Protocol)
         .collect();
 
-    execute_protocol_vec_spoof(&mut protocols, &spoofers);
+    execute_protocol_vec_with_criminals(&mut protocols, &criminals);
 
     // TEST: honest parties finished and correctly computed the criminals list
     for keygen_party in keygen_parties.iter().filter(|k| k.behaviour.is_honest()) {
-        let output = keygen_party
-            .clone_output()
-            .unwrap_or_else(|| panic!("honest party {} did not finish", keygen_party.my_index,));
-        t.assert_expected_output(&output);
+        // if party has finished, check that result was the expected one
+        if let Some(output) = keygen_party.clone_output() {
+            t.assert_expected_output(&output);
+        }
+        // else check for stalling parties
+        else {
+            let output = keygen_party.waiting_on();
+            t.assert_expected_waiting_on(&output);
+        }
     }
 }

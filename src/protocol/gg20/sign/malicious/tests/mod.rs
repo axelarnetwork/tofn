@@ -4,7 +4,7 @@ use crate::protocol::{
         keygen::tests::execute_keygen,
         sign::{MsgMeta, MsgType},
     },
-    tests::{execute_protocol_vec_spoof, Spoofer},
+    tests::{execute_protocol_vec_with_criminals, Criminal},
     Protocol,
 };
 use tracing_test::traced_test; // enable logs in tests
@@ -17,16 +17,43 @@ struct SignSpoofer {
     status: Status,
 }
 
-impl Spoofer for SignSpoofer {
+impl Criminal for SignSpoofer {
     fn index(&self) -> usize {
         self.index
     }
-    fn spoof(&self, original_msg: &[u8]) -> Vec<u8> {
+    // send to the victim the original message and a spoofed duplicated one
+    fn do_crime(&self, original_msg: &[u8], victim: &mut dyn Protocol) {
+        // first, send the message to receiver and then create a _duplicate_ message
+        victim
+            .set_msg_in(
+                &original_msg,
+                &IndexRange {
+                    first: self.index,
+                    last: self.index,
+                },
+            )
+            .unwrap();
+
+        // deserialize message and change `from` field
         let mut msg: MsgMeta = bincode::deserialize(original_msg).unwrap();
         msg.from = self.victim;
-        bincode::serialize(&msg).unwrap()
+        let msg = bincode::serialize(&msg).unwrap();
+        // send spoofed message to victim
+        victim
+            .set_msg_in(
+                &msg,
+                &IndexRange {
+                    first: self.index,
+                    last: self.index,
+                },
+            )
+            .unwrap();
     }
-    fn is_spoof_round(&self, msg: &[u8]) -> bool {
+    // check if the current round is the spoof round
+    fn is_crime_round(&self, sender_idx: usize, msg: &[u8]) -> bool {
+        if sender_idx != self.index {
+            return false;
+        }
         let msg: MsgMeta = bincode::deserialize(msg).unwrap();
         let msg_type = match msg.msg_type {
             MsgType::R1Bcast => Status::R1,
@@ -48,6 +75,26 @@ impl Spoofer for SignSpoofer {
     }
 }
 
+struct SignStaller {
+    index: usize,
+    msg_type: MsgType,
+}
+
+impl Criminal for SignStaller {
+    fn index(&self) -> usize {
+        self.index
+    }
+    // don't send message to receiver
+    fn do_crime(&self, _bytes: &[u8], _receiver: &mut dyn Protocol) {
+        // hard is the life of a staller
+    }
+    // check if the current message is the one we want to stall
+    fn is_crime_round(&self, sender_idx: usize, msg: &[u8]) -> bool {
+        let msg: MsgMeta = bincode::deserialize(msg).unwrap();
+        sender_idx == self.index && msg.msg_type == self.msg_type
+    }
+}
+
 mod test_cases;
 use test_cases::*;
 
@@ -55,6 +102,7 @@ lazy_static::lazy_static! {
     static ref BASIC_CASES: Vec<TestCase> = generate_basic_cases();
     static ref SPOOF_BEFORE_CASES: Vec<TestCase> = generate_spoof_before_honest_cases();
     static ref SPOOF_AFTER_CASES: Vec<TestCase> = generate_spoof_after_honest_cases();
+    static ref STALL_CASES: Vec<TestCase> = generate_stall_cases();
     static ref SKIPPING_CASES: Vec<TestCase> = generate_skipping_cases();
     static ref SAME_ROUND_CASES: Vec<TestCase> = generate_multiple_faults_in_same_round();
     static ref MULTIPLE_VICTIMS: Vec<TestCase> = generate_target_multiple_parties();
@@ -114,6 +162,11 @@ fn panic_out_of_index() {
     execute_test_case_list(&PANIC_INDEX);
 }
 
+#[test]
+fn test_stall_cases() {
+    execute_test_case_list(&STALL_CASES);
+}
+
 fn execute_test_case_list(test_cases: &[test_cases::TestCase]) {
     for t in test_cases {
         let malicious_participants: Vec<(usize, MaliciousType)> = t
@@ -166,25 +219,42 @@ fn execute_test_case(t: &test_cases::TestCase) {
         .map(|spoofer| spoofer.unwrap())
         .collect();
 
+    let stallers: Vec<SignStaller> = signers
+        .iter()
+        .enumerate()
+        .map(|(index, s)| match s.malicious_type.clone() {
+            Staller { msg_type } => Some(SignStaller {
+                index,
+                msg_type: msg_type.clone(),
+            }),
+            _ => None,
+        })
+        .filter(|staller| staller.is_some())
+        .map(|staller| staller.unwrap())
+        .collect();
+
     // need to do an extra iteration because we can't return reference to temp objects
-    let spoofers: Vec<&dyn Spoofer> = spoofers.iter().map(|s| s as &dyn Spoofer).collect();
+    let mut criminals: Vec<&dyn Criminal> = spoofers.iter().map(|s| s as &dyn Criminal).collect();
+    criminals.extend(stallers.iter().map(|s| s as &dyn Criminal));
 
     let mut protocols: Vec<&mut dyn Protocol> =
         signers.iter_mut().map(|p| p as &mut dyn Protocol).collect();
 
-    execute_protocol_vec_spoof(&mut protocols, &spoofers);
+    execute_protocol_vec_with_criminals(&mut protocols, &criminals);
 
     // TEST: honest parties finished and correctly computed the criminals list
     for signer in signers
         .iter()
         .filter(|s| matches!(s.malicious_type, Honest))
     {
-        let output = signer.sign.final_output.clone().unwrap_or_else(|| {
-            panic!(
-                "honest participant {} did not finish",
-                signer.sign.my_participant_index
-            )
-        });
-        t.assert_expected_output(&output);
+        // if party has finished, check that result was the expected one
+        if let Some(output) = signer.clone_output() {
+            t.assert_expected_output(&output);
+        }
+        // else check for stalling parties
+        else {
+            let output = signer.waiting_on();
+            t.assert_expected_waiting_on(&output);
+        }
     }
 }

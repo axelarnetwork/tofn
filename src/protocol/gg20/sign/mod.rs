@@ -54,8 +54,14 @@ pub mod malicious;
 pub mod crimes;
 mod protocol;
 
-#[derive(Debug, Serialize, Deserialize)]
-enum MsgType {
+// TODO: see if we can skip that by some how duplicating MsgType inside tests
+//       and add EnumIter and Default to that
+// Behaviour includes Staller{victim, msg_type} and we use
+// strum to make Behaviour iterable. Strum needs for all included enums
+// that contain complex data to provide a default method:
+// https://docs.rs/strum/0.14.0/strum/?search=#strum-macros
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, EnumIter)]
+pub enum MsgType {
     R1Bcast,
     R1P2p { to: usize },
     R2P2p { to: usize },
@@ -70,6 +76,16 @@ enum MsgType {
     R6FailType5Bcast,
     R7Bcast,
     R7FailType7Bcast,
+}
+
+// Behaviour includes Staller{victim, msg_type} and we use
+// strum to make Behaviour iterable. Strum needs for all included enums
+// that contain complex data to provide a default method:
+// https://docs.rs/strum/0.14.0/strum/?search=#strum-macros
+impl Default for MsgType {
+    fn default() -> Self {
+        MsgType::R1Bcast
+    }
 }
 
 // TODO identical to keygen::MsgMeta except for MsgType---use generic

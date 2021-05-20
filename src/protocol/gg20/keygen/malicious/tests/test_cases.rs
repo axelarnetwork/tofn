@@ -1,7 +1,7 @@
 use strum::IntoEnumIterator;
 
 use super::{Behaviour, Behaviour::*};
-use crate::protocol::gg20::keygen::{crimes::Crime, KeygenOutput, Status};
+use crate::protocol::gg20::keygen::{crimes::Crime, KeygenOutput, MsgType, Status};
 
 pub(super) struct TestCaseParty {
     pub(super) behaviour: Behaviour,
@@ -30,6 +30,13 @@ impl TestCase {
             }
         }
     }
+    pub(crate) fn assert_expected_waiting_on(&self, output: &[Vec<Crime>]) {
+        let mut expected_output = vec![];
+        for p in &self.parties {
+            expected_output.push(p.expected_crimes.clone());
+        }
+        assert_eq!(output, expected_output);
+    }
     pub(super) fn share_count(&self) -> usize {
         self.parties.len()
     }
@@ -50,6 +57,10 @@ impl Behaviour {
         )
     }
 
+    pub(super) fn is_staller(&self) -> bool {
+        matches!(self, Staller { msg_type: _ })
+    }
+
     /// Return the `Crime` variant `c` such that
     /// if one party acts according to `self` and all other parties are honest
     /// then honest parties will detect `c`.
@@ -57,6 +68,9 @@ impl Behaviour {
     pub(super) fn to_crime(&self) -> Crime {
         match self {
             Honest => panic!("`to_crime` called with `Honest`"),
+            Staller { msg_type: mt } => Crime::StalledMessage {
+                msg_type: mt.clone(),
+            },
             UnauthenticatedSender {
                 victim: v,
                 status: s,
@@ -76,7 +90,7 @@ impl Behaviour {
 // #[rustfmt::skip] // skip formatting to make file more readable
 pub(super) fn generate_basic_cases() -> Vec<TestCase> {
     Behaviour::iter()
-        .filter(|b| !b.is_honest() && !b.is_spoofer())
+        .filter(|b| !b.is_honest() && !b.is_spoofer() && !b.is_staller())
         .map(|b| TestCase {
             threshold: 1,
             expect_success: false,
@@ -188,4 +202,35 @@ pub(super) fn self_accusation_cases() -> Vec<TestCase> {
             },
         ],
     }]
+}
+
+// create stallers
+pub(super) fn generate_stall_cases() -> Vec<TestCase> {
+    use MsgType::*;
+    let stallers = MsgType::iter()
+        .filter(|msg_type| matches!(msg_type, R1Bcast | R2Bcast | R2P2p { to: _ } | R3Bcast)) // don't match fail types
+        .map(|msg_type| Staller { msg_type })
+        .collect::<Vec<Behaviour>>();
+
+    stallers
+        .iter()
+        .map(|staller| TestCase {
+            threshold: 1,
+            expect_success: false,
+            parties: vec![
+                TestCaseParty {
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+                TestCaseParty {
+                    behaviour: staller.clone(),
+                    expected_crimes: vec![staller.to_crime()],
+                },
+                TestCaseParty {
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+            ],
+        })
+        .collect()
 }

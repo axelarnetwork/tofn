@@ -1,5 +1,7 @@
 use crate::protocol::gg20::keygen::Status;
 use strum_macros::EnumIter;
+
+use super::MsgType;
 // all malicious behaviours
 // names have the form <round><fault> where
 // <round> indicates round where the first malicious tampering occurs, and
@@ -8,6 +10,7 @@ use strum_macros::EnumIter;
 #[derive(Clone, Debug, EnumIter)]
 pub enum Behaviour {
     Honest,
+    Staller { msg_type: MsgType },
     UnauthenticatedSender { victim: usize, status: Status },
     R1BadCommit,
     R2BadShare { victim: usize },

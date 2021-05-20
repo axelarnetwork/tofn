@@ -35,11 +35,21 @@ impl TestCase {
             }
         }
     }
+    pub(crate) fn assert_expected_waiting_on(&self, output: &[Vec<Crime>]) {
+        let mut expected_output = vec![];
+        for p in &self.sign_participants {
+            expected_output.push(p.expected_crimes.clone());
+        }
+        assert_eq!(output, expected_output);
+    }
 }
 
 pub(super) fn map_type_to_crime(t: &MaliciousType) -> Vec<Crime> {
     match t {
         Honest => vec![],
+        Staller { msg_type: mt } => vec![Crime::StalledMessage {
+            msg_type: mt.clone(),
+        }],
         UnauthenticatedSender {
             victim: v,
             status: s,
@@ -89,6 +99,7 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
                     victim: _,
                     status: _
                 }
+                | Staller { msg_type: _ }
         )
     }) {
         basic_test_cases.push(TestCase {
@@ -419,4 +430,52 @@ pub(super) fn generate_out_of_index() -> Vec<TestCase> {
             ],
         },
     ]
+}
+
+// create stallers
+pub(super) fn generate_stall_cases() -> Vec<TestCase> {
+    use MsgType::*;
+    let stallers = MsgType::iter()
+        .filter(|msg_type| {
+            matches!(
+                msg_type,
+                R1Bcast
+                    | R1P2p { to: _ }
+                    | R2P2p { to: _ }
+                    | R3Bcast
+                    | R4Bcast
+                    | R5Bcast
+                    | R5P2p { to: _ }
+                    | R6Bcast
+                    | R7Bcast
+            )
+        }) // don't match fail types
+        .map(|msg_type| Staller { msg_type })
+        .collect::<Vec<MaliciousType>>();
+
+    stallers
+        .iter()
+        .map(|staller| TestCase {
+            share_count: 3,
+            expect_success: false,
+            threshold: 1,
+            sign_participants: vec![
+                SignParticipant {
+                    party_index: 1,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+                SignParticipant {
+                    party_index: 0,
+                    behaviour: staller.clone(),
+                    expected_crimes: map_type_to_crime(&staller),
+                },
+                SignParticipant {
+                    party_index: 2,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+            ],
+        })
+        .collect()
 }
