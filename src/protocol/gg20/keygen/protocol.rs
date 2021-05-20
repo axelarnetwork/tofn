@@ -1,9 +1,7 @@
 use super::{crimes::Crime, r3, Keygen, MsgMeta, MsgType, Status::*};
 use crate::{
     fillvec::FillVec,
-    protocol::{
-        gg20::GeneralMsgType, GeneralCrime, IndexRange, MsgBytes, Protocol, ProtocolResult,
-    },
+    protocol::{IndexRange, MsgBytes, Protocol, ProtocolResult},
 };
 
 impl Protocol for Keygen {
@@ -207,52 +205,29 @@ impl Keygen {
     }
 
     // return timeout crimes derived by messages that have not been received at the current round
-    pub fn waiting_on(&self) -> Vec<Vec<GeneralCrime>> {
+    pub fn waiting_on(&self) -> Vec<Vec<Crime>> {
         // vec without crimes to return in trivial cases
         let no_crimes = vec![vec![]; self.in_r1bcasts.vec_ref().len()];
         match self.status {
             New => no_crimes,
-            R1 => Self::crimes_from_fillvec(
-                &self.in_r1bcasts,
-                GeneralMsgType::KeygenMsgType {
-                    msg_type: MsgType::R1Bcast,
-                },
-            ),
+            R1 => Self::crimes_from_fillvec(&self.in_r1bcasts, MsgType::R1Bcast),
             R2 => {
                 // bcasts are sent before p2ps. If we don't have all bcasts we can safely determine the staller
                 if !self.in_r2bcasts.is_full() {
-                    return Self::crimes_from_fillvec(
-                        &self.in_r2bcasts,
-                        GeneralMsgType::KeygenMsgType {
-                            msg_type: MsgType::R2Bcast,
-                        },
-                    );
+                    return Self::crimes_from_fillvec(&self.in_r2bcasts, MsgType::R2Bcast);
                 }
                 self.crimes_from_vec_fillvec(&self.in_all_r2p2ps)
             }
-            R3 => Self::crimes_from_fillvec(
-                &self.in_r3bcasts,
-                GeneralMsgType::KeygenMsgType {
-                    msg_type: MsgType::R3Bcast,
-                },
-            ),
-            R3Fail => Self::crimes_from_fillvec(
-                &self.in_r3bcasts_fail,
-                GeneralMsgType::KeygenMsgType {
-                    msg_type: MsgType::R3FailBcast,
-                },
-            ),
+            R3 => Self::crimes_from_fillvec(&self.in_r3bcasts, MsgType::R3Bcast),
+            R3Fail => Self::crimes_from_fillvec(&self.in_r3bcasts_fail, MsgType::R3FailBcast),
             Done | Fail => no_crimes,
         }
     }
 
     // create crimes out the missing entires in a fillvec; see test_waiting_on_bcast()
     // - fillvec [Some(), Some(), Some()] returns [[], [], []]
-    // - fillvec [Some(), Some(),  None ] returns [[], [], [GeneralCrime::Stall{msg_type: RXBcast}]]
-    fn crimes_from_fillvec<T>(
-        fillvec: &FillVec<T>,
-        msg_type: GeneralMsgType,
-    ) -> Vec<Vec<GeneralCrime>> {
+    // - fillvec [Some(), Some(),  None ] returns [[], [], [Crime::Stall{msg_type: RXBcast}]]
+    fn crimes_from_fillvec<T>(fillvec: &FillVec<T>, msg_type: MsgType) -> Vec<Vec<Crime>> {
         fillvec
             .vec_ref()
             .iter()
@@ -262,7 +237,7 @@ impl Keygen {
                     return vec![];
                 }
                 // else add a crime in that index
-                vec![GeneralCrime::Stall {
+                vec![Crime::StalledMessage {
                     msg_type: msg_type.clone(),
                 }]
             })
@@ -289,19 +264,17 @@ impl Keygen {
     //                 [ None ,   --  , Some()], <- party 1 list; p0 didn't recv p2p from p1
     //                 [Some(), Some(),   --  ]] <- party 2 list;
     //        returns [[],
-    //                 [GeneralCrime::Stall{msg_type: RXP2p{to: 0}}]
+    //                 [Crime::Stall{msg_type: RXP2p{to: 0}}]
     //                 []]
-    fn crimes_from_vec_fillvec<T>(&self, vec_fillvec: &[FillVec<T>]) -> Vec<Vec<GeneralCrime>> {
+    fn crimes_from_vec_fillvec<T>(&self, vec_fillvec: &[FillVec<T>]) -> Vec<Vec<Crime>> {
         let mut crimes = vec![vec![]; vec_fillvec.len()];
         for (criminal, p2ps) in vec_fillvec.iter().enumerate() {
             for (victim, p2p) in p2ps.vec_ref().iter().enumerate() {
                 if p2p.is_some() || victim == criminal {
                     crimes[criminal].extend(vec![]);
                 } else {
-                    crimes[criminal].extend(vec![GeneralCrime::Stall {
-                        msg_type: GeneralMsgType::KeygenMsgType {
-                            msg_type: self.current_p2p_msg(victim).unwrap(),
-                        },
+                    crimes[criminal].extend(vec![Crime::StalledMessage {
+                        msg_type: self.current_p2p_msg(victim).unwrap(),
                     }]);
                 }
             }

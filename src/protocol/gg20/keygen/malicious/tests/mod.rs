@@ -16,7 +16,7 @@ lazy_static::lazy_static! {
     static ref SELF_ACCUSATION: Vec<TestCase> = self_accusation_cases();
     static ref SPOOF_BEFORE_CASES: Vec<TestCase> = generate_spoof_before_honest_cases();
     static ref SPOOF_AFTER_CASES: Vec<TestCase> = generate_spoof_after_honest_cases();
-    static ref STALL_CASES: Vec<StallTestCase> = generate_stall_cases();
+    static ref STALL_CASES: Vec<TestCase> = generate_stall_cases();
 }
 
 struct KeygenSpoofer {
@@ -157,7 +157,7 @@ fn test_stall_cases() {
     execute_stall_test_case_list(&STALL_CASES);
 }
 
-fn execute_stall_test_case_list(test_cases: &[test_cases::StallTestCase]) {
+fn execute_stall_test_case_list(test_cases: &[test_cases::TestCase]) {
     for t in test_cases {
         info!(
             "share_count [{}] threshold [{}]",
@@ -176,7 +176,7 @@ fn execute_stall_test_case_list(test_cases: &[test_cases::StallTestCase]) {
     }
 }
 
-fn execute_stall_test_case(t: &test_cases::StallTestCase) {
+fn execute_stall_test_case(t: &test_cases::TestCase) {
     let mut keygen_parties: Vec<Keygen> = t
         .parties
         .iter()

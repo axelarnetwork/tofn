@@ -1,4 +1,4 @@
-use crate::protocol::gg20::keygen::Status;
+use crate::protocol::gg20::keygen::{MsgType, Status};
 
 // all crimes
 // names have the form <round><crime> where
@@ -7,6 +7,7 @@ use crate::protocol::gg20::keygen::Status;
 // example: R3FailBadProof -> crime detected in r3_fail()
 #[derive(Debug, Clone, PartialEq)]
 pub enum Crime {
+    StalledMessage { msg_type: MsgType },
     SpoofedMessage { victim: usize, status: Status },
     R3BadReveal,
     R4FailBadVss { victim: usize },
