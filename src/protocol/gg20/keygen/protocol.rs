@@ -212,7 +212,7 @@ impl Keygen {
             New => crimes,
             R1 => Self::crimes_from_fillvec(&self.in_r1bcasts, MsgType::R1Bcast),
             R2 => {
-                // bcasts are sent before p2ps. If we don't have all bcasts we can safely determine the staller
+                // find bcast crimes
                 crimes = Self::crimes_from_fillvec(&self.in_r2bcasts, MsgType::R2Bcast);
                 // get bcast crimes
                 self.crimes_from_vec_fillvec(&self.in_all_r2p2ps)

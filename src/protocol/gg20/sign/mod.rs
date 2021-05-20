@@ -54,6 +54,12 @@ pub mod malicious;
 pub mod crimes;
 mod protocol;
 
+// TODO: see if we can skip that by some how duplicating MsgType inside tests
+//       and add EnumIter and Default to that
+// Behaviour includes Staller{victim, msg_type} and we use
+// strum to make Behaviour iterable. Strum needs for all included enums
+// that contain complex data to provide a default method:
+// https://docs.rs/strum/0.14.0/strum/?search=#strum-macros
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, EnumIter)]
 pub enum MsgType {
     R1Bcast,
