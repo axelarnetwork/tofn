@@ -44,16 +44,16 @@ impl Keygen {
             my_dk: r1state.my_dk.clone(),
             my_ek: r1state.my_ek.clone(),
             my_zkp: r1state.my_zkp.clone(),
-            ecdsa_public_key: r3state.ecdsa_public_key,
-            my_ecdsa_secret_key_share: r3state.my_ecdsa_secret_key_share,
-            all_ecdsa_public_key_shares: r3state.all_ecdsa_public_key_shares.clone(),
+            ecdsa_public_key: r3state.y,
+            my_ecdsa_secret_key_share: r3state.my_x_i,
+            all_ecdsa_public_key_shares: r3state.all_y_i.clone(),
             all_eks,
             all_zkps,
 
-            ecdsa_public_key_k256: r3state.ecdsa_public_key_k256.into(),
-            my_ecdsa_secret_key_share_k256: r3state.my_ecdsa_secret_key_share_k256.into(),
-            all_ecdsa_public_key_shares_k256: r3state
-                .all_ecdsa_public_key_shares_k256
+            y_k256: r3state.y_k256.into(),
+            my_x_i_k256: r3state.my_x_i_k256.into(),
+            all_y_i_k256: r3state
+                .all_y_i_k256
                 .iter()
                 .map(k256_serde::ProjectivePoint::from)
                 .collect(),

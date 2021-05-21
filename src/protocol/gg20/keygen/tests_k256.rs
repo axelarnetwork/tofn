@@ -111,9 +111,7 @@ pub(crate) fn execute_keygen(share_count: usize, threshold: usize) -> Vec<Secret
 
     let all_shares: Vec<vss_k256::Share> = all_secret_key_shares
         .iter()
-        .map(|k| {
-            vss_k256::Share::from_scalar(*k.my_ecdsa_secret_key_share_k256.unwrap(), k.my_index)
-        })
+        .map(|k| vss_k256::Share::from_scalar(*k.my_x_i_k256.unwrap(), k.my_index))
         .collect();
     let secret_key_recovered = vss_k256::recover_secret(&all_shares, threshold);
 
@@ -122,10 +120,7 @@ pub(crate) fn execute_keygen(share_count: usize, threshold: usize) -> Vec<Secret
     // test: verify that the reconstructed secret key yields the public key everyone deduced
     for secret_key_share in all_secret_key_shares.iter() {
         let test_pubkey = k256::ProjectivePoint::generator() * secret_key_recovered;
-        assert_eq!(
-            &test_pubkey,
-            secret_key_share.ecdsa_public_key_k256.unwrap()
-        );
+        assert_eq!(&test_pubkey, secret_key_share.y_k256.unwrap());
     }
 
     // test: everyone computed everyone else's public key share correctly

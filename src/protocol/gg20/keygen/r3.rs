@@ -26,13 +26,13 @@ pub struct Bcast {
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub(super) struct State {
-    pub(super) ecdsa_public_key: GE,                 // the final pub key
-    pub(super) my_ecdsa_secret_key_share: FE,        // my final secret key share
-    pub(super) all_ecdsa_public_key_shares: Vec<GE>, // these sum to ecdsa_public_key
+    pub(super) y: GE, // the final pub key
+    pub(super) my_x_i: FE,
+    pub(super) all_y_i: Vec<GE>, // these sum to y
 
-    pub(super) ecdsa_public_key_k256: k256::ProjectivePoint,
-    pub(super) my_ecdsa_secret_key_share_k256: k256::Scalar,
-    pub(super) all_ecdsa_public_key_shares_k256: Vec<k256::ProjectivePoint>,
+    pub(super) y_k256: k256::ProjectivePoint,
+    pub(super) my_x_i_k256: k256::Scalar,
+    pub(super) all_y_i_k256: Vec<k256::ProjectivePoint>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -66,9 +66,9 @@ impl Keygen {
         // compute my_ecdsa_secret_key_share, ecdsa_public_key, all_ecdsa_public_key_shares
 
         // curv
-        let mut ecdsa_public_key = r1state.my_y_i;
-        let mut my_ecdsa_secret_key_share = r2state.my_share_of_my_u_i;
-        let mut all_ecdsa_public_key_shares: Vec<GE> = (0..self.share_count)
+        let mut y = r1state.my_y_i;
+        let mut my_x_i = r2state.my_share_of_my_u_i;
+        let mut all_y_i: Vec<GE> = (0..self.share_count)
             // start each summation with my contribution
             .map(|i| vss::get_point_commitment(&r2state.my_u_i_share_commitments, i))
             .collect();
@@ -78,11 +78,9 @@ impl Keygen {
             .as_ref()
             .unwrap()
             .u_i_share_commits_k256;
-        let mut ecdsa_public_key_k256 = my_vss_commit_k256.secret_commit().clone();
-        let mut my_ecdsa_secret_key_share_k256 =
-            r2state.my_share_of_my_u_i_k256.get_scalar().clone();
-        let mut all_ecdsa_public_key_shares_k256: Vec<k256::ProjectivePoint> = (0..self
-            .share_count)
+        let mut y_k256 = my_vss_commit_k256.secret_commit().clone();
+        let mut my_x_i_k256 = r2state.my_share_of_my_u_i_k256.get_scalar().clone();
+        let mut all_y_i_k256: Vec<k256::ProjectivePoint> = (0..self.share_count)
             // start each summation with my contribution
             .map(|i| my_vss_commit_k256.share_commit(i))
             .collect();
@@ -186,24 +184,19 @@ impl Keygen {
             }
 
             // curv
-            ecdsa_public_key = ecdsa_public_key + y_i;
-            my_ecdsa_secret_key_share = my_ecdsa_secret_key_share + u_i_share;
+            y = y + y_i;
+            my_x_i = my_x_i + u_i_share;
 
-            for (j, ecdsa_public_key_share) in all_ecdsa_public_key_shares.iter_mut().enumerate() {
-                *ecdsa_public_key_share = *ecdsa_public_key_share
-                    + vss::get_point_commitment(&r2bcast.u_i_share_commitments, j);
+            for (j, y_i) in all_y_i.iter_mut().enumerate() {
+                *y_i = *y_i + vss::get_point_commitment(&r2bcast.u_i_share_commitments, j);
             }
 
             // k256
-            ecdsa_public_key_k256 = ecdsa_public_key_k256 + y_i_k256;
-            my_ecdsa_secret_key_share_k256 =
-                my_ecdsa_secret_key_share_k256 + u_i_share_k256.get_scalar();
+            y_k256 = y_k256 + y_i_k256;
+            my_x_i_k256 = my_x_i_k256 + u_i_share_k256.get_scalar();
 
-            for (j, ecdsa_public_key_share_k256) in
-                all_ecdsa_public_key_shares_k256.iter_mut().enumerate()
-            {
-                *ecdsa_public_key_share_k256 =
-                    *ecdsa_public_key_share_k256 + r2bcast.u_i_share_commits_k256.share_commit(j);
+            for (j, y_i_k256) in all_y_i_k256.iter_mut().enumerate() {
+                *y_i_k256 = *y_i_k256 + r2bcast.u_i_share_commits_k256.share_commit(j);
             }
         }
 
@@ -234,22 +227,21 @@ impl Keygen {
         }
 
         // curv
-        all_ecdsa_public_key_shares[self.my_index] = GE::generator() * my_ecdsa_secret_key_share;
+        all_y_i[self.my_index] = GE::generator() * my_x_i;
         // k256
-        all_ecdsa_public_key_shares_k256[self.my_index] =
-            k256::ProjectivePoint::generator() * my_ecdsa_secret_key_share_k256;
+        all_y_i_k256[self.my_index] = k256::ProjectivePoint::generator() * my_x_i_k256;
 
         Output::Success {
             state: State {
-                ecdsa_public_key,
-                my_ecdsa_secret_key_share,
-                all_ecdsa_public_key_shares,
-                ecdsa_public_key_k256,
-                my_ecdsa_secret_key_share_k256,
-                all_ecdsa_public_key_shares_k256,
+                y,
+                my_x_i,
+                all_y_i,
+                y_k256,
+                my_x_i_k256,
+                all_y_i_k256,
             },
             out_bcast: Bcast {
-                dlog_proof: DLogProof::prove(&my_ecdsa_secret_key_share),
+                dlog_proof: DLogProof::prove(&my_x_i),
             },
         }
     }

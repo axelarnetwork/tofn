@@ -19,9 +19,9 @@ pub struct SecretKeyShare {
     pub all_eks: Vec<EncryptionKey>,
     pub all_zkps: Vec<ZkSetup>,
 
-    pub ecdsa_public_key_k256: k256_serde::ProjectivePoint,
-    pub my_ecdsa_secret_key_share_k256: k256_serde::Scalar,
-    pub all_ecdsa_public_key_shares_k256: Vec<k256_serde::ProjectivePoint>,
+    pub y_k256: k256_serde::ProjectivePoint,
+    pub my_x_i_k256: k256_serde::Scalar,
+    pub all_y_i_k256: Vec<k256_serde::ProjectivePoint>,
 }
 
 pub use curv::elliptic::curves::traits::{ECPoint, ECScalar};
