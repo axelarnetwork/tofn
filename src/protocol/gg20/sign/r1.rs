@@ -1,6 +1,13 @@
+use k256::elliptic_curve::Field;
 use serde::{Deserialize, Serialize};
 
-use crate::{fillvec::FillVec, protocol::gg20::vss, zkp::paillier::range};
+use crate::{
+    fillvec::FillVec,
+    hash,
+    k256_serde::to_bytes,
+    protocol::gg20::{vss, vss_k256},
+    zkp::paillier::range,
+};
 use curv::{
     // arithmetic::traits::Samplable,
     cryptographic_primitives::commitments::{hash_commitment::HashCommitment, traits::Commitment},
@@ -38,9 +45,10 @@ pub struct State {
 }
 
 impl Sign {
-    // immutable &self: do not modify existing self state, only add more
     pub(super) fn r1(&self) -> (State, Bcast, FillVec<P2p>) {
         assert!(matches!(self.status, Status::New));
+
+        // curv
         let my_secret_key_summand // w_i
             = self.my_secret_key_share.my_ecdsa_secret_key_share
             * vss::lagrangian_coefficient( // l_i
@@ -54,6 +62,15 @@ impl Sign {
         let (commit, my_reveal) = HashCommitment::create_commitment(
             &my_public_blind_summand.bytes_compressed_to_big_int(),
         );
+
+        // k256
+        let my_w_i = self.my_secret_key_share.my_x_i_k256.unwrap()
+            * &vss_k256::lagrange_coefficient(self.my_participant_index, &self.participant_indices);
+        let my_k_i = k256::Scalar::random(rand::thread_rng());
+        let my_gamma_i = k256::Scalar::random(rand::thread_rng());
+        let my_g_gamma_i = k256::ProjectivePoint::generator() * my_gamma_i;
+        let (my_g_gamma_i_commit_k256, my_g_gamma_i_reveal_k256) =
+            hash::commit(to_bytes(&my_g_gamma_i));
 
         // initiate MtA protocols for
         // 1. my_ecdsa_nonce_summand (me) * my_secret_blind_summand (other)
