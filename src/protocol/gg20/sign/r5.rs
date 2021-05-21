@@ -47,7 +47,7 @@ impl Sign {
 
         // compute R (aka ecdsa_randomizer) as per phase 4 of 2020/540
         // first verify all commits and compute sum of all reveals
-        let mut public_blind = r1state.my_public_blind_summand;
+        let mut public_blind = r1state.g_gamma_i;
         let mut criminals = vec![Vec::new(); self.participant_indices.len()];
 
         for (i, in_r4bcast) in self.in_r4bcasts.vec_ref().iter().enumerate() {
@@ -77,20 +77,20 @@ impl Sign {
         }
 
         let ecdsa_randomizer = public_blind * r4state.nonce_x_blind_inv; // R
-        let my_ecdsa_randomizer_x_nonce_summand = ecdsa_randomizer * r1state.my_ecdsa_nonce_summand; // R_i from 2020/540
+        let my_ecdsa_randomizer_x_nonce_summand = ecdsa_randomizer * r1state.k_i; // R_i from 2020/540
 
         let mut out_p2ps = FillVec::with_len(self.participant_indices.len());
         let stmt_wc = &range::StatementWc {
             stmt: range::Statement {
-                ciphertext: &r1state.my_encrypted_ecdsa_nonce_summand,
+                ciphertext: &r1state.encrypted_k_i,
                 ek: &self.my_secret_key_share.my_ek,
             },
             msg_g: &my_ecdsa_randomizer_x_nonce_summand,
             g: &ecdsa_randomizer,
         };
         let wit = &range::Witness {
-            msg: &r1state.my_ecdsa_nonce_summand,
-            randomness: &r1state.my_encrypted_ecdsa_nonce_summand_randomness,
+            msg: &r1state.k_i,
+            randomness: &r1state.k_i_randomness,
         };
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
             if *participant_index == self.my_secret_key_share.my_index {

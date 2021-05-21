@@ -64,7 +64,7 @@ fn basic_correctness_inner(
     // TEST: secret key shares yield the pubkey
     let ecdsa_secret_key = participants
         .iter()
-        .map(|p| p.r1state.as_ref().unwrap().my_secret_key_summand)
+        .map(|p| p.r1state.as_ref().unwrap().w_i)
         .fold(FE::zero(), |acc, x| acc + x);
     let ecdsa_public_key = GE::generator() * ecdsa_secret_key;
     for key_share in key_shares.iter() {
@@ -121,11 +121,11 @@ fn basic_correctness_inner(
     // TEST: MtA for nonce_x_blind (delta_i), nonce_x_secret_key (sigma_i)
     let nonce = participants
         .iter()
-        .map(|p| p.r1state.as_ref().unwrap().my_ecdsa_nonce_summand)
+        .map(|p| p.r1state.as_ref().unwrap().k_i)
         .fold(FE::zero(), |acc, x| acc + x);
     let blind = participants
         .iter()
-        .map(|p| p.r1state.as_ref().unwrap().my_secret_blind_summand)
+        .map(|p| p.r1state.as_ref().unwrap().gamma_i)
         .fold(FE::zero(), |acc, x| acc + x);
     let nonce_x_blind = participants
         .iter()

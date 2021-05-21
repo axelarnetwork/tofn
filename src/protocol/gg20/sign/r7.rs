@@ -116,8 +116,8 @@ impl Sign {
                 .unwrap()
                 .mod_floor(&FE::q()),
         );
-        let my_ecdsa_sig_summand = self.msg_to_sign * r1state.my_ecdsa_nonce_summand
-            + r * r3state.my_nonce_x_keyshare_summand;
+        let my_ecdsa_sig_summand =
+            self.msg_to_sign * r1state.k_i + r * r3state.my_nonce_x_keyshare_summand;
 
         Output::Success {
             state: State {
@@ -211,10 +211,8 @@ impl Sign {
         let r1state = self.r1state.as_ref().unwrap();
 
         BcastFailType7 {
-            ecdsa_nonce_summand: r1state.my_ecdsa_nonce_summand,
-            ecdsa_nonce_summand_randomness: r1state
-                .my_encrypted_ecdsa_nonce_summand_randomness
-                .clone(),
+            ecdsa_nonce_summand: r1state.k_i,
+            ecdsa_nonce_summand_randomness: r1state.k_i_randomness.clone(),
             mta_wc_keyshare_summands: mta_wc_keyshare_summands.into_vec(),
             proof,
         }

@@ -129,7 +129,7 @@ impl Protocol for BadSign {
                     self.sign.my_participant_index, self.malicious_type
                 );
                 let one: FE = ECScalar::from(&BigInt::from(1));
-                let my_secret_blind_summand = &mut state.my_secret_blind_summand;
+                let my_secret_blind_summand = &mut state.gamma_i;
                 *my_secret_blind_summand = *my_secret_blind_summand + one;
                 self.sign.update_state_r1(state, bcast, p2ps)
             }
@@ -331,11 +331,11 @@ impl Protocol for BadSign {
                                 // because they both contain a copy of nonce_x_blind_summand
                                 let nonce_x_blind_summand = &mut out_bcast.nonce_x_blind_summand;
                                 *nonce_x_blind_summand = *nonce_x_blind_summand
-                                    + self.sign.r1state.as_ref().unwrap().my_secret_blind_summand;
+                                    + self.sign.r1state.as_ref().unwrap().gamma_i;
                                 let nonce_x_blind_summand_state =
                                     &mut state.my_nonce_x_blind_summand;
                                 *nonce_x_blind_summand_state = *nonce_x_blind_summand_state
-                                    + self.sign.r1state.as_ref().unwrap().my_secret_blind_summand;
+                                    + self.sign.r1state.as_ref().unwrap().gamma_i;
 
                                 self.sign.update_state_r3(state, out_bcast)
                             }

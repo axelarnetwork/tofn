@@ -82,7 +82,7 @@ impl Sign {
                 .my_zkp
                 .verify_mta_proof(
                     &mta::Statement {
-                        ciphertext1: &r1state.my_encrypted_ecdsa_nonce_summand,
+                        ciphertext1: &r1state.encrypted_k_i,
                         ciphertext2: &in_p2p.mta_response_blind.c,
                         ek: my_ek,
                     },
@@ -110,7 +110,7 @@ impl Sign {
                 .verify_mta_proof_wc(
                     &mta::StatementWc {
                         stmt: mta::Statement {
-                            ciphertext1: &r1state.my_encrypted_ecdsa_nonce_summand,
+                            ciphertext1: &r1state.encrypted_k_i,
                             ciphertext2: &in_p2p.mta_response_keyshare.c,
                             ek: my_ek,
                         },
@@ -133,12 +133,12 @@ impl Sign {
             // TODO may need to use Paillier::open here to recover encryption randomness
             let (my_mta_blind_summand_lhs, _) = in_p2p
                 .mta_response_blind
-                .verify_proofs_get_alpha(my_dk, &r1state.my_ecdsa_nonce_summand)
+                .verify_proofs_get_alpha(my_dk, &r1state.k_i)
                 .unwrap(); // TODO panic
 
             let (my_mta_keyshare_summand_lhs, _) = in_p2p
                 .mta_response_keyshare
-                .verify_proofs_get_alpha(my_dk, &r1state.my_ecdsa_nonce_summand)
+                .verify_proofs_get_alpha(my_dk, &r1state.k_i)
                 .unwrap(); // TODO panic
 
             // TODO zengo does this extra check, but it requires more messages to be sent
@@ -172,12 +172,8 @@ impl Sign {
         let my_mta_wc_keyshare_summands_lhs = my_mta_wc_keyshare_summands_lhs.into_vec();
 
         // start the summation with my contribution
-        let mut my_nonce_x_blind_summand = r1state
-            .my_ecdsa_nonce_summand
-            .mul(&r1state.my_secret_blind_summand.get_element());
-        let mut my_nonce_x_keyshare_summand = r1state
-            .my_ecdsa_nonce_summand
-            .mul(&r1state.my_secret_key_summand.get_element());
+        let mut my_nonce_x_blind_summand = r1state.k_i.mul(&r1state.gamma_i.get_element());
+        let mut my_nonce_x_keyshare_summand = r1state.k_i.mul(&r1state.w_i.get_element());
 
         for i in 0..self.participant_indices.len() {
             if self.participant_indices[i] == self.my_secret_key_share.my_index {

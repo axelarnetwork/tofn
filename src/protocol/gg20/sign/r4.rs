@@ -62,7 +62,7 @@ impl Sign {
                     nonce_x_blind_inv: nonce_x_blind.invert(),
                 },
                 out_bcast: Bcast {
-                    public_blind_summand: r1state.my_public_blind_summand,
+                    public_blind_summand: r1state.g_gamma_i,
                     // TODO hash commitment randomness?
                     reveal: r1state.my_reveal.clone(),
                 },

@@ -65,7 +65,7 @@ impl Sign {
         // both MtAs use my_ecdsa_nonce_summand, so I use the same message for both
 
         let r1state = self.r1state.as_ref().unwrap();
-        let my_public_key_summand = GE::generator() * r1state.my_secret_key_summand;
+        let my_public_key_summand = GE::generator() * r1state.w_i;
 
         let mut out_p2ps = FillVec::with_len(self.participant_indices.len());
         let mut my_mta_blind_summands_rhs = FillVec::with_len(self.participant_indices.len());
@@ -116,7 +116,7 @@ impl Sign {
             // MtA for nonce * blind
             // TODO tidy scoping: don't need randomness, beta_prime after these two statements
             let (mta_response_blind, my_mta_blind_summand_rhs, randomness, beta_prime) = // (m_b_gamma, beta_gamma)
-                mta_zengo::MessageB::b(&r1state.my_secret_blind_summand, other_ek, other_encrypted_ecdsa_nonce_summand.clone());
+                mta_zengo::MessageB::b(&r1state.gamma_i, other_ek, other_encrypted_ecdsa_nonce_summand.clone());
             let other_zkp = &self.my_secret_key_share.all_zkps[*participant_index];
             let mta_proof = other_zkp.mta_proof(
                 &mta::Statement {
@@ -125,7 +125,7 @@ impl Sign {
                     ek: other_ek,
                 },
                 &mta::Witness {
-                    x: &r1state.my_secret_blind_summand,
+                    x: &r1state.gamma_i,
                     msg: &beta_prime,
                     randomness: &randomness,
                 },
@@ -142,7 +142,7 @@ impl Sign {
 
             // MtAwc for nonce * keyshare
             let (mta_response_keyshare, my_mta_keyshare_summand_rhs, randomness_wc, beta_prime_wc) = // (m_b_w, beta_wi)
-                mta_zengo::MessageB::b(&r1state.my_secret_key_summand, other_ek, other_encrypted_ecdsa_nonce_summand.clone());
+                mta_zengo::MessageB::b(&r1state.w_i, other_ek, other_encrypted_ecdsa_nonce_summand.clone());
             let mta_proof_wc = other_zkp.mta_proof_wc(
                 &mta::StatementWc {
                     stmt: mta::Statement {
@@ -153,7 +153,7 @@ impl Sign {
                     x_g: &my_public_key_summand,
                 },
                 &mta::Witness {
-                    x: &r1state.my_secret_key_summand,
+                    x: &r1state.w_i,
                     msg: &beta_prime_wc,
                     randomness: &randomness_wc,
                 },

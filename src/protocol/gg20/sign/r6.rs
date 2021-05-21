@@ -225,11 +225,9 @@ impl Sign {
         }
 
         BcastFailType5 {
-            ecdsa_nonce_summand: r1state.my_ecdsa_nonce_summand,
-            ecdsa_nonce_summand_randomness: r1state
-                .my_encrypted_ecdsa_nonce_summand_randomness
-                .clone(),
-            secret_blind_summand: r1state.my_secret_blind_summand,
+            ecdsa_nonce_summand: r1state.k_i,
+            ecdsa_nonce_summand_randomness: r1state.k_i_randomness.clone(),
+            secret_blind_summand: r1state.gamma_i,
             mta_blind_summands: mta_blind_summands.into_vec(),
         }
     }
