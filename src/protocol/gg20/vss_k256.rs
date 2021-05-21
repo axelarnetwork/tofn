@@ -105,6 +105,10 @@ impl Share {
 
 pub fn recover_secret(shares: &[Share], threshold: usize) -> k256::Scalar {
     assert!(shares.len() > threshold);
+    struct Point {
+        x: k256::Scalar,
+        y: k256::Scalar,
+    }
     let points: Vec<Point> = shares
         .iter()
         .take(threshold + 1)
@@ -131,11 +135,6 @@ pub fn recover_secret(shares: &[Share], threshold: usize) -> k256::Scalar {
                 numerator * denominator.invert().unwrap()
             }
         })
-}
-
-struct Point {
-    x: k256::Scalar,
-    y: k256::Scalar,
 }
 
 #[cfg(test)]
