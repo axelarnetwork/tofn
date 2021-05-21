@@ -137,27 +137,32 @@ pub fn recover_secret(shares: &[Share], threshold: usize) -> k256::Scalar {
         })
 }
 
+pub fn lagrange_coefficient(i: usize, indices: &[usize]) -> k256::Scalar {
+    let scalars: Vec<k256::Scalar> = indices
+        .iter()
+        .map(|&index| k256::Scalar::from(index as u32 + 1))
+        .collect();
+    let (numerator, denominator) = scalars.iter().enumerate().fold(
+        (k256::Scalar::one(), k256::Scalar::one()),
+        |(num, den), (j, scalar_j)| {
+            if j == i {
+                (num, den)
+            } else {
+                (num * scalar_j, den * (scalar_j - &scalars[i]))
+            }
+        },
+    );
+    numerator * denominator.invert().unwrap()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use rand::prelude::SliceRandom;
 
     #[test]
-    fn recover_secret_correctness() {
-        let (t, n) = (2, 5);
-        let vss = Vss::new(t);
-        let secret = vss.get_secret();
-        let shuffled_shares = {
-            let mut shares = vss.shares(n);
-            shares.shuffle(&mut rand::thread_rng());
-            shares
-        };
-        let recovered_secret = recover_secret(&shuffled_shares, t);
-        assert_eq!(recovered_secret, *secret);
-    }
-
-    #[test]
     fn polynomial_evaluation() {
+        // secret polynomial p(x) = 2 + 2x + 2x^2
         let vss = Vss {
             secret_coeffs: vec![
                 k256::Scalar::from(2u32),
@@ -166,6 +171,10 @@ mod tests {
             ],
         };
         let shares = vss.shares(3);
+        // expected shares:
+        // index: 0, share: p(1) = 6
+        // index: 1, share: p(2) = 14
+        // index: 2, share: p(3) = 26
         let expected_shares = vec![
             Share {
                 scalar: k256::Scalar::from(6u32),
@@ -192,5 +201,48 @@ mod tests {
         for s in shares.iter() {
             assert!(commit.validate_share(s));
         }
+    }
+
+    impl Vss {
+        fn shuffled_shares(&self, n: usize) -> Vec<Share> {
+            let mut shares = self.shares(n);
+            shares.shuffle(&mut rand::thread_rng());
+            shares
+        }
+    }
+
+    #[test]
+    fn secret_recovery() {
+        let (t, n) = (2, 5);
+        let vss = Vss::new(t);
+        let secret = vss.get_secret();
+        let shuffled_shares = vss.shuffled_shares(n);
+        let recovered_secret = recover_secret(&shuffled_shares, t);
+        assert_eq!(recovered_secret, *secret);
+    }
+
+    #[test]
+    fn additive_shares() {
+        let (t, s, n) = (2, 4, 6);
+        let vss = Vss::new(t);
+
+        // take a random subset of s shares
+        let shares: Vec<Share> = vss.shuffled_shares(n).into_iter().take(s).collect();
+        let indices: Vec<usize> = shares.iter().map(|share| share.index).collect();
+
+        // convert polynomial shares to additive shares
+        let additive_shares: Vec<Share> = shares
+            .iter()
+            .enumerate()
+            .map(|(i, share)| Share {
+                scalar: share.scalar * lagrange_coefficient(i, &indices),
+                ..*share
+            })
+            .collect();
+
+        let recovered_secret = additive_shares
+            .iter()
+            .fold(k256::Scalar::zero(), |acc, share| acc + share.scalar);
+        assert_eq!(recovered_secret, *vss.get_secret());
     }
 }
