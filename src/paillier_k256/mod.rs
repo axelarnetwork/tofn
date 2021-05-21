@@ -5,6 +5,8 @@
 use paillier::{BigInt, EncryptWithChosenRandomness, KeyGeneration, Open, Paillier};
 use serde::{Deserialize, Serialize};
 
+// pub mod zk;
+
 pub(crate) fn keygen() -> (EncryptionKey, DecryptionKey) {
     // TODO safe primes
     let (ek, dk) = Paillier::keypair().keys();
@@ -92,18 +94,6 @@ pub(crate) struct Ciphertext(paillier::BigInt);
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Randomness(paillier::BigInt);
 
-/// reduce `n` modulo the order of the secp256k1 curve
-pub(crate) fn mod_secp256k1(n: &BigInt) -> BigInt {
-    // The order of the secp256k1 curve
-    const CURVE_ORDER: [u8; 32] = [
-        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-        0xfe, 0xba, 0xae, 0xdc, 0xe6, 0xaf, 0x48, 0xa0, 0x3b, 0xbf, 0xd2, 0x5e, 0x8c, 0xd0, 0x36,
-        0x41, 0x41,
-    ];
-    let modulus = BigInt::from(CURVE_ORDER.as_ref());
-    BigInt::modulus(n, &modulus)
-}
-
 /// pad `v` with leading zero bytes until it has length 32
 /// panics if `v.len()` exceeds 32
 pub(crate) fn pad32(v: Vec<u8>) -> Vec<u8> {
@@ -114,6 +104,22 @@ pub(crate) fn pad32(v: Vec<u8>) -> Vec<u8> {
     let mut v_pad = vec![0; 32];
     v_pad[(32 - v.len())..].copy_from_slice(&v);
     v_pad
+}
+
+// The order of the secp256k1 curve
+const SECP256K1_CURVE_ORDER: [u8; 32] = [
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe,
+    0xba, 0xae, 0xdc, 0xe6, 0xaf, 0x48, 0xa0, 0x3b, 0xbf, 0xd2, 0x5e, 0x8c, 0xd0, 0x36, 0x41, 0x41,
+];
+
+/// secp256k1 curve order as a `BigInt`
+pub(crate) fn secp256k1_modulus() -> BigInt {
+    BigInt::from(SECP256K1_CURVE_ORDER.as_ref())
+}
+
+/// reduce `n` modulo the order of the secp256k1 curve
+pub(crate) fn mod_secp256k1(n: &BigInt) -> BigInt {
+    BigInt::modulus(n, &secp256k1_modulus())
 }
 
 #[cfg(test)]
