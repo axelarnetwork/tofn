@@ -23,12 +23,13 @@ impl Vss {
         &self.secret_coeffs[0]
     }
     pub fn commit(&self) -> Commit {
-        Commit(
-            self.secret_coeffs
+        Commit {
+            coeff_commits: self
+                .secret_coeffs
                 .iter()
                 .map(|coeff| (k256::ProjectivePoint::generator() * coeff).into())
                 .collect(),
-        )
+        }
     }
     pub fn shares(&self, n: usize) -> Vec<Share> {
         assert!(self.get_threshold() < n); // also ensures n > 0
@@ -52,12 +53,14 @@ impl Vss {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Commit(Vec<k256_serde::ProjectivePoint>);
+pub struct Commit {
+    coeff_commits: Vec<k256_serde::ProjectivePoint>,
+}
 
 impl Commit {
     pub fn share_commit(&self, index: usize) -> k256::ProjectivePoint {
         let index_scalar = k256::Scalar::from(index as u32 + 1); // vss indices start at 1
-        self.0
+        self.coeff_commits
             .iter()
             .rev()
             .fold(k256::ProjectivePoint::identity(), |acc, p| {
@@ -65,7 +68,7 @@ impl Commit {
             })
     }
     pub fn secret_commit(&self) -> &k256::ProjectivePoint {
-        &self.0[0].unwrap()
+        &self.coeff_commits[0].unwrap()
     }
     pub fn validate_share_commit(
         &self,
