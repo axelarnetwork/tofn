@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::k256_serde;
 
+#[derive(Debug)]
 pub struct Vss {
     secret_coeffs: Vec<k256::Scalar>,
 }

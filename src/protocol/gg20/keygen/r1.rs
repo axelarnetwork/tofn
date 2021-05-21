@@ -25,7 +25,7 @@ pub(super) struct Bcast {
     pub(super) correct_key_proof: NICorrectKeyProof,
 }
 // can't derive Debug because NonZeroScalar doesn't derive Debug
-// #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
+#[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub(super) struct State {
     pub(super) my_u_i: FE,
     pub(super) my_y_i: GE,
