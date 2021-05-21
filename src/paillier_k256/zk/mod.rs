@@ -1,11 +1,4 @@
 //! A quick-and-dirty wrapper to clean up zkp code from https://github.com/ZenGo-X/multi-party-ecdsa
-
-// use curv::{
-//     arithmetic::traits::{Modulo, Samplable},
-//     elliptic::curves::traits::ECScalar,
-//     BigInt, FE,
-// };
-// use paillier::{DecryptionKey, EncryptionKey, KeyGeneration, Paillier};
 use paillier::{BigInt, DecryptionKey, EncryptionKey, KeyGeneration, Paillier};
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
