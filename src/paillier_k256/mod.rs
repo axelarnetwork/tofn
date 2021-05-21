@@ -5,7 +5,7 @@
 use paillier::{BigInt, EncryptWithChosenRandomness, KeyGeneration, Open, Paillier};
 use serde::{Deserialize, Serialize};
 
-// pub mod zk;
+pub mod zk;
 
 pub(crate) fn keygen() -> (EncryptionKey, DecryptionKey) {
     // TODO safe primes
@@ -119,7 +119,7 @@ pub(crate) fn secp256k1_modulus() -> BigInt {
 
 /// reduce `n` modulo the order of the secp256k1 curve
 pub(crate) fn mod_secp256k1(n: &BigInt) -> BigInt {
-    BigInt::modulus(n, &secp256k1_modulus())
+    n.modulus(&secp256k1_modulus())
 }
 
 #[cfg(test)]
