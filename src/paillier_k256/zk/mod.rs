@@ -1,5 +1,5 @@
-//! A quick-and-dirty wrapper to clean up zkp code from https://github.com/ZenGo-X/multi-party-ecdsa
-use paillier::{BigInt, DecryptionKey, EncryptionKey, KeyGeneration, Paillier};
+//! Minimize direct use of paillier, zk_paillier crates
+use super::{keygen_unsafe, BigInt, DecryptionKey, EncryptionKey};
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use zk_paillier::zkproofs::{CompositeDLogProof, DLogStatement};
@@ -18,7 +18,7 @@ pub struct ZkSetup {
 
 impl ZkSetup {
     pub fn new_unsafe() -> Self {
-        Self::from_keypair(Paillier::keypair().keys())
+        Self::from_keypair(keygen_unsafe())
     }
 
     fn from_keypair((ek_tilde, dk_tilde): (EncryptionKey, DecryptionKey)) -> Self {
@@ -27,16 +27,16 @@ impl ZkSetup {
         let s = BigInt::from(2).pow(256_u32);
 
         // TODO zeroize these secrets after use
-        let phi = (&dk_tilde.p - &one) * (&dk_tilde.q - &one);
+        let phi = (&dk_tilde.0.p - &one) * (&dk_tilde.0.q - &one);
         let xhi = random(&s);
 
         let h1 = random(&phi);
-        let h2 = h1.powm(&(-&xhi), &ek_tilde.n);
+        let h2 = h1.powm(&(-&xhi), &ek_tilde.0.n);
 
         let dlog_statement = DLogStatement {
-            N: ek_tilde.n, // n_tilde
-            g: h1,         // h1
-            ni: h2,        // h2
+            N: ek_tilde.0.n, // n_tilde
+            g: h1,           // h1
+            ni: h2,          // h2
         };
         let dlog_proof = CompositeDLogProof::prove(&dlog_statement, &xhi);
 

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod zk;
 
-pub(crate) fn keygen() -> (EncryptionKey, DecryptionKey) {
+pub(crate) fn keygen_unsafe() -> (EncryptionKey, DecryptionKey) {
     // TODO safe primes
     let (ek, dk) = Paillier::keypair().keys();
     (EncryptionKey(ek), DecryptionKey(dk))
@@ -131,7 +131,7 @@ mod tests {
     fn basic_round_trip() {
         let s = k256::Scalar::random(rand::thread_rng());
         let pt = Plaintext::from(&s);
-        let (ek, dk) = keygen();
+        let (ek, dk) = keygen_unsafe();
         let (ct, r) = encrypt(&ek, &pt);
         let (pt2, r2) = decrypt_with_randomness(&dk, &ct);
         assert_eq!(pt, pt2);
