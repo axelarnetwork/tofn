@@ -41,7 +41,7 @@ impl Protocol for Keygen {
                 .iter()
                 .map(|&failure| {
                     let mut my_crimes = vec![];
-                    if let Some(_) = failure {
+                    if failure.is_some() {
                         my_crimes.push(Crime::DisruptedMessage);
                     }
                     my_crimes
@@ -125,7 +125,7 @@ impl Protocol for Keygen {
 
     fn set_msg_in(&mut self, msg: &[u8], from_index_range: &IndexRange) -> ProtocolResult {
         let res = self.set_msg_in_inner(&msg, &from_index_range);
-        if let Err(_) = res {
+        if res.is_err() {
             self.disrupting_parties
                 .overwrite(from_index_range.first, true);
         }
