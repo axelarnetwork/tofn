@@ -95,6 +95,49 @@ impl Criminal for SignStaller {
     }
 }
 
+struct SignDisrupter {
+    index: usize,
+    msg_type: MsgType,
+}
+
+impl Criminal for SignDisrupter {
+    fn index(&self) -> usize {
+        self.index
+    }
+    // mess bytes and send to receiver
+    fn do_crime(&self, original_msg: &[u8], receiver: &mut dyn Protocol) {
+        // first, send the message to receiver and then create a _duplicate_ message
+        receiver
+            .set_msg_in(
+                &original_msg,
+                &IndexRange {
+                    first: self.index,
+                    last: self.index,
+                },
+            )
+            .unwrap();
+
+        // disrupt the message
+        let disrupted_msg = original_msg.clone()[0..original_msg.len() / 2].to_vec();
+
+        // send spoofed message to victim and ignore the result
+        // if we did our job correctly, res should be err
+        let res = receiver.set_msg_in(
+            &disrupted_msg,
+            &IndexRange {
+                first: self.index,
+                last: self.index,
+            },
+        );
+        assert!(res.is_err());
+    }
+    // check if the current message is the one we want to disrupt
+    fn is_crime_round(&self, sender_idx: usize, msg: &[u8]) -> bool {
+        let msg: MsgMeta = bincode::deserialize(msg).unwrap();
+        sender_idx == self.index && msg.msg_type == self.msg_type
+    }
+}
+
 mod test_cases;
 use test_cases::*;
 
@@ -103,6 +146,7 @@ lazy_static::lazy_static! {
     static ref SPOOF_BEFORE_CASES: Vec<TestCase> = generate_spoof_before_honest_cases();
     static ref SPOOF_AFTER_CASES: Vec<TestCase> = generate_spoof_after_honest_cases();
     static ref STALL_CASES: Vec<TestCase> = generate_stall_cases();
+    static ref DISRUPT_CASES: Vec<TestCase> = generate_disrupt_cases();
     static ref SKIPPING_CASES: Vec<TestCase> = generate_skipping_cases();
     static ref SAME_ROUND_CASES: Vec<TestCase> = generate_multiple_faults_in_same_round();
     static ref MULTIPLE_VICTIMS: Vec<TestCase> = generate_target_multiple_parties();
@@ -165,6 +209,11 @@ fn panic_out_of_index() {
 #[test]
 fn test_stall_cases() {
     execute_test_case_list(&STALL_CASES);
+}
+
+#[test]
+fn test_disrupt_cases() {
+    execute_test_case_list(&DISRUPT_CASES);
 }
 
 fn execute_test_case_list(test_cases: &[test_cases::TestCase]) {
@@ -233,9 +282,24 @@ fn execute_test_case(t: &test_cases::TestCase) {
         .map(|staller| staller.unwrap())
         .collect();
 
+    let disrupters: Vec<SignDisrupter> = signers
+        .iter()
+        .enumerate()
+        .map(|(index, s)| match s.malicious_type.clone() {
+            DisrupringSender { msg_type } => Some(SignDisrupter {
+                index,
+                msg_type: msg_type.clone(),
+            }),
+            _ => None,
+        })
+        .filter(|disrupter| disrupter.is_some())
+        .map(|disrupter| disrupter.unwrap())
+        .collect();
+
     // need to do an extra iteration because we can't return reference to temp objects
     let mut criminals: Vec<&dyn Criminal> = spoofers.iter().map(|s| s as &dyn Criminal).collect();
     criminals.extend(stallers.iter().map(|s| s as &dyn Criminal));
+    criminals.extend(disrupters.iter().map(|s| s as &dyn Criminal));
 
     let mut protocols: Vec<&mut dyn Protocol> =
         signers.iter_mut().map(|p| p as &mut dyn Protocol).collect();

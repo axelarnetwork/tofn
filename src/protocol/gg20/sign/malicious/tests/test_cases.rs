@@ -481,3 +481,50 @@ pub(super) fn generate_stall_cases() -> Vec<TestCase> {
         })
         .collect()
 }
+
+pub(super) fn generate_disrupt_cases() -> Vec<TestCase> {
+    use MsgType::*;
+    let disrupters = MsgType::iter()
+        .filter(|msg_type| {
+            matches!(
+                msg_type,
+                R1Bcast
+                    | R1P2p { to: _ }
+                    | R2P2p { to: _ }
+                    | R3Bcast
+                    | R4Bcast
+                    | R5Bcast
+                    | R5P2p { to: _ }
+                    | R6Bcast
+                    | R7Bcast
+            )
+        }) // don't match fail types
+        .map(|msg_type| DisrupringSender { msg_type })
+        .collect::<Vec<MaliciousType>>();
+
+    disrupters
+        .iter()
+        .map(|disrupter| TestCase {
+            share_count: 3,
+            expect_success: false,
+            threshold: 1,
+            sign_participants: vec![
+                SignParticipant {
+                    party_index: 1,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+                SignParticipant {
+                    party_index: 0,
+                    behaviour: disrupter.clone(),
+                    expected_crimes: map_type_to_crime(&disrupter),
+                },
+                SignParticipant {
+                    party_index: 2,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+            ],
+        })
+        .collect()
+}
