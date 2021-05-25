@@ -78,6 +78,10 @@ impl Behaviour {
                 victim: *v,
                 status: s.clone(),
             },
+            DisruptingSender {
+                victim: _,
+                msg_type: _,
+            } => Crime::DisruptedMessage {},
             R1BadCommit => Crime::R3BadReveal,
             R2BadShare { victim: v } => Crime::R4FailBadVss { victim: *v },
             R2BadEncryption { victim: v } => Crime::R4FailBadEncryption { victim: *v },

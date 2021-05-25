@@ -9,6 +9,7 @@ use crate::protocol::gg20::keygen::{MsgType, Status};
 pub enum Crime {
     StalledMessage { msg_type: MsgType },
     SpoofedMessage { victim: usize, status: Status },
+    DisruptedMessage {},
     R3BadReveal,
     R4FailBadVss { victim: usize },
     R4FailBadEncryption { victim: usize },
