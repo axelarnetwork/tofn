@@ -83,10 +83,7 @@ impl Behaviour {
                 victim: *v,
                 status: s.clone(),
             },
-            DisruptingSender {
-                victim: _,
-                msg_type: _,
-            } => Crime::DisruptedMessage,
+            DisruptingSender { msg_type: _ } => Crime::DisruptedMessage,
             R1BadCommit => Crime::R3BadReveal,
             R2BadShare { victim: v } => Crime::R4FailBadVss { victim: *v },
             R2BadEncryption { victim: v } => Crime::R4FailBadEncryption { victim: *v },
@@ -245,12 +242,10 @@ pub(super) fn generate_stall_cases() -> Vec<TestCase> {
 }
 
 pub(super) fn generate_disrupted_cases() -> Vec<TestCase> {
-    let victim = 0;
-
     use MsgType::*;
     let criminals = MsgType::iter()
         .filter(|msg_type| matches!(msg_type, R1Bcast | R2Bcast | R2P2p { to: _ } | R3Bcast)) // don't match fail types
-        .map(|msg_type| DisruptingSender { victim, msg_type })
+        .map(|msg_type| DisruptingSender { msg_type })
         .collect::<Vec<Behaviour>>();
 
     criminals

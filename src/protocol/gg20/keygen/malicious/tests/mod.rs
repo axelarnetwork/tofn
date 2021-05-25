@@ -229,10 +229,7 @@ fn execute_test_case(t: &test_cases::TestCase) {
         .iter_mut()
         .enumerate()
         .map(|(index, s)| match s.behaviour.clone() {
-            Behaviour::DisruptingSender {
-                victim: _,
-                msg_type,
-            } => Some(KeygenDisrupter {
+            Behaviour::DisruptingSender { msg_type } => Some(KeygenDisrupter {
                 index,
                 msg_type: msg_type.clone(),
             }),
