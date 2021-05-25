@@ -57,6 +57,7 @@ pub(super) fn map_type_to_crime(t: &MaliciousType) -> Vec<Crime> {
             victim: *v,
             status: s.clone(),
         }],
+        DisrupringSender { msg_type: _ } => vec![Crime::DisruptedMessage],
         R1BadProof { victim: v } => vec![Crime::R3FailBadRangeProof { victim: *v }],
         R2FalseAccusation { victim: v } => vec![Crime::R3FailFalseAccusation { victim: *v }],
         R2BadMta { victim: v } => vec![Crime::R4FailBadRangeProof { victim: *v }],
@@ -100,6 +101,7 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
                     status: _
                 }
                 | Staller { msg_type: _ }
+                | DisrupringSender { msg_type: _ }
         )
     }) {
         basic_test_cases.push(TestCase {

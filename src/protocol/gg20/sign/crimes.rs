@@ -8,6 +8,7 @@ use crate::protocol::gg20::sign::{MsgType, Status};
 pub enum Crime {
     SpoofedMessage { victim: usize, status: Status },
     StalledMessage { msg_type: MsgType },
+    DisruptedMessage,
     R3FailBadRangeProof { victim: usize },
     R3FailFalseAccusation { victim: usize },
     R4BadPedersenProof,
