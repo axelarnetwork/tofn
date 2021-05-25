@@ -19,6 +19,7 @@ impl TestCase {
         match output {
             Ok(_) => assert!(self.expect_success, "expect failure, got success"),
             Err(criminals) => {
+                println!("Crimes found: {:?}", criminals);
                 assert!(!self.expect_success, "expect success, got failure");
                 // make criminals into a Vec<&Vec<Crime>>
                 let expected_crime_lists: Vec<&Vec<Crime>> =
@@ -229,6 +230,38 @@ pub(super) fn generate_stall_cases() -> Vec<TestCase> {
                 TestCaseParty {
                     behaviour: staller.clone(),
                     expected_crimes: vec![staller.to_crime()],
+                },
+                TestCaseParty {
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+            ],
+        })
+        .collect()
+}
+
+pub(super) fn generate_disrupted_cases() -> Vec<TestCase> {
+    let victim = 0;
+
+    use MsgType::*;
+    let criminals = MsgType::iter()
+        .filter(|msg_type| matches!(msg_type, R1Bcast | R2Bcast | R2P2p { to: _ } | R3Bcast)) // don't match fail types
+        .map(|msg_type| DisruptingSender { victim, msg_type })
+        .collect::<Vec<Behaviour>>();
+
+    criminals
+        .iter()
+        .map(|criminal| TestCase {
+            threshold: 1,
+            expect_success: false,
+            parties: vec![
+                TestCaseParty {
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+                TestCaseParty {
+                    behaviour: criminal.clone(),
+                    expected_crimes: vec![criminal.to_crime()],
                 },
                 TestCaseParty {
                     behaviour: Honest,
