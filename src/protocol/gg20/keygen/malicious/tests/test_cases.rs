@@ -62,6 +62,10 @@ impl Behaviour {
         matches!(self, Staller { msg_type: _ })
     }
 
+    pub(super) fn is_disrupter(&self) -> bool {
+        matches!(self, DisruptingSender { msg_type: _ })
+    }
+
     /// Return the `Crime` variant `c` such that
     /// if one party acts according to `self` and all other parties are honest
     /// then honest parties will detect `c`.
@@ -95,7 +99,7 @@ impl Behaviour {
 // #[rustfmt::skip] // skip formatting to make file more readable
 pub(super) fn generate_basic_cases() -> Vec<TestCase> {
     Behaviour::iter()
-        .filter(|b| !b.is_honest() && !b.is_spoofer() && !b.is_staller())
+        .filter(|b| !b.is_honest() && !b.is_spoofer() && !b.is_staller() && !b.is_disrupter())
         .map(|b| TestCase {
             threshold: 1,
             expect_success: false,
