@@ -1,6 +1,6 @@
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
-use sha3::{Digest, Sha3_256};
+use sha2::{Digest, Sha256};
 
 // can't derive Serialize, Deserialize for sha3::digest::Output<Sha3_256>
 // so use [u8; 32] instead
@@ -18,7 +18,7 @@ pub(crate) fn commit(msg: impl AsRef<[u8]>) -> (Output, Randomness) {
 
 pub(crate) fn commit_with_randomness(msg: impl AsRef<[u8]>, randomness: &Randomness) -> Output {
     Output(
-        Sha3_256::new()
+        Sha256::new()
             .chain(msg)
             .chain(randomness.0)
             .finalize()

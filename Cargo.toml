@@ -10,16 +10,19 @@ crate-type = ["lib"]
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 bincode = "1.2.1"
-k256 = { version = "0", features = ["ecdsa"] }
-rand = "0.8" # k256 baggage
-sha3 = "0.9" # should specify "0" except curv already depends on older versions
-multi-party-ecdsa = { git = "https://github.com/ZenGo-X/multi-party-ecdsa", tag = "v0.4.3" } # for utilities::mta
+
+# k256 baggate
+k256 = "0"
+rand = "0.8" # should specify "0" except curv already depends on older versions
+sha2 = "0"
+ecdsa = "0" # needed only for FromDigest trait
 
 # logging
 log = "0.4"
 tracing = "0.1"
 
 # baggage from multi-party-ecdsa
+multi-party-ecdsa = { git = "https://github.com/ZenGo-X/multi-party-ecdsa", tag = "v0.4.3" } # for utilities::mta
 curv = { git = "https://github.com/KZen-networks/curv", tag = "v0.2.6", features = ["ec_secp256k1"] }
 paillier = { git = "https://github.com/KZen-networks/rust-paillier", tag = "v0.3.4"}
 zk-paillier = { git = "https://github.com/KZen-networks/zk-paillier", tag = "v0.2.9"}
@@ -30,8 +33,7 @@ strum_macros = "0.20"
 
 [dev-dependencies]
 lazy_static = "1.4"
-# enable logging for tests
-tracing-test = "0.1.0"
+tracing-test = "0.1.0" # enable logging for tests
 
 [features]
 malicious = []

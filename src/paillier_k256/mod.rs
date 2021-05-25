@@ -7,22 +7,18 @@ use serde::{Deserialize, Serialize};
 
 pub mod zk;
 
-pub(crate) fn keygen_unsafe() -> (EncryptionKey, DecryptionKey) {
-    // TODO safe primes
+/// unsafe because key pair does not use safe primes
+pub fn keygen_unsafe() -> (EncryptionKey, DecryptionKey) {
     let (ek, dk) = Paillier::keypair().keys();
     (EncryptionKey(ek), DecryptionKey(dk))
 }
 
-pub(crate) fn encrypt(ek: &EncryptionKey, msg: &Plaintext) -> (Ciphertext, Randomness) {
-    let r = Randomness(paillier::Randomness::sample(&ek.0).0);
+pub fn encrypt(ek: &EncryptionKey, msg: &Plaintext) -> (Ciphertext, Randomness) {
+    let r = ek.sample_randomness();
     (encrypt_with_randomness(ek, msg, &r), r)
 }
 
-pub(crate) fn encrypt_with_randomness(
-    ek: &EncryptionKey,
-    msg: &Plaintext,
-    r: &Randomness,
-) -> Ciphertext {
+pub fn encrypt_with_randomness(ek: &EncryptionKey, msg: &Plaintext, r: &Randomness) -> Ciphertext {
     Ciphertext(
         Paillier::encrypt_with_chosen_randomness(
             &ek.0,
@@ -34,15 +30,19 @@ pub(crate) fn encrypt_with_randomness(
     )
 }
 
-pub(crate) fn decrypt_with_randomness(
-    dk: &DecryptionKey,
-    c: &Ciphertext,
-) -> (Plaintext, Randomness) {
+pub fn decrypt_with_randomness(dk: &DecryptionKey, c: &Ciphertext) -> (Plaintext, Randomness) {
     let (pt, r) = Paillier::open(&dk.0, paillier::RawCiphertext::from(&c.0));
     (Plaintext(pt.0.into_owned()), Randomness(r.0))
 }
 
-pub(crate) struct EncryptionKey(paillier::EncryptionKey);
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EncryptionKey(paillier::EncryptionKey);
+
+impl EncryptionKey {
+    pub fn sample_randomness(&self) -> Randomness {
+        Randomness(paillier::Randomness::sample(&self.0).0)
+    }
+}
 
 // TODO delete this after the k256 migration
 impl From<&paillier::EncryptionKey> for EncryptionKey {
@@ -50,7 +50,7 @@ impl From<&paillier::EncryptionKey> for EncryptionKey {
         EncryptionKey(ek.clone())
     }
 }
-pub(crate) struct DecryptionKey(paillier::DecryptionKey);
+pub struct DecryptionKey(paillier::DecryptionKey);
 
 // TODO delete this after the k256 migration
 impl From<&paillier::DecryptionKey> for DecryptionKey {
@@ -59,19 +59,15 @@ impl From<&paillier::DecryptionKey> for DecryptionKey {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) struct Plaintext(paillier::BigInt);
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Plaintext(paillier::BigInt);
 
 impl Plaintext {
-    pub(crate) fn to_scalar(&self) -> k256::Scalar {
-        let r = mod_secp256k1(&self.0);
-        let r_vec = Vec::<u8>::from(&r);
-        let r_pad = pad32(r_vec);
-        let r_bytes = *k256::FieldBytes::from_slice(&r_pad);
-        k256::Scalar::from_bytes_reduced(&r_bytes)
+    pub fn to_scalar(&self) -> k256::Scalar {
+        to_scalar(&self.0)
     }
-    pub(crate) fn from_scalar(s: &k256::Scalar) -> Self {
-        Self(paillier::BigInt::from(s.to_bytes().as_slice()))
+    pub fn from_scalar(s: &k256::Scalar) -> Self {
+        Self(to_bigint(s))
     }
 }
 
@@ -89,14 +85,30 @@ impl From<&k256::Scalar> for Plaintext {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct Ciphertext(paillier::BigInt);
+pub struct Ciphertext(paillier::BigInt);
 
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) struct Randomness(paillier::BigInt);
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Randomness(paillier::BigInt);
+
+fn to_bigint(s: &k256::Scalar) -> BigInt {
+    BigInt::from(s.to_bytes().as_slice())
+}
+
+fn to_scalar(bigint: &BigInt) -> k256::Scalar {
+    let s = mod_secp256k1(&bigint);
+    let s_vec = to_vec(&s);
+    let s_pad = pad32(s_vec);
+    let s_bytes = *k256::FieldBytes::from_slice(&s_pad);
+    k256::Scalar::from_bytes_reduced(&s_bytes)
+}
+
+fn to_vec(bigint: &BigInt) -> Vec<u8> {
+    Vec::<u8>::from(bigint)
+}
 
 /// pad `v` with leading zero bytes until it has length 32
 /// panics if `v.len()` exceeds 32
-pub(crate) fn pad32(v: Vec<u8>) -> Vec<u8> {
+fn pad32(v: Vec<u8>) -> Vec<u8> {
     assert!(v.len() <= 32);
     if v.len() == 32 {
         return v;
@@ -113,12 +125,12 @@ const SECP256K1_CURVE_ORDER: [u8; 32] = [
 ];
 
 /// secp256k1 curve order as a `BigInt`
-pub(crate) fn secp256k1_modulus() -> BigInt {
+fn secp256k1_modulus() -> BigInt {
     BigInt::from(SECP256K1_CURVE_ORDER.as_ref())
 }
 
 /// reduce `n` modulo the order of the secp256k1 curve
-pub(crate) fn mod_secp256k1(n: &BigInt) -> BigInt {
+fn mod_secp256k1(n: &BigInt) -> BigInt {
     n.modulus(&secp256k1_modulus())
 }
 
