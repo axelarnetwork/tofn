@@ -42,7 +42,7 @@ impl Protocol for Keygen {
                 .map(|&failure| {
                     let mut my_crimes = vec![];
                     if let Some(_) = failure {
-                        my_crimes.push(Crime::DisruptedMessage {});
+                        my_crimes.push(Crime::DisruptedMessage);
                     }
                     my_crimes
                 })
