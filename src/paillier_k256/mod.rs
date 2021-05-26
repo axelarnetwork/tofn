@@ -2,7 +2,7 @@
 //! * tidy some API ergonomics in rust-paillier
 //! * facilitate easy swap-out of rust-paillier crate for something else
 
-use paillier::{BigInt, EncryptWithChosenRandomness, KeyGeneration, Open, Paillier};
+use paillier::{Add, BigInt, EncryptWithChosenRandomness, KeyGeneration, Mul, Open, Paillier};
 use serde::{Deserialize, Serialize};
 
 pub mod zk;
@@ -42,24 +42,35 @@ impl EncryptionKey {
     pub fn sample_randomness(&self) -> Randomness {
         Randomness(paillier::Randomness::sample(&self.0).0)
     }
-}
+    /// Homomorphically add `c1` to `c2`
+    pub fn add(&self, c1: &Ciphertext, c2: &Ciphertext) -> Ciphertext {
+        Ciphertext(
+            Paillier::add(
+                &self.0,
+                paillier::RawCiphertext::from(&c1.0),
+                paillier::RawCiphertext::from(&c2.0),
+            )
+            .0
+            .into_owned(),
+        )
+    }
 
-// TODO delete this after the k256 migration
-// impl From<&paillier::EncryptionKey> for EncryptionKey {
-//     fn from(ek: &paillier::EncryptionKey) -> Self {
-//         EncryptionKey(ek.clone())
-//     }
-// }
+    /// Homomorphically multiply `c` by `p`
+    pub fn mul(&self, c: &Ciphertext, p: &Plaintext) -> Ciphertext {
+        Ciphertext(
+            Paillier::mul(
+                &self.0,
+                paillier::RawCiphertext::from(&c.0),
+                paillier::RawPlaintext::from(&p.0),
+            )
+            .0
+            .into_owned(),
+        )
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DecryptionKey(paillier::DecryptionKey);
-
-// TODO delete this after the k256 migration
-// impl From<&paillier::DecryptionKey> for DecryptionKey {
-//     fn from(dk: &paillier::DecryptionKey) -> Self {
-//         DecryptionKey(dk.clone())
-//     }
-// }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Plaintext(paillier::BigInt);

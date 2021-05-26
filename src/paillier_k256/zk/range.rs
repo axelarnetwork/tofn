@@ -155,7 +155,7 @@ impl ZkSetup {
         let e_neg = e.negate();
 
         if let Some((msg_g, g, u1)) = msg_g_g_u1 {
-            let s1: k256::Scalar = to_scalar(&proof.s1.0);
+            let s1 = to_scalar(&proof.s1.0);
             let s1_g = g * &s1;
             let u1_check = msg_g * &e_neg + s1_g;
             if u1_check != *u1 {

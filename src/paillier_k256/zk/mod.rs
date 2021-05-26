@@ -4,7 +4,7 @@ use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use zk_paillier::zkproofs::{CompositeDLogProof, DLogStatement};
 
-// pub mod mta;
+pub(crate) mod mta;
 pub(crate) mod range;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
