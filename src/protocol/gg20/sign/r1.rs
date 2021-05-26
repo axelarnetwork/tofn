@@ -25,24 +25,37 @@ use super::{Sign, Status};
 // round 1
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bcast {
+    // curv
     pub commit: BigInt,
     pub encrypted_ecdsa_nonce_summand: mta::MessageA,
+
+    // k256
+    pub g_gamma_i_commit_k256: hash::Output,
+    pub k_i_ciphertext_k256: paillier_k256::Ciphertext,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct P2p {
-    pub range_proof: range::Proof,
+    pub range_proof: range::Proof,                         // curv
+    pub range_proof_k256: paillier_k256::zk::range::Proof, // k256
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
-pub struct State {
+pub(super) struct State {
+    // curv
     pub(super) w_i: FE,
     pub(super) gamma_i: FE,
     pub(super) g_gamma_i: GE,
     pub(super) my_reveal: BigInt,
     pub(super) k_i: FE,
-    // TODO pair these next two fields in a range::Witness
-    // problem: range::Witness has a lifetime parameter---eliminate it
-    pub(super) encrypted_k_i: BigInt,
+    pub(super) encrypted_k_i: BigInt, // redundant
     pub(super) k_i_randomness: BigInt,
+
+    // k256
+    pub(super) w_i_k256: k256::Scalar,
+    pub(super) gamma_i_k256: k256::Scalar,
+    pub(super) g_gamma_i_k256: k256::ProjectivePoint,
+    pub(super) g_gamma_i_reveal_k256: hash::Randomness,
+    pub(super) k_i_k256: k256::Scalar,
+    pub(super) k_i_randomness_k256: paillier_k256::Randomness,
 }
 
 impl Sign {
@@ -64,13 +77,13 @@ impl Sign {
             HashCommitment::create_commitment(&g_gamma_i.bytes_compressed_to_big_int());
 
         // k256
-        let my_w_i_k256 = self.my_secret_key_share.my_x_i_k256.unwrap()
+        let w_i_k256 = self.my_secret_key_share.my_x_i_k256.unwrap()
             * &vss_k256::lagrange_coefficient(self.my_participant_index, &self.participant_indices);
-        let my_k_i_k256 = k256::Scalar::random(rand::thread_rng());
-        let my_gamma_i_k256 = k256::Scalar::random(rand::thread_rng());
-        let my_g_gamma_i_k256 = k256::ProjectivePoint::generator() * my_gamma_i_k256;
-        let (my_g_gamma_i_commit_k256, my_g_gamma_i_reveal_k256) =
-            hash::commit(to_bytes(&my_g_gamma_i_k256));
+        let k_i_k256 = k256::Scalar::random(rand::thread_rng());
+        let gamma_i_k256 = k256::Scalar::random(rand::thread_rng());
+        let g_gamma_i_k256 = k256::ProjectivePoint::generator() * gamma_i_k256;
+        let (g_gamma_i_commit_k256, g_gamma_i_reveal_k256) =
+            hash::commit(to_bytes(&g_gamma_i_k256));
 
         // initiate MtA protocols for
         // 1. my_ecdsa_nonce_summand (me) * my_secret_blind_summand (other)
@@ -85,9 +98,10 @@ impl Sign {
 
         // k256
         let my_ek_k256 = &self.my_secret_key_share.all_eks_k256[self.my_secret_key_share.my_index];
-        let my_k_i_pt_k256 = paillier_k256::Plaintext::from(&my_k_i_k256);
-        let (my_k_i_ct_k256, my_k_i_reveal_k256) =
-            paillier_k256::encrypt(&my_ek_k256, &my_k_i_pt_k256);
+        let (k_i_ciphertext_k256, k_i_randomness_k256) = paillier_k256::encrypt(
+            &my_ek_k256,
+            &paillier_k256::Plaintext::from_scalar(&k_i_k256),
+        );
 
         // TODO these variable names are getting ridiculous
         let mut out_p2ps = FillVec::with_len(self.participant_indices.len());
@@ -95,6 +109,8 @@ impl Sign {
             if *participant_index == self.my_secret_key_share.my_index {
                 continue;
             }
+
+            // curv
             let other_zkp = &self.my_secret_key_share.all_zkps[*participant_index];
             let range_proof = other_zkp.range_proof(
                 &range::Statement {
@@ -106,7 +122,28 @@ impl Sign {
                     randomness: &k_i_randomness,
                 },
             );
-            out_p2ps.insert(i, P2p { range_proof }).unwrap();
+
+            // k256
+            let other_zkp_k256 = &self.my_secret_key_share.all_zkps_k256[*participant_index];
+            let range_proof_k256 = other_zkp_k256.range_proof(
+                &paillier_k256::zk::range::Statement {
+                    ciphertext: &k_i_ciphertext_k256,
+                    ek: my_ek_k256,
+                },
+                &paillier_k256::zk::range::Witness {
+                    msg: &k_i_k256,
+                    randomness: &k_i_randomness_k256,
+                },
+            );
+            out_p2ps
+                .insert(
+                    i,
+                    P2p {
+                        range_proof,
+                        range_proof_k256,
+                    },
+                )
+                .unwrap();
         }
 
         (
@@ -118,11 +155,20 @@ impl Sign {
                 k_i,
                 encrypted_k_i,
                 k_i_randomness,
+
+                w_i_k256,
+                gamma_i_k256,
+                g_gamma_i_k256,
+                g_gamma_i_reveal_k256,
+                k_i_k256,
+                k_i_randomness_k256,
             },
             Bcast {
                 commit,
                 encrypted_ecdsa_nonce_summand: encrypted_k_i_zengo,
-                // TODO broadcast GE::generator() * self.my_secret_key_share.my_ecdsa_secret_key_share ? https://github.com/ZenGo-X/multi-party-ecdsa/blob/master/examples/gg20_sign_client.rs#L138
+
+                g_gamma_i_commit_k256,
+                k_i_ciphertext_k256,
             },
             out_p2ps,
         )
