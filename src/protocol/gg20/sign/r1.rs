@@ -97,9 +97,8 @@ impl Sign {
         let encrypted_k_i = encrypted_k_i_zengo.c.clone();
 
         // k256
-        let my_ek_k256 = &self.my_secret_key_share.all_eks_k256[self.my_secret_key_share.my_index];
         let (k_i_ciphertext_k256, k_i_randomness_k256) = paillier_k256::encrypt(
-            &my_ek_k256,
+            self.my_ek_k256(),
             &paillier_k256::Plaintext::from_scalar(&k_i_k256),
         );
 
@@ -128,7 +127,7 @@ impl Sign {
             let range_proof_k256 = other_zkp_k256.range_proof(
                 &paillier_k256::zk::range::Statement {
                     ciphertext: &k_i_ciphertext_k256,
-                    ek: my_ek_k256,
+                    ek: self.my_ek_k256(),
                 },
                 &paillier_k256::zk::range::Witness {
                     msg: &k_i_k256,

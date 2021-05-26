@@ -4,6 +4,7 @@ use strum_macros::EnumIter;
 
 use crate::{
     fillvec::FillVec,
+    paillier_k256,
     protocol::{gg20::vss, MsgBytes},
 };
 use curv::{
@@ -292,6 +293,12 @@ impl Sign {
         let party_index = self.participant_indices[participant_index];
         self.my_secret_key_share.all_ecdsa_public_key_shares[party_index]
             * self.lagrangian_coefficient(party_index)
+    }
+    fn my_ek_k256(&self) -> &paillier_k256::EncryptionKey {
+        &self.my_secret_key_share.all_eks_k256[self.my_secret_key_share.my_index]
+    }
+    fn my_zkp_k256(&self) -> &paillier_k256::zk::ZkSetup {
+        &self.my_secret_key_share.all_zkps_k256[self.my_secret_key_share.my_index]
     }
 }
 

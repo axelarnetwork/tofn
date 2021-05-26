@@ -1,6 +1,6 @@
 use super::{Sign, Status};
-use crate::fillvec::FillVec;
 use crate::zkp::paillier::{mta, range};
+use crate::{fillvec::FillVec, paillier_k256};
 use curv::{elliptic::curves::traits::ECPoint, BigInt, FE, GE};
 use multi_party_ecdsa::utilities::mta as mta_zengo;
 use serde::{Deserialize, Serialize};
@@ -81,18 +81,14 @@ impl Sign {
                 continue;
             }
 
-            // TODO don't use mta!  It sucks!
-            // 1. unused return values in MessageB::b()
-            // 2. MessageA arg is passed by value
+            // curv: verify zk proof for first message of MtA
             let other_ek = &self.my_secret_key_share.all_eks[*participant_index];
-            let other_encrypted_ecdsa_nonce_summand = &self.in_r1bcasts.vec_ref()[i]
+            let other_k_i_ciphertext = &self.in_r1bcasts.vec_ref()[i]
                 .as_ref()
                 .unwrap()
                 .k_i_ciphertext;
-
-            // verify zk proof for first message of MtA
             let stmt = &range::Statement {
-                ciphertext: &other_encrypted_ecdsa_nonce_summand.c,
+                ciphertext: &other_k_i_ciphertext.c,
                 ek: other_ek,
             };
             let proof = &self.in_all_r1p2ps[i].vec_ref()[self.my_participant_index]
@@ -113,15 +109,42 @@ impl Sign {
                     });
                 });
 
+            // k256: verify zk proof for first message of MtA
+            let other_ek_k256 = &self.my_secret_key_share.all_eks_k256[*participant_index];
+            let other_k_i_ciphertext_k256 = &self.in_r1bcasts.vec_ref()[i]
+                .as_ref()
+                .unwrap()
+                .k_i_ciphertext_k256;
+            let stmt = &paillier_k256::zk::range::Statement {
+                ciphertext: other_k_i_ciphertext_k256,
+                ek: other_ek_k256,
+            };
+            let proof = &self.in_all_r1p2ps[i].vec_ref()[self.my_participant_index]
+                .as_ref()
+                .unwrap()
+                .range_proof_k256;
+            self.my_zkp_k256()
+                .verify_range_proof(stmt, proof)
+                .unwrap_or_else(|e| {
+                    info!(
+                        "participant {} says: range proof from {} failed to verify because [{}]",
+                        self.my_participant_index, i, e
+                    );
+                    culprits.push(Culprit {
+                        participant_index: i,
+                        crime: Crime::RangeProof,
+                    });
+                });
+
             // MtA for nonce * blind
             // TODO tidy scoping: don't need randomness, beta_prime after these two statements
-            let (mta_response_blind, my_mta_blind_summand_rhs, randomness, beta_prime) = // (m_b_gamma, beta_gamma)
-                mta_zengo::MessageB::b(&r1state.gamma_i, other_ek, other_encrypted_ecdsa_nonce_summand.clone());
+            let (c_b, beta, randomness, beta_prime) = // (m_b_gamma, beta_gamma)
+                mta_zengo::MessageB::b(&r1state.gamma_i, other_ek, other_k_i_ciphertext.clone());
             let other_zkp = &self.my_secret_key_share.all_zkps[*participant_index];
             let mta_proof = other_zkp.mta_proof(
                 &mta::Statement {
-                    ciphertext1: &other_encrypted_ecdsa_nonce_summand.c,
-                    ciphertext2: &mta_response_blind.c,
+                    ciphertext1: &other_k_i_ciphertext.c,
+                    ciphertext2: &c_b.c,
                     ek: other_ek,
                 },
                 &mta::Witness {
@@ -142,11 +165,11 @@ impl Sign {
 
             // MtAwc for nonce * keyshare
             let (mta_response_keyshare, my_mta_keyshare_summand_rhs, randomness_wc, beta_prime_wc) = // (m_b_w, beta_wi)
-                mta_zengo::MessageB::b(&r1state.w_i, other_ek, other_encrypted_ecdsa_nonce_summand.clone());
+                mta_zengo::MessageB::b(&r1state.w_i, other_ek, other_k_i_ciphertext.clone());
             let mta_proof_wc = other_zkp.mta_proof_wc(
                 &mta::StatementWc {
                     stmt: mta::Statement {
-                        ciphertext1: &other_encrypted_ecdsa_nonce_summand.c,
+                        ciphertext1: &other_k_i_ciphertext.c,
                         ciphertext2: &mta_response_keyshare.c,
                         ek: other_ek,
                     },
@@ -165,16 +188,14 @@ impl Sign {
                 .insert(
                     i,
                     P2p {
-                        mta_response_blind,
+                        mta_response_blind: c_b,
                         mta_proof,
                         mta_response_keyshare,
                         mta_proof_wc,
                     },
                 )
                 .unwrap();
-            my_mta_blind_summands_rhs
-                .insert(i, my_mta_blind_summand_rhs)
-                .unwrap();
+            my_mta_blind_summands_rhs.insert(i, beta).unwrap();
             my_mta_keyshare_summands_rhs
                 .insert(i, my_mta_keyshare_summand_rhs)
                 .unwrap();
