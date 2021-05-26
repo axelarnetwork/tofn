@@ -45,19 +45,21 @@ impl EncryptionKey {
 }
 
 // TODO delete this after the k256 migration
-impl From<&paillier::EncryptionKey> for EncryptionKey {
-    fn from(ek: &paillier::EncryptionKey) -> Self {
-        EncryptionKey(ek.clone())
-    }
-}
+// impl From<&paillier::EncryptionKey> for EncryptionKey {
+//     fn from(ek: &paillier::EncryptionKey) -> Self {
+//         EncryptionKey(ek.clone())
+//     }
+// }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DecryptionKey(paillier::DecryptionKey);
 
 // TODO delete this after the k256 migration
-impl From<&paillier::DecryptionKey> for DecryptionKey {
-    fn from(dk: &paillier::DecryptionKey) -> Self {
-        DecryptionKey(dk.clone())
-    }
-}
+// impl From<&paillier::DecryptionKey> for DecryptionKey {
+//     fn from(dk: &paillier::DecryptionKey) -> Self {
+//         DecryptionKey(dk.clone())
+//     }
+// }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Plaintext(paillier::BigInt);

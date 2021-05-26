@@ -29,6 +29,8 @@ impl Keygen {
 
         // prepare data for final output
         let r1bcasts = self.in_r1bcasts.vec_ref();
+
+        // curv
         let all_eks = r1bcasts
             .iter()
             .map(|b| b.as_ref().unwrap().ek.clone())
@@ -37,6 +39,17 @@ impl Keygen {
             .iter()
             .map(|b| b.as_ref().unwrap().zkp.clone())
             .collect();
+
+        // k256
+        let all_eks_k256 = r1bcasts
+            .iter()
+            .map(|b| b.as_ref().unwrap().ek_k256.clone())
+            .collect();
+        let all_zkps_k256 = r1bcasts
+            .iter()
+            .map(|b| b.as_ref().unwrap().zkp_k256.clone())
+            .collect();
+
         SecretKeyShare {
             share_count: self.share_count,
             threshold: self.threshold,
@@ -50,6 +63,7 @@ impl Keygen {
             all_eks,
             all_zkps,
 
+            dk_k256: r1state.dk_k256.clone(),
             y_k256: r3state.y_k256.into(),
             my_x_i_k256: r3state.my_x_i_k256.into(),
             all_y_i_k256: r3state
@@ -57,6 +71,8 @@ impl Keygen {
                 .iter()
                 .map(k256_serde::ProjectivePoint::from)
                 .collect(),
+            all_eks_k256,
+            all_zkps_k256,
         }
     }
 }

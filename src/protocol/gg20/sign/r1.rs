@@ -84,7 +84,7 @@ impl Sign {
         let encrypted_k_i = encrypted_k_i_zengo.c.clone();
 
         // k256
-        let my_ek_k256 = paillier_k256::EncryptionKey::from(my_ek);
+        let my_ek_k256 = &self.my_secret_key_share.all_eks_k256[self.my_secret_key_share.my_index];
         let my_k_i_pt_k256 = paillier_k256::Plaintext::from(&my_k_i_k256);
         let (my_k_i_ct_k256, my_k_i_reveal_k256) =
             paillier_k256::encrypt(&my_ek_k256, &my_k_i_pt_k256);

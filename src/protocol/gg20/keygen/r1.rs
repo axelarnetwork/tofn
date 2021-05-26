@@ -1,5 +1,7 @@
 use super::{Keygen, Status};
-use crate::{hash, k256_serde::to_bytes, protocol::gg20::vss_k256, zkp::paillier::ZkSetup};
+use crate::{
+    hash, k256_serde::to_bytes, paillier_k256, protocol::gg20::vss_k256, zkp::paillier::ZkSetup,
+};
 use curv::{
     cryptographic_primitives::commitments::{hash_commitment::HashCommitment, traits::Commitment},
     elliptic::curves::traits::{ECPoint, ECScalar},
@@ -15,29 +17,32 @@ use {super::malicious::Behaviour, tracing::info};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) struct Bcast {
+    // curv
     pub(super) y_i_commit: BigInt,
-
-    pub(super) y_i_commit_k256: hash::Output,
-
-    // TODO Paillier
     pub(super) ek: EncryptionKey,
     pub(super) zkp: ZkSetup,
     pub(super) correct_key_proof: NICorrectKeyProof,
+
+    // k256
+    pub(super) y_i_commit_k256: hash::Output,
+    pub(super) ek_k256: paillier_k256::EncryptionKey,
+    pub(super) zkp_k256: paillier_k256::zk::ZkSetup,
 }
 // can't derive Debug because NonZeroScalar doesn't derive Debug
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub(super) struct State {
+    // curv
+    pub(super) my_dk: DecryptionKey,
+    pub(super) my_ek: EncryptionKey,
+    pub(super) my_zkp: ZkSetup,
     pub(super) my_u_i: FE,
     pub(super) my_y_i: GE,
     pub(super) my_y_i_reveal: BigInt,
 
+    // k256
+    pub(super) dk_k256: paillier_k256::DecryptionKey,
     pub(super) my_u_i_vss_k256: vss_k256::Vss,
     pub(super) my_y_i_reveal_k256: hash::Randomness,
-
-    // TODO Paillier
-    pub(super) my_dk: DecryptionKey,
-    pub(super) my_ek: EncryptionKey,
-    pub(super) my_zkp: ZkSetup,
 }
 
 impl Keygen {
@@ -73,9 +78,16 @@ impl Keygen {
         };
 
         // TODO Paillier
+
+        // curv
         let (ek, my_dk) = Paillier::keypair().keys();
         let correct_key_proof = NICorrectKeyProof::proof(&my_dk);
         let zkp = ZkSetup::new_unsafe();
+
+        // k256
+        let (ek_k256, dk_k256) = paillier_k256::keygen_unsafe();
+        // TODO correct key proof
+        let zkp_k256 = paillier_k256::zk::ZkSetup::new_unsafe();
 
         (
             State {
@@ -87,6 +99,7 @@ impl Keygen {
                 my_dk,
                 my_ek: ek.clone(),
                 my_zkp: zkp.clone(),
+                dk_k256,
             },
             Bcast {
                 y_i_commit: my_y_i_commit,
@@ -94,6 +107,8 @@ impl Keygen {
                 ek,
                 zkp,
                 correct_key_proof,
+                ek_k256,
+                zkp_k256,
             },
         )
     }

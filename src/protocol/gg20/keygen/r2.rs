@@ -96,15 +96,15 @@ impl Keygen {
             if i == self.my_index {
                 continue;
             }
-            let ek = &self.in_r1bcasts.vec_ref()[i].as_ref().unwrap().ek;
 
             // k256: encrypt the share for party i
-            let ek_256 = paillier_k256::EncryptionKey::from(ek);
+            let ek_256 = &self.in_r1bcasts.vec_ref()[i].as_ref().unwrap().ek_k256;
             let my_u_i_share_k256 =
-                paillier_k256::Plaintext::from(my_u_i_shares_k256[i].get_scalar());
+                paillier_k256::Plaintext::from_scalar(my_u_i_shares_k256[i].get_scalar());
             let (encrypted_u_i_share_k256, _) = paillier_k256::encrypt(&ek_256, &my_u_i_share_k256);
 
             // curv: encrypt the share for party i
+            let ek = &self.in_r1bcasts.vec_ref()[i].as_ref().unwrap().ek;
             let randomness = Randomness::sample(ek);
             let encrypted_u_i_share = Paillier::encrypt_with_chosen_randomness(
                 ek,
