@@ -88,7 +88,7 @@ impl Sign {
             let other_encrypted_ecdsa_nonce_summand = &self.in_r1bcasts.vec_ref()[i]
                 .as_ref()
                 .unwrap()
-                .encrypted_ecdsa_nonce_summand;
+                .k_i_ciphertext;
 
             // verify zk proof for first message of MtA
             let stmt = &range::Statement {

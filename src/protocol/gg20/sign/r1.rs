@@ -26,8 +26,8 @@ use super::{Sign, Status};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bcast {
     // curv
-    pub commit: BigInt,
-    pub encrypted_ecdsa_nonce_summand: mta::MessageA,
+    pub g_gamma_i_commit: BigInt,
+    pub k_i_ciphertext: mta::MessageA,
 
     // k256
     pub g_gamma_i_commit_k256: hash::Output,
@@ -164,8 +164,8 @@ impl Sign {
                 k_i_randomness_k256,
             },
             Bcast {
-                commit,
-                encrypted_ecdsa_nonce_summand: encrypted_k_i_zengo,
+                g_gamma_i_commit: commit,
+                k_i_ciphertext: encrypted_k_i_zengo,
 
                 g_gamma_i_commit_k256,
                 k_i_ciphertext_k256,

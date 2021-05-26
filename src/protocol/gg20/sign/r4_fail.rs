@@ -27,7 +27,7 @@ impl Sign {
                         [accuser]
                         .as_ref()
                         .unwrap()
-                        .encrypted_ecdsa_nonce_summand
+                        .k_i_ciphertext
                         .c;
                     let verifier_ek =
                         &self.my_secret_key_share.all_eks[self.participant_indices[accuser]];

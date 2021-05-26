@@ -29,7 +29,7 @@ impl Sign {
                         [accused.participant_index]
                         .as_ref()
                         .unwrap()
-                        .encrypted_ecdsa_nonce_summand
+                        .k_i_ciphertext
                         .c;
                     let prover_ecdsa_randomizer_x_nonce_summand = &self.in_r5bcasts.vec_ref()
                         [accused.participant_index]

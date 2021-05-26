@@ -90,7 +90,7 @@ impl Sign {
                     self.my_participant_index, i
                 )
             });
-            if *encrypted_ecdsa_nonce_summand.0 != in_r1bcast.encrypted_ecdsa_nonce_summand.c {
+            if *encrypted_ecdsa_nonce_summand.0 != in_r1bcast.k_i_ciphertext.c {
                 // this code path triggered by R3BadEcdsaNonceSummand
                 let crime = Crime::R7FailType5BadNonceSummand;
                 info!(
@@ -143,7 +143,7 @@ impl Sign {
                 let other_encrypted_ecdsa_nonce_summand = &self.in_r1bcasts.vec_ref()[j]
                     .as_ref()
                     .unwrap()
-                    .encrypted_ecdsa_nonce_summand;
+                    .k_i_ciphertext;
                 // TODO better variable names: switch to greek letters used in GG20 paper
                 let (mta_response_blind, mta_blind_summand_rhs) = // (enc(alpha_ij), beta_ji)
                     mta_zengo::MessageB::b_with_predefined_randomness(

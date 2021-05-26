@@ -51,7 +51,7 @@ impl Sign {
                 &Randomness::from(&r7bcast.ecdsa_nonce_summand_randomness),
             );
             let in_r1bcast = self.in_r1bcasts.vec_ref()[i].as_ref().unwrap();
-            if *encrypted_ecdsa_nonce_summand.0 != in_r1bcast.encrypted_ecdsa_nonce_summand.c {
+            if *encrypted_ecdsa_nonce_summand.0 != in_r1bcast.k_i_ciphertext.c {
                 // this code path triggered by TODO
                 let crime = Crime::R8FailType7BadNonceSummand;
                 info!(

@@ -79,7 +79,7 @@ impl Sign {
                             ciphertext: &self.in_r1bcasts.vec_ref()[i]
                                 .as_ref()
                                 .unwrap()
-                                .encrypted_ecdsa_nonce_summand
+                                .k_i_ciphertext
                                 .c,
                             ek: &self.my_secret_key_share.all_eks[*participant_index],
                         },

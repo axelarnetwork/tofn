@@ -61,7 +61,12 @@ impl Sign {
                     .bytes_compressed_to_big_int(),
                 &in_r4bcast.reveal,
             );
-            if self.in_r1bcasts.vec_ref()[i].as_ref().unwrap().commit != com {
+            if self.in_r1bcasts.vec_ref()[i]
+                .as_ref()
+                .unwrap()
+                .g_gamma_i_commit
+                != com
+            {
                 let crime = Crime::R5BadHashCommit;
                 warn!(
                     "participant {} detect {:?} by {}",
