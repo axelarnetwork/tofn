@@ -136,6 +136,10 @@ impl Sign {
                     });
                 });
 
+            // DONE TO HERE
+
+            // MtA for k_i * gamma_j
+
             // MtA for nonce * blind
             // TODO tidy scoping: don't need randomness, beta_prime after these two statements
             let (c_b, beta, randomness, beta_prime) = // (m_b_gamma, beta_gamma)

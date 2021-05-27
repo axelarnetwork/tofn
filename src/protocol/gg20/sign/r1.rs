@@ -86,10 +86,11 @@ impl Sign {
             hash::commit(to_bytes(&g_gamma_i_k256));
 
         // initiate MtA protocols for
-        // 1. my_ecdsa_nonce_summand (me) * my_secret_blind_summand (other)
-        // 2. my_ecdsa_nonce_summand (me) * my_secret_key_summand (other)
-        // both MtAs use my_ecdsa_nonce_summand, so I use the same message for both
-        // re-use encrypted_ecdsa_nonce_summand for all other parties
+        // 1. k_i (me) * gamma_j (other)
+        // 2. k_i (me) * w_j (other)
+        // both MtAs use k_i, so my message k_i_ciphertext can be used in both MtA protocols
+        // range proof must be custom for each other party
+        // but k_i_ciphertext can be broadcast to all parties
 
         // curv
         let my_ek = &self.my_secret_key_share.my_ek;
