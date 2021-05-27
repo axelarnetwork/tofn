@@ -214,10 +214,8 @@ pub struct Sign {
     out_r6bcast_fail_serialized: Option<MsgBytes>,
     out_r6bcast_fail_type5_serialized: Option<MsgBytes>,
     out_r7bcast_fail_type7_serialized: Option<MsgBytes>,
-
-    // indicates if party 'i' is unauthenticated and it's victim index;
     unauth_parties: FillVec<usize>,
-
+    disrupting_parties: FillVec<bool>,
     final_output: Option<SignOutput>,
 }
 
@@ -274,6 +272,7 @@ impl Sign {
             out_r6bcast_fail_type5_serialized: None,
             out_r7bcast_fail_type7_serialized: None,
             unauth_parties: FillVec::with_len(participant_count),
+            disrupting_parties: FillVec::with_len(participant_count),
             final_output: None,
         })
     }

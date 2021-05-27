@@ -109,6 +109,7 @@ pub struct Keygen {
     out_r3bcast: Option<MsgBytes>,
     out_r3bcast_fail: Option<MsgBytes>,
     unauth_parties: FillVec<usize>,
+    disrupting_parties: FillVec<bool>,
     final_output: Option<KeygenOutput>,
 
     #[cfg(feature = "malicious")]
@@ -161,6 +162,7 @@ impl Keygen {
             out_r3bcast: None,
             out_r3bcast_fail: None,
             unauth_parties: FillVec::with_len(share_count),
+            disrupting_parties: FillVec::with_len(share_count),
             final_output: None,
 
             #[cfg(feature = "malicious")]

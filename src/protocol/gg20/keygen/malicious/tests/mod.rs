@@ -17,6 +17,7 @@ lazy_static::lazy_static! {
     static ref SPOOF_BEFORE_CASES: Vec<TestCase> = generate_spoof_before_honest_cases();
     static ref SPOOF_AFTER_CASES: Vec<TestCase> = generate_spoof_after_honest_cases();
     static ref STALL_CASES: Vec<TestCase> = generate_stall_cases();
+    static ref DISRUPTED_CASES: Vec<TestCase> = generate_disrupted_cases();
 }
 
 struct KeygenSpoofer {
@@ -93,6 +94,49 @@ impl Criminal for KeygenStaller {
     }
 }
 
+struct KeygenDisrupter {
+    index: usize,
+    msg_type: MsgType,
+}
+
+impl Criminal for KeygenDisrupter {
+    fn index(&self) -> usize {
+        self.index
+    }
+    // mess bytes and send to receiver
+    fn do_crime(&self, original_msg: &[u8], receiver: &mut dyn Protocol) {
+        // first, send the message to receiver and then create a _duplicate_ message
+        receiver
+            .set_msg_in(
+                &original_msg,
+                &IndexRange {
+                    first: self.index,
+                    last: self.index,
+                },
+            )
+            .unwrap();
+
+        // disrupt the message
+        let disrupted_msg = original_msg.clone()[0..original_msg.len() / 2].to_vec();
+
+        // send spoofed message to victim and ignore the result
+        // if we did our job correctly, res should be err
+        let res = receiver.set_msg_in(
+            &disrupted_msg,
+            &IndexRange {
+                first: self.index,
+                last: self.index,
+            },
+        );
+        assert!(res.is_err());
+    }
+    // check if the current message is the one we want to disrupt
+    fn is_crime_round(&self, sender_idx: usize, msg: &[u8]) -> bool {
+        let msg: MsgMeta = bincode::deserialize(msg).unwrap();
+        sender_idx == self.index && msg.msg_type == self.msg_type
+    }
+}
+
 #[test]
 #[traced_test]
 fn basic_tests() {
@@ -117,6 +161,11 @@ fn spoof_messages() {
 #[test]
 fn test_stall_cases() {
     execute_test_case_list(&STALL_CASES);
+}
+
+#[test]
+fn test_disrupted_cases() {
+    execute_test_case_list(&DISRUPTED_CASES);
 }
 
 fn execute_test_case_list(test_cases: &[test_cases::TestCase]) {
@@ -176,9 +225,24 @@ fn execute_test_case(t: &test_cases::TestCase) {
         .map(|staller| staller.unwrap())
         .collect();
 
+    let disrupters: Vec<KeygenDisrupter> = keygen_parties
+        .iter_mut()
+        .enumerate()
+        .map(|(index, s)| match s.behaviour.clone() {
+            Behaviour::DisruptingSender { msg_type } => Some(KeygenDisrupter {
+                index,
+                msg_type: msg_type.clone(),
+            }),
+            _ => None,
+        })
+        .filter(|staller| staller.is_some())
+        .map(|staller| staller.unwrap())
+        .collect();
+
     // need to do an extra iteration because we can't return reference to temp objects
     let mut criminals: Vec<&dyn Criminal> = spoofers.iter().map(|s| s as &dyn Criminal).collect();
     criminals.extend(stallers.iter().map(|s| s as &dyn Criminal));
+    criminals.extend(disrupters.iter().map(|s| s as &dyn Criminal));
 
     let mut protocols: Vec<&mut dyn Protocol> = keygen_parties
         .iter_mut()

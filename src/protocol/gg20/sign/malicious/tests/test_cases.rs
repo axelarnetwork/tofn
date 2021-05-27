@@ -57,6 +57,7 @@ pub(super) fn map_type_to_crime(t: &MaliciousType) -> Vec<Crime> {
             victim: *v,
             status: s.clone(),
         }],
+        DisrupringSender { msg_type: _ } => vec![Crime::DisruptedMessage],
         R1BadProof { victim: v } => vec![Crime::R3FailBadRangeProof { victim: *v }],
         R2FalseAccusation { victim: v } => vec![Crime::R3FailFalseAccusation { victim: *v }],
         R2BadMta { victim: v } => vec![Crime::R4FailBadRangeProof { victim: *v }],
@@ -100,6 +101,7 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
                     status: _
                 }
                 | Staller { msg_type: _ }
+                | DisrupringSender { msg_type: _ }
         )
     }) {
         basic_test_cases.push(TestCase {
@@ -469,6 +471,53 @@ pub(super) fn generate_stall_cases() -> Vec<TestCase> {
                     party_index: 0,
                     behaviour: staller.clone(),
                     expected_crimes: map_type_to_crime(&staller),
+                },
+                SignParticipant {
+                    party_index: 2,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+            ],
+        })
+        .collect()
+}
+
+pub(super) fn generate_disrupt_cases() -> Vec<TestCase> {
+    use MsgType::*;
+    let disrupters = MsgType::iter()
+        .filter(|msg_type| {
+            matches!(
+                msg_type,
+                R1Bcast
+                    | R1P2p { to: _ }
+                    | R2P2p { to: _ }
+                    | R3Bcast
+                    | R4Bcast
+                    | R5Bcast
+                    | R5P2p { to: _ }
+                    | R6Bcast
+                    | R7Bcast
+            )
+        }) // don't match fail types
+        .map(|msg_type| DisrupringSender { msg_type })
+        .collect::<Vec<MaliciousType>>();
+
+    disrupters
+        .iter()
+        .map(|disrupter| TestCase {
+            share_count: 3,
+            expect_success: false,
+            threshold: 1,
+            sign_participants: vec![
+                SignParticipant {
+                    party_index: 1,
+                    behaviour: Honest,
+                    expected_crimes: vec![],
+                },
+                SignParticipant {
+                    party_index: 0,
+                    behaviour: disrupter.clone(),
+                    expected_crimes: map_type_to_crime(&disrupter),
                 },
                 SignParticipant {
                     party_index: 2,

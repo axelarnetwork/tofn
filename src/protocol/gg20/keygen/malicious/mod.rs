@@ -12,6 +12,7 @@ pub enum Behaviour {
     Honest,
     Staller { msg_type: MsgType },
     UnauthenticatedSender { victim: usize, status: Status },
+    DisruptingSender { msg_type: MsgType },
     R1BadCommit,
     R2BadShare { victim: usize },
     R2BadEncryption { victim: usize },

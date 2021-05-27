@@ -30,6 +30,25 @@ impl Protocol for Sign {
             return Ok(());
         }
 
+        // check if we have marked any party as disrupting
+        if !self.disrupting_parties.is_empty() {
+            // create a vec of crimes with respect to deserialization faults
+            let crimes = self
+                .disrupting_parties
+                .vec_ref()
+                .iter()
+                .map(|&failure| {
+                    let mut my_crimes = vec![];
+                    if failure.is_some() {
+                        my_crimes.push(Crime::DisruptedMessage);
+                    }
+                    my_crimes
+                })
+                .collect();
+            self.update_state_fail(crimes);
+            return Ok(());
+        }
+
         self.move_to_sad_path();
 
         // TODO refactor repeated code!
@@ -115,6 +134,163 @@ impl Protocol for Sign {
     }
 
     fn set_msg_in(&mut self, msg: &[u8], from_index_range: &IndexRange) -> ProtocolResult {
+        let res = self.set_msg_in_inner(&msg, &from_index_range);
+        if res.is_err() {
+            self.disrupting_parties
+                .overwrite(from_index_range.first, true);
+        }
+        res
+    }
+
+    fn get_bcast_out(&self) -> &Option<MsgBytes> {
+        match self.status {
+            New => &None,
+            R1 => &self.out_r1bcast,
+            R2 => &None,
+            R2Fail => &self.out_r2bcast_fail_serialized,
+            R3 => &self.out_r3bcast,
+            R3Fail => &self.out_r3bcast_fail_serialized,
+            R4 => &self.out_r4bcast,
+            R5 => &self.out_r5bcast,
+            R6 => &self.out_r6bcast,
+            R6Fail => &self.out_r6bcast_fail_serialized,
+            R6FailType5 => &self.out_r6bcast_fail_type5_serialized,
+            R7 => &self.out_r7bcast,
+            R7FailType7 => &self.out_r7bcast_fail_type7_serialized,
+            Done => &None,
+            Fail => &None,
+        }
+    }
+
+    fn get_p2p_out(&self) -> &Option<Vec<Option<MsgBytes>>> {
+        match self.status {
+            New => &None,
+            R1 => &self.out_r1p2ps,
+            R2 => &self.out_r2p2ps,
+            R2Fail => &None,
+            R3 => &None,
+            R3Fail => &None,
+            R4 => &None,
+            R5 => &self.out_r5p2ps,
+            R6 => &None,
+            R6Fail => &None,
+            R6FailType5 => &None,
+            R7 => &None,
+            R7FailType7 => &None,
+            Done => &None,
+            Fail => &None,
+        }
+    }
+
+    fn expecting_more_msgs_this_round(&self) -> bool {
+        // TODO account for sad path messages
+        // need to receive one message per party (happy OR sad)
+
+        match self.status {
+            New => false,
+            R1 => {
+                // TODO fix ugly code to deal with wasted entries for messages to myself
+                if !self.in_r1bcasts.is_full() {
+                    return true;
+                }
+                for (i, in_r1p2ps) in self.in_all_r1p2ps.iter().enumerate() {
+                    if !in_r1p2ps.is_full_except(i) {
+                        return true;
+                    }
+                }
+                false
+            }
+            R2 | R2Fail => {
+                for i in 0..self.participant_indices.len() {
+                    if !self.in_all_r2p2ps[i].is_full_except(i) && self.in_r2bcasts_fail.is_none(i)
+                    {
+                        return true;
+                    }
+                }
+                false
+            }
+            R3 | R3Fail => {
+                for i in 0..self.participant_indices.len() {
+                    if self.in_r3bcasts.is_none(i) && self.in_r3bcasts_fail.is_none(i) {
+                        return true;
+                    }
+                }
+                false
+            }
+            R4 => {
+                if !self.in_r4bcasts.is_full() {
+                    return true;
+                }
+                false
+            }
+            R5 => {
+                if !self.in_r5bcasts.is_full() {
+                    return true;
+                }
+                for (i, in_r5p2ps) in self.in_all_r5p2ps.iter().enumerate() {
+                    if !in_r5p2ps.is_full_except(i) {
+                        return true;
+                    }
+                }
+                false
+            }
+            R6 | R6Fail | R6FailType5 => {
+                for i in 0..self.participant_indices.len() {
+                    if self.in_r6bcasts.is_none(i)
+                        && self.in_r6bcasts_fail.is_none(i)
+                        && self.in_r6bcasts_fail_type5.is_none(i)
+                    {
+                        return true;
+                    }
+                }
+                false
+            }
+            R7 | R7FailType7 => {
+                for i in 0..self.participant_indices.len() {
+                    if self.in_r7bcasts.is_none(i) && self.in_r7bcasts_fail_type7.is_none(i) {
+                        return true;
+                    }
+                }
+                false
+            }
+            Done => false,
+            Fail => false,
+        }
+    }
+
+    fn done(&self) -> bool {
+        matches!(self.status, Done | Fail)
+    }
+}
+
+// TODO these methods should be private - break abstraction for tests only
+impl Sign {
+    pub(super) fn move_to_sad_path(&mut self) {
+        match self.status {
+            R2 => {
+                if self.in_r2bcasts_fail.some_count() > 0 {
+                    self.status = R2Fail;
+                }
+            }
+            R3 => {
+                if self.in_r3bcasts_fail.some_count() > 0 {
+                    self.status = R3Fail;
+                }
+            }
+            R6 => {
+                if self.in_r6bcasts_fail.some_count() > 0 {
+                    self.status = R6Fail;
+                }
+            }
+            // do not use catch-all pattern `_ => (),`
+            // instead, list all variants explicity
+            // because otherwise you'll forget to update this match statement when you add a variant
+            R1 | R2Fail | R3Fail | R4 | R5 | R6Fail | R6FailType5 | R7 | R7FailType7 | New
+            | Done | Fail => {}
+        }
+    }
+
+    fn set_msg_in_inner(&mut self, msg: &[u8], from_index_range: &IndexRange) -> ProtocolResult {
         // TODO match self.status
         // TODO refactor repeated code
         let msg_meta: MsgMeta = bincode::deserialize(msg)?;
@@ -265,154 +441,6 @@ impl Protocol for Sign {
             }
         };
         Ok(())
-    }
-
-    fn get_bcast_out(&self) -> &Option<MsgBytes> {
-        match self.status {
-            New => &None,
-            R1 => &self.out_r1bcast,
-            R2 => &None,
-            R2Fail => &self.out_r2bcast_fail_serialized,
-            R3 => &self.out_r3bcast,
-            R3Fail => &self.out_r3bcast_fail_serialized,
-            R4 => &self.out_r4bcast,
-            R5 => &self.out_r5bcast,
-            R6 => &self.out_r6bcast,
-            R6Fail => &self.out_r6bcast_fail_serialized,
-            R6FailType5 => &self.out_r6bcast_fail_type5_serialized,
-            R7 => &self.out_r7bcast,
-            R7FailType7 => &self.out_r7bcast_fail_type7_serialized,
-            Done => &None,
-            Fail => &None,
-        }
-    }
-
-    fn get_p2p_out(&self) -> &Option<Vec<Option<MsgBytes>>> {
-        match self.status {
-            New => &None,
-            R1 => &self.out_r1p2ps,
-            R2 => &self.out_r2p2ps,
-            R2Fail => &None,
-            R3 => &None,
-            R3Fail => &None,
-            R4 => &None,
-            R5 => &self.out_r5p2ps,
-            R6 => &None,
-            R6Fail => &None,
-            R6FailType5 => &None,
-            R7 => &None,
-            R7FailType7 => &None,
-            Done => &None,
-            Fail => &None,
-        }
-    }
-
-    fn expecting_more_msgs_this_round(&self) -> bool {
-        // TODO account for sad path messages
-        // need to receive one message per party (happy OR sad)
-
-        match self.status {
-            New => false,
-            R1 => {
-                // TODO fix ugly code to deal with wasted entries for messages to myself
-                if !self.in_r1bcasts.is_full() {
-                    return true;
-                }
-                for (i, in_r1p2ps) in self.in_all_r1p2ps.iter().enumerate() {
-                    if !in_r1p2ps.is_full_except(i) {
-                        return true;
-                    }
-                }
-                false
-            }
-            R2 | R2Fail => {
-                for i in 0..self.participant_indices.len() {
-                    if !self.in_all_r2p2ps[i].is_full_except(i) && self.in_r2bcasts_fail.is_none(i)
-                    {
-                        return true;
-                    }
-                }
-                false
-            }
-            R3 | R3Fail => {
-                for i in 0..self.participant_indices.len() {
-                    if self.in_r3bcasts.is_none(i) && self.in_r3bcasts_fail.is_none(i) {
-                        return true;
-                    }
-                }
-                false
-            }
-            R4 => {
-                if !self.in_r4bcasts.is_full() {
-                    return true;
-                }
-                false
-            }
-            R5 => {
-                if !self.in_r5bcasts.is_full() {
-                    return true;
-                }
-                for (i, in_r5p2ps) in self.in_all_r5p2ps.iter().enumerate() {
-                    if !in_r5p2ps.is_full_except(i) {
-                        return true;
-                    }
-                }
-                false
-            }
-            R6 | R6Fail | R6FailType5 => {
-                for i in 0..self.participant_indices.len() {
-                    if self.in_r6bcasts.is_none(i)
-                        && self.in_r6bcasts_fail.is_none(i)
-                        && self.in_r6bcasts_fail_type5.is_none(i)
-                    {
-                        return true;
-                    }
-                }
-                false
-            }
-            R7 | R7FailType7 => {
-                for i in 0..self.participant_indices.len() {
-                    if self.in_r7bcasts.is_none(i) && self.in_r7bcasts_fail_type7.is_none(i) {
-                        return true;
-                    }
-                }
-                false
-            }
-            Done => false,
-            Fail => false,
-        }
-    }
-
-    fn done(&self) -> bool {
-        matches!(self.status, Done | Fail)
-    }
-}
-
-// TODO these methods should be private - break abstraction for tests only
-impl Sign {
-    pub(super) fn move_to_sad_path(&mut self) {
-        match self.status {
-            R2 => {
-                if self.in_r2bcasts_fail.some_count() > 0 {
-                    self.status = R2Fail;
-                }
-            }
-            R3 => {
-                if self.in_r3bcasts_fail.some_count() > 0 {
-                    self.status = R3Fail;
-                }
-            }
-            R6 => {
-                if self.in_r6bcasts_fail.some_count() > 0 {
-                    self.status = R6Fail;
-                }
-            }
-            // do not use catch-all pattern `_ => (),`
-            // instead, list all variants explicity
-            // because otherwise you'll forget to update this match statement when you add a variant
-            R1 | R2Fail | R3Fail | R4 | R5 | R6Fail | R6FailType5 | R7 | R7FailType7 | New
-            | Done | Fail => {}
-        }
     }
 
     pub(super) fn update_state_r1(

@@ -32,6 +32,25 @@ impl Protocol for Keygen {
             return Ok(());
         }
 
+        // check if we have marked any deserialiation faults
+        if !self.disrupting_parties.is_empty() {
+            // create a vec of crimes with respect to deserialization faults
+            let crimes = self
+                .disrupting_parties
+                .vec_ref()
+                .iter()
+                .map(|&failure| {
+                    let mut my_crimes = vec![];
+                    if failure.is_some() {
+                        my_crimes.push(Crime::DisruptedMessage);
+                    }
+                    my_crimes
+                })
+                .collect();
+            self.update_state_fail(crimes);
+            return Ok(());
+        }
+
         self.move_to_sad_path();
 
         // TODO refactor repeated code!
@@ -105,30 +124,12 @@ impl Protocol for Keygen {
     }
 
     fn set_msg_in(&mut self, msg: &[u8], from_index_range: &IndexRange) -> ProtocolResult {
-        // TODO match self.state
-        // TODO refactor repeated code
-        let msg_meta: MsgMeta = bincode::deserialize(msg)?;
-        if !from_index_range.includes(msg_meta.from) {
-            self.unauth_parties
-                .overwrite(from_index_range.first, msg_meta.from);
+        let res = self.set_msg_in_inner(&msg, &from_index_range);
+        if res.is_err() {
+            self.disrupting_parties
+                .overwrite(from_index_range.first, true);
         }
-        match msg_meta.msg_type {
-            MsgType::R1Bcast => self
-                .in_r1bcasts
-                .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?),
-            MsgType::R2Bcast => self
-                .in_r2bcasts
-                .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?),
-            MsgType::R2P2p { to } => self.in_all_r2p2ps[msg_meta.from]
-                .overwrite(to, bincode::deserialize(&msg_meta.payload)?),
-            MsgType::R3Bcast => self
-                .in_r3bcasts
-                .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?),
-            MsgType::R3FailBcast => self
-                .in_r3bcasts_fail
-                .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?),
-        };
-        Ok(())
+        res
     }
 
     fn get_bcast_out(&self) -> &Option<MsgBytes> {
@@ -202,6 +203,33 @@ impl Keygen {
             // because otherwise you'll forget to update this match statement when you add a variant
             R1 | R2 | R3Fail | New | Done | Fail => {}
         }
+    }
+
+    fn set_msg_in_inner(&mut self, msg: &[u8], from_index_range: &IndexRange) -> ProtocolResult {
+        // TODO match self.state
+        // TODO refactor repeated code
+        let msg_meta: MsgMeta = bincode::deserialize(msg)?;
+        if !from_index_range.includes(msg_meta.from) {
+            self.unauth_parties
+                .overwrite(from_index_range.first, msg_meta.from);
+        }
+        match msg_meta.msg_type {
+            MsgType::R1Bcast => self
+                .in_r1bcasts
+                .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?),
+            MsgType::R2Bcast => self
+                .in_r2bcasts
+                .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?),
+            MsgType::R2P2p { to } => self.in_all_r2p2ps[msg_meta.from]
+                .overwrite(to, bincode::deserialize(&msg_meta.payload)?),
+            MsgType::R3Bcast => self
+                .in_r3bcasts
+                .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?),
+            MsgType::R3FailBcast => self
+                .in_r3bcasts_fail
+                .overwrite(msg_meta.from, bincode::deserialize(&msg_meta.payload)?),
+        };
+        Ok(())
     }
 
     // return timeout crimes derived by messages that have not been received at the current round
