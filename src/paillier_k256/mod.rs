@@ -20,6 +20,7 @@ impl EncryptionKey {
     pub fn sample_randomness(&self) -> Randomness {
         Randomness(paillier::Randomness::sample(&self.0).0)
     }
+    // TODO how to make `encrypt` generic over `T` where `&T` impls `Into<Plaintext>`?
     pub fn encrypt(&self, p: &Plaintext) -> (Ciphertext, Randomness) {
         let r = self.sample_randomness();
         (self.encrypt_with_randomness(p, &r), r)

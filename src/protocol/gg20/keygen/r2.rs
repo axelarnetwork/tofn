@@ -99,9 +99,8 @@ impl Keygen {
 
             // k256: encrypt the share for party i
             let ek_256 = &self.in_r1bcasts.vec_ref()[i].as_ref().unwrap().ek_k256;
-            let my_u_i_share_k256 =
-                paillier_k256::Plaintext::from_scalar(my_u_i_shares_k256[i].get_scalar());
-            let (u_i_share_ciphertext_k256, _) = ek_256.encrypt(&my_u_i_share_k256);
+            let (u_i_share_ciphertext_k256, _) =
+                ek_256.encrypt(&my_u_i_shares_k256[i].get_scalar().into());
 
             // curv: encrypt the share for party i
             let ek = &self.in_r1bcasts.vec_ref()[i].as_ref().unwrap().ek;

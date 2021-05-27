@@ -235,7 +235,7 @@ pub mod tests {
         let msg = &k256::Scalar::random(rand::thread_rng());
         let g = &k256::ProjectivePoint::generator();
         let msg_g = &(g * msg);
-        let (ciphertext, randomness) = &ek.encrypt(&Plaintext::from(msg));
+        let (ciphertext, randomness) = &ek.encrypt(&msg.into());
 
         let stmt_wc = &StatementWc {
             stmt: Statement { ciphertext, ek },
