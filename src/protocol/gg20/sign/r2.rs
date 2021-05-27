@@ -74,11 +74,6 @@ impl Sign {
     pub(super) fn r2(&self) -> Output {
         assert!(matches!(self.status, Status::R1));
 
-        // response msg for MtA protocols:
-        // 1. my_ecdsa_nonce_summand (other) * my_secret_blind_summand (me)
-        // 2. my_ecdsa_nonce_summand (other) * my_secret_key_summand (me)
-        // both MtAs use my_ecdsa_nonce_summand, so I use the same message for both
-
         let r1state = self.r1state.as_ref().unwrap();
         let mut out_p2ps = FillVec::with_len(self.participant_indices.len());
         let mut culprits = Vec::new();
@@ -93,7 +88,9 @@ impl Sign {
         let mut beta_secrets_k256 = FillVec::with_len(self.participant_indices.len());
         let mut nu_secrets_k256 = FillVec::with_len(self.participant_indices.len());
 
-        // verify zk proofs for first message of MtA
+        // step 2 for MtA protocols:
+        // 1. k_i (other) * gamma_j (me)
+        // 2. k_i (other) * w_j (me)
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
             // TODO make a self.iter_others_enumerate method that automatically skips my index
             if *participant_index == self.my_secret_key_share.my_index {

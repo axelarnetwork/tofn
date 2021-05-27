@@ -1,5 +1,6 @@
 use super::{Sign, Status};
 use crate::fillvec::FillVec;
+use crate::paillier_k256;
 use crate::protocol::gg20::vss;
 use crate::zkp::{paillier::mta, pedersen};
 use curv::{elliptic::curves::traits::ECScalar, FE, GE};
@@ -51,19 +52,25 @@ impl Sign {
     pub(super) fn r3(&self) -> Output {
         assert!(matches!(self.status, Status::R2));
 
+        let r1state = self.r1state.as_ref().unwrap();
+        let r1bcast = self.in_r1bcasts.vec_ref()[self.my_participant_index]
+            .as_ref()
+            .unwrap();
+        let mut culprits = Vec::new();
+
+        // curv
         let (my_ek, my_dk) = (
             &self.my_secret_key_share.my_ek,
             &self.my_secret_key_share.my_dk,
         );
-        let r1state = self.r1state.as_ref().unwrap();
-
-        // complete the MtA protocols:
-        // 1. my_ecdsa_nonce_summand * my_secret_blind_summand
-        // 2. my_ecdsa_nonce_summand * my_secret_key_summand
         let mut my_mta_blind_summands_lhs = FillVec::with_len(self.participant_indices.len());
         let mut my_mta_wc_keyshare_summands_lhs = FillVec::with_len(self.participant_indices.len());
-        let mut culprits = Vec::new();
 
+        // k256
+
+        // step 3 for MtA protocols:
+        // 1. k_i (me) * gamma_j (other)
+        // 2. k_i (me) * w_j (other)
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
             if *participant_index == self.my_secret_key_share.my_index {
                 continue;
@@ -77,7 +84,7 @@ impl Sign {
                     )
                 });
 
-            // verify zk proofs from MtA, MtAwc
+            // curv: verify zk proof for step 2 of MtA k_i * gamma_j
             self.my_secret_key_share
                 .my_zkp
                 .verify_mta_proof(
@@ -98,6 +105,29 @@ impl Sign {
                         crime: Crime::Mta,
                     });
                 });
+
+            // k256: verify zk proof for step 2 of MtA k_i * gamma_j
+            self.my_zkp_k256()
+                .verify_mta_proof(
+                    &paillier_k256::zk::mta::Statement {
+                        ciphertext1: &r1bcast.k_i_ciphertext_k256,
+                        ciphertext2: &in_p2p.alpha_ciphertext_k256,
+                        ek: self.my_ek_k256(),
+                    },
+                    &in_p2p.alpha_proof_k256,
+                )
+                .unwrap_or_else(|e| {
+                    warn!(
+                        "party {} says: mta proof failed to verify for party {} because [{}]",
+                        self.my_secret_key_share.my_index, participant_index, e
+                    );
+                    culprits.push(Culprit {
+                        participant_index: i,
+                        crime: Crime::Mta,
+                    });
+                });
+
+            // curv: verify zk proof for step 2 of MtAwc k_i * w_j
             let other_public_key_summand = self.my_secret_key_share.all_ecdsa_public_key_shares
                 [*participant_index]
                 * vss::lagrangian_coefficient(
@@ -128,6 +158,9 @@ impl Sign {
                         crime: Crime::MtaWc,
                     });
                 });
+
+            // k256: verify zk proof for step 2 of MtAwc k_i * w_j
+            // DONE TO HERE
 
             // decrypt my portion of the additive share
             // TODO may need to use Paillier::open here to recover encryption randomness
