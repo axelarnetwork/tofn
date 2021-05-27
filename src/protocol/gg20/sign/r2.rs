@@ -1,6 +1,9 @@
 use super::{Sign, Status};
-use crate::zkp::paillier::{mta, range};
 use crate::{fillvec::FillVec, paillier_k256};
+use crate::{
+    paillier_k256::Ciphertext,
+    zkp::paillier::{mta, range},
+};
 use curv::{elliptic::curves::traits::ECPoint, BigInt, FE, GE};
 use multi_party_ecdsa::utilities::mta as mta_zengo;
 use serde::{Deserialize, Serialize};
@@ -10,16 +13,28 @@ use tracing::info;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct P2p {
+    // curv
     pub mta_response_blind: mta_zengo::MessageB,
     pub mta_proof: mta::Proof,
     pub mta_response_keyshare: mta_zengo::MessageB,
     pub mta_proof_wc: mta::ProofWc,
+
+    // k256
+    pub alpha_ciphertext_k256: Ciphertext,
+    pub alpha_proof_k256: crate::paillier_k256::zk::mta::Proof,
+    pub mu_ciphertext_k256: Ciphertext,
+    pub mu_proof_k256: crate::paillier_k256::zk::mta::ProofWc,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
-pub struct State {
+pub(super) struct State {
+    // curv
     pub(super) my_mta_blind_summands_rhs: Vec<Option<FE>>,
     pub(super) my_mta_blind_summands_rhs_randomness: Vec<Option<RhsRandomness>>, // needed only in r6 fail mode
     pub(super) my_mta_keyshare_summands_rhs: Vec<Option<FE>>,
+
+    // k256
+    pub(super) beta_secrets_k256: FillVec<crate::mta::Secret>,
+    pub(super) nu_secrets_k256: FillVec<crate::mta::Secret>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,7 +60,7 @@ pub struct FailBcast {
 }
 
 // TODO is it better to have `State` and `P2p` be enum types?
-pub enum Output {
+pub(super) enum Output {
     Success {
         state: State,
         out_p2ps: FillVec<P2p>,
@@ -65,14 +80,18 @@ impl Sign {
         // both MtAs use my_ecdsa_nonce_summand, so I use the same message for both
 
         let r1state = self.r1state.as_ref().unwrap();
-        let my_public_key_summand = GE::generator() * r1state.w_i;
-
         let mut out_p2ps = FillVec::with_len(self.participant_indices.len());
-        let mut my_mta_blind_summands_rhs = FillVec::with_len(self.participant_indices.len());
-        let mut my_mta_blind_summands_rhs_randomness =
-            FillVec::with_len(self.participant_indices.len());
-        let mut my_mta_keyshare_summands_rhs = FillVec::with_len(self.participant_indices.len());
         let mut culprits = Vec::new();
+
+        // curv
+        let my_public_key_summand = GE::generator() * r1state.w_i;
+        let mut my_betas = FillVec::with_len(self.participant_indices.len());
+        let mut my_beta_secrets = FillVec::with_len(self.participant_indices.len());
+        let mut my_nus = FillVec::with_len(self.participant_indices.len());
+
+        // k256
+        let mut beta_secrets_k256 = FillVec::with_len(self.participant_indices.len());
+        let mut nu_secrets_k256 = FillVec::with_len(self.participant_indices.len());
 
         // verify zk proofs for first message of MtA
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
@@ -136,19 +155,14 @@ impl Sign {
                     });
                 });
 
-            // DONE TO HERE
-
-            // MtA for k_i * gamma_j
-
-            // MtA for nonce * blind
-            // TODO tidy scoping: don't need randomness, beta_prime after these two statements
-            let (c_b, beta, randomness, beta_prime) = // (m_b_gamma, beta_gamma)
+            // curv: MtA step 2 for k_i * gamma_j
+            let (alpha_ciphertext, beta, randomness, beta_prime) = // (m_b_gamma, beta_gamma)
                 mta_zengo::MessageB::b(&r1state.gamma_i, other_ek, other_k_i_ciphertext.clone());
             let other_zkp = &self.my_secret_key_share.all_zkps[*participant_index];
             let mta_proof = other_zkp.mta_proof(
                 &mta::Statement {
                     ciphertext1: &other_k_i_ciphertext.c,
-                    ciphertext2: &c_b.c,
+                    ciphertext2: &alpha_ciphertext.c,
                     ek: other_ek,
                 },
                 &mta::Witness {
@@ -157,7 +171,7 @@ impl Sign {
                     randomness: &randomness,
                 },
             );
-            my_mta_blind_summands_rhs_randomness
+            my_beta_secrets
                 .insert(
                     i,
                     RhsRandomness {
@@ -167,14 +181,25 @@ impl Sign {
                 )
                 .unwrap();
 
-            // MtAwc for nonce * keyshare
-            let (mta_response_keyshare, my_mta_keyshare_summand_rhs, randomness_wc, beta_prime_wc) = // (m_b_w, beta_wi)
+            // k256: MtA step 2 for k_i * gamma_j
+            let other_zkp_k256 = &self.my_secret_key_share.all_zkps_k256[*participant_index];
+            let (alpha_ciphertext_k256, alpha_proof_k256, beta_secret_k256) =
+                crate::mta::mta_response_with_proof(
+                    other_zkp_k256,
+                    other_ek_k256,
+                    other_k_i_ciphertext_k256,
+                    &r1state.gamma_i_k256,
+                );
+            beta_secrets_k256.insert(i, beta_secret_k256).unwrap();
+
+            // curv: MtAwc step 2 for k_i * w_j
+            let (mu_ciphertext, nu, randomness_wc, beta_prime_wc) = // (m_b_w, beta_wi)
                 mta_zengo::MessageB::b(&r1state.w_i, other_ek, other_k_i_ciphertext.clone());
             let mta_proof_wc = other_zkp.mta_proof_wc(
                 &mta::StatementWc {
                     stmt: mta::Statement {
                         ciphertext1: &other_k_i_ciphertext.c,
-                        ciphertext2: &mta_response_keyshare.c,
+                        ciphertext2: &mu_ciphertext.c,
                         ek: other_ek,
                     },
                     x_g: &my_public_key_summand,
@@ -186,32 +211,43 @@ impl Sign {
                 },
             );
 
-            // TODO I'm not sending my rhs summands even though zengo does https://github.com/axelarnetwork/tofn/issues/7#issuecomment-771379525
+            // k256: MtAwc step 2 for k_i * w_j
+            let (mu_ciphertext_k256, mu_proof_k256, nu_secret_k256) =
+                crate::mta::mta_response_with_proof_wc(
+                    other_zkp_k256,
+                    other_ek_k256,
+                    other_k_i_ciphertext_k256,
+                    &r1state.w_i_k256,
+                );
+            nu_secrets_k256.insert(i, nu_secret_k256).unwrap();
 
             out_p2ps
                 .insert(
                     i,
                     P2p {
-                        mta_response_blind: c_b,
+                        mta_response_blind: alpha_ciphertext,
                         mta_proof,
-                        mta_response_keyshare,
+                        mta_response_keyshare: mu_ciphertext,
                         mta_proof_wc,
+                        alpha_ciphertext_k256,
+                        alpha_proof_k256,
+                        mu_ciphertext_k256,
+                        mu_proof_k256,
                     },
                 )
                 .unwrap();
-            my_mta_blind_summands_rhs.insert(i, beta).unwrap();
-            my_mta_keyshare_summands_rhs
-                .insert(i, my_mta_keyshare_summand_rhs)
-                .unwrap();
+            my_betas.insert(i, beta).unwrap();
+            my_nus.insert(i, nu).unwrap();
         }
 
         if culprits.is_empty() {
             Output::Success {
                 state: State {
-                    my_mta_blind_summands_rhs: my_mta_blind_summands_rhs.into_vec(),
-                    my_mta_blind_summands_rhs_randomness: my_mta_blind_summands_rhs_randomness
-                        .into_vec(),
-                    my_mta_keyshare_summands_rhs: my_mta_keyshare_summands_rhs.into_vec(),
+                    my_mta_blind_summands_rhs: my_betas.into_vec(),
+                    my_mta_blind_summands_rhs_randomness: my_beta_secrets.into_vec(),
+                    my_mta_keyshare_summands_rhs: my_nus.into_vec(),
+                    beta_secrets_k256,
+                    nu_secrets_k256,
                 },
                 out_p2ps,
             }

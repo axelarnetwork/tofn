@@ -3,6 +3,7 @@ use crate::paillier_k256::{
     Ciphertext, EncryptionKey, Plaintext, Randomness,
 };
 
+#[derive(Debug)]
 pub(crate) struct Secret {
     beta: k256::Scalar,
     beta_prime: Plaintext,
@@ -58,7 +59,6 @@ pub(crate) fn mta_response_with_proof_wc(
     a_ek: &EncryptionKey,
     a_ciphertext: &Ciphertext,
     b: &k256::Scalar,
-    b_g: &k256::ProjectivePoint,
 ) -> (Ciphertext, mta::ProofWc, Secret) {
     let (c_b, s) = mta_response(a_ek, a_ciphertext, b);
     let proof_wc = a_zkp.mta_proof_wc(
@@ -68,7 +68,7 @@ pub(crate) fn mta_response_with_proof_wc(
                 ciphertext2: &c_b,
                 ek: a_ek,
             },
-            x_g: b_g,
+            x_g: &(k256::ProjectivePoint::generator() * b),
         },
         &mta::Witness {
             x: b,
@@ -122,7 +122,7 @@ pub(crate) mod tests {
             )
             .unwrap();
         let (c_b, b_mta_proof_wc, b_secret) =
-            mta_response_with_proof_wc(&a_zkp, &a_ek, &a_ciphertext, &b, &b_g);
+            mta_response_with_proof_wc(&a_zkp, &a_ek, &a_ciphertext, &b);
 
         // MtA step 3: party a
         a_zkp
