@@ -13,34 +13,27 @@ pub fn keygen_unsafe() -> (EncryptionKey, DecryptionKey) {
     (EncryptionKey(ek), DecryptionKey(dk))
 }
 
-pub fn encrypt(ek: &EncryptionKey, msg: &Plaintext) -> (Ciphertext, Randomness) {
-    let r = ek.sample_randomness();
-    (encrypt_with_randomness(ek, msg, &r), r)
-}
-
-pub fn encrypt_with_randomness(ek: &EncryptionKey, msg: &Plaintext, r: &Randomness) -> Ciphertext {
-    Ciphertext(
-        Paillier::encrypt_with_chosen_randomness(
-            &ek.0,
-            paillier::RawPlaintext::from(&msg.0),
-            &paillier::Randomness::from(&r.0),
-        )
-        .0
-        .into_owned(),
-    )
-}
-
-pub fn decrypt_with_randomness(dk: &DecryptionKey, c: &Ciphertext) -> (Plaintext, Randomness) {
-    let (pt, r) = Paillier::open(&dk.0, paillier::RawCiphertext::from(&c.0));
-    (Plaintext(pt.0.into_owned()), Randomness(r.0))
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EncryptionKey(paillier::EncryptionKey);
 
 impl EncryptionKey {
     pub fn sample_randomness(&self) -> Randomness {
         Randomness(paillier::Randomness::sample(&self.0).0)
+    }
+    pub fn encrypt(&self, p: &Plaintext) -> (Ciphertext, Randomness) {
+        let r = self.sample_randomness();
+        (self.encrypt_with_randomness(p, &r), r)
+    }
+    pub fn encrypt_with_randomness(&self, p: &Plaintext, r: &Randomness) -> Ciphertext {
+        Ciphertext(
+            Paillier::encrypt_with_chosen_randomness(
+                &self.0,
+                paillier::RawPlaintext::from(&p.0),
+                &paillier::Randomness::from(&r.0),
+            )
+            .0
+            .into_owned(),
+        )
     }
     /// Homomorphically add `c1` to `c2`
     pub fn add(&self, c1: &Ciphertext, c2: &Ciphertext) -> Ciphertext {
@@ -71,6 +64,13 @@ impl EncryptionKey {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DecryptionKey(paillier::DecryptionKey);
+
+impl DecryptionKey {
+    pub fn decrypt_with_randomness(&self, c: &Ciphertext) -> (Plaintext, Randomness) {
+        let (pt, r) = Paillier::open(&self.0, paillier::RawCiphertext::from(&c.0));
+        (Plaintext(pt.0.into_owned()), Randomness(r.0))
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Plaintext(paillier::BigInt);
@@ -155,10 +155,10 @@ mod tests {
     #[test]
     fn basic_round_trip() {
         let s = k256::Scalar::random(rand::thread_rng());
-        let pt = Plaintext::from(&s);
+        let pt = Plaintext::from_scalar(&s);
         let (ek, dk) = keygen_unsafe();
-        let (ct, r) = encrypt(&ek, &pt);
-        let (pt2, r2) = decrypt_with_randomness(&dk, &ct);
+        let (ct, r) = ek.encrypt(&pt);
+        let (pt2, r2) = dk.decrypt_with_randomness(&ct);
         assert_eq!(pt, pt2);
         assert_eq!(r, r2);
         let s2 = pt2.to_scalar();

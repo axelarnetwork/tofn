@@ -97,10 +97,9 @@ impl Sign {
         let encrypted_k_i = encrypted_k_i_zengo.c.clone();
 
         // k256
-        let (k_i_ciphertext_k256, k_i_randomness_k256) = paillier_k256::encrypt(
-            self.my_ek_k256(),
-            &paillier_k256::Plaintext::from_scalar(&k_i_k256),
-        );
+        let (k_i_ciphertext_k256, k_i_randomness_k256) = self
+            .my_ek_k256()
+            .encrypt(&paillier_k256::Plaintext::from_scalar(&k_i_k256));
 
         // TODO these variable names are getting ridiculous
         let mut out_p2ps = FillVec::with_len(self.participant_indices.len());

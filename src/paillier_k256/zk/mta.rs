@@ -8,7 +8,7 @@
 use crate::{
     k256_serde,
     paillier_k256::{
-        encrypt_with_randomness, to_bigint, to_scalar, to_vec,
+        to_bigint, to_scalar, to_vec,
         zk::{mulm, random, ZkSetup},
         BigInt, Ciphertext, EncryptionKey, Plaintext, Randomness,
     },
@@ -127,7 +127,7 @@ impl ZkSetup {
         });
 
         let v = mulm(
-            &encrypt_with_randomness(stmt.ek, &gamma, &beta).0,
+            &stmt.ek.encrypt_with_randomness(&gamma, &beta).0,
             &stmt.ciphertext1.0.powm(&alpha, &stmt.ek.0.nn),
             &stmt.ek.0.nn,
         );
@@ -229,7 +229,7 @@ impl ZkSetup {
         }
 
         let cipher_check_lhs = mulm(
-            &encrypt_with_randomness(stmt.ek, &proof.t1, &proof.s).0,
+            &stmt.ek.encrypt_with_randomness(&proof.t1, &proof.s).0,
             &stmt.ciphertext1.0.powm(&proof.s1, &stmt.ek.0.nn),
             &stmt.ek.0.nn,
         );
@@ -252,7 +252,7 @@ impl ZkSetup {
 // 3. zkp::range
 // in non-malicious test build to avoid code-duplication for malicious tests.
 #[cfg(any(test, feature = "malicious"))]
-pub(crate) mod malicious {
+pub mod malicious {
     use super::*;
 
     pub fn corrupt_proof(proof: &Proof) -> Proof {
@@ -280,9 +280,7 @@ pub(crate) mod tests {
         malicious::{corrupt_proof, corrupt_proof_wc},
         Statement, StatementWc, Witness, ZkSetup,
     };
-    use crate::paillier_k256::{
-        encrypt_with_randomness, keygen_unsafe, zk::random, Ciphertext, Plaintext,
-    };
+    use crate::paillier_k256::{keygen_unsafe, zk::random, Ciphertext, Plaintext};
     use curv::BigInt;
     use ecdsa::elliptic_curve::Field;
     use tracing_test::traced_test; // enable logs in tests
@@ -299,7 +297,7 @@ pub(crate) mod tests {
         let ciphertext1 = &Ciphertext(random(&ek.0.nn));
         let ciphertext2 = &ek.add(
             &ek.mul(ciphertext1, &Plaintext::from_scalar(x)),
-            &encrypt_with_randomness(ek, msg, randomness),
+            &ek.encrypt_with_randomness(msg, randomness),
         );
 
         let stmt_wc = &StatementWc {

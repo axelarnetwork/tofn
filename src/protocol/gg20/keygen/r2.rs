@@ -24,7 +24,7 @@ pub(super) struct Bcast {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct P2p {
     pub(crate) encrypted_u_i_share: BigInt, // threshold share of my_ecdsa_secret_summand
-    pub(crate) encrypted_u_i_share_k256: paillier_k256::Ciphertext,
+    pub(crate) u_i_share_ciphertext_k256: paillier_k256::Ciphertext,
 }
 
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
@@ -101,7 +101,7 @@ impl Keygen {
             let ek_256 = &self.in_r1bcasts.vec_ref()[i].as_ref().unwrap().ek_k256;
             let my_u_i_share_k256 =
                 paillier_k256::Plaintext::from_scalar(my_u_i_shares_k256[i].get_scalar());
-            let (encrypted_u_i_share_k256, _) = paillier_k256::encrypt(&ek_256, &my_u_i_share_k256);
+            let (u_i_share_ciphertext_k256, _) = ek_256.encrypt(&my_u_i_share_k256);
 
             // curv: encrypt the share for party i
             let ek = &self.in_r1bcasts.vec_ref()[i].as_ref().unwrap().ek;
@@ -128,7 +128,7 @@ impl Keygen {
                     i,
                     P2p {
                         encrypted_u_i_share,
-                        encrypted_u_i_share_k256,
+                        u_i_share_ciphertext_k256,
                     },
                 )
                 .unwrap();

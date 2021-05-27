@@ -2,7 +2,6 @@ use super::{crimes::Crime, Keygen, Status};
 use crate::{
     hash,
     k256_serde::to_bytes,
-    paillier_k256,
     protocol::gg20::{vss, vss_k256},
 };
 use curv::{
@@ -129,11 +128,12 @@ impl Keygen {
             let u_i_share: FE = ECScalar::from(&u_i_share_plaintext.0);
 
             // k256: decrypt share
-            let (u_i_share_plaintext_k256, _u_i_share_randomness_k256) =
-                paillier_k256::decrypt_with_randomness(
-                    &self.r1state.as_ref().unwrap().dk_k256,
-                    &my_r2p2p.encrypted_u_i_share_k256,
-                );
+            let (u_i_share_plaintext_k256, _u_i_share_randomness_k256) = self
+                .r1state
+                .as_ref()
+                .unwrap()
+                .dk_k256
+                .decrypt_with_randomness(&my_r2p2p.u_i_share_ciphertext_k256);
             let u_i_share_k256 =
                 vss_k256::Share::from_scalar(u_i_share_plaintext_k256.to_scalar(), self.my_index);
 

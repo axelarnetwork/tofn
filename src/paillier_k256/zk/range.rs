@@ -3,7 +3,7 @@ use std::ops::Neg;
 use crate::{
     k256_serde,
     paillier_k256::{
-        encrypt, encrypt_with_randomness, to_bigint, to_scalar, to_vec,
+        to_bigint, to_scalar, to_vec,
         zk::{random, ZkSetup},
         BigInt, Ciphertext, EncryptionKey, Plaintext, Randomness,
     },
@@ -98,7 +98,7 @@ impl ZkSetup {
         let gamma = random(&self.q3_n_tilde);
 
         let z = self.commit(&to_bigint(&wit.msg), &rho);
-        let (u, beta) = encrypt(stmt.ek, &alpha_pt);
+        let (u, beta) = stmt.ek.encrypt(&alpha_pt);
         let w = self.commit(&alpha_bigint, &gamma);
 
         let u1 = msg_g_g.map::<k256::ProjectivePoint, _>(|(_, g)| g * &alpha_pt.to_scalar());
@@ -164,7 +164,7 @@ impl ZkSetup {
         }
 
         let u_check = mulm(
-            &encrypt_with_randomness(stmt.ek, &proof.s1, &proof.s).0,
+            &stmt.ek.encrypt_with_randomness(&proof.s1, &proof.s).0,
             &stmt.ciphertext.0.powm(&e_neg_bigint, &stmt.ek.0.nn),
             &stmt.ek.0.nn,
         );
@@ -192,7 +192,7 @@ impl ZkSetup {
 // 3. zkp::range
 // in non-malicious test build to avoid code-duplication for malicious tests.
 #[cfg(any(test, feature = "malicious"))]
-pub(crate) mod malicious {
+pub mod malicious {
     use crate::k256_serde::ProjectivePoint;
 
     use super::*;
@@ -215,7 +215,7 @@ pub(crate) mod malicious {
 }
 #[cfg(test)]
 pub mod tests {
-    use crate::paillier_k256::{encrypt, keygen_unsafe, Plaintext};
+    use crate::paillier_k256::{keygen_unsafe, Plaintext};
 
     use super::{
         ZkSetup,
@@ -235,7 +235,7 @@ pub mod tests {
         let msg = &k256::Scalar::random(rand::thread_rng());
         let g = &k256::ProjectivePoint::generator();
         let msg_g = &(g * msg);
-        let (ciphertext, randomness) = &encrypt(&ek, &Plaintext::from(msg));
+        let (ciphertext, randomness) = &ek.encrypt(&Plaintext::from(msg));
 
         let stmt_wc = &StatementWc {
             stmt: Statement { ciphertext, ek },
