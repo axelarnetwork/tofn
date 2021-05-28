@@ -5,9 +5,9 @@ use crate::paillier_k256::{
 
 #[derive(Debug)]
 pub(crate) struct Secret {
-    beta: k256::Scalar,
-    beta_prime: Plaintext,
-    beta_prime_randomness: Randomness,
+    pub(crate) beta: k256::Scalar,
+    pub(crate) beta_prime: Plaintext,
+    pub(crate) beta_prime_randomness: Randomness,
 }
 
 pub(crate) fn mta_response(

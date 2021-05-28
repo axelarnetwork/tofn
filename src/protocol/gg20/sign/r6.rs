@@ -212,7 +212,7 @@ impl Sign {
                 .insert(
                     i,
                     MtaBlindSummandsData {
-                        rhs: r2state.my_mta_blind_summands_rhs[i].unwrap(),
+                        rhs: r2state.betas[i].unwrap(),
                         rhs_randomness: r2state.my_mta_blind_summands_rhs_randomness[i]
                             .as_ref()
                             .unwrap()

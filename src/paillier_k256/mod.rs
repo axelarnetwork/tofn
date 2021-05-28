@@ -2,7 +2,9 @@
 //! * tidy some API ergonomics in rust-paillier
 //! * facilitate easy swap-out of rust-paillier crate for something else
 
-use paillier::{Add, BigInt, EncryptWithChosenRandomness, KeyGeneration, Mul, Open, Paillier};
+use paillier::{
+    Add, BigInt, Decrypt, EncryptWithChosenRandomness, KeyGeneration, Mul, Open, Paillier,
+};
 use serde::{Deserialize, Serialize};
 
 pub mod zk;
@@ -70,6 +72,13 @@ impl EncryptionKey {
 pub struct DecryptionKey(paillier::DecryptionKey);
 
 impl DecryptionKey {
+    pub fn decrypt(&self, c: &Ciphertext) -> Plaintext {
+        Plaintext(
+            Paillier::decrypt(&self.0, paillier::RawCiphertext::from(&c.0))
+                .0
+                .into_owned(),
+        )
+    }
     pub fn decrypt_with_randomness(&self, c: &Ciphertext) -> (Plaintext, Randomness) {
         let (pt, r) = Paillier::open(&self.0, paillier::RawCiphertext::from(&c.0));
         (Plaintext(pt.0.into_owned()), Randomness(r.0))

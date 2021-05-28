@@ -64,10 +64,12 @@ impl Sign {
             &self.my_secret_key_share.my_ek,
             &self.my_secret_key_share.my_dk,
         );
-        let mut my_mta_blind_summands_lhs = FillVec::with_len(self.participant_indices.len());
-        let mut my_mta_wc_keyshare_summands_lhs = FillVec::with_len(self.participant_indices.len());
+        let mut alphas = FillVec::with_len(self.participant_indices.len());
+        let mut mus = FillVec::with_len(self.participant_indices.len());
 
         // k256
+        let mut alphas_k256 = FillVec::with_len(self.participant_indices.len());
+        let mut mus_k256 = FillVec::with_len(self.participant_indices.len());
 
         // step 3 for MtA protocols:
         // 1. k_i (me) * gamma_j (other)
@@ -187,25 +189,34 @@ impl Sign {
                 });
 
             // curv: decrypt alpha for MtA k_i * gamma_j
-            let (my_mta_blind_summand_lhs, _) = in_p2p
+            let (alpha, _) = in_p2p
                 .mta_response_blind
                 .verify_proofs_get_alpha(my_dk, &r1state.k_i)
                 .unwrap();
+            alphas.insert(i, alpha).unwrap();
 
             // k256: decrypt alpha for MtA k_i * gamma_j
+            let alpha_k256 = self
+                .my_secret_key_share
+                .dk_k256
+                .decrypt(&in_p2p.alpha_ciphertext_k256)
+                .to_scalar();
+            alphas_k256.insert(i, alpha_k256).unwrap();
 
             // curv: decrypt mu for MtA k_i * w_j
-            let (my_mta_keyshare_summand_lhs, _) = in_p2p
+            let (mu, _) = in_p2p
                 .mta_response_keyshare
                 .verify_proofs_get_alpha(my_dk, &r1state.k_i)
                 .unwrap();
+            mus.insert(i, mu).unwrap();
 
-            my_mta_blind_summands_lhs
-                .insert(i, my_mta_blind_summand_lhs)
-                .unwrap();
-            my_mta_wc_keyshare_summands_lhs
-                .insert(i, my_mta_keyshare_summand_lhs)
-                .unwrap();
+            // k256: decrypt mu for MtA k_i * w_j
+            let mu_k256 = self
+                .my_secret_key_share
+                .dk_k256
+                .decrypt(&in_p2p.mu_ciphertext_k256)
+                .to_scalar();
+            mus_k256.insert(i, mu_k256).unwrap();
         }
 
         if !culprits.is_empty() {
@@ -214,35 +225,65 @@ impl Sign {
             };
         }
 
-        // sum my additive shares to get (my_nonce_x_blind_summand, my_nonce_x_keyshare_summand)
-        // GG20 notation:
-        // (my_nonce_x_blind_summand, my_nonce_x_keyshare_summand) -> (delta_i, sigma_i)
-        // my_ecdsa_nonce_summand -> k_i
-        // my_secret_blind_summand -> gamma_i
-        // my_secret_key_summand -> w_i
         let r2state = self.r2state.as_ref().unwrap();
-        let my_mta_blind_summands_lhs = my_mta_blind_summands_lhs.into_vec();
-        let my_mta_wc_keyshare_summands_lhs = my_mta_wc_keyshare_summands_lhs.into_vec();
 
-        // start the summation with my contribution
-        let mut my_nonce_x_blind_summand = r1state.k_i.mul(&r1state.gamma_i.get_element());
-        let mut my_nonce_x_keyshare_summand = r1state.k_i.mul(&r1state.w_i.get_element());
+        // compute delta_i = k_i * gamma_i + sum_{j != i} alpha_ij + beta_ji
 
+        // curv
+        let alphas = alphas.into_vec();
+        let mut delta_i = r1state.k_i.mul(&r1state.gamma_i.get_element()); // k_i * gamma_i
         for i in 0..self.participant_indices.len() {
             if self.participant_indices[i] == self.my_secret_key_share.my_index {
                 continue;
             }
-            my_nonce_x_blind_summand = my_nonce_x_blind_summand
-                + my_mta_blind_summands_lhs[i]
+            delta_i = delta_i
+                + alphas[i]
                     .unwrap()
-                    .add(&r2state.my_mta_blind_summands_rhs[i].unwrap().get_element());
-            my_nonce_x_keyshare_summand = my_nonce_x_keyshare_summand
-                + my_mta_wc_keyshare_summands_lhs[i].unwrap().add(
-                    &r2state.my_mta_keyshare_summands_rhs[i]
-                        .unwrap()
-                        .get_element(),
-                );
+                    .add(&r2state.betas[i].unwrap().get_element());
         }
+
+        // k256
+        let delta_i_k256 = {
+            let mut sum = r1state.k_i_k256 * r1state.gamma_i_k256; // k_i * gamma_i
+            for i in 0..self.participant_indices.len() {
+                if self.participant_indices[i] == self.my_secret_key_share.my_index {
+                    continue;
+                }
+                sum = sum
+                    + alphas_k256.vec_ref()[i].as_ref().unwrap()
+                    + r2state.beta_secrets_k256.vec_ref()[i]
+                        .as_ref()
+                        .unwrap()
+                        .beta;
+            }
+            sum
+        };
+
+        // compute sigma_i = k_i * w_i + sum_{j != i} mu_ij + nu_ji
+
+        // curv
+        let mus = mus.into_vec();
+        let mut sigma_i = r1state.k_i.mul(&r1state.w_i.get_element());
+        for i in 0..self.participant_indices.len() {
+            if self.participant_indices[i] == self.my_secret_key_share.my_index {
+                continue;
+            }
+            sigma_i = sigma_i + mus[i].unwrap().add(&r2state.nus[i].unwrap().get_element());
+        }
+
+        // k256
+        let sigma_i_k256 = {
+            let mut sum = r1state.k_i_k256 * r1state.w_i_k256; // k_i * w_i
+            for i in 0..self.participant_indices.len() {
+                if self.participant_indices[i] == self.my_secret_key_share.my_index {
+                    continue;
+                }
+                sum = sum
+                    + mus_k256.vec_ref()[i].as_ref().unwrap()
+                    + r2state.nu_secrets_k256.vec_ref()[i].as_ref().unwrap().beta;
+            }
+            sum
+        };
 
         #[cfg(feature = "malicious")] // TODO hack type7 fault
         if matches!(
@@ -250,33 +291,33 @@ impl Sign {
             super::malicious::MaliciousType::R3BadNonceXKeyshareSummand
         ) {
             use super::corrupt_scalar;
-            my_nonce_x_keyshare_summand = corrupt_scalar(&my_nonce_x_keyshare_summand);
+            sigma_i = corrupt_scalar(&sigma_i);
         }
 
         // commit to my_nonce_x_keyshare_summand and compute a zk proof for the commitment
         // GG20 notation:
         // commit -> T_i
         // randomness -> l
-        let (commit, randomness) = &pedersen::commit(&my_nonce_x_keyshare_summand);
+        let (commit, randomness) = &pedersen::commit(&sigma_i);
         let proof = pedersen::prove(
             &pedersen::Statement { commit },
             &pedersen::Witness {
-                msg: &my_nonce_x_keyshare_summand,
+                msg: &sigma_i,
                 randomness,
             },
         );
 
         Output::Success {
             state: State {
-                my_nonce_x_blind_summand,
-                my_nonce_x_keyshare_summand,
+                my_nonce_x_blind_summand: delta_i,
+                my_nonce_x_keyshare_summand: sigma_i,
                 my_nonce_x_keyshare_summand_commit: *commit,
                 my_nonce_x_keyshare_summand_commit_randomness: *randomness,
-                my_mta_blind_summands_lhs,
-                my_mta_wc_keyshare_summands_lhs,
+                my_mta_blind_summands_lhs: alphas,
+                my_mta_wc_keyshare_summands_lhs: mus,
             },
             out_bcast: Bcast {
-                nonce_x_blind_summand: my_nonce_x_blind_summand,
+                nonce_x_blind_summand: delta_i,
                 nonce_x_keyshare_summand_commit: *commit,
                 nonce_x_keyshare_summand_proof: proof,
             },

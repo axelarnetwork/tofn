@@ -28,9 +28,9 @@ pub struct P2p {
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub(super) struct State {
     // curv
-    pub(super) my_mta_blind_summands_rhs: Vec<Option<FE>>,
+    pub(super) betas: Vec<Option<FE>>,
     pub(super) my_mta_blind_summands_rhs_randomness: Vec<Option<RhsRandomness>>, // needed only in r6 fail mode
-    pub(super) my_mta_keyshare_summands_rhs: Vec<Option<FE>>,
+    pub(super) nus: Vec<Option<FE>>,
 
     // k256
     pub(super) beta_secrets_k256: FillVec<crate::mta::Secret>,
@@ -240,9 +240,9 @@ impl Sign {
         if culprits.is_empty() {
             Output::Success {
                 state: State {
-                    my_mta_blind_summands_rhs: my_betas.into_vec(),
+                    betas: my_betas.into_vec(),
                     my_mta_blind_summands_rhs_randomness: my_beta_secrets.into_vec(),
-                    my_mta_keyshare_summands_rhs: my_nus.into_vec(),
+                    nus: my_nus.into_vec(),
                     beta_secrets_k256,
                     nu_secrets_k256,
                 },
