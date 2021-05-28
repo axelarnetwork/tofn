@@ -6,7 +6,7 @@ use crate::protocol::{
 };
 use crate::zkp::{
     paillier::{mta, range},
-    pedersen,
+    pedersen, pedersen_k256,
 };
 use curv::{elliptic::curves::traits::ECScalar, BigInt, FE};
 use strum_macros::EnumIter;
@@ -264,8 +264,14 @@ impl Protocol for BadSign {
                             "malicious participant {} do {:?}",
                             self.sign.my_participant_index, self.malicious_type
                         );
+
+                        // curv
                         let proof = &mut out_bcast.t_i_proof;
                         *proof = pedersen::malicious::corrupt_proof(proof);
+
+                        // k256
+                        let proof_k256 = &mut out_bcast.t_i_proof_k256;
+                        *proof_k256 = pedersen_k256::malicious::corrupt_proof(proof_k256);
 
                         self.sign.update_state_r3(state, out_bcast)
                     }
