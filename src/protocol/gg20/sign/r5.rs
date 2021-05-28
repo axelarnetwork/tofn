@@ -1,5 +1,6 @@
 use crate::fillvec::FillVec;
 use crate::zkp::paillier::range;
+use crate::{hash, k256_serde::to_bytes};
 
 use super::{crimes::Crime, Sign, Status};
 use curv::{
@@ -65,7 +66,7 @@ impl Sign {
             {
                 let crime = Crime::R5BadHashCommit;
                 warn!(
-                    "participant {} detect {:?} by {}",
+                    "(curv) participant {} detect {:?} by {}",
                     self.my_participant_index, crime, i
                 );
                 criminals[i].push(crime);
@@ -74,7 +75,37 @@ impl Sign {
         }
 
         // k256: verify commits
+        let criminals_k256: Vec<Vec<Crime>> = self
+            .in_r4bcasts
+            .vec_ref()
+            .iter()
+            .enumerate()
+            .map(|(i, bcast)| {
+                if i == self.my_participant_index {
+                    return Vec::new(); // don't verify my own commit
+                }
+                let bcast = bcast.as_ref().unwrap();
+                if hash::commit_with_randomness(
+                    to_bytes(bcast.g_gamma_i_k256.unwrap()),
+                    &bcast.g_gamma_i_reveal_k256,
+                ) != self.in_r1bcasts.vec_ref()[i]
+                    .as_ref()
+                    .unwrap()
+                    .g_gamma_i_commit_k256
+                {
+                    let crime = Crime::R5BadHashCommit;
+                    warn!(
+                        "(k256) participant {} detect {:?} by {}",
+                        self.my_participant_index, crime, i
+                    );
+                    vec![crime]
+                } else {
+                    Vec::new()
+                }
+            })
+            .collect();
 
+        assert_eq!(criminals_k256, criminals);
         if !criminals.iter().all(Vec::is_empty) {
             return Output::Fail { criminals };
         }

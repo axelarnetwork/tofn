@@ -28,9 +28,17 @@ pub fn commit_with_randomness(msg: impl AsRef<[u8]>, randomness: &Randomness) ->
 }
 
 #[cfg(feature = "malicious")]
-impl Output {
-    pub fn corrupt(mut self) -> Self {
-        self.0[0] = self.0[0].wrapping_add(1); // add 1 to the first byte
-        self
+pub mod malicious {
+    use super::*;
+    impl Output {
+        pub fn corrupt(mut self) -> Self {
+            self.0[0] = self.0[0].wrapping_add(1); // add 1 to the first byte
+            self
+        }
+    }
+    impl Randomness {
+        pub fn corrupt(&mut self) {
+            self.0[0] = self.0[0].wrapping_add(1); // add 1 to the first byte
+        }
     }
 }

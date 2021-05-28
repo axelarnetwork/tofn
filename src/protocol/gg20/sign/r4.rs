@@ -93,7 +93,7 @@ impl Sign {
             .collect();
 
         assert_eq!(criminals_k256, criminals);
-        if !criminals.iter().all(|c| c.is_empty()) {
+        if !criminals.iter().all(Vec::is_empty) {
             return Output::Fail { criminals };
         }
 
