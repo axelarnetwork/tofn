@@ -2,6 +2,7 @@ use super::{Sign, Status};
 use crate::fillvec::FillVec;
 use crate::paillier_k256;
 use crate::protocol::gg20::vss;
+use crate::protocol::gg20::vss_k256;
 use crate::zkp::{paillier::mta, pedersen};
 use curv::{elliptic::curves::traits::ECScalar, FE, GE};
 use serde::{Deserialize, Serialize};
@@ -160,25 +161,44 @@ impl Sign {
                 });
 
             // k256: verify zk proof for step 2 of MtAwc k_i * w_j
-            // DONE TO HERE
+            let other_g_w_i = self.my_secret_key_share.all_y_i_k256[*participant_index].unwrap()
+                * &vss_k256::lagrange_coefficient(i, &self.participant_indices);
+            self.my_zkp_k256()
+                .verify_mta_proof_wc(
+                    &paillier_k256::zk::mta::StatementWc {
+                        stmt: paillier_k256::zk::mta::Statement {
+                            ciphertext1: &r1bcast.k_i_ciphertext_k256,
+                            ciphertext2: &in_p2p.mu_ciphertext_k256,
+                            ek: self.my_ek_k256(),
+                        },
+                        x_g: &other_g_w_i,
+                    },
+                    &in_p2p.mu_proof_k256,
+                )
+                .unwrap_or_else(|e| {
+                    warn!(
+                        "party {} says: mta_wc proof failed to verify for party {} because [{}]",
+                        self.my_secret_key_share.my_index, participant_index, e
+                    );
+                    culprits.push(Culprit {
+                        participant_index: i,
+                        crime: Crime::MtaWc,
+                    });
+                });
 
-            // decrypt my portion of the additive share
-            // TODO may need to use Paillier::open here to recover encryption randomness
+            // curv: decrypt alpha for MtA k_i * gamma_j
             let (my_mta_blind_summand_lhs, _) = in_p2p
                 .mta_response_blind
                 .verify_proofs_get_alpha(my_dk, &r1state.k_i)
-                .unwrap(); // TODO panic
+                .unwrap();
 
+            // k256: decrypt alpha for MtA k_i * gamma_j
+
+            // curv: decrypt mu for MtA k_i * w_j
             let (my_mta_keyshare_summand_lhs, _) = in_p2p
                 .mta_response_keyshare
                 .verify_proofs_get_alpha(my_dk, &r1state.k_i)
-                .unwrap(); // TODO panic
-
-            // TODO zengo does this extra check, but it requires more messages to be sent
-            // if input.g_w_i_s[ind] != input.m_b_w_s[i].b_proof.pk {
-            //     println!("MtAwc did not work i = {} ind ={}", i, ind);
-            //     return Err(Error::InvalidCom);
-            // }
+                .unwrap();
 
             my_mta_blind_summands_lhs
                 .insert(i, my_mta_blind_summand_lhs)
