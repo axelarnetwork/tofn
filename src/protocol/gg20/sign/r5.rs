@@ -1,6 +1,10 @@
 use crate::fillvec::FillVec;
 use crate::zkp::paillier::range;
-use crate::{hash, k256_serde::to_bytes};
+use crate::{
+    hash,
+    k256_serde::{self, to_bytes},
+    paillier_k256::zk,
+};
 
 use super::{crimes::Crime, Sign, Status};
 use curv::{
@@ -15,18 +19,25 @@ use tracing::warn;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bcast {
-    pub r_i: GE,
+    pub r_i: GE,                               // curv
+    pub r_i_k256: k256_serde::ProjectivePoint, // k256
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct P2p {
-    pub k_i_range_proof_wc: range::ProofWc,
+    pub k_i_range_proof_wc: range::ProofWc,          // curv
+    pub k_i_range_proof_wc_k256: zk::range::ProofWc, // k256
 }
 
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
-pub struct State {
+pub(super) struct State {
+    // curv
     pub(super) r: GE,
     pub(super) r_i: GE,
+
+    // k256
+    pub(super) r_k256: k256_serde::ProjectivePoint,
+    pub(super) r_i_k256: k256_serde::ProjectivePoint,
 }
 
 pub(super) enum Output {
@@ -44,6 +55,9 @@ impl Sign {
     pub(super) fn r5(&self) -> Output {
         assert!(matches!(self.status, Status::R4));
         let r1state = self.r1state.as_ref().unwrap();
+        let r1bcast = self.in_r1bcasts.vec_ref()[self.my_participant_index]
+            .as_ref()
+            .unwrap();
         let r4state = self.r4state.as_ref().unwrap();
 
         // curv: verify commits, compute g_gamma
@@ -110,10 +124,25 @@ impl Sign {
             return Output::Fail { criminals };
         }
 
+        // k256: compute g_gamma
+        // experiment: use `reduce` instead of `fold`
+        let g_gamma_k256 = self
+            .in_r4bcasts
+            .vec_ref()
+            .iter()
+            .map(|o| *o.as_ref().unwrap().g_gamma_i_k256.unwrap())
+            .reduce(|acc, g_gamma_i| acc + g_gamma_i)
+            .unwrap();
+
+        // curv
         let r = g_gamma * r4state.delta_inv; // R
         let r_i = r * r1state.k_i; // R_i from 2020/540
 
-        let mut out_p2ps = FillVec::with_len(self.participant_indices.len());
+        // k256
+        let r_k256 = g_gamma_k256 * r4state.delta_inv_k256;
+        let r_i_k256 = r_k256 * r1state.k_i_k256;
+
+        // curv: statement and witness
         let stmt_wc = &range::StatementWc {
             stmt: range::Statement {
                 ciphertext: &r1state.encrypted_k_i,
@@ -126,18 +155,58 @@ impl Sign {
             msg: &r1state.k_i,
             randomness: &r1state.k_i_randomness,
         };
+
+        // k256: statement and witness
+        let stmt_wc_k256 = &zk::range::StatementWc {
+            stmt: zk::range::Statement {
+                ciphertext: &r1bcast.k_i_ciphertext_k256,
+                ek: self.my_ek_k256(),
+            },
+            msg_g: &r_i_k256,
+            g: &r_k256,
+        };
+        let wit_k256 = &zk::range::Witness {
+            msg: &r1state.k_i_k256,
+            randomness: &r1state.k_i_randomness_k256,
+        };
+
+        // compute consistency proofs for r_i
+        let mut out_p2ps = FillVec::with_len(self.participant_indices.len());
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
             if *participant_index == self.my_secret_key_share.my_index {
                 continue;
             }
+
+            // curv
             let other_zkp = &self.my_secret_key_share.all_zkps[*participant_index];
             let k_i_range_proof_wc = other_zkp.range_proof_wc(stmt_wc, wit);
-            out_p2ps.insert(i, P2p { k_i_range_proof_wc }).unwrap();
+
+            // k256
+            let other_zkp_k256 = &self.my_secret_key_share.all_zkps_k256[*participant_index];
+            let k_i_range_proof_wc_k256 = other_zkp_k256.range_proof_wc(stmt_wc_k256, wit_k256);
+
+            out_p2ps
+                .insert(
+                    i,
+                    P2p {
+                        k_i_range_proof_wc,
+                        k_i_range_proof_wc_k256,
+                    },
+                )
+                .unwrap();
         }
 
         Output::Success {
-            state: State { r, r_i },
-            out_bcast: Bcast { r_i },
+            state: State {
+                r,
+                r_i,
+                r_k256: r_k256.into(),
+                r_i_k256: r_i_k256.into(),
+            },
+            out_bcast: Bcast {
+                r_i,
+                r_i_k256: r_i_k256.into(),
+            },
             out_p2ps,
         }
     }
