@@ -52,7 +52,7 @@ impl Sign {
         // checks:
         // * sum of ecdsa_randomizer_x_nonce_summand (R_i) = G as per phase 5 of 2020/540
         // * verify zk proofs
-        let mut ecdsa_randomizer_x_nonce = r5state.my_ecdsa_randomizer_x_nonce_summand;
+        let mut ecdsa_randomizer_x_nonce = r5state.r_i;
         let mut culprits = Vec::new();
 
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
@@ -60,8 +60,7 @@ impl Sign {
                 continue;
             }
             let in_r5bcast = self.in_r5bcasts.vec_ref()[i].as_ref().unwrap();
-            ecdsa_randomizer_x_nonce =
-                ecdsa_randomizer_x_nonce + in_r5bcast.ecdsa_randomizer_x_nonce_summand;
+            ecdsa_randomizer_x_nonce = ecdsa_randomizer_x_nonce + in_r5bcast.r_i;
 
             let in_r5p2p = self.in_all_r5p2ps[i].vec_ref()[self.my_participant_index]
                 .as_ref()
@@ -83,10 +82,10 @@ impl Sign {
                                 .c,
                             ek: &self.my_secret_key_share.all_eks[*participant_index],
                         },
-                        msg_g: &in_r5bcast.ecdsa_randomizer_x_nonce_summand,
-                        g: &r5state.ecdsa_randomizer,
+                        msg_g: &in_r5bcast.r_i,
+                        g: &r5state.r,
                     },
-                    &in_r5p2p.ecdsa_randomizer_x_nonce_summand_proof,
+                    &in_r5p2p.k_i_range_proof_wc,
                 )
                 .unwrap_or_else(|e| {
                     warn!(
@@ -119,14 +118,14 @@ impl Sign {
 
         // compute S_i (aka ecdsa_public_key_check) and zk proof as per phase 6 of 2020/540
         let r3state = self.r3state.as_ref().unwrap();
-        let my_ecdsa_public_key_check = r5state.ecdsa_randomizer * r3state.sigma_i;
+        let my_ecdsa_public_key_check = r5state.r * r3state.sigma_i;
         let proof_wc = pedersen::prove_wc(
             &pedersen::StatementWc {
                 stmt: pedersen::Statement {
                     commit: &r3state.t_i,
                 },
                 msg_g: &my_ecdsa_public_key_check,
-                g: &r5state.ecdsa_randomizer,
+                g: &r5state.r,
             },
             &pedersen::Witness {
                 msg: &r3state.sigma_i,

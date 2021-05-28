@@ -596,7 +596,7 @@ impl Protocol for BadSign {
                         let proof = &mut out_p2ps.vec_ref_mut()[victim]
                             .as_mut()
                             .unwrap()
-                            .ecdsa_randomizer_x_nonce_summand_proof;
+                            .k_i_range_proof_wc;
                         *proof = range::malicious::corrupt_proof_wc(proof);
                         self.sign.update_state_r5(state, out_bcast, out_p2ps)
                     }

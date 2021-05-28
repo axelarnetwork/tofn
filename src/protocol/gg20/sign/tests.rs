@@ -201,10 +201,7 @@ fn basic_correctness_inner(
 
     // TEST: everyone correctly computed ecdsa_randomizer (R)
     let randomizer = GE::generator() * nonce.invert();
-    for ecdsa_randomizer in participants
-        .iter()
-        .map(|p| p.r5state.as_ref().unwrap().ecdsa_randomizer)
-    {
+    for ecdsa_randomizer in participants.iter().map(|p| p.r5state.as_ref().unwrap().r) {
         assert_eq!(ecdsa_randomizer, randomizer);
     }
 

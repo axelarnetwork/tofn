@@ -75,7 +75,7 @@ impl Sign {
                         commit: &in_r3bcast.t_i,
                     },
                     msg_g: &in_r6bcast.ecdsa_public_key_check,
-                    g: &r5state.ecdsa_randomizer,
+                    g: &r5state.r,
                 },
                 &in_r6bcast.ecdsa_public_key_check_proof_wc,
             )
@@ -109,13 +109,7 @@ impl Sign {
         // compute our sig share s_i (aka my_ecdsa_sig_summand) as per phase 7 of 2020/540
         let r1state = self.r1state.as_ref().unwrap();
         let r3state = self.r3state.as_ref().unwrap();
-        let r: FE = ECScalar::from(
-            &r5state
-                .ecdsa_randomizer
-                .x_coor()
-                .unwrap()
-                .mod_floor(&FE::q()),
-        );
+        let r: FE = ECScalar::from(&r5state.r.x_coor().unwrap().mod_floor(&FE::q()));
         let my_ecdsa_sig_summand = self.msg_to_sign * r1state.k_i + r * r3state.sigma_i;
 
         Output::Success {
@@ -196,7 +190,7 @@ impl Sign {
         let proof = chaum_pedersen::prove(
             &chaum_pedersen::Statement {
                 base1: &GE::generator(),                                            // G
-                base2: &self.r5state.as_ref().unwrap().ecdsa_randomizer,            // R
+                base2: &self.r5state.as_ref().unwrap().r,                           // R
                 target1: &(GE::generator() * r3state.sigma_i),                      // sigma_i * G
                 target2: &self.r6state.as_ref().unwrap().my_ecdsa_public_key_check, // sigma_i * R == S_i
             },

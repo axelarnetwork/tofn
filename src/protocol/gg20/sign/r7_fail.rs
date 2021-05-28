@@ -35,8 +35,8 @@ impl Sign {
                         [accused.participant_index]
                         .as_ref()
                         .unwrap()
-                        .ecdsa_randomizer_x_nonce_summand;
-                    let ecdsa_randomizer = &self.r5state.as_ref().unwrap().ecdsa_randomizer;
+                        .r_i;
+                    let ecdsa_randomizer = &self.r5state.as_ref().unwrap().r;
                     let verifier_zkp =
                         &self.my_secret_key_share.all_zkps[self.participant_indices[accuser]];
 
@@ -51,7 +51,7 @@ impl Sign {
                     let proof = &self.in_all_r5p2ps[accused.participant_index].vec_ref()[accuser]
                         .as_ref()
                         .unwrap()
-                        .ecdsa_randomizer_x_nonce_summand_proof;
+                        .k_i_range_proof_wc;
 
                     let verification = verifier_zkp.verify_range_proof_wc(stmt, proof);
                     match verification {
