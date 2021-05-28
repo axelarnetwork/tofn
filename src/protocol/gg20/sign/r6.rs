@@ -54,7 +54,7 @@ impl Sign {
         // checks:
         // * sum of ecdsa_randomizer_x_nonce_summand (R_i) = G as per phase 5 of 2020/540
         // * verify zk proofs
-        let mut ecdsa_randomizer_x_nonce = r5state.r_i;
+        let mut r_i_sum = r5state.r_i;
         let mut culprits = Vec::new();
 
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
@@ -62,7 +62,7 @@ impl Sign {
                 continue;
             }
             let in_r5bcast = self.in_r5bcasts.vec_ref()[i].as_ref().unwrap();
-            ecdsa_randomizer_x_nonce = ecdsa_randomizer_x_nonce + in_r5bcast.r_i;
+            r_i_sum = r_i_sum + in_r5bcast.r_i;
 
             let in_r5p2p = self.in_all_r5p2ps[i].vec_ref()[self.my_participant_index]
                 .as_ref()
@@ -150,12 +150,28 @@ impl Sign {
             };
         }
 
-        // DONE TO HERE
-
-        // check for failure of type 5 from section 4.2 of https://eprint.iacr.org/2020/540.pdf
-        if ecdsa_randomizer_x_nonce != GE::generator() {
+        // curv: check for failure of type 5 from section 4.2 of https://eprint.iacr.org/2020/540.pdf
+        if r_i_sum != GE::generator() {
             warn!(
-                "participant {} detect 'type 5' fault",
+                "(curv) participant {} detect 'type 5' fault",
+                self.my_participant_index
+            );
+            return Output::FailType5 {
+                out_bcast: self.type5_fault_output(),
+            };
+        }
+
+        // k256: check for failure of type 5 from section 4.2 of https://eprint.iacr.org/2020/540.pdf
+        let r_i_sum_k256 = self
+            .in_r5bcasts
+            .vec_ref()
+            .iter()
+            .map(|o| *o.as_ref().unwrap().r_i_k256.unwrap())
+            .reduce(|acc, r_i| acc + r_i)
+            .unwrap();
+        if r_i_sum_k256 != k256::ProjectivePoint::generator() {
+            warn!(
+                "(k256) participant {} detect 'type 5' fault",
                 self.my_participant_index
             );
             return Output::FailType5 {
