@@ -551,7 +551,7 @@ impl Protocol for BadSign {
                             "malicious participant {} do {:?}",
                             self.sign.my_participant_index, self.malicious_type
                         );
-                        let reveal = &mut out_bcast.reveal;
+                        let reveal = &mut out_bcast.g_gamma_i_reveal;
                         *reveal += BigInt::from(1);
 
                         self.sign.update_state_r4(state, out_bcast)

@@ -8,13 +8,12 @@ use tracing::warn;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bcast {
-    // TODO bundle these two fields as a commit-reveal
-    pub public_blind_summand: GE,
-    pub reveal: BigInt,
+    pub g_gamma_i: GE,
+    pub g_gamma_i_reveal: BigInt,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
-pub struct State {
-    pub(super) nonce_x_blind_inv: FE,
+pub(super) struct State {
+    pub(super) delta_inv: FE,
 }
 
 pub(super) enum Output {
@@ -27,11 +26,10 @@ impl Sign {
         assert!(matches!(self.status, Status::R3));
         let r1state = self.r1state.as_ref().unwrap();
         let r3state = self.r3state.as_ref().unwrap();
-
-        // verify proofs and compute nonce_x_blind (delta_i)
-        let mut nonce_x_blind = r3state.delta_i;
         let mut criminals = vec![Vec::new(); self.participant_indices.len()];
 
+        // verify proofs and compute nonce_x_blind (delta_i)
+        let mut delta = r3state.delta_i;
         for (i, in_r3bcast) in self.in_r3bcasts.vec_ref().iter().enumerate() {
             if i == self.my_participant_index {
                 continue;
@@ -53,18 +51,17 @@ impl Sign {
                 criminals[i].push(crime);
             });
 
-            nonce_x_blind = nonce_x_blind + in_r3bcast.delta_i;
+            delta = delta + in_r3bcast.delta_i;
         }
 
         if criminals.iter().map(|v| v.len()).sum::<usize>() == 0 {
             Output::Success {
                 state: State {
-                    nonce_x_blind_inv: nonce_x_blind.invert(),
+                    delta_inv: delta.invert(),
                 },
                 out_bcast: Bcast {
-                    public_blind_summand: r1state.g_gamma_i,
-                    // TODO hash commitment randomness?
-                    reveal: r1state.my_reveal.clone(),
+                    g_gamma_i: r1state.g_gamma_i,
+                    g_gamma_i_reveal: r1state.g_gamma_i_reveal.clone(),
                 },
             }
         } else {

@@ -111,7 +111,7 @@ impl Sign {
                     self.my_participant_index, i
                 )
             });
-            if public_blind_summand != in_r4bcast.public_blind_summand {
+            if public_blind_summand != in_r4bcast.g_gamma_i {
                 // this code path triggered by R1BadSecretBlindSummand
                 let crime = Crime::R7FailType5BadBlindSummand;
                 info!(

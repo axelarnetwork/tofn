@@ -164,7 +164,7 @@ fn basic_correctness_inner(
     // TEST: everyone correctly computed nonce_x_blind (delta = k*gamma)
     for nonce_x_blind_inv in participants
         .iter()
-        .map(|p| p.r4state.as_ref().unwrap().nonce_x_blind_inv)
+        .map(|p| p.r4state.as_ref().unwrap().delta_inv)
     {
         assert_eq!(nonce_x_blind_inv * nonce_x_blind, one);
     }

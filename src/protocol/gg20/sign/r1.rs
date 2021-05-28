@@ -44,7 +44,7 @@ pub(super) struct State {
     pub(super) w_i: FE,
     pub(super) gamma_i: FE,
     pub(super) g_gamma_i: GE,
-    pub(super) my_reveal: BigInt,
+    pub(super) g_gamma_i_reveal: BigInt,
     pub(super) k_i: FE,
     pub(super) encrypted_k_i: BigInt, // redundant
     pub(super) k_i_randomness: BigInt,
@@ -73,7 +73,7 @@ impl Sign {
         let gamma_i = FE::new_random(); // gamma_i
         let g_gamma_i = GE::generator() * gamma_i; // g_gamma_i
         let k_i = FE::new_random(); // k_i
-        let (commit, my_reveal) =
+        let (commit, g_gamma_i_reveal) =
             HashCommitment::create_commitment(&g_gamma_i.bytes_compressed_to_big_int());
 
         // k256
@@ -149,7 +149,7 @@ impl Sign {
                 w_i,
                 gamma_i,
                 g_gamma_i,
-                my_reveal,
+                g_gamma_i_reveal,
                 k_i,
                 encrypted_k_i,
                 k_i_randomness,

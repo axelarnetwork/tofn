@@ -56,10 +56,8 @@ impl Sign {
             }
             let in_r4bcast = in_r4bcast.as_ref().unwrap();
             let com = HashCommitment::create_commitment_with_user_defined_randomness(
-                &in_r4bcast
-                    .public_blind_summand
-                    .bytes_compressed_to_big_int(),
-                &in_r4bcast.reveal,
+                &in_r4bcast.g_gamma_i.bytes_compressed_to_big_int(),
+                &in_r4bcast.g_gamma_i_reveal,
             );
             if self.in_r1bcasts.vec_ref()[i]
                 .as_ref()
@@ -74,14 +72,14 @@ impl Sign {
                 );
                 criminals[i].push(crime);
             }
-            public_blind = public_blind + in_r4bcast.public_blind_summand;
+            public_blind = public_blind + in_r4bcast.g_gamma_i;
         }
 
         if criminals.iter().map(|v| v.len()).sum::<usize>() > 0 {
             return Output::Fail { criminals };
         }
 
-        let ecdsa_randomizer = public_blind * r4state.nonce_x_blind_inv; // R
+        let ecdsa_randomizer = public_blind * r4state.delta_inv; // R
         let my_ecdsa_randomizer_x_nonce_summand = ecdsa_randomizer * r1state.k_i; // R_i from 2020/540
 
         let mut out_p2ps = FillVec::with_len(self.participant_indices.len());
