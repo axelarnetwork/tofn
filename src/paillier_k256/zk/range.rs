@@ -215,7 +215,7 @@ pub mod malicious {
 }
 #[cfg(test)]
 pub mod tests {
-    use crate::paillier_k256::{keygen_unsafe, Plaintext};
+    use crate::paillier_k256::keygen_unsafe;
 
     use super::{
         ZkSetup,

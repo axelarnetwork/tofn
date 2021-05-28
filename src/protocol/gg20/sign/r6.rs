@@ -1,5 +1,6 @@
 use super::{r2, Sign, Status};
 use crate::fillvec::FillVec;
+use crate::paillier_k256::zk;
 use crate::zkp::{paillier::range, pedersen};
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
@@ -21,13 +22,13 @@ pub struct State {
     pub(super) my_ecdsa_public_key_check: GE,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Culprit {
     pub participant_index: usize,
     pub crime: Crime,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Crime {
     RangeProofWc,
 }
@@ -49,6 +50,7 @@ impl Sign {
         assert!(matches!(self.status, Status::R5));
         let r5state = self.r5state.as_ref().unwrap();
 
+        // curv
         // checks:
         // * sum of ecdsa_randomizer_x_nonce_summand (R_i) = G as per phase 5 of 2020/540
         // * verify zk proofs
@@ -89,7 +91,7 @@ impl Sign {
                 )
                 .unwrap_or_else(|e| {
                     warn!(
-                        "participant {} says: range proof wc failed to verify for participant {} because [{}]",
+                        "(curv) participant {} says: range proof wc failed to verify for participant {} because [{}]",
                         self.my_participant_index, i, e
                     );
                     culprits.push(Culprit {
@@ -99,11 +101,56 @@ impl Sign {
                 });
         }
 
+        // k256: verify proofs
+        let culprits_k256: Vec<Culprit> = self
+            .participant_indices
+            .iter()
+            .enumerate()
+            .filter_map(|(i, participant_index)| {
+                if i == self.my_participant_index {
+                    return None; // nothing from myself for me to verify
+                }
+
+                let r1bcast = self.in_r1bcasts.vec_ref()[i].as_ref().unwrap();
+                let r5bcast = self.in_r5bcasts.vec_ref()[i].as_ref().unwrap();
+                let r5p2p = self.in_all_r5p2ps[i].vec_ref()[self.my_participant_index]
+                    .as_ref()
+                    .unwrap();
+
+                if let Err(e) = self.my_zkp_k256().verify_range_proof_wc(
+                    &zk::range::StatementWc {
+                        stmt: zk::range::Statement {
+                            ciphertext: &r1bcast.k_i_ciphertext_k256,
+                            ek: &self.my_secret_key_share.all_eks_k256[*participant_index],
+                        },
+                        msg_g: r5bcast.r_i_k256.unwrap(),
+                        g: r5state.r_k256.unwrap(),
+                    },
+                    &r5p2p.k_i_range_proof_wc_k256,
+                ) {
+                    let crime = Crime::RangeProofWc;
+                    warn!(
+                        "(k256) participant {} accuse {} of {:?} because [{}]",
+                        self.my_participant_index, i, crime, e
+                    );
+                    Some(Culprit {
+                        participant_index: i,
+                        crime,
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        assert_eq!(culprits_k256, culprits);
         if !culprits.is_empty() {
             return Output::Fail {
                 out_bcast: BcastFail { culprits },
             };
         }
+
+        // DONE TO HERE
 
         // check for failure of type 5 from section 4.2 of https://eprint.iacr.org/2020/540.pdf
         if ecdsa_randomizer_x_nonce != GE::generator() {

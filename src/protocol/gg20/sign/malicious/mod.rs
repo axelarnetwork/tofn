@@ -1,6 +1,7 @@
 use super::{
     crimes::Crime, r2, r3, r4, r5, r6, r7, MsgType, ParamsError, Sign, SignOutput, Status,
 };
+use crate::paillier_k256;
 use crate::protocol::{
     gg20::keygen::SecretKeyShare, IndexRange, MsgBytes, Protocol, ProtocolResult,
 };
@@ -598,11 +599,22 @@ impl Protocol for BadSign {
                             "malicious participant {} do {:?}",
                             self.sign.my_participant_index, self.malicious_type
                         );
+
+                        // curv
                         let proof = &mut out_p2ps.vec_ref_mut()[victim]
                             .as_mut()
                             .unwrap()
                             .k_i_range_proof_wc;
                         *proof = range::malicious::corrupt_proof_wc(proof);
+
+                        // k256
+                        let proof_k256 = &mut out_p2ps.vec_ref_mut()[victim]
+                            .as_mut()
+                            .unwrap()
+                            .k_i_range_proof_wc_k256;
+                        *proof_k256 =
+                            paillier_k256::zk::range::malicious::corrupt_proof_wc(proof_k256);
+
                         self.sign.update_state_r5(state, out_bcast, out_p2ps)
                     }
                     r5::Output::Fail { criminals } => {
