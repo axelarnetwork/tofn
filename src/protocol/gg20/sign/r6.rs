@@ -1,7 +1,10 @@
 use super::{r2, Sign, Status};
 use crate::fillvec::FillVec;
-use crate::paillier_k256::zk;
-use crate::zkp::{paillier::range, pedersen};
+use crate::{
+    k256_serde,
+    paillier_k256::zk,
+    zkp::{paillier::range, pedersen, pedersen_k256},
+};
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     BigInt, FE, GE,
@@ -14,12 +17,18 @@ use tracing::{error, warn};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bcast {
-    pub ecdsa_public_key_check: GE,
-    pub ecdsa_public_key_check_proof_wc: pedersen::ProofWc,
+    // curv
+    pub s_i: GE,
+    pub s_i_proof_wc: pedersen::ProofWc,
+
+    // k256
+    pub s_i_k256: k256_serde::ProjectivePoint,
+    pub s_i_proof_wc_k256: pedersen_k256::ProofWc,
 }
+
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
-pub struct State {
-    pub(super) my_ecdsa_public_key_check: GE,
+pub(super) struct State {
+    pub(super) s_i: GE, // redundant
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -124,7 +133,7 @@ impl Sign {
                             ek: &self.my_secret_key_share.all_eks_k256[*participant_index],
                         },
                         msg_g: r5bcast.r_i_k256.unwrap(),
-                        g: r5state.r_k256.unwrap(),
+                        g: &r5state.r_k256,
                     },
                     &r5p2p.k_i_range_proof_wc_k256,
                 ) {
@@ -179,15 +188,19 @@ impl Sign {
             };
         }
 
-        // compute S_i (aka ecdsa_public_key_check) and zk proof as per phase 6 of 2020/540
         let r3state = self.r3state.as_ref().unwrap();
-        let my_ecdsa_public_key_check = r5state.r * r3state.sigma_i;
-        let proof_wc = pedersen::prove_wc(
+        let r3bcast = self.in_r3bcasts.vec_ref()[self.my_participant_index]
+            .as_ref()
+            .unwrap();
+
+        // curv: compute S_i
+        let s_i = r5state.r * r3state.sigma_i;
+        let s_i_proof_wc = pedersen::prove_wc(
             &pedersen::StatementWc {
                 stmt: pedersen::Statement {
                     commit: &r3state.t_i,
                 },
-                msg_g: &my_ecdsa_public_key_check,
+                msg_g: &s_i,
                 g: &r5state.r,
             },
             &pedersen::Witness {
@@ -196,13 +209,29 @@ impl Sign {
             },
         );
 
-        Output::Success {
-            state: State {
-                my_ecdsa_public_key_check,
+        // k256: compute S_i
+        let s_i_k256 = r5state.r_k256 * r3state.sigma_i_k256;
+        let s_i_proof_wc_k256 = pedersen_k256::prove_wc(
+            &pedersen_k256::StatementWc {
+                stmt: pedersen_k256::Statement {
+                    commit: r3bcast.t_i_k256.unwrap(),
+                },
+                msg_g: &s_i_k256,
+                g: &r5state.r_k256,
             },
+            &pedersen_k256::Witness {
+                msg: &r3state.sigma_i_k256,
+                randomness: &r3state.l_i_k256,
+            },
+        );
+
+        Output::Success {
+            state: State { s_i },
             out_bcast: Bcast {
-                ecdsa_public_key_check: my_ecdsa_public_key_check,
-                ecdsa_public_key_check_proof_wc: proof_wc,
+                s_i,
+                s_i_proof_wc,
+                s_i_k256: s_i_k256.into(),
+                s_i_proof_wc_k256,
             },
         }
     }

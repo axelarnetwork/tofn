@@ -656,7 +656,7 @@ impl Protocol for BadSign {
                             "malicious participant {} do {:?}",
                             self.sign.my_participant_index, self.malicious_type
                         );
-                        let proof = &mut out_bcast.ecdsa_public_key_check_proof_wc;
+                        let proof = &mut out_bcast.s_i_proof_wc;
                         *proof = pedersen::malicious::corrupt_proof_wc(proof);
 
                         self.sign.update_state_r6(state, out_bcast)

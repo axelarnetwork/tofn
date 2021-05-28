@@ -138,10 +138,7 @@ impl Sign {
                     base2: &self.r5state.as_ref().unwrap().r, // R
                     target1: &(self.public_key_summand(i) * ecdsa_nonce
                         + (GE::generator() * mu_summation)), // sigma_i * G
-                    target2: &self.in_r6bcasts.vec_ref()[i]
-                        .as_ref()
-                        .unwrap()
-                        .ecdsa_public_key_check, // sigma_i * R == S_i
+                    target2: &self.in_r6bcasts.vec_ref()[i].as_ref().unwrap().s_i, // sigma_i * R == S_i
                 },
                 &r7bcast.proof,
             )

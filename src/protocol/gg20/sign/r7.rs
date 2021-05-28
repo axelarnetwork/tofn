@@ -60,7 +60,7 @@ impl Sign {
         // checks:
         // * sum of ecdsa_public_key_check (S_i) = ecdsa_public_key as per phase 6 of 2020/540
         // * verify zk proofs
-        let mut ecdsa_public_key = r6state.my_ecdsa_public_key_check;
+        let mut ecdsa_public_key = r6state.s_i;
 
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
             if *participant_index == self.my_secret_key_share.my_index {
@@ -74,10 +74,10 @@ impl Sign {
                     stmt: pedersen::Statement {
                         commit: &in_r3bcast.t_i,
                     },
-                    msg_g: &in_r6bcast.ecdsa_public_key_check,
+                    msg_g: &in_r6bcast.s_i,
                     g: &r5state.r,
                 },
-                &in_r6bcast.ecdsa_public_key_check_proof_wc,
+                &in_r6bcast.s_i_proof_wc,
             )
             .unwrap_or_else(|e| {
                 let crime = Crime::R7BadRangeProof;
@@ -88,7 +88,7 @@ impl Sign {
                 criminals[i].push(crime);
             });
 
-            ecdsa_public_key = ecdsa_public_key + in_r6bcast.ecdsa_public_key_check;
+            ecdsa_public_key = ecdsa_public_key + in_r6bcast.s_i;
         }
 
         if criminals.iter().map(|v| v.len()).sum::<usize>() > 0 {
@@ -189,10 +189,10 @@ impl Sign {
 
         let proof = chaum_pedersen::prove(
             &chaum_pedersen::Statement {
-                base1: &GE::generator(),                                            // G
-                base2: &self.r5state.as_ref().unwrap().r,                           // R
-                target1: &(GE::generator() * r3state.sigma_i),                      // sigma_i * G
-                target2: &self.r6state.as_ref().unwrap().my_ecdsa_public_key_check, // sigma_i * R == S_i
+                base1: &GE::generator(),                       // G
+                base2: &self.r5state.as_ref().unwrap().r,      // R
+                target1: &(GE::generator() * r3state.sigma_i), // sigma_i * G
+                target2: &self.r6state.as_ref().unwrap().s_i,  // sigma_i * R == S_i
             },
             &chaum_pedersen::Witness {
                 scalar: &r3state.sigma_i,

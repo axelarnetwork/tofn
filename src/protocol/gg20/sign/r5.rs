@@ -36,8 +36,8 @@ pub(super) struct State {
     pub(super) r_i: GE,
 
     // k256
-    pub(super) r_k256: k256_serde::ProjectivePoint,
-    pub(super) r_i_k256: k256_serde::ProjectivePoint,
+    pub(super) r_k256: k256::ProjectivePoint,
+    pub(super) r_i_k256: k256::ProjectivePoint,
 }
 
 pub(super) enum Output {
@@ -200,8 +200,8 @@ impl Sign {
             state: State {
                 r,
                 r_i,
-                r_k256: r_k256.into(),
-                r_i_k256: r_i_k256.into(),
+                r_k256,
+                r_i_k256,
             },
             out_bcast: Bcast {
                 r_i,

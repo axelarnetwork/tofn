@@ -46,7 +46,7 @@ impl Sign {
             let in_r7bcast = self.in_r7bcasts.vec_ref()[i].as_ref().unwrap();
 
             let r_i_m = in_r5bcast.r_i * self.msg_to_sign;
-            let s_i_r = in_r6bcast.ecdsa_public_key_check * r7state.r;
+            let s_i_r = in_r6bcast.s_i * r7state.r;
             let rhs = r_i_m + s_i_r;
 
             let lhs = r5state.r * in_r7bcast.ecdsa_sig_summand;
