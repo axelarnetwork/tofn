@@ -72,7 +72,7 @@ impl Sign {
             pedersen::verify_wc(
                 &pedersen::StatementWc {
                     stmt: pedersen::Statement {
-                        commit: &in_r3bcast.nonce_x_keyshare_summand_commit,
+                        commit: &in_r3bcast.t_i,
                     },
                     msg_g: &in_r6bcast.ecdsa_public_key_check,
                     g: &r5state.ecdsa_randomizer,
@@ -116,8 +116,7 @@ impl Sign {
                 .unwrap()
                 .mod_floor(&FE::q()),
         );
-        let my_ecdsa_sig_summand =
-            self.msg_to_sign * r1state.k_i + r * r3state.my_nonce_x_keyshare_summand;
+        let my_ecdsa_sig_summand = self.msg_to_sign * r1state.k_i + r * r3state.sigma_i;
 
         Output::Success {
             state: State {
@@ -174,9 +173,7 @@ impl Sign {
             {
                 let my_mta_wc_keyshare_summand_lhs_mod_q: FE =
                     ECScalar::from(&my_mta_wc_keyshare_summand_lhs_plaintext.0);
-                if my_mta_wc_keyshare_summand_lhs_mod_q
-                    != r3state.my_mta_wc_keyshare_summands_lhs[i].unwrap()
-                {
+                if my_mta_wc_keyshare_summand_lhs_mod_q != r3state.mus[i].unwrap() {
                     error!("participant {} decryption of mta_wc_response_keyshare from {} in r6 differs from r3", self.my_participant_index, i);
                 }
 
@@ -200,11 +197,11 @@ impl Sign {
             &chaum_pedersen::Statement {
                 base1: &GE::generator(),                                            // G
                 base2: &self.r5state.as_ref().unwrap().ecdsa_randomizer,            // R
-                target1: &(GE::generator() * r3state.my_nonce_x_keyshare_summand),  // sigma_i * G
+                target1: &(GE::generator() * r3state.sigma_i),                      // sigma_i * G
                 target2: &self.r6state.as_ref().unwrap().my_ecdsa_public_key_check, // sigma_i * R == S_i
             },
             &chaum_pedersen::Witness {
-                scalar: &r3state.my_nonce_x_keyshare_summand,
+                scalar: &r3state.sigma_i,
             },
         );
 

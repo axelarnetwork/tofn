@@ -129,12 +129,12 @@ fn basic_correctness_inner(
         .fold(FE::zero(), |acc, x| acc + x);
     let nonce_x_blind = participants
         .iter()
-        .map(|p| p.r3state.as_ref().unwrap().my_nonce_x_blind_summand)
+        .map(|p| p.r3state.as_ref().unwrap().delta_i)
         .fold(FE::zero(), |acc, x| acc + x);
     assert_eq!(nonce_x_blind, nonce * blind);
     let nonce_x_secret_key = participants
         .iter()
-        .map(|p| p.r3state.as_ref().unwrap().my_nonce_x_keyshare_summand)
+        .map(|p| p.r3state.as_ref().unwrap().sigma_i)
         .fold(FE::zero(), |acc, x| acc + x);
     assert_eq!(nonce_x_secret_key, nonce * ecdsa_secret_key);
 

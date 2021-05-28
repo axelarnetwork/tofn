@@ -1,9 +1,10 @@
 use super::{Sign, Status};
 use crate::fillvec::FillVec;
+use crate::k256_serde;
 use crate::paillier_k256;
 use crate::protocol::gg20::vss;
 use crate::protocol::gg20::vss_k256;
-use crate::zkp::{paillier::mta, pedersen};
+use crate::zkp::{paillier::mta, pedersen, pedersen_k256};
 use curv::{elliptic::curves::traits::ECScalar, FE, GE};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
@@ -12,18 +13,31 @@ use tracing::warn;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bcast {
-    pub nonce_x_blind_summand: FE,           // delta_i
-    pub nonce_x_keyshare_summand_commit: GE, // a Pedersen commitment
-    pub nonce_x_keyshare_summand_proof: pedersen::Proof,
+    // curv
+    pub delta_i: FE,
+    pub t_i: GE,
+    pub t_i_proof: pedersen::Proof,
+
+    // k256
+    pub delta_i_k256: k256_serde::Scalar,
+    pub t_i_k256: k256_serde::ProjectivePoint,
+    pub t_i_proof_k256: pedersen_k256::Proof,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
-pub struct State {
-    pub(super) my_nonce_x_blind_summand: FE,
-    pub(super) my_nonce_x_keyshare_summand: FE,
-    pub(super) my_nonce_x_keyshare_summand_commit: GE,
-    pub(super) my_nonce_x_keyshare_summand_commit_randomness: FE,
-    pub(super) my_mta_blind_summands_lhs: Vec<Option<FE>>, // alpha_ij, needed only in r7_fail_type5
-    pub(super) my_mta_wc_keyshare_summands_lhs: Vec<Option<FE>>, // mu_ij, needed only in r8_fail_type7
+pub(super) struct State {
+    // curv
+    pub(super) delta_i: FE, // redundant
+    pub(super) sigma_i: FE,
+    pub(super) t_i: GE, // redundant
+    pub(super) l_i: FE,
+    pub(super) alphas: Vec<Option<FE>>, // alpha_ij, needed only in r7_fail_type5
+    pub(super) mus: Vec<Option<FE>>,    // mu_ij, needed only in r8_fail_type7
+
+    // k256
+    pub(super) sigma_i_k256: k256::Scalar,
+    pub(super) l_i_k256: k256::Scalar,
+    pub(super) alphas_k256: FillVec<k256::Scalar>,
+    pub(super) mus_k256: FillVec<k256::Scalar>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,7 +58,7 @@ pub struct FailBcast {
 }
 
 // TODO is it better to have `State` and `P2p` be enum types?
-pub enum Output {
+pub(super) enum Output {
     Success { state: State, out_bcast: Bcast },
     Fail { out_bcast: FailBcast },
 }
@@ -294,32 +308,46 @@ impl Sign {
             sigma_i = corrupt_scalar(&sigma_i);
         }
 
-        // commit to my_nonce_x_keyshare_summand and compute a zk proof for the commitment
-        // GG20 notation:
-        // commit -> T_i
-        // randomness -> l
-        let (commit, randomness) = &pedersen::commit(&sigma_i);
-        let proof = pedersen::prove(
-            &pedersen::Statement { commit },
+        // curv
+        let (t_i, l_i) = pedersen::commit(&sigma_i);
+        let t_i_proof = pedersen::prove(
+            &pedersen::Statement { commit: &t_i },
             &pedersen::Witness {
                 msg: &sigma_i,
-                randomness,
+                randomness: &l_i,
+            },
+        );
+
+        // k256
+        let (t_i_k256, l_i_k256) = pedersen_k256::commit(&sigma_i_k256);
+        let t_i_proof_k256 = pedersen_k256::prove(
+            &pedersen_k256::Statement { commit: &t_i_k256 },
+            &pedersen_k256::Witness {
+                msg: &sigma_i_k256,
+                randomness: &l_i_k256,
             },
         );
 
         Output::Success {
             state: State {
-                my_nonce_x_blind_summand: delta_i,
-                my_nonce_x_keyshare_summand: sigma_i,
-                my_nonce_x_keyshare_summand_commit: *commit,
-                my_nonce_x_keyshare_summand_commit_randomness: *randomness,
-                my_mta_blind_summands_lhs: alphas,
-                my_mta_wc_keyshare_summands_lhs: mus,
+                delta_i,
+                sigma_i,
+                t_i,
+                l_i,
+                alphas,
+                mus,
+                sigma_i_k256,
+                l_i_k256,
+                alphas_k256,
+                mus_k256,
             },
             out_bcast: Bcast {
-                nonce_x_blind_summand: delta_i,
-                nonce_x_keyshare_summand_commit: *commit,
-                nonce_x_keyshare_summand_proof: proof,
+                delta_i,
+                t_i,
+                t_i_proof,
+                delta_i_k256: k256_serde::Scalar::from(delta_i_k256),
+                t_i_k256: k256_serde::ProjectivePoint::from(t_i_k256),
+                t_i_proof_k256,
             },
         }
     }

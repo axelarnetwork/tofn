@@ -264,7 +264,7 @@ impl Protocol for BadSign {
                             "malicious participant {} do {:?}",
                             self.sign.my_participant_index, self.malicious_type
                         );
-                        let proof = &mut out_bcast.nonce_x_keyshare_summand_proof;
+                        let proof = &mut out_bcast.t_i_proof;
                         *proof = pedersen::malicious::corrupt_proof(proof);
 
                         self.sign.update_state_r3(state, out_bcast)
@@ -294,9 +294,9 @@ impl Protocol for BadSign {
                         let one: FE = ECScalar::from(&BigInt::from(1));
                         // need to corrupt both state and out_bcast
                         // because they both contain a copy of nonce_x_blind_summand
-                        let nonce_x_blind_summand = &mut out_bcast.nonce_x_blind_summand;
+                        let nonce_x_blind_summand = &mut out_bcast.delta_i;
                         *nonce_x_blind_summand = *nonce_x_blind_summand + one;
-                        let nonce_x_blind_summand_state = &mut state.my_nonce_x_blind_summand;
+                        let nonce_x_blind_summand_state = &mut state.delta_i;
                         *nonce_x_blind_summand_state = *nonce_x_blind_summand_state + one;
 
                         self.sign.update_state_r3(state, out_bcast)
@@ -329,11 +329,10 @@ impl Protocol for BadSign {
                                 // => need to add 1 * my_secret_blind_summand to nonce_x_blind_summand to maintain consistency
                                 // need to corrupt both state and out_bcast
                                 // because they both contain a copy of nonce_x_blind_summand
-                                let nonce_x_blind_summand = &mut out_bcast.nonce_x_blind_summand;
+                                let nonce_x_blind_summand = &mut out_bcast.delta_i;
                                 *nonce_x_blind_summand = *nonce_x_blind_summand
                                     + self.sign.r1state.as_ref().unwrap().gamma_i;
-                                let nonce_x_blind_summand_state =
-                                    &mut state.my_nonce_x_blind_summand;
+                                let nonce_x_blind_summand_state = &mut state.delta_i;
                                 *nonce_x_blind_summand_state = *nonce_x_blind_summand_state
                                     + self.sign.r1state.as_ref().unwrap().gamma_i;
 
@@ -408,11 +407,10 @@ impl Protocol for BadSign {
                                 // later we will corrupt mta_blind_summands_lhs[victim] by adding 1
                                 // => need to add 1 to nonce_x_blind_summand to maintain consistency
                                 let one: FE = ECScalar::from(&BigInt::from(1));
-                                let nonce_x_blind_summand = &mut out_bcast.nonce_x_blind_summand;
+                                let nonce_x_blind_summand = &mut out_bcast.delta_i;
                                 *nonce_x_blind_summand = *nonce_x_blind_summand + one;
                                 // need to corrupt both state and out_bcast because they both contain a copy of nonce_x_blind_summand
-                                let nonce_x_blind_summand_state =
-                                    &mut state.my_nonce_x_blind_summand;
+                                let nonce_x_blind_summand_state = &mut state.delta_i;
                                 *nonce_x_blind_summand_state = *nonce_x_blind_summand_state + one;
 
                                 self.sign.update_state_r3(state, out_bcast)
@@ -487,11 +485,10 @@ impl Protocol for BadSign {
                                 // later we will corrupt mta_blind_summands_rhs[victim] by adding 1
                                 // => need to add 1 to nonce_x_blind_summand to maintain consistency
                                 let one: FE = ECScalar::from(&BigInt::from(1));
-                                let nonce_x_blind_summand = &mut out_bcast.nonce_x_blind_summand;
+                                let nonce_x_blind_summand = &mut out_bcast.delta_i;
                                 *nonce_x_blind_summand = *nonce_x_blind_summand + one;
                                 // need to corrupt both state and out_bcast because they both contain a copy of nonce_x_blind_summand
-                                let nonce_x_blind_summand_state =
-                                    &mut state.my_nonce_x_blind_summand;
+                                let nonce_x_blind_summand_state = &mut state.delta_i;
                                 *nonce_x_blind_summand_state = *nonce_x_blind_summand_state + one;
 
                                 self.sign.update_state_r3(state, out_bcast)

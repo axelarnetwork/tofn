@@ -59,7 +59,7 @@ impl Sign {
                     self.my_participant_index, i
                 )
             });
-            if nonce_x_blind_summand != in_r3bcast.nonce_x_blind_summand {
+            if nonce_x_blind_summand != in_r3bcast.delta_i {
                 let crime = Crime::R7FailType5BadNonceXBlindSummand;
                 info!(
                     "participant {} detect {:?} by {}",

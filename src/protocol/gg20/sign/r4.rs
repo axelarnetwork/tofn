@@ -29,7 +29,7 @@ impl Sign {
         let r3state = self.r3state.as_ref().unwrap();
 
         // verify proofs and compute nonce_x_blind (delta_i)
-        let mut nonce_x_blind = r3state.my_nonce_x_blind_summand;
+        let mut nonce_x_blind = r3state.delta_i;
         let mut criminals = vec![Vec::new(); self.participant_indices.len()];
 
         for (i, in_r3bcast) in self.in_r3bcasts.vec_ref().iter().enumerate() {
@@ -40,9 +40,9 @@ impl Sign {
 
             pedersen::verify(
                 &pedersen::Statement {
-                    commit: &in_r3bcast.nonce_x_keyshare_summand_commit,
+                    commit: &in_r3bcast.t_i,
                 },
-                &in_r3bcast.nonce_x_keyshare_summand_proof,
+                &in_r3bcast.t_i_proof,
             )
             .unwrap_or_else(|e| {
                 let crime = Crime::R4BadPedersenProof;
@@ -53,7 +53,7 @@ impl Sign {
                 criminals[i].push(crime);
             });
 
-            nonce_x_blind = nonce_x_blind + in_r3bcast.nonce_x_blind_summand;
+            nonce_x_blind = nonce_x_blind + in_r3bcast.delta_i;
         }
 
         if criminals.iter().map(|v| v.len()).sum::<usize>() == 0 {

@@ -119,19 +119,18 @@ impl Sign {
 
         // compute S_i (aka ecdsa_public_key_check) and zk proof as per phase 6 of 2020/540
         let r3state = self.r3state.as_ref().unwrap();
-        let my_ecdsa_public_key_check =
-            r5state.ecdsa_randomizer * r3state.my_nonce_x_keyshare_summand;
+        let my_ecdsa_public_key_check = r5state.ecdsa_randomizer * r3state.sigma_i;
         let proof_wc = pedersen::prove_wc(
             &pedersen::StatementWc {
                 stmt: pedersen::Statement {
-                    commit: &r3state.my_nonce_x_keyshare_summand_commit,
+                    commit: &r3state.t_i,
                 },
                 msg_g: &my_ecdsa_public_key_check,
                 g: &r5state.ecdsa_randomizer,
             },
             &pedersen::Witness {
-                msg: &r3state.my_nonce_x_keyshare_summand,
-                randomness: &r3state.my_nonce_x_keyshare_summand_commit_randomness,
+                msg: &r3state.sigma_i,
+                randomness: &r3state.l_i,
             },
         );
 
@@ -199,7 +198,7 @@ impl Sign {
             {
                 let my_mta_blind_summand_lhs_mod_q: FE =
                     ECScalar::from(&my_mta_blind_summand_lhs_plaintext.0);
-                if my_mta_blind_summand_lhs_mod_q != r3state.my_mta_blind_summands_lhs[i].unwrap() {
+                if my_mta_blind_summand_lhs_mod_q != r3state.alphas[i].unwrap() {
                     error!("participant {} decryption of mta_response_blind from {} in r6 differs from r3", self.my_participant_index, i);
                 }
 
