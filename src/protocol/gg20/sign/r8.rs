@@ -45,11 +45,11 @@ impl Sign {
             let in_r6bcast = self.in_r6bcasts.vec_ref()[i].as_ref().unwrap();
             let in_r7bcast = self.in_r7bcasts.vec_ref()[i].as_ref().unwrap();
 
-            let r_i_m = in_r5bcast.r_i * self.msg_to_sign;
-            let s_i_r = in_r6bcast.s_i * r7state.r;
+            let r_i_m = in_r5bcast.R_i * self.msg_to_sign;
+            let s_i_r = in_r6bcast.S_i * r7state.r;
             let rhs = r_i_m + s_i_r;
 
-            let lhs = r5state.r * in_r7bcast.ecdsa_sig_summand;
+            let lhs = r5state.R * in_r7bcast.ecdsa_sig_summand;
 
             if lhs != rhs {
                 let crime = Crime::R8BadSigSummand;

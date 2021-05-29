@@ -35,8 +35,8 @@ impl Sign {
                         [accused.participant_index]
                         .as_ref()
                         .unwrap()
-                        .r_i;
-                    let ecdsa_randomizer = &self.r5state.as_ref().unwrap().r;
+                        .R_i;
+                    let ecdsa_randomizer = &self.r5state.as_ref().unwrap().R;
                     let verifier_zkp =
                         &self.my_secret_key_share.all_zkps[self.participant_indices[accuser]];
 

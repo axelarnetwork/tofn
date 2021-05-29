@@ -74,10 +74,10 @@ impl Sign {
                     stmt: pedersen::Statement {
                         commit: &in_r3bcast.t_i,
                     },
-                    msg_g: &in_r6bcast.s_i,
-                    g: &r5state.r,
+                    msg_g: &in_r6bcast.S_i,
+                    g: &r5state.R,
                 },
-                &in_r6bcast.s_i_proof_wc,
+                &in_r6bcast.S_i_proof_wc,
             )
             .unwrap_or_else(|e| {
                 let crime = Crime::R7BadRangeProof;
@@ -88,7 +88,7 @@ impl Sign {
                 criminals[i].push(crime);
             });
 
-            ecdsa_public_key = ecdsa_public_key + in_r6bcast.s_i;
+            ecdsa_public_key = ecdsa_public_key + in_r6bcast.S_i;
         }
 
         if criminals.iter().map(|v| v.len()).sum::<usize>() > 0 {
@@ -109,7 +109,7 @@ impl Sign {
         // compute our sig share s_i (aka my_ecdsa_sig_summand) as per phase 7 of 2020/540
         let r1state = self.r1state.as_ref().unwrap();
         let r3state = self.r3state.as_ref().unwrap();
-        let r: FE = ECScalar::from(&r5state.r.x_coor().unwrap().mod_floor(&FE::q()));
+        let r: FE = ECScalar::from(&r5state.R.x_coor().unwrap().mod_floor(&FE::q()));
         let my_ecdsa_sig_summand = self.msg_to_sign * r1state.k_i + r * r3state.sigma_i;
 
         Output::Success {
@@ -190,7 +190,7 @@ impl Sign {
         let proof = chaum_pedersen::prove(
             &chaum_pedersen::Statement {
                 base1: &GE::generator(),                       // G
-                base2: &self.r5state.as_ref().unwrap().r,      // R
+                base2: &self.r5state.as_ref().unwrap().R,      // R
                 target1: &(GE::generator() * r3state.sigma_i), // sigma_i * G
                 target2: &self.r6state.as_ref().unwrap().s_i,  // sigma_i * R == S_i
             },

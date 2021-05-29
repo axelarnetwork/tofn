@@ -16,14 +16,15 @@ use tracing::{error, warn};
 // round 6
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(non_snake_case)]
 pub struct Bcast {
     // curv
-    pub s_i: GE,
-    pub s_i_proof_wc: pedersen::ProofWc,
+    pub S_i: GE,
+    pub S_i_proof_wc: pedersen::ProofWc,
 
     // k256
-    pub s_i_k256: k256_serde::ProjectivePoint,
-    pub s_i_proof_wc_k256: pedersen_k256::ProofWc,
+    pub S_i_k256: k256_serde::ProjectivePoint,
+    pub S_i_proof_wc_k256: pedersen_k256::ProofWc,
 }
 
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
@@ -55,6 +56,7 @@ pub(super) enum Output {
 }
 
 impl Sign {
+    #[allow(non_snake_case)]
     pub(super) fn r6(&self) -> Output {
         assert!(matches!(self.status, Status::R5));
         let r5state = self.r5state.as_ref().unwrap();
@@ -63,7 +65,7 @@ impl Sign {
         // checks:
         // * sum of ecdsa_randomizer_x_nonce_summand (R_i) = G as per phase 5 of 2020/540
         // * verify zk proofs
-        let mut r_i_sum = r5state.r_i;
+        let mut R_i_sum = r5state.R_i;
         let mut culprits = Vec::new();
 
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
@@ -71,7 +73,7 @@ impl Sign {
                 continue;
             }
             let in_r5bcast = self.in_r5bcasts.vec_ref()[i].as_ref().unwrap();
-            r_i_sum = r_i_sum + in_r5bcast.r_i;
+            R_i_sum = R_i_sum + in_r5bcast.R_i;
 
             let in_r5p2p = self.in_all_r5p2ps[i].vec_ref()[self.my_participant_index]
                 .as_ref()
@@ -93,8 +95,8 @@ impl Sign {
                                 .c,
                             ek: &self.my_secret_key_share.all_eks[*participant_index],
                         },
-                        msg_g: &in_r5bcast.r_i,
-                        g: &r5state.r,
+                        msg_g: &in_r5bcast.R_i,
+                        g: &r5state.R,
                     },
                     &in_r5p2p.k_i_range_proof_wc,
                 )
@@ -132,8 +134,8 @@ impl Sign {
                             ciphertext: &r1bcast.k_i_ciphertext_k256,
                             ek: &self.my_secret_key_share.all_eks_k256[*participant_index],
                         },
-                        msg_g: r5bcast.r_i_k256.unwrap(),
-                        g: &r5state.r_k256,
+                        msg_g: r5bcast.R_i_k256.unwrap(),
+                        g: &r5state.R_k256,
                     },
                     &r5p2p.k_i_range_proof_wc_k256,
                 ) {
@@ -160,7 +162,7 @@ impl Sign {
         }
 
         // curv: check for failure of type 5 from section 4.2 of https://eprint.iacr.org/2020/540.pdf
-        if r_i_sum != GE::generator() {
+        if R_i_sum != GE::generator() {
             warn!(
                 "(curv) participant {} detect 'type 5' fault",
                 self.my_participant_index
@@ -171,14 +173,14 @@ impl Sign {
         }
 
         // k256: check for failure of type 5 from section 4.2 of https://eprint.iacr.org/2020/540.pdf
-        let r_i_sum_k256 = self
+        let R_i_sum_k256 = self
             .in_r5bcasts
             .vec_ref()
             .iter()
-            .map(|o| *o.as_ref().unwrap().r_i_k256.unwrap())
+            .map(|o| *o.as_ref().unwrap().R_i_k256.unwrap())
             .reduce(|acc, r_i| acc + r_i)
             .unwrap();
-        if r_i_sum_k256 != k256::ProjectivePoint::generator() {
+        if R_i_sum_k256 != k256::ProjectivePoint::generator() {
             warn!(
                 "(k256) participant {} detect 'type 5' fault",
                 self.my_participant_index
@@ -194,14 +196,14 @@ impl Sign {
             .unwrap();
 
         // curv: compute S_i
-        let s_i = r5state.r * r3state.sigma_i;
-        let s_i_proof_wc = pedersen::prove_wc(
+        let S_i = r5state.R * r3state.sigma_i;
+        let S_i_proof_wc = pedersen::prove_wc(
             &pedersen::StatementWc {
                 stmt: pedersen::Statement {
                     commit: &r3state.t_i,
                 },
-                msg_g: &s_i,
-                g: &r5state.r,
+                msg_g: &S_i,
+                g: &r5state.R,
             },
             &pedersen::Witness {
                 msg: &r3state.sigma_i,
@@ -210,14 +212,14 @@ impl Sign {
         );
 
         // k256: compute S_i
-        let s_i_k256 = r5state.r_k256 * r3state.sigma_i_k256;
-        let s_i_proof_wc_k256 = pedersen_k256::prove_wc(
+        let S_i_k256 = r5state.R_k256 * r3state.sigma_i_k256;
+        let S_i_proof_wc_k256 = pedersen_k256::prove_wc(
             &pedersen_k256::StatementWc {
                 stmt: pedersen_k256::Statement {
                     commit: r3bcast.t_i_k256.unwrap(),
                 },
-                msg_g: &s_i_k256,
-                g: &r5state.r_k256,
+                msg_g: &S_i_k256,
+                g: &r5state.R_k256,
             },
             &pedersen_k256::Witness {
                 msg: &r3state.sigma_i_k256,
@@ -226,12 +228,12 @@ impl Sign {
         );
 
         Output::Success {
-            state: State { s_i },
+            state: State { s_i: S_i },
             out_bcast: Bcast {
-                s_i,
-                s_i_proof_wc,
-                s_i_k256: s_i_k256.into(),
-                s_i_proof_wc_k256,
+                S_i,
+                S_i_proof_wc,
+                S_i_k256: S_i_k256.into(),
+                S_i_proof_wc_k256,
             },
         }
     }

@@ -135,10 +135,10 @@ impl Sign {
             chaum_pedersen::verify(
                 &chaum_pedersen::Statement {
                     base1: &GE::generator(),                  // G
-                    base2: &self.r5state.as_ref().unwrap().r, // R
+                    base2: &self.r5state.as_ref().unwrap().R, // R
                     target1: &(self.public_key_summand(i) * ecdsa_nonce
                         + (GE::generator() * mu_summation)), // sigma_i * G
-                    target2: &self.in_r6bcasts.vec_ref()[i].as_ref().unwrap().s_i, // sigma_i * R == S_i
+                    target2: &self.in_r6bcasts.vec_ref()[i].as_ref().unwrap().S_i, // sigma_i * R == S_i
                 },
                 &r7bcast.proof,
             )

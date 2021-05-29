@@ -24,13 +24,14 @@ use super::{Sign, Status};
 
 // round 1
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(non_snake_case)]
 pub struct Bcast {
     // curv
-    pub g_gamma_i_commit: BigInt,
+    pub Gamma_i_commit: BigInt,
     pub k_i_ciphertext: mta::MessageA,
 
     // k256
-    pub g_gamma_i_commit_k256: hash::Output,
+    pub Gamma_i_commit_k256: hash::Output,
     pub k_i_ciphertext_k256: paillier_k256::Ciphertext,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -39,12 +40,13 @@ pub struct P2p {
     pub range_proof_k256: paillier_k256::zk::range::Proof, // k256
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
+#[allow(non_snake_case)]
 pub(super) struct State {
     // curv
     pub(super) w_i: FE,
     pub(super) gamma_i: FE,
-    pub(super) g_gamma_i: GE,
-    pub(super) g_gamma_i_reveal: BigInt,
+    pub(super) Gamma_i: GE,
+    pub(super) Gamma_i_reveal: BigInt,
     pub(super) k_i: FE,
     pub(super) encrypted_k_i: BigInt, // redundant
     pub(super) k_i_randomness: BigInt,
@@ -52,13 +54,14 @@ pub(super) struct State {
     // k256
     pub(super) w_i_k256: k256::Scalar,
     pub(super) gamma_i_k256: k256::Scalar,
-    pub(super) g_gamma_i_k256: k256::ProjectivePoint,
-    pub(super) g_gamma_i_reveal_k256: hash::Randomness,
+    pub(super) Gamma_i_k256: k256::ProjectivePoint,
+    pub(super) Gamma_i_reveal_k256: hash::Randomness,
     pub(super) k_i_k256: k256::Scalar,
     pub(super) k_i_randomness_k256: paillier_k256::Randomness,
 }
 
 impl Sign {
+    #[allow(non_snake_case)]
     pub(super) fn r1(&self) -> (State, Bcast, FillVec<P2p>) {
         assert!(matches!(self.status, Status::New));
 
@@ -70,20 +73,19 @@ impl Sign {
                 self.my_secret_key_share.my_index,
                 &self.participant_indices,
             );
-        let gamma_i = FE::new_random(); // gamma_i
-        let g_gamma_i = GE::generator() * gamma_i; // g_gamma_i
+        let gamma_i = FE::new_random();
+        let Gamma_i = GE::generator() * gamma_i;
         let k_i = FE::new_random(); // k_i
-        let (commit, g_gamma_i_reveal) =
-            HashCommitment::create_commitment(&g_gamma_i.bytes_compressed_to_big_int());
+        let (commit, Gamma_i_reveal) =
+            HashCommitment::create_commitment(&Gamma_i.bytes_compressed_to_big_int());
 
         // k256
         let w_i_k256 = self.my_secret_key_share.my_x_i_k256.unwrap()
             * &vss_k256::lagrange_coefficient(self.my_participant_index, &self.participant_indices);
         let k_i_k256 = k256::Scalar::random(rand::thread_rng());
         let gamma_i_k256 = k256::Scalar::random(rand::thread_rng());
-        let g_gamma_i_k256 = k256::ProjectivePoint::generator() * gamma_i_k256;
-        let (g_gamma_i_commit_k256, g_gamma_i_reveal_k256) =
-            hash::commit(to_bytes(&g_gamma_i_k256));
+        let Gamma_i_k256 = k256::ProjectivePoint::generator() * gamma_i_k256;
+        let (Gamma_i_commit_k256, Gamma_i_reveal_k256) = hash::commit(to_bytes(&Gamma_i_k256));
 
         // initiate MtA protocols for
         // 1. k_i (me) * gamma_j (other)
@@ -148,24 +150,24 @@ impl Sign {
             State {
                 w_i,
                 gamma_i,
-                g_gamma_i,
-                g_gamma_i_reveal,
+                Gamma_i,
+                Gamma_i_reveal,
                 k_i,
                 encrypted_k_i,
                 k_i_randomness,
 
                 w_i_k256,
                 gamma_i_k256,
-                g_gamma_i_k256,
-                g_gamma_i_reveal_k256,
+                Gamma_i_k256,
+                Gamma_i_reveal_k256,
                 k_i_k256,
                 k_i_randomness_k256,
             },
             Bcast {
-                g_gamma_i_commit: commit,
+                Gamma_i_commit: commit,
                 k_i_ciphertext: encrypted_k_i_zengo,
 
-                g_gamma_i_commit_k256,
+                Gamma_i_commit_k256,
                 k_i_ciphertext_k256,
             },
             out_p2ps,

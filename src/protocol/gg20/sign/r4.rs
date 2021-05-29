@@ -10,14 +10,15 @@ use tracing::warn;
 // round 4
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(non_snake_case)]
 pub struct Bcast {
     // curv
-    pub g_gamma_i: GE,
-    pub g_gamma_i_reveal: BigInt,
+    pub Gamma_i: GE,
+    pub Gamma_i_reveal: BigInt,
 
     // k256
-    pub g_gamma_i_k256: k256_serde::ProjectivePoint,
-    pub g_gamma_i_reveal_k256: hash::Randomness,
+    pub Gamma_i_k256: k256_serde::ProjectivePoint,
+    pub Gamma_i_reveal_k256: hash::Randomness,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub(super) struct State {
@@ -115,10 +116,10 @@ impl Sign {
                 delta_inv_k256,
             },
             out_bcast: Bcast {
-                g_gamma_i: r1state.g_gamma_i,
-                g_gamma_i_reveal: r1state.g_gamma_i_reveal.clone(),
-                g_gamma_i_k256: r1state.g_gamma_i_k256.into(),
-                g_gamma_i_reveal_k256: r1state.g_gamma_i_reveal_k256.clone(),
+                Gamma_i: r1state.Gamma_i,
+                Gamma_i_reveal: r1state.Gamma_i_reveal.clone(),
+                Gamma_i_k256: r1state.Gamma_i_k256.into(),
+                Gamma_i_reveal_k256: r1state.Gamma_i_reveal_k256.clone(),
             },
         }
     }

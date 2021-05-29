@@ -560,11 +560,11 @@ impl Protocol for BadSign {
                         );
 
                         // curv
-                        let reveal = &mut out_bcast.g_gamma_i_reveal;
+                        let reveal = &mut out_bcast.Gamma_i_reveal;
                         *reveal += BigInt::from(1);
 
                         // k256
-                        out_bcast.g_gamma_i_reveal_k256.corrupt();
+                        out_bcast.Gamma_i_reveal_k256.corrupt();
 
                         self.sign.update_state_r4(state, out_bcast)
                     }
@@ -656,7 +656,7 @@ impl Protocol for BadSign {
                             "malicious participant {} do {:?}",
                             self.sign.my_participant_index, self.malicious_type
                         );
-                        let proof = &mut out_bcast.s_i_proof_wc;
+                        let proof = &mut out_bcast.S_i_proof_wc;
                         *proof = pedersen::malicious::corrupt_proof_wc(proof);
 
                         self.sign.update_state_r6(state, out_bcast)

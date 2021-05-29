@@ -18,9 +18,10 @@ use tracing::warn;
 // round 5
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(non_snake_case)]
 pub struct Bcast {
-    pub r_i: GE,                               // curv
-    pub r_i_k256: k256_serde::ProjectivePoint, // k256
+    pub R_i: GE,                               // curv
+    pub R_i_k256: k256_serde::ProjectivePoint, // k256
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,14 +31,15 @@ pub struct P2p {
 }
 
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
+#[allow(non_snake_case)]
 pub(super) struct State {
     // curv
-    pub(super) r: GE,
-    pub(super) r_i: GE,
+    pub(super) R: GE,
+    pub(super) R_i: GE,
 
     // k256
-    pub(super) r_k256: k256::ProjectivePoint,
-    pub(super) r_i_k256: k256::ProjectivePoint,
+    pub(super) R_k256: k256::ProjectivePoint,
+    pub(super) R_i_k256: k256::ProjectivePoint,
 }
 
 pub(super) enum Output {
@@ -52,6 +54,7 @@ pub(super) enum Output {
 }
 
 impl Sign {
+    #[allow(non_snake_case)]
     pub(super) fn r5(&self) -> Output {
         assert!(matches!(self.status, Status::R4));
         let r1state = self.r1state.as_ref().unwrap();
@@ -60,8 +63,8 @@ impl Sign {
             .unwrap();
         let r4state = self.r4state.as_ref().unwrap();
 
-        // curv: verify commits, compute g_gamma
-        let mut g_gamma = r1state.g_gamma_i;
+        // curv: verify commits, compute Gamma
+        let mut Gamma = r1state.Gamma_i;
         let mut criminals = vec![Vec::new(); self.participant_indices.len()];
         for (i, in_r4bcast) in self.in_r4bcasts.vec_ref().iter().enumerate() {
             if i == self.my_participant_index {
@@ -69,13 +72,13 @@ impl Sign {
             }
             let in_r4bcast = in_r4bcast.as_ref().unwrap();
             let com = HashCommitment::create_commitment_with_user_defined_randomness(
-                &in_r4bcast.g_gamma_i.bytes_compressed_to_big_int(),
-                &in_r4bcast.g_gamma_i_reveal,
+                &in_r4bcast.Gamma_i.bytes_compressed_to_big_int(),
+                &in_r4bcast.Gamma_i_reveal,
             );
             if self.in_r1bcasts.vec_ref()[i]
                 .as_ref()
                 .unwrap()
-                .g_gamma_i_commit
+                .Gamma_i_commit
                 != com
             {
                 let crime = Crime::R5BadHashCommit;
@@ -85,7 +88,7 @@ impl Sign {
                 );
                 criminals[i].push(crime);
             }
-            g_gamma = g_gamma + in_r4bcast.g_gamma_i;
+            Gamma = Gamma + in_r4bcast.Gamma_i;
         }
 
         // k256: verify commits
@@ -100,12 +103,12 @@ impl Sign {
                 }
                 let bcast = bcast.as_ref().unwrap();
                 if hash::commit_with_randomness(
-                    to_bytes(bcast.g_gamma_i_k256.unwrap()),
-                    &bcast.g_gamma_i_reveal_k256,
+                    to_bytes(bcast.Gamma_i_k256.unwrap()),
+                    &bcast.Gamma_i_reveal_k256,
                 ) != self.in_r1bcasts.vec_ref()[i]
                     .as_ref()
                     .unwrap()
-                    .g_gamma_i_commit_k256
+                    .Gamma_i_commit_k256
                 {
                     let crime = Crime::R5BadHashCommit;
                     warn!(
@@ -124,23 +127,23 @@ impl Sign {
             return Output::Fail { criminals };
         }
 
-        // k256: compute g_gamma
+        // k256: compute Gamma
         // experiment: use `reduce` instead of `fold`
-        let g_gamma_k256 = self
+        let Gamma_k256 = self
             .in_r4bcasts
             .vec_ref()
             .iter()
-            .map(|o| *o.as_ref().unwrap().g_gamma_i_k256.unwrap())
-            .reduce(|acc, g_gamma_i| acc + g_gamma_i)
+            .map(|o| *o.as_ref().unwrap().Gamma_i_k256.unwrap())
+            .reduce(|acc, Gamma_i| acc + Gamma_i)
             .unwrap();
 
         // curv
-        let r = g_gamma * r4state.delta_inv; // R
-        let r_i = r * r1state.k_i; // R_i from 2020/540
+        let R = Gamma * r4state.delta_inv;
+        let R_i = R * r1state.k_i;
 
         // k256
-        let r_k256 = g_gamma_k256 * r4state.delta_inv_k256;
-        let r_i_k256 = r_k256 * r1state.k_i_k256;
+        let R_k256 = Gamma_k256 * r4state.delta_inv_k256;
+        let R_i_k256 = R_k256 * r1state.k_i_k256;
 
         // curv: statement and witness
         let stmt_wc = &range::StatementWc {
@@ -148,8 +151,8 @@ impl Sign {
                 ciphertext: &r1state.encrypted_k_i,
                 ek: &self.my_secret_key_share.my_ek,
             },
-            msg_g: &r_i,
-            g: &r,
+            msg_g: &R_i,
+            g: &R,
         };
         let wit = &range::Witness {
             msg: &r1state.k_i,
@@ -162,15 +165,15 @@ impl Sign {
                 ciphertext: &r1bcast.k_i_ciphertext_k256,
                 ek: self.my_ek_k256(),
             },
-            msg_g: &r_i_k256,
-            g: &r_k256,
+            msg_g: &R_i_k256,
+            g: &R_k256,
         };
         let wit_k256 = &zk::range::Witness {
             msg: &r1state.k_i_k256,
             randomness: &r1state.k_i_randomness_k256,
         };
 
-        // compute consistency proofs for r_i
+        // compute consistency proofs for R_i
         let mut out_p2ps = FillVec::with_len(self.participant_indices.len());
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
             if *participant_index == self.my_secret_key_share.my_index {
@@ -198,14 +201,14 @@ impl Sign {
 
         Output::Success {
             state: State {
-                r,
-                r_i,
-                r_k256,
-                r_i_k256,
+                R,
+                R_i,
+                R_k256,
+                R_i_k256,
             },
             out_bcast: Bcast {
-                r_i,
-                r_i_k256: r_i_k256.into(),
+                R_i,
+                R_i_k256: R_i_k256.into(),
             },
             out_p2ps,
         }
