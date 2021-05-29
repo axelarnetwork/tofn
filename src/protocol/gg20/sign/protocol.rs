@@ -311,7 +311,7 @@ impl Sign {
             }
             MsgType::R1P2p { to } => {
                 let r1_p2ps = &mut self.in_all_r1p2ps[msg_meta.from];
-                if !r1_p2ps.is_none(to) {
+                if !r1_p2ps.is_none(to) && self.my_participant_index != msg_meta.from {
                     debug!(
                         "participant {} overwrite existing R1P2p msg from {} to {}",
                         self.my_participant_index, msg_meta.from, to
@@ -321,7 +321,7 @@ impl Sign {
             }
             MsgType::R2P2p { to } => {
                 let r2_p2ps = &mut self.in_all_r2p2ps[msg_meta.from];
-                if !r2_p2ps.is_none(to) {
+                if !r2_p2ps.is_none(to) && self.my_participant_index != msg_meta.from {
                     debug!(
                         "participant {} overwrite existing R2P2p msg from {} to {}",
                         self.my_participant_index, msg_meta.from, to
@@ -381,7 +381,7 @@ impl Sign {
             }
             MsgType::R5P2p { to } => {
                 let r5_p2ps = &mut self.in_all_r5p2ps[msg_meta.from];
-                if !r5_p2ps.is_none(to) {
+                if !r5_p2ps.is_none(to) && self.my_participant_index != msg_meta.from {
                     debug!(
                         "participant {} overwrite existing R5P2p msg from {} to {}",
                         self.my_participant_index, msg_meta.from, to
