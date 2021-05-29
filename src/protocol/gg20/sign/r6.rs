@@ -216,7 +216,7 @@ impl Sign {
         let S_i_proof_wc_k256 = pedersen_k256::prove_wc(
             &pedersen_k256::StatementWc {
                 stmt: pedersen_k256::Statement {
-                    commit: r3bcast.t_i_k256.unwrap(),
+                    commit: r3bcast.T_i_k256.unwrap(),
                 },
                 msg_g: &S_i_k256,
                 g: &r5state.R_k256,

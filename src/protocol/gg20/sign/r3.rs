@@ -12,16 +12,17 @@ use tracing::warn;
 // round 3
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(non_snake_case)]
 pub struct Bcast {
     // curv
     pub delta_i: FE,
-    pub t_i: GE,
-    pub t_i_proof: pedersen::Proof,
+    pub T_i: GE,
+    pub T_i_proof: pedersen::Proof,
 
     // k256
     pub delta_i_k256: k256_serde::Scalar,
-    pub t_i_k256: k256_serde::ProjectivePoint,
-    pub t_i_proof_k256: pedersen_k256::Proof,
+    pub T_i_k256: k256_serde::ProjectivePoint,
+    pub T_i_proof_k256: pedersen_k256::Proof,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub(super) struct State {
@@ -343,11 +344,11 @@ impl Sign {
             },
             out_bcast: Bcast {
                 delta_i,
-                t_i,
-                t_i_proof,
+                T_i: t_i,
+                T_i_proof: t_i_proof,
                 delta_i_k256: k256_serde::Scalar::from(delta_i_k256),
-                t_i_k256: k256_serde::ProjectivePoint::from(t_i_k256),
-                t_i_proof_k256,
+                T_i_k256: k256_serde::ProjectivePoint::from(t_i_k256),
+                T_i_proof_k256: t_i_proof_k256,
             },
         }
     }

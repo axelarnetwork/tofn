@@ -48,9 +48,9 @@ impl Sign {
 
             pedersen::verify(
                 &pedersen::Statement {
-                    commit: &in_r3bcast.t_i,
+                    commit: &in_r3bcast.T_i,
                 },
-                &in_r3bcast.t_i_proof,
+                &in_r3bcast.T_i_proof,
             )
             .unwrap_or_else(|e| {
                 let crime = Crime::R4BadPedersenProof;
@@ -77,9 +77,9 @@ impl Sign {
                 let bcast = bcast.as_ref().unwrap();
                 if let Err(e) = pedersen_k256::verify(
                     &pedersen_k256::Statement {
-                        commit: bcast.t_i_k256.unwrap(),
+                        commit: bcast.T_i_k256.unwrap(),
                     },
-                    &bcast.t_i_proof_k256,
+                    &bcast.T_i_proof_k256,
                 ) {
                     let crime = Crime::R4BadPedersenProof;
                     warn!(

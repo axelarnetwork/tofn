@@ -1,6 +1,6 @@
 use super::{crimes::Crime, Sign, Status};
 use crate::fillvec::FillVec;
-use crate::zkp::{chaum_pedersen, pedersen};
+use crate::zkp::{chaum_pedersen, pedersen, pedersen_k256};
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     BigInt, FE, GE,
@@ -29,6 +29,7 @@ pub(super) enum Output {
 }
 
 impl Sign {
+    #[allow(non_snake_case)]
     pub(super) fn r7(&self) -> Output {
         assert!(matches!(self.status, Status::R6));
         let mut criminals = vec![Vec::new(); self.participant_indices.len()];
@@ -57,10 +58,11 @@ impl Sign {
         let r5state = self.r5state.as_ref().unwrap();
         let r6state = self.r6state.as_ref().unwrap();
 
+        // curv
         // checks:
         // * sum of ecdsa_public_key_check (S_i) = ecdsa_public_key as per phase 6 of 2020/540
         // * verify zk proofs
-        let mut ecdsa_public_key = r6state.s_i;
+        let mut S_i_sum = r6state.s_i;
 
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
             if *participant_index == self.my_secret_key_share.my_index {
@@ -72,7 +74,7 @@ impl Sign {
             pedersen::verify_wc(
                 &pedersen::StatementWc {
                     stmt: pedersen::Statement {
-                        commit: &in_r3bcast.t_i,
+                        commit: &in_r3bcast.T_i,
                     },
                     msg_g: &in_r6bcast.S_i,
                     g: &r5state.R,
@@ -82,21 +84,56 @@ impl Sign {
             .unwrap_or_else(|e| {
                 let crime = Crime::R7BadRangeProof;
                 warn!(
-                    "participant {} detect {:?} by {} because [{}]",
+                    "(curv) participant {} detect {:?} by {} because [{}]",
                     self.my_participant_index, crime, i, e
                 );
                 criminals[i].push(crime);
             });
 
-            ecdsa_public_key = ecdsa_public_key + in_r6bcast.S_i;
+            S_i_sum = S_i_sum + in_r6bcast.S_i;
         }
 
-        if criminals.iter().map(|v| v.len()).sum::<usize>() > 0 {
+        // k256: verify proofs
+        let criminals_k256: Vec<Vec<Crime>> = self
+            .participant_indices
+            .iter()
+            .enumerate()
+            .map(|(i, _participant_index)| {
+                if i == self.my_participant_index {
+                    return Vec::new(); // don't verify my own commit
+                }
+                let r3bcast = self.in_r3bcasts.vec_ref()[i].as_ref().unwrap();
+                let r6bcast = self.in_r6bcasts.vec_ref()[i].as_ref().unwrap();
+
+                if let Err(e) = pedersen_k256::verify_wc(
+                    &pedersen_k256::StatementWc {
+                        stmt: pedersen_k256::Statement {
+                            commit: &r3bcast.T_i_k256.unwrap(),
+                        },
+                        msg_g: r6bcast.S_i_k256.unwrap(),
+                        g: &r5state.R_k256,
+                    },
+                    &r6bcast.S_i_proof_wc_k256,
+                ) {
+                    let crime = Crime::R7BadRangeProof;
+                    warn!(
+                        "(k256) participant {} detect {:?} by {} because [{}]",
+                        self.my_participant_index, crime, i, e
+                    );
+                    vec![crime]
+                } else {
+                    Vec::new()
+                }
+            })
+            .collect();
+
+        assert_eq!(criminals_k256, criminals);
+        if !criminals.iter().all(Vec::is_empty) {
             return Output::Fail { criminals };
         }
 
         // check for failure of type 7 from section 4.2 of https://eprint.iacr.org/2020/540.pdf
-        if ecdsa_public_key != self.my_secret_key_share.ecdsa_public_key {
+        if S_i_sum != self.my_secret_key_share.ecdsa_public_key {
             warn!(
                 "participant {} detect 'type 7' fault",
                 self.my_participant_index
