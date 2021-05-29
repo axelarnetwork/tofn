@@ -132,7 +132,7 @@ impl Sign {
             return Output::Fail { criminals };
         }
 
-        // check for failure of type 7 from section 4.2 of https://eprint.iacr.org/2020/540.pdf
+        // curv: check for failure of type 7 from section 4.2 of https://eprint.iacr.org/2020/540.pdf
         if S_i_sum != self.my_secret_key_share.ecdsa_public_key {
             warn!(
                 "participant {} detect 'type 7' fault",
@@ -143,11 +143,33 @@ impl Sign {
             };
         }
 
-        // compute our sig share s_i (aka my_ecdsa_sig_summand) as per phase 7 of 2020/540
+        // k256: check for failure of type 7 from section 4.2 of https://eprint.iacr.org/2020/540.pdf
+        let S_i_sum_k256 = self
+            .in_r6bcasts
+            .vec_ref()
+            .iter()
+            .map(|o| *o.as_ref().unwrap().S_i_k256.unwrap())
+            .reduce(|acc, S_i| acc + S_i)
+            .unwrap();
+        if S_i_sum_k256 != *self.my_secret_key_share.y_k256.unwrap() {
+            warn!(
+                "participant {} detect 'type 7' fault",
+                self.my_participant_index
+            );
+            return Output::FailType7 {
+                out_bcast: self.type7_fault_output(),
+            };
+        }
+
         let r1state = self.r1state.as_ref().unwrap();
         let r3state = self.r3state.as_ref().unwrap();
+
+        // curv: compute r, s_i
         let r: FE = ECScalar::from(&r5state.R.x_coor().unwrap().mod_floor(&FE::q()));
         let my_ecdsa_sig_summand = self.msg_to_sign * r1state.k_i + r * r3state.sigma_i;
+
+        // k256: compute r, s_i
+        // DONE TO HERE
 
         Output::Success {
             state: State {
