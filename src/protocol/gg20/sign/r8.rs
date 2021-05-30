@@ -15,13 +15,13 @@ impl Sign {
         let r7state = self.r7state.as_ref().unwrap();
 
         // compute s = sum of s_i (aka ecdsa_sig_summand) as per phase 7 of 2020/540
-        let mut s = r7state.my_ecdsa_sig_summand;
+        let mut s = r7state.s_i;
         for (i, in_r7bcast) in self.in_r7bcasts.vec_ref().iter().enumerate() {
             if i == self.my_participant_index {
                 continue;
             }
             let in_r7bcast = in_r7bcast.as_ref().unwrap();
-            s = s + in_r7bcast.ecdsa_sig_summand;
+            s = s + in_r7bcast.s_i;
         }
 
         // if (r,s) is a valid ECDSA signature then we're done
@@ -49,7 +49,7 @@ impl Sign {
             let s_i_r = in_r6bcast.S_i * r7state.r;
             let rhs = r_i_m + s_i_r;
 
-            let lhs = r5state.R * in_r7bcast.ecdsa_sig_summand;
+            let lhs = r5state.R * in_r7bcast.s_i;
 
             if lhs != rhs {
                 let crime = Crime::R8BadSigSummand;

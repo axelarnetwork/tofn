@@ -1,10 +1,12 @@
 use super::{crimes::Crime, Sign, Status};
 use crate::fillvec::FillVec;
+use crate::k256_serde;
 use crate::zkp::{chaum_pedersen, pedersen, pedersen_k256};
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     BigInt, FE, GE,
 };
+use k256::elliptic_curve::sec1::ToEncodedPoint;
 use paillier::{Open, Paillier, RawCiphertext};
 use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
@@ -13,12 +15,17 @@ use tracing::{error, warn};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bcast {
-    pub ecdsa_sig_summand: FE,
+    pub s_i: FE,                      // curv
+    pub s_i_k256: k256_serde::Scalar, // k256
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
-pub struct State {
+pub(super) struct State {
+    // curv
     pub(super) r: FE,
-    pub(super) my_ecdsa_sig_summand: FE,
+    pub(super) s_i: FE, // redundant
+
+    // k256
+    pub(super) r_k256: k256::Scalar, // k256
 }
 
 #[derive(Debug)]
@@ -166,18 +173,27 @@ impl Sign {
 
         // curv: compute r, s_i
         let r: FE = ECScalar::from(&r5state.R.x_coor().unwrap().mod_floor(&FE::q()));
-        let my_ecdsa_sig_summand = self.msg_to_sign * r1state.k_i + r * r3state.sigma_i;
+        let s_i = self.msg_to_sign * r1state.k_i + r * r3state.sigma_i;
 
         // k256: compute r, s_i
-        // DONE TO HERE
+        // reference for r: https://docs.rs/k256/0.8.1/src/k256/ecdsa/sign.rs.html#223-225
+        let r_k256 = k256::Scalar::from_bytes_reduced(
+            self.r5state
+                .as_ref()
+                .unwrap()
+                .R_k256
+                .to_affine()
+                .to_encoded_point(true)
+                .x()
+                .unwrap(),
+        );
+        let s_i_k256 = self.msg_to_sign_k256 * r1state.k_i_k256 + r_k256 * r3state.sigma_i_k256;
 
         Output::Success {
-            state: State {
-                r,
-                my_ecdsa_sig_summand,
-            },
+            state: State { r, s_i, r_k256 },
             out_bcast: Bcast {
-                ecdsa_sig_summand: my_ecdsa_sig_summand,
+                s_i,
+                s_i_k256: s_i_k256.into(),
             },
         }
     }

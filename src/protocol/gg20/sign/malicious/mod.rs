@@ -56,7 +56,7 @@ impl BadSign {
     pub fn new(
         my_secret_key_share: &SecretKeyShare,
         participant_indices: &[usize],
-        msg_to_sign: &[u8],
+        msg_to_sign: &[u8; 32],
         malicious_type: MaliciousType,
     ) -> Result<Self, ParamsError> {
         // TODO hack type7 fault
@@ -711,9 +711,9 @@ impl Protocol for BadSign {
                         let one: FE = ECScalar::from(&BigInt::from(1));
                         // need to corrupt both state and out_bcast
                         // because they both contain a copy of ecdsa_sig_summand
-                        let ecdsa_sig_summand = &mut out_bcast.ecdsa_sig_summand;
+                        let ecdsa_sig_summand = &mut out_bcast.s_i;
                         *ecdsa_sig_summand = *ecdsa_sig_summand + one;
-                        let ecdsa_sig_summand_state = &mut state.my_ecdsa_sig_summand;
+                        let ecdsa_sig_summand_state = &mut state.s_i;
                         *ecdsa_sig_summand_state = *ecdsa_sig_summand_state + one;
 
                         self.sign.update_state_r7(state, out_bcast)

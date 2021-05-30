@@ -149,6 +149,7 @@ pub struct Sign {
     // state data
     my_secret_key_share: SecretKeyShare,
     msg_to_sign: FE, // not used until round 7
+    msg_to_sign_k256: k256::Scalar,
 
     // TODO this is a source of bugs
     // "party" indices are in 0..share_count from keygen
@@ -224,11 +225,13 @@ impl Sign {
     pub fn new(
         my_secret_key_share: &SecretKeyShare,
         participant_indices: &[usize],
-        msg_to_sign: &[u8],
+        msg_to_sign: &[u8; 32],
     ) -> Result<Self, ParamsError> {
         let my_participant_index = validate_params(my_secret_key_share, participant_indices)?;
         let participant_count = participant_indices.len();
-        let msg_to_sign: FE = ECScalar::from(&BigInt::from(msg_to_sign));
+        let msg_to_sign_curv: FE = ECScalar::from(&BigInt::from(&msg_to_sign[..]));
+        let msg_to_sign_k256 =
+            k256::Scalar::from_bytes_reduced(k256::FieldBytes::from_slice(&msg_to_sign[..]));
         Ok(Self {
             #[cfg(feature = "malicious")] // TODO hack type7 fault
             behaviour: malicious::MaliciousType::Honest,
@@ -236,7 +239,8 @@ impl Sign {
             my_secret_key_share: my_secret_key_share.clone(),
             participant_indices: participant_indices.to_vec(),
             my_participant_index,
-            msg_to_sign,
+            msg_to_sign: msg_to_sign_curv,
+            msg_to_sign_k256,
             r1state: None,
             r2state: None,
             r3state: None,

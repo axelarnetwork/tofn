@@ -43,8 +43,12 @@ pub mod sign {
     };
     use tracing_test::traced_test; // enable logs in tests
 
+    pub const MSG_TO_SIGN: [u8; 32] = [
+        42, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0,
+    ];
+
     lazy_static::lazy_static! {
-        pub static ref MSG_TO_SIGN: Vec<u8> = vec![42];
         pub static ref TEST_CASES: Vec<(usize, usize, Vec<usize>)> = vec![ // (share_count, threshold, participant_indices)
             // (5, 2, vec![1,2,4]),
             (5, 2, vec![4,1,2]),

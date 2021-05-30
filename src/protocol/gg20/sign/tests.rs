@@ -26,7 +26,7 @@ fn basic_correctness() {
 fn basic_correctness_inner(
     key_shares: &[SecretKeyShare],
     participant_indices: &[usize],
-    msg_to_sign: &[u8],
+    msg_to_sign: &[u8; 32],
 ) {
     let mut participants: Vec<Sign> = participant_indices
         .iter()
@@ -268,7 +268,7 @@ fn basic_correctness_inner(
     }
 
     // TEST: everyone correctly computed the signature
-    let msg_to_sign = ECScalar::from(&BigInt::from(msg_to_sign));
+    let msg_to_sign = ECScalar::from(&BigInt::from(&msg_to_sign[..]));
     let r: FE = ECScalar::from(&randomizer.x_coor().unwrap().mod_floor(&FE::q()));
     let s: FE = nonce * (msg_to_sign + ecdsa_secret_key * r);
     let s = {
