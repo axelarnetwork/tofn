@@ -7,6 +7,7 @@ use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     BigInt,
 };
+use ecdsa::{elliptic_curve::sec1::ToEncodedPoint, hazmat::VerifyPrimitive};
 use k256::{
     ecdsa::{DerSignature, Signature},
     FieldBytes,
@@ -28,6 +29,7 @@ fn basic_correctness() {
     }
 }
 
+#[allow(non_snake_case)]
 fn basic_correctness_inner(
     key_shares: &[SecretKeyShare],
     participant_indices: &[usize],
@@ -66,14 +68,24 @@ fn basic_correctness_inner(
         participant.in_r1bcasts = all_r1_bcasts.clone();
     }
 
-    // TEST: secret key shares yield the pubkey
-    let ecdsa_secret_key = participants
+    // curv: TEST: secret key shares yield the pubkey
+    let x = participants
         .iter()
         .map(|p| p.r1state.as_ref().unwrap().w_i)
-        .fold(FE::zero(), |acc, x| acc + x);
-    let ecdsa_public_key = GE::generator() * ecdsa_secret_key;
+        .fold(FE::zero(), |acc, w_i| acc + w_i);
+    let y = GE::generator() * x;
     for key_share in key_shares.iter() {
-        assert_eq!(ecdsa_public_key, key_share.ecdsa_public_key);
+        assert_eq!(y, key_share.ecdsa_public_key);
+    }
+
+    // k256: TEST: secret key shares yield the pubkey
+    let x_k256 = participants
+        .iter()
+        .map(|p| p.r1state.as_ref().unwrap().w_i_k256)
+        .fold(k256::Scalar::zero(), |acc, w_i| acc + w_i);
+    let y_k256 = k256::ProjectivePoint::generator() * x_k256;
+    for key_share in key_shares.iter() {
+        assert_eq!(y_k256, *key_share.y_k256.unwrap());
     }
 
     // execute round 2 all participants and store their outputs
@@ -123,25 +135,51 @@ fn basic_correctness_inner(
         participant.in_r3bcasts = all_r3_bcasts.clone();
     }
 
-    // TEST: MtA for nonce_x_blind (delta_i), nonce_x_secret_key (sigma_i)
-    let nonce = participants
+    // curv: TEST: MtA for delta_i, sigma_i
+    let k = participants
         .iter()
         .map(|p| p.r1state.as_ref().unwrap().k_i)
         .fold(FE::zero(), |acc, x| acc + x);
-    let blind = participants
+    let gamma = participants
         .iter()
         .map(|p| p.r1state.as_ref().unwrap().gamma_i)
         .fold(FE::zero(), |acc, x| acc + x);
-    let nonce_x_blind = participants
+    let k_gamma = participants
         .iter()
         .map(|p| p.r3state.as_ref().unwrap().delta_i)
         .fold(FE::zero(), |acc, x| acc + x);
-    assert_eq!(nonce_x_blind, nonce * blind);
-    let nonce_x_secret_key = participants
+    assert_eq!(k_gamma, k * gamma);
+    let k_x = participants
         .iter()
         .map(|p| p.r3state.as_ref().unwrap().sigma_i)
         .fold(FE::zero(), |acc, x| acc + x);
-    assert_eq!(nonce_x_secret_key, nonce * ecdsa_secret_key);
+    assert_eq!(k_x, k * x);
+
+    // k256: TEST: MtA for delta_i, sigma_i
+    let k_k256 = participants
+        .iter()
+        .map(|p| p.r1state.as_ref().unwrap().k_i_k256)
+        .fold(k256::Scalar::zero(), |acc, x| acc + x);
+    let gamma_k256 = participants
+        .iter()
+        .map(|p| p.r1state.as_ref().unwrap().gamma_i_k256)
+        .fold(k256::Scalar::zero(), |acc, x| acc + x);
+    let k_gamma_k256 = participants
+        .iter()
+        .map(|p| {
+            p.in_r3bcasts.vec_ref()[p.my_participant_index]
+                .as_ref()
+                .unwrap()
+                .delta_i_k256
+                .unwrap()
+        })
+        .fold(k256::Scalar::zero(), |acc, x| acc + x);
+    assert_eq!(k_gamma_k256, k_k256 * gamma_k256);
+    let k_x_k256 = participants
+        .iter()
+        .map(|p| p.r3state.as_ref().unwrap().sigma_i_k256)
+        .fold(k256::Scalar::zero(), |acc, x| acc + x);
+    assert_eq!(k_x_k256, k_k256 * x_k256);
 
     // execute round 4 all participants and store their outputs
     let mut all_r4_bcasts = FillVec::with_len(participants.len());
@@ -166,12 +204,20 @@ fn basic_correctness_inner(
         participant.in_r4bcasts = all_r4_bcasts.clone();
     }
 
-    // TEST: everyone correctly computed nonce_x_blind (delta = k*gamma)
-    for nonce_x_blind_inv in participants
+    // curv: TEST: everyone correctly computed nonce_x_blind (delta = k*gamma)
+    for delta_inv in participants
         .iter()
         .map(|p| p.r4state.as_ref().unwrap().delta_inv)
     {
-        assert_eq!(nonce_x_blind_inv * nonce_x_blind, one);
+        assert_eq!(delta_inv * k_gamma, one);
+    }
+
+    // k256: TEST: everyone correctly computed delta = k * gamma
+    for delta_inv_k256 in participants
+        .iter()
+        .map(|p| p.r4state.as_ref().unwrap().delta_inv_k256)
+    {
+        assert_eq!(delta_inv_k256 * k_gamma_k256, k256::Scalar::one());
     }
 
     // execute round 5 all participants and store their outputs
@@ -204,10 +250,18 @@ fn basic_correctness_inner(
         participant.in_r5bcasts = all_r5_bcasts.clone();
     }
 
-    // TEST: everyone correctly computed ecdsa_randomizer (R)
-    let randomizer = GE::generator() * nonce.invert();
-    for ecdsa_randomizer in participants.iter().map(|p| p.r5state.as_ref().unwrap().R) {
-        assert_eq!(ecdsa_randomizer, randomizer);
+    // curv: TEST: everyone correctly computed R
+    let R = GE::generator() * k.invert();
+    for participant_R in participants.iter().map(|p| p.r5state.as_ref().unwrap().R) {
+        assert_eq!(participant_R, R);
+    }
+    // k256: TEST: everyone correctly computed R
+    let R_k256 = k256::ProjectivePoint::generator() * k_k256.invert().unwrap();
+    for participant_R_k256 in participants
+        .iter()
+        .map(|p| p.r5state.as_ref().unwrap().R_k256)
+    {
+        assert_eq!(participant_R_k256, R_k256);
     }
 
     // execute round 6 all participants and store their outputs
@@ -277,8 +331,8 @@ fn basic_correctness_inner(
 
     // curv: TEST: everyone correctly computed the signature
     let msg_to_sign_curv = ECScalar::from(&BigInt::from(&msg_to_sign[..]));
-    let r: FE = ECScalar::from(&randomizer.x_coor().unwrap().mod_floor(&FE::q()));
-    let s: FE = nonce * (msg_to_sign_curv + ecdsa_secret_key * r);
+    let r: FE = ECScalar::from(&R.x_coor().unwrap().mod_floor(&FE::q()));
+    let s: FE = k * (msg_to_sign_curv + x * r);
     let s = {
         // normalize s
         let s_bigint = s.to_big_int();
@@ -298,13 +352,32 @@ fn basic_correctness_inner(
     }
 
     // k256: TEST: everyone correctly computed the signature
-    // let msg_to_sign_k256 =
-    //     k256::Scalar::from_bytes_reduced(k256::FieldBytes::from_slice(&msg_to_sign[..]));
-    // todo!();
-    // DONE TO HERE
+    let msg_to_sign_k256 =
+        k256::Scalar::from_bytes_reduced(k256::FieldBytes::from_slice(&msg_to_sign[..]));
+    let r_k256 =
+        k256::Scalar::from_bytes_reduced(R_k256.to_affine().to_encoded_point(true).x().unwrap());
+    let s_k256 = k_k256 * (msg_to_sign_k256 + x_k256 * r_k256);
+    let sig_k256 = {
+        let mut sig_k256 = Signature::from_scalars(r_k256, s_k256).unwrap();
+        sig_k256.normalize_s().unwrap();
+        sig_k256
+    };
+    for participant_sig_k256 in all_sigs_k256.vec_ref().iter() {
+        assert_eq!(
+            Signature::from_der(participant_sig_k256.as_ref().unwrap().as_bytes()).unwrap(),
+            sig_k256
+        );
+    }
 
+    // curv: TEST: the signature verifies
     let sig = EcdsaSig { r, s };
-    assert!(sig.verify(&ecdsa_public_key, &msg_to_sign_curv));
+    assert!(sig.verify(&y, &msg_to_sign_curv));
+
+    // k256: TEST: the signature verifies
+    let verifying_key_k256 = y_k256.to_affine();
+    assert!(verifying_key_k256
+        .verify_prehashed(&msg_to_sign_k256, &sig_k256)
+        .is_ok());
 }
 
 fn extract_r_s(asn1_sig: &DerSignature) -> (FieldBytes, FieldBytes) {
