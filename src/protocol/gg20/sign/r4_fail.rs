@@ -124,27 +124,6 @@ impl Sign {
                             };
                         }
                     };
-
-                    // match verification {
-                    //     Ok(_) => {
-                    //         let crime = Crime::R4FailFalseAccusationMta {
-                    //             victim: accused.participant_index,
-                    //         };
-                    //         info!(
-                    //             "participant {} detect {:?} by {}",
-                    //             self.my_participant_index, crime, accuser
-                    //         );
-                    //         criminals[accuser].push(crime);
-                    //     }
-                    //     Err(e) => {
-                    //         let crime = Crime::R4FailBadMta { victim: accuser };
-                    //         info!(
-                    //             "participant {} detect {:?} by {} because [{}]",
-                    //             self.my_participant_index, crime, accused.participant_index, e
-                    //         );
-                    //         criminals[accused.participant_index].push(crime);
-                    //     }
-                    // };
                 }
             }
         }

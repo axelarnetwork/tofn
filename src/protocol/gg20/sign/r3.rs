@@ -118,10 +118,11 @@ impl Sign {
                         "party {} says: mta proof failed to verify for party {} because [{}]",
                         self.my_secret_key_share.my_index, participant_index, e
                     );
-                    culprits.push(Culprit {
-                        participant_index: i,
-                        crime: Crime::Mta,
-                    });
+                    // do not accuse curv crimes
+                    // culprits.push(Culprit {
+                    //     participant_index: i,
+                    //     crime: Crime::Mta,
+                    // });
                 });
 
             // k256: verify zk proof for step 2 of MtA k_i * gamma_j
@@ -171,10 +172,11 @@ impl Sign {
                         "party {} says: mta_wc proof failed to verify for party {} because [{}]",
                         self.my_secret_key_share.my_index, participant_index, e
                     );
-                    culprits.push(Culprit {
-                        participant_index: i,
-                        crime: Crime::MtaWc,
-                    });
+                    // do not accuse curv crimes
+                    // culprits.push(Culprit {
+                    //     participant_index: i,
+                    //     crime: Crime::MtaWc,
+                    // });
                 });
 
             // k256: verify zk proof for step 2 of MtAwc k_i * w_j
