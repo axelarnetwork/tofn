@@ -115,8 +115,18 @@ impl Protocol for BadSign {
                     "malicious participant {} do {:?}",
                     self.sign.my_participant_index, self.malicious_type
                 );
+
+                // curv
                 let proof = &mut p2ps.vec_ref_mut()[victim].as_mut().unwrap().range_proof;
                 *proof = range::malicious::corrupt_proof(proof);
+
+                // k256
+                let proof_k256 = &mut p2ps.vec_ref_mut()[victim]
+                    .as_mut()
+                    .unwrap()
+                    .range_proof_k256;
+                *proof_k256 = paillier_k256::zk::range::malicious::corrupt_proof(proof_k256);
+
                 self.sign.update_state_r1(state, bcast, p2ps)
             }
             R1BadSecretBlindSummand => {

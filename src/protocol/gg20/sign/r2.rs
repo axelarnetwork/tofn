@@ -119,10 +119,11 @@ impl Sign {
                         "participant {} says: range proof from {} failed to verify because [{}]",
                         self.my_participant_index, i, e
                     );
-                    culprits.push(Culprit {
-                        participant_index: i,
-                        crime: Crime::RangeProof,
-                    });
+                    // do not accuse curv crimes
+                    // culprits.push(Culprit {
+                    //     participant_index: i,
+                    //     crime: Crime::RangeProof,
+                    // });
                 });
 
             // k256: verify zk proof for first message of MtA
