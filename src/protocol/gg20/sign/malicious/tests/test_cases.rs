@@ -107,10 +107,7 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
         )
         //  && matches!(
         //     m,
-        //     &R2BadMta { victim: _ }
-        //         | &R2BadMtaWc { victim: _ }
-        //         | &R3FalseAccusationMta { victim: _ }
-        //         | &R3FalseAccusationMtaWc { victim: _ }
+        //     &R5BadProof { victim: _ } | &R6FalseAccusation { victim: _ }
         // )
     }) {
         basic_test_cases.push(TestCase {
