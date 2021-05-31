@@ -14,10 +14,10 @@ use tracing::info;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct P2p {
     // curv
-    pub mta_response_blind: mta_zengo::MessageB,
-    pub mta_proof: mta::Proof,
-    pub mta_response_keyshare: mta_zengo::MessageB,
-    pub mta_proof_wc: mta::ProofWc,
+    pub alpha_ciphertext: mta_zengo::MessageB,
+    pub alpha_proof: mta::Proof,
+    pub mu_ciphertext: mta_zengo::MessageB,
+    pub mu_proof: mta::ProofWc,
 
     // k256
     pub alpha_ciphertext_k256: Ciphertext,
@@ -157,7 +157,7 @@ impl Sign {
             let (alpha_ciphertext, beta, randomness, beta_prime) = // (m_b_gamma, beta_gamma)
                 mta_zengo::MessageB::b(&r1state.gamma_i, other_ek, other_k_i_ciphertext.clone());
             let other_zkp = &self.my_secret_key_share.all_zkps[*participant_index];
-            let mta_proof = other_zkp.mta_proof(
+            let alpha_proof = other_zkp.mta_proof(
                 &mta::Statement {
                     ciphertext1: &other_k_i_ciphertext.c,
                     ciphertext2: &alpha_ciphertext.c,
@@ -193,7 +193,7 @@ impl Sign {
             // curv: MtAwc step 2 for k_i * w_j
             let (mu_ciphertext, nu, randomness_wc, beta_prime_wc) = // (m_b_w, beta_wi)
                 mta_zengo::MessageB::b(&r1state.w_i, other_ek, other_k_i_ciphertext.clone());
-            let mta_proof_wc = other_zkp.mta_proof_wc(
+            let mu_proof = other_zkp.mta_proof_wc(
                 &mta::StatementWc {
                     stmt: mta::Statement {
                         ciphertext1: &other_k_i_ciphertext.c,
@@ -223,10 +223,10 @@ impl Sign {
                 .insert(
                     i,
                     P2p {
-                        mta_response_blind: alpha_ciphertext,
-                        mta_proof,
-                        mta_response_keyshare: mu_ciphertext,
-                        mta_proof_wc,
+                        alpha_ciphertext,
+                        alpha_proof,
+                        mu_ciphertext,
+                        mu_proof,
                         alpha_ciphertext_k256,
                         alpha_proof_k256,
                         mu_ciphertext_k256,

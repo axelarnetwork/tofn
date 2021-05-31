@@ -284,7 +284,7 @@ impl Sign {
             let (my_mta_blind_summand_lhs_plaintext, my_mta_blind_summand_lhs_randomness) =
                 Paillier::open(
                     &self.my_secret_key_share.my_dk,
-                    &RawCiphertext::from(&in_p2p.mta_response_blind.c),
+                    &RawCiphertext::from(&in_p2p.alpha_ciphertext.c),
                 );
 
             // sanity check: we should recover the value we computed in r3

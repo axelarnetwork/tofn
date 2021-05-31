@@ -182,7 +182,8 @@ impl Protocol for BadSign {
                         );
 
                         // curv
-                        let proof = &mut out_p2ps.vec_ref_mut()[victim].as_mut().unwrap().mta_proof;
+                        let proof =
+                            &mut out_p2ps.vec_ref_mut()[victim].as_mut().unwrap().alpha_proof;
                         *proof = mta::malicious::corrupt_proof(proof);
 
                         // k256
@@ -225,10 +226,7 @@ impl Protocol for BadSign {
                         );
 
                         // curv
-                        let proof = &mut out_p2ps.vec_ref_mut()[victim]
-                            .as_mut()
-                            .unwrap()
-                            .mta_proof_wc;
+                        let proof = &mut out_p2ps.vec_ref_mut()[victim].as_mut().unwrap().mu_proof;
                         *proof = mta::malicious::corrupt_proof_wc(proof);
 
                         // k256

@@ -78,7 +78,7 @@ impl Sign {
                     != self.in_all_r2p2ps[j].vec_ref()[i]
                         .as_ref()
                         .unwrap()
-                        .mta_response_keyshare
+                        .mu_ciphertext
                         .c
                 {
                     // this code path triggered by TODO

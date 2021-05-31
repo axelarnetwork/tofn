@@ -108,10 +108,10 @@ impl Sign {
                 .verify_mta_proof(
                     &mta::Statement {
                         ciphertext1: &r1state.encrypted_k_i,
-                        ciphertext2: &in_p2p.mta_response_blind.c,
+                        ciphertext2: &in_p2p.alpha_ciphertext.c,
                         ek: my_ek,
                     },
-                    &in_p2p.mta_proof,
+                    &in_p2p.alpha_proof,
                 )
                 .unwrap_or_else(|e| {
                     warn!(
@@ -160,12 +160,12 @@ impl Sign {
                     &mta::StatementWc {
                         stmt: mta::Statement {
                             ciphertext1: &r1state.encrypted_k_i,
-                            ciphertext2: &in_p2p.mta_response_keyshare.c,
+                            ciphertext2: &in_p2p.mu_ciphertext.c,
                             ek: my_ek,
                         },
                         x_g: &other_public_key_summand,
                     },
-                    &in_p2p.mta_proof_wc,
+                    &in_p2p.mu_proof,
                 )
                 .unwrap_or_else(|e| {
                     warn!(
@@ -207,7 +207,7 @@ impl Sign {
 
             // curv: decrypt alpha for MtA k_i * gamma_j
             let (alpha, _) = in_p2p
-                .mta_response_blind
+                .alpha_ciphertext
                 .verify_proofs_get_alpha(my_dk, &r1state.k_i)
                 .unwrap();
             alphas.insert(i, alpha).unwrap();
@@ -222,7 +222,7 @@ impl Sign {
 
             // curv: decrypt mu for MtA k_i * w_j
             let (mu, _) = in_p2p
-                .mta_response_keyshare
+                .mu_ciphertext
                 .verify_proofs_get_alpha(my_dk, &r1state.k_i)
                 .unwrap();
             mus.insert(i, mu).unwrap();

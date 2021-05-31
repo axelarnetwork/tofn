@@ -235,7 +235,7 @@ impl Sign {
                 my_mta_wc_keyshare_summand_lhs_randomness,
             ) = Paillier::open(
                 &self.my_secret_key_share.my_dk,
-                &RawCiphertext::from(&in_p2p.mta_response_keyshare.c),
+                &RawCiphertext::from(&in_p2p.mu_ciphertext.c),
             );
 
             // sanity check: we should recover the value we computed in r3

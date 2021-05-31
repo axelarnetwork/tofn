@@ -158,7 +158,7 @@ impl Sign {
                         != self.in_all_r2p2ps[i].vec_ref()[j]
                             .as_ref()
                             .unwrap()
-                            .mta_response_blind
+                            .alpha_ciphertext
                             .c
                 {
                     // this code path triggered by R3BadMtaBlindSummandRhs
@@ -182,7 +182,7 @@ impl Sign {
                     != self.in_all_r2p2ps[j].vec_ref()[i]
                         .as_ref()
                         .unwrap()
-                        .mta_response_blind
+                        .alpha_ciphertext
                         .c
                 {
                     // this code path triggered by R3BadMtaBlindSummandLhs

@@ -50,10 +50,10 @@ impl Sign {
                         r3::Crime::Mta => {
                             let stmt = &mta::Statement {
                                 ciphertext1: &verifier_encrypted_ecdsa_nonce_summand,
-                                ciphertext2: &prover_r2p2p.mta_response_blind.c,
+                                ciphertext2: &prover_r2p2p.alpha_ciphertext.c,
                                 ek: verifier_ek,
                             };
-                            match verifier_zkp.verify_mta_proof(stmt, &prover_r2p2p.mta_proof) {
+                            match verifier_zkp.verify_mta_proof(stmt, &prover_r2p2p.alpha_proof) {
                                 Ok(_) => {
                                     let crime = Crime::R4FailFalseAccusationMta {
                                         victim: accused.participant_index,
@@ -92,14 +92,13 @@ impl Sign {
                             let stmt = &mta::StatementWc {
                                 stmt: mta::Statement {
                                     ciphertext1: &verifier_encrypted_ecdsa_nonce_summand,
-                                    ciphertext2: &prover_r2p2p.mta_response_keyshare.c,
+                                    ciphertext2: &prover_r2p2p.mu_ciphertext.c,
                                     ek: verifier_ek,
                                 },
                                 x_g: &prover_public_key_summand,
                             };
 
-                            match verifier_zkp.verify_mta_proof_wc(stmt, &prover_r2p2p.mta_proof_wc)
-                            {
+                            match verifier_zkp.verify_mta_proof_wc(stmt, &prover_r2p2p.mu_proof) {
                                 Ok(_) => {
                                     let crime = Crime::R4FailFalseAccusationMtaWc {
                                         victim: accused.participant_index,
