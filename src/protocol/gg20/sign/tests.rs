@@ -12,12 +12,17 @@ use k256::{
     FieldBytes,
 };
 use keygen::tests::execute_keygen;
+use tracing::debug;
 use tracing_test::traced_test; // enable logs in tests
 
 #[test]
 #[traced_test]
 fn basic_correctness() {
     for (share_count, threshold, participant_indices) in TEST_CASES.iter() {
+        debug!(
+            "test case: share_count {}, threshold {}, participants: {:?}",
+            share_count, threshold, participant_indices
+        );
         let key_shares = execute_keygen(*share_count, *threshold);
         basic_correctness_inner(&key_shares, participant_indices, &MSG_TO_SIGN);
     }
@@ -253,9 +258,13 @@ fn basic_correctness_inner(
 
     // execute round 8 all participants and store their outputs
     let mut all_sigs = FillVec::with_len(participants.len());
+    let mut all_sigs_k256 = FillVec::with_len(participants.len());
     for (i, participant) in participants.iter_mut().enumerate() {
-        let sig = match participant.r8() {
-            r8::Output::Success { sig } => sig,
+        match participant.r8() {
+            r8::Output::Success { sig, sig_k256 } => {
+                all_sigs.insert(i, sig).unwrap();
+                all_sigs_k256.insert(i, sig_k256).unwrap();
+            }
             r8::Output::Fail { criminals } => {
                 panic!(
                     "r8 party {} expect success got failure with criminals: {:?}",
@@ -264,13 +273,12 @@ fn basic_correctness_inner(
             }
         };
         participant.status = Status::Done;
-        all_sigs.insert(i, sig).unwrap();
     }
 
-    // TEST: everyone correctly computed the signature
-    let msg_to_sign = ECScalar::from(&BigInt::from(&msg_to_sign[..]));
+    // curv: TEST: everyone correctly computed the signature
+    let msg_to_sign_curv = ECScalar::from(&BigInt::from(&msg_to_sign[..]));
     let r: FE = ECScalar::from(&randomizer.x_coor().unwrap().mod_floor(&FE::q()));
-    let s: FE = nonce * (msg_to_sign + ecdsa_secret_key * r);
+    let s: FE = nonce * (msg_to_sign_curv + ecdsa_secret_key * r);
     let s = {
         // normalize s
         let s_bigint = s.to_big_int();
@@ -289,8 +297,14 @@ fn basic_correctness_inner(
         assert_eq!(sig_s, s.to_big_int());
     }
 
+    // k256: TEST: everyone correctly computed the signature
+    // let msg_to_sign_k256 =
+    //     k256::Scalar::from_bytes_reduced(k256::FieldBytes::from_slice(&msg_to_sign[..]));
+    // todo!();
+    // DONE TO HERE
+
     let sig = EcdsaSig { r, s };
-    assert!(sig.verify(&ecdsa_public_key, &msg_to_sign));
+    assert!(sig.verify(&ecdsa_public_key, &msg_to_sign_curv));
 }
 
 fn extract_r_s(asn1_sig: &DerSignature) -> (FieldBytes, FieldBytes) {

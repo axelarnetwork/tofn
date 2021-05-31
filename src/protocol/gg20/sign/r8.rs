@@ -1,12 +1,18 @@
 use super::{crimes::Crime, EcdsaSig, Sign, Status};
-use k256::ecdsa::DerSignature;
-use tracing::{error, warn};
+use ecdsa::hazmat::VerifyPrimitive;
+use k256::ecdsa::{DerSignature, Signature};
+use tracing::{debug, error, warn};
 
 // round 8
 
 pub(super) enum Output {
-    Success { sig: DerSignature },
-    Fail { criminals: Vec<Vec<Crime>> },
+    Success {
+        sig: DerSignature,
+        sig_k256: DerSignature,
+    },
+    Fail {
+        criminals: Vec<Vec<Crime>>,
+    },
 }
 
 impl Sign {
@@ -14,7 +20,7 @@ impl Sign {
         assert!(matches!(self.status, Status::R7));
         let r7state = self.r7state.as_ref().unwrap();
 
-        // compute s = sum of s_i (aka ecdsa_sig_summand) as per phase 7 of 2020/540
+        // curv: compute s = sum_i s_i
         let mut s = r7state.s_i;
         for (i, in_r7bcast) in self.in_r7bcasts.vec_ref().iter().enumerate() {
             if i == self.my_participant_index {
@@ -24,17 +30,46 @@ impl Sign {
             s = s + in_r7bcast.s_i;
         }
 
-        // if (r,s) is a valid ECDSA signature then we're done
+        // k256: compute s = sum_i s_i
+        let s_k256 = self
+            .in_r7bcasts
+            .vec_ref()
+            .iter()
+            .map(|o| *o.as_ref().unwrap().s_i_k256.unwrap())
+            .reduce(|acc, s_i| acc + s_i)
+            .unwrap();
+
+        // curv: if (r,s) is a valid ECDSA signature then we're done
         let sig = EcdsaSig { r: r7state.r, s };
-        if sig.verify(
+        let curv_success = sig.verify(
             &self.my_secret_key_share.ecdsa_public_key,
             &self.msg_to_sign,
-        ) {
+        );
+
+        // k256: if (r,s) is a valid ECDSA signature then we're done
+        let sig_k256 = {
+            let mut sig_k256 = Signature::from_scalars(r7state.r_k256, s_k256)
+                .expect("fail to convert scalars to signature");
+            sig_k256.normalize_s().expect("fail to normalize signature");
+            sig_k256
+        };
+        let verifying_key_k256 = &self.my_secret_key_share.y_k256.unwrap().to_affine();
+        let k256_success = verifying_key_k256
+            .verify_prehashed(&self.msg_to_sign_k256, &sig_k256)
+            .is_ok();
+        if curv_success && k256_success {
             // convet signature into ASN1/DER (Bitcoin) format
             return Output::Success {
                 sig: sig.to_k256().to_der(),
+                sig_k256: sig_k256.to_der(),
             };
         }
+
+        // DONE TO HERE
+        debug!(
+            "verification success: curv: {}, k256: {}",
+            curv_success, k256_success
+        );
 
         // (r,s) is an invalid ECDSA signature => compute criminals
         // criminals fail Eq. (1) of https://eprint.iacr.org/2020/540.pdf
