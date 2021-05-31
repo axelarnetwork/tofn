@@ -14,8 +14,14 @@ impl Sign {
         for accuser in 0..self.participant_indices.len() {
             if let Some(fail_bcast) = self.in_r3bcasts_fail.vec_ref()[accuser].as_ref() {
                 for accused in fail_bcast.culprits.iter() {
+                    // check for self-accusation
                     if accuser == accused.participant_index {
-                        let crime = Crime::R4FailFalseAccusation { victim: accuser };
+                        let crime = match &accused.crime {
+                            r3::Crime::Mta => Crime::R4FailFalseAccusationMta { victim: accuser },
+                            r3::Crime::MtaWc => {
+                                Crime::R4FailFalseAccusationMtaWc { victim: accuser }
+                            }
+                        };
                         info!(
                             "participant {} detect {:?} by {} (self accusation)",
                             self.my_participant_index, crime, accuser
@@ -23,6 +29,8 @@ impl Sign {
                         criminals[accuser].push(crime);
                         continue;
                     }
+
+                    // prepare refs
                     let verifier_encrypted_ecdsa_nonce_summand = &self.in_r1bcasts.vec_ref()
                         [accuser]
                         .as_ref()
@@ -38,14 +46,36 @@ impl Sign {
                         .as_ref()
                         .unwrap();
 
-                    let verification = match &accused.crime {
+                    match &accused.crime {
                         r3::Crime::Mta => {
                             let stmt = &mta::Statement {
                                 ciphertext1: &verifier_encrypted_ecdsa_nonce_summand,
                                 ciphertext2: &prover_r2p2p.mta_response_blind.c,
                                 ek: verifier_ek,
                             };
-                            verifier_zkp.verify_mta_proof(stmt, &prover_r2p2p.mta_proof)
+                            match verifier_zkp.verify_mta_proof(stmt, &prover_r2p2p.mta_proof) {
+                                Ok(_) => {
+                                    let crime = Crime::R4FailFalseAccusationMta {
+                                        victim: accused.participant_index,
+                                    };
+                                    info!(
+                                        "participant {} detect {:?} by {}",
+                                        self.my_participant_index, crime, accuser
+                                    );
+                                    criminals[accuser].push(crime);
+                                }
+                                Err(e) => {
+                                    let crime = Crime::R4FailBadMta { victim: accuser };
+                                    info!(
+                                        "participant {} detect {:?} by {} because [{}]",
+                                        self.my_participant_index,
+                                        crime,
+                                        accused.participant_index,
+                                        e
+                                    );
+                                    criminals[accused.participant_index].push(crime);
+                                }
+                            };
                         }
                         r3::Crime::MtaWc => {
                             let prover_party_index =
@@ -67,30 +97,54 @@ impl Sign {
                                 },
                                 x_g: &prover_public_key_summand,
                             };
-                            verifier_zkp.verify_mta_proof_wc(stmt, &prover_r2p2p.mta_proof_wc)
+
+                            match verifier_zkp.verify_mta_proof_wc(stmt, &prover_r2p2p.mta_proof_wc)
+                            {
+                                Ok(_) => {
+                                    let crime = Crime::R4FailFalseAccusationMtaWc {
+                                        victim: accused.participant_index,
+                                    };
+                                    info!(
+                                        "participant {} detect {:?} by {}",
+                                        self.my_participant_index, crime, accuser
+                                    );
+                                    criminals[accuser].push(crime);
+                                }
+                                Err(e) => {
+                                    let crime = Crime::R4FailBadMtaWc { victim: accuser };
+                                    info!(
+                                        "participant {} detect {:?} by {} because [{}]",
+                                        self.my_participant_index,
+                                        crime,
+                                        accused.participant_index,
+                                        e
+                                    );
+                                    criminals[accused.participant_index].push(crime);
+                                }
+                            };
                         }
                     };
 
-                    match verification {
-                        Ok(_) => {
-                            let crime = Crime::R4FailFalseAccusation {
-                                victim: accused.participant_index,
-                            };
-                            info!(
-                                "participant {} detect {:?} by {}",
-                                self.my_participant_index, crime, accuser
-                            );
-                            criminals[accuser].push(crime);
-                        }
-                        Err(e) => {
-                            let crime = Crime::R4FailBadRangeProof { victim: accuser };
-                            info!(
-                                "participant {} detect {:?} by {} because [{}]",
-                                self.my_participant_index, crime, accused.participant_index, e
-                            );
-                            criminals[accused.participant_index].push(crime);
-                        }
-                    };
+                    // match verification {
+                    //     Ok(_) => {
+                    //         let crime = Crime::R4FailFalseAccusationMta {
+                    //             victim: accused.participant_index,
+                    //         };
+                    //         info!(
+                    //             "participant {} detect {:?} by {}",
+                    //             self.my_participant_index, crime, accuser
+                    //         );
+                    //         criminals[accuser].push(crime);
+                    //     }
+                    //     Err(e) => {
+                    //         let crime = Crime::R4FailBadMta { victim: accuser };
+                    //         info!(
+                    //             "participant {} detect {:?} by {} because [{}]",
+                    //             self.my_participant_index, crime, accused.participant_index, e
+                    //         );
+                    //         criminals[accused.participant_index].push(crime);
+                    //     }
+                    // };
                 }
             }
         }

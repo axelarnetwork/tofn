@@ -60,10 +60,12 @@ pub(super) fn map_type_to_crime(t: &MaliciousType) -> Vec<Crime> {
         DisrupringSender { msg_type: _ } => vec![Crime::DisruptedMessage],
         R1BadProof { victim: v } => vec![Crime::R3FailBadRangeProof { victim: *v }],
         R2FalseAccusation { victim: v } => vec![Crime::R3FailFalseAccusation { victim: *v }],
-        R2BadMta { victim: v } => vec![Crime::R4FailBadRangeProof { victim: *v }],
-        R2BadMtaWc { victim: v } => vec![Crime::R4FailBadRangeProof { victim: *v }],
-        R3FalseAccusationMta { victim: v } => vec![Crime::R4FailFalseAccusation { victim: *v }],
-        R3FalseAccusationMtaWc { victim: v } => vec![Crime::R4FailFalseAccusation { victim: *v }],
+        R2BadMta { victim: v } => vec![Crime::R4FailBadMta { victim: *v }],
+        R2BadMtaWc { victim: v } => vec![Crime::R4FailBadMtaWc { victim: *v }],
+        R3FalseAccusationMta { victim: v } => vec![Crime::R4FailFalseAccusationMta { victim: *v }],
+        R3FalseAccusationMtaWc { victim: v } => {
+            vec![Crime::R4FailFalseAccusationMtaWc { victim: *v }]
+        }
         R3BadProof => vec![Crime::R4BadPedersenProof],
         R4BadReveal => vec![Crime::R5BadHashCommit],
         R5BadProof { victim: v } => vec![Crime::R7FailBadRangeProof { victim: *v }],
@@ -102,10 +104,11 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
                 }
                 | Staller { msg_type: _ }
                 | DisrupringSender { msg_type: _ }
-        ) && matches!(
-            m,
-            R1BadProof { victim: _ } | R2FalseAccusation { victim: _ }
         )
+        // && matches!(
+        //     m,
+        //     R1BadProof { victim: _ } | R2FalseAccusation { victim: _ }
+        // )
     }) {
         basic_test_cases.push(TestCase {
             share_count,
