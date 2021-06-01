@@ -1,5 +1,6 @@
 use super::{r2, Sign, Status};
 use crate::fillvec::FillVec;
+use crate::paillier_k256::{Plaintext, Randomness};
 use crate::{
     k256_serde,
     paillier_k256::zk,
@@ -241,18 +242,36 @@ impl Sign {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) struct BcastFailType5 {
+    // curv
     pub k_i: FE,                // k_i
     pub k_i_randomness: BigInt, // k_i encryption randomness
     pub gamma_i: FE,            // gamma_i
+
+    // k256
+    pub k_i_256: k256_serde::Scalar,
+    pub k_i_randomness_k256: Randomness,
+    pub gamma_i_k256: k256_serde::Scalar,
+
     pub mta_plaintexts: Vec<Option<MtaPlaintext>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) struct MtaPlaintext {
+    // need alpha_plaintext instead of alpha
+    // because alpha_plaintext may differ from alpha
+    // why? because the ciphertext was formed from homomorphic Paillier operations, not just encrypting alpha
+
+    // curv
     pub(super) beta: FE,                           // beta_ji
     pub(super) beta_randomness: r2::RhsRandomness, // beta_ji encryption randomness
     pub(super) alpha_plaintext: BigInt,            // alpha_ij Paillier plaintext
     pub(super) alpha_randomness: BigInt,           // alpha_ij encryption randomness
+
+    // k256
+    pub(super) beta_k256: k256_serde::Scalar,
+    pub(super) beta_randomness_k256: Randomness,
+    pub(super) alpha_plaintext_k256: Plaintext,
+    pub(super) alpha_randomness_k256: Randomness,
 }
 
 impl Sign {
@@ -317,11 +336,9 @@ impl Sign {
                         self.my_participant_index, i
                     );
                 }
-                // do not return alpha
-                // need alpha_plaintext because it may differ from alpha
-                // why? because the ciphertext was formed from homomorphic Paillier operations, not just encrypting alpha
             }
 
+            let beta_secrets_k256 = r2state.beta_secrets_k256.vec_ref()[i].as_ref().unwrap();
             mta_plaintexts
                 .insert(
                     i,
@@ -330,6 +347,10 @@ impl Sign {
                         beta_randomness: r2state.betas_randomness[i].as_ref().unwrap().clone(),
                         alpha_plaintext: (*alpha_plaintext.0).clone(),
                         alpha_randomness: alpha_randomness.0,
+                        beta_k256: k256_serde::Scalar::from(beta_secrets_k256.beta),
+                        beta_randomness_k256: beta_secrets_k256.beta_prime_randomness.clone(),
+                        alpha_plaintext_k256,
+                        alpha_randomness_k256,
                     },
                 )
                 .unwrap();
@@ -339,6 +360,9 @@ impl Sign {
             k_i: r1state.k_i,
             k_i_randomness: r1state.k_i_randomness.clone(),
             gamma_i: r1state.gamma_i,
+            k_i_256: k256_serde::Scalar::from(r1state.k_i_k256),
+            k_i_randomness_k256: r1state.k_i_randomness_k256.clone(),
+            gamma_i_k256: k256_serde::Scalar::from(r1state.gamma_i_k256),
             mta_plaintexts: mta_plaintexts.into_vec(),
         }
     }
