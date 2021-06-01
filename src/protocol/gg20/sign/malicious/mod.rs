@@ -37,7 +37,7 @@ pub enum MaliciousType {
     R3BadDeltaI,                               // triggers r6::Output::FailType5
     R3BadKI,                                   // triggers r6::Output::FailType5
     R3BadMtaBlindSummandLhs { victim: usize }, // triggers r6::Output::FailType5
-    R3BadMtaBlindSummandRhs { victim: usize }, // triggers r6::Output::FailType5
+    R3BadBeta { victim: usize },               // triggers r6::Output::FailType5
     R4BadReveal,
     R5BadProof { victim: usize },
     R6FalseAccusation { victim: usize },
@@ -518,7 +518,7 @@ impl Protocol for BadSign {
                     }
                 }
             }
-            R3BadMtaBlindSummandRhs { victim } => {
+            R3BadBeta { victim } => {
                 if !matches!(self.sign.status, Status::R2 | Status::R5) {
                     return self.sign.next_round();
                 };
@@ -533,21 +533,26 @@ impl Protocol for BadSign {
                     Status::R2 => {
                         match self.sign.r3() {
                             r3::Output::Success {
-                                mut state,
+                                state,
                                 mut out_bcast,
                             } => {
                                 info!(
                                     "malicious participant {} do {:?} (delta_i)",
                                     self.sign.my_participant_index, self.malicious_type
                                 );
-                                // later we will corrupt mta_blind_summands_rhs[victim] by adding 1
-                                // => need to add 1 to nonce_x_blind_summand to maintain consistency
-                                let one: FE = ECScalar::from(&BigInt::from(1));
-                                let nonce_x_blind_summand = &mut out_bcast.delta_i;
-                                *nonce_x_blind_summand = *nonce_x_blind_summand + one;
+                                // later we will corrupt beta_ji by adding 1
+                                // => need to add 1 to delta_i to maintain consistency
+
+                                // curv: don't do anything
                                 // need to corrupt both state and out_bcast because they both contain a copy of nonce_x_blind_summand
-                                let nonce_x_blind_summand_state = &mut state.delta_i;
-                                *nonce_x_blind_summand_state = *nonce_x_blind_summand_state + one;
+                                // let one: FE = ECScalar::from(&BigInt::from(1));
+                                // let nonce_x_blind_summand = &mut out_bcast.delta_i;
+                                // *nonce_x_blind_summand = *nonce_x_blind_summand + one;
+                                // let nonce_x_blind_summand_state = &mut state.delta_i;
+                                // *nonce_x_blind_summand_state = *nonce_x_blind_summand_state + one;
+
+                                // k256
+                                *out_bcast.delta_i_k256.unwrap_mut() += k256::Scalar::one();
 
                                 self.sign.update_state_r3(state, out_bcast)
                             }
@@ -580,10 +585,16 @@ impl Protocol for BadSign {
                                 "malicious participant {} do {:?} (beta_ij)",
                                 self.sign.my_participant_index, self.malicious_type
                             );
-                            let mta_blind_summand =
-                                out_bcast.mta_plaintexts[victim].as_mut().unwrap();
-                            let one: FE = ECScalar::from(&BigInt::from(1));
-                            mta_blind_summand.beta = mta_blind_summand.beta + one;
+                            let mta_plaintext = out_bcast.mta_plaintexts[victim].as_mut().unwrap();
+
+                            // curv: don't do anything
+                            // let one: FE = ECScalar::from(&BigInt::from(1));
+                            // mta_plaintext.beta = mta_plaintext.beta + one;
+
+                            // k256
+                            *mta_plaintext.beta_secrets_k256.beta.unwrap_mut() +=
+                                k256::Scalar::one();
+
                             self.sign.update_state_r6fail_type5(out_bcast)
                         }
                     },

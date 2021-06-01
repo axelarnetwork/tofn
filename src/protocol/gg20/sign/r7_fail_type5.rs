@@ -1,4 +1,5 @@
 use super::{crimes::Crime, Sign, Status};
+use crate::mta;
 use crate::paillier_k256::Plaintext;
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
@@ -193,9 +194,9 @@ impl Sign {
                             .c
                 {
                     // this code path triggered by R3BadMtaBlindSummandRhs
-                    let crime = Crime::R7FailType5MtaBlindSummandRhs { victim: j };
+                    let crime = Crime::R7FailType5BadBeta { victim: j };
                     info!(
-                        "participant {} detect {:?} (beta_ji) by {}",
+                        "(curv) participant {} detect {:?} (beta_ji) by {}",
                         self.my_participant_index, crime, i
                     );
                     criminals[i].push(crime);
@@ -204,39 +205,34 @@ impl Sign {
                 }
 
                 // k256: 3. beta_ij
-                // let other_ek_k256 =
-                //     &self.my_secret_key_share.all_eks_k256[self.participant_indices[j]];
-                // let other_encrypted_ecdsa_nonce_summand = &self.in_r1bcasts.vec_ref()[j]
-                //     .as_ref()
-                //     .unwrap()
-                //     .k_i_ciphertext;
-                // // TODO better variable names: switch to greek letters used in GG20 paper
-                // let (mta_response_blind, mta_blind_summand_rhs) = // (enc(alpha_ij), beta_ji)
-                //     mta_zengo::MessageB::b_with_predefined_randomness(
-                //         &r6_participant_data.gamma_i,
-                //         other_ek,
-                //         other_encrypted_ecdsa_nonce_summand.clone(),
-                //         &mta_blind_summand.beta_randomness.randomness,
-                //         &mta_blind_summand.beta_randomness.beta_prime,
-                //     );
-                // if mta_blind_summand_rhs != mta_blind_summand.beta
-                //     || mta_response_blind.c
-                //         != self.in_all_r2p2ps[i].vec_ref()[j]
-                //             .as_ref()
-                //             .unwrap()
-                //             .alpha_ciphertext
-                //             .c
-                // {
-                //     // this code path triggered by R3BadMtaBlindSummandRhs
-                //     let crime = Crime::R7FailType5MtaBlindSummandRhs { victim: j };
-                //     info!(
-                //         "participant {} detect {:?} (beta_ji) by {}",
-                //         self.my_participant_index, crime, i
-                //     );
-                //     criminals[i].push(crime);
-                //     // TODO continue looking for more crimes?
-                //     // continue 'outer; // participant i is known to be criminal, continue to next participant
-                // }
+                let other_ek_k256 =
+                    &self.my_secret_key_share.all_eks_k256[self.participant_indices[j]];
+                let other_k_i_ciphertext_k256 = &self.in_r1bcasts.vec_ref()[j]
+                    .as_ref()
+                    .unwrap()
+                    .k_i_ciphertext_k256;
+                let other_alpha_ciphertext = &self.in_all_r2p2ps[i].vec_ref()[j]
+                    .as_ref()
+                    .unwrap()
+                    .alpha_ciphertext_k256;
+                if !mta::verify_mta_response(
+                    other_ek_k256,
+                    &other_k_i_ciphertext_k256,
+                    r6_participant_data.gamma_i_k256.unwrap(),
+                    other_alpha_ciphertext,
+                    &mta_blind_summand.beta_secrets_k256,
+                ) {
+                    let crime = Crime::R7FailType5BadBeta { victim: j };
+                    info!(
+                        "(k256) participant {} detect {:?} (beta_ji) by {}",
+                        self.my_participant_index, crime, i
+                    );
+                    criminals[i].push(crime);
+                    // TODO continue looking for more crimes?
+                    // continue 'outer; // participant i is known to be criminal, continue to next participant
+                }
+
+                // DONE TO HERE
 
                 // 4. mta_blind_summands.lhs (alpha_ij)
                 let mta_blind_summand_lhs_ciphertext = Paillier::encrypt_with_chosen_randomness(

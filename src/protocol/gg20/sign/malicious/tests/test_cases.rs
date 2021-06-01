@@ -75,8 +75,8 @@ pub(super) fn map_type_to_crime(t: &MaliciousType) -> Vec<Crime> {
         R3BadDeltaI => vec![Crime::R7FailType5BadDeltaI],
         R3BadKI => vec![Crime::R7FailType5BadKI],
         R1BadGammaI => vec![Crime::R7FailType5BadGammaI],
-        R3BadMtaBlindSummandRhs { victim: v } => {
-            vec![Crime::R7FailType5MtaBlindSummandRhs { victim: *v }]
+        R3BadBeta { victim: v } => {
+            vec![Crime::R7FailType5BadBeta { victim: *v }]
         }
         R3BadMtaBlindSummandLhs { victim: v } => {
             vec![Crime::R7FailType5MtaBlindSummandLhs { victim: *v }]
@@ -104,7 +104,7 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
                 }
                 | Staller { msg_type: _ }
                 | DisrupringSender { msg_type: _ }
-        ) && matches!(m, &R1BadGammaI)
+        ) // && matches!(m, &R3BadBeta { victim: _ })
     }) {
         basic_test_cases.push(TestCase {
             share_count,
@@ -242,7 +242,7 @@ pub(super) fn generate_skipping_cases() -> Vec<TestCase> {
         // R3FalseAccusationMta { victim }, // this produces criminals
         // R3FalseAccusationMtaWc { victim }, // this produces criminals
         R3BadMtaBlindSummandLhs { victim },
-        R3BadMtaBlindSummandRhs { victim },
+        R3BadBeta { victim },
         // R5FalseAccusation { victim }, // this produces criminals
         R5BadProof { victim },
         // R6FalseAccusation { victim }, // this produces criminals
