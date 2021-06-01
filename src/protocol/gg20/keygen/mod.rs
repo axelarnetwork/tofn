@@ -75,7 +75,7 @@ struct MsgMeta {
 #[cfg(feature = "malicious")]
 pub mod malicious;
 
-mod crimes;
+pub mod crimes;
 mod protocol;
 mod r1;
 mod r2;

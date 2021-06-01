@@ -1,4 +1,4 @@
-use crate::protocol::gg20::keygen::Status;
+use crate::protocol::gg20::keygen::{Keygen, Status};
 use strum_macros::EnumIter;
 
 use super::MsgType;
@@ -17,6 +17,12 @@ pub enum Behaviour {
     R2BadShare { victim: usize },
     R2BadEncryption { victim: usize },
     R3FalseAccusation { victim: usize },
+}
+
+impl Keygen {
+    pub fn set_behaviour(&mut self, behaviour: Behaviour) {
+        self.behaviour = behaviour;
+    }
 }
 
 #[cfg(test)]
