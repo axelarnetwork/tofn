@@ -21,7 +21,7 @@ pub enum Crime {
     R7FailFalseAccusation { victim: usize },
     R7BadRangeProof,
     R7FailType5MissingData, // TODO missing unit test
-    R7FailType5BadNonceXBlindSummand,
+    R7FailType5BadDeltaI,
     R7FailType5BadNonceSummand,
     R7FailType5BadBlindSummand,
     R7FailType5MtaBlindSummandRhs { victim: usize },

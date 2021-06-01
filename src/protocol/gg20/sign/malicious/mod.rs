@@ -34,8 +34,8 @@ pub enum MaliciousType {
     R3FalseAccusationMta { victim: usize },
     R3FalseAccusationMtaWc { victim: usize },
     R3BadProof,
-    R3BadNonceXBlindSummand, // triggers r6::Output::FailType5
-    R3BadEcdsaNonceSummand,  // triggers r6::Output::FailType5
+    R3BadDeltaI,                               // triggers r6::Output::FailType5
+    R3BadEcdsaNonceSummand,                    // triggers r6::Output::FailType5
     R3BadMtaBlindSummandLhs { victim: usize }, // triggers r6::Output::FailType5
     R3BadMtaBlindSummandRhs { victim: usize }, // triggers r6::Output::FailType5
     R4BadReveal,
@@ -313,7 +313,7 @@ impl Protocol for BadSign {
                     }
                 }
             }
-            R3BadNonceXBlindSummand => {
+            R3BadDeltaI => {
                 if !matches!(self.sign.status, Status::R2) {
                     return self.sign.next_round();
                 };
@@ -326,19 +326,24 @@ impl Protocol for BadSign {
                             "malicious participant {} do {:?} (delta_i)",
                             self.sign.my_participant_index, self.malicious_type
                         );
-                        let one: FE = ECScalar::from(&BigInt::from(1));
+
+                        // curv: don't do anything
                         // need to corrupt both state and out_bcast
                         // because they both contain a copy of nonce_x_blind_summand
-                        let nonce_x_blind_summand = &mut out_bcast.delta_i;
-                        *nonce_x_blind_summand = *nonce_x_blind_summand + one;
-                        let nonce_x_blind_summand_state = &mut state.delta_i;
-                        *nonce_x_blind_summand_state = *nonce_x_blind_summand_state + one;
+                        // let one: FE = ECScalar::from(&BigInt::from(1));
+                        // let nonce_x_blind_summand = &mut out_bcast.delta_i;
+                        // *nonce_x_blind_summand = *nonce_x_blind_summand + one;
+                        // let nonce_x_blind_summand_state = &mut state.delta_i;
+                        // *nonce_x_blind_summand_state = *nonce_x_blind_summand_state + one;
+
+                        // k256
+                        *out_bcast.delta_i_k256.unwrap_mut() += k256::Scalar::one();
 
                         self.sign.update_state_r3(state, out_bcast)
                     }
                     r3::Output::Fail { out_bcast } => {
                         warn!(
-                            "malicious participant {} instructed to corrupt r3 nonce_x_blind_summand but r3 has already failed so reverting to honesty",
+                            "malicious participant {} instructed to corrupt r3 delta_i but r3 has already failed so reverting to honesty",
                             self.sign.my_participant_index
                         );
                         self.sign.update_state_r3fail(out_bcast)

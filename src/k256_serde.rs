@@ -15,6 +15,9 @@ impl Scalar {
     pub fn unwrap(&self) -> &k256::Scalar {
         &self.0
     }
+    pub fn unwrap_mut(&mut self) -> &mut k256::Scalar {
+        &mut self.0
+    }
 }
 
 impl From<k256::Scalar> for Scalar {

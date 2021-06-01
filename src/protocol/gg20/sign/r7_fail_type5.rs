@@ -29,43 +29,55 @@ impl Sign {
             }
             let r6_participant_data = r6_participant_data.as_ref().unwrap();
 
-            // verify correct computation of nonce_x_blind_summand (delta_i)
-            // as per definition of delta_i in page 17 of https://eprint.iacr.org/2020/540.pdf doc version 20200511:155431
-            let mut nonce_x_blind_summand = r6_participant_data
+            // verify correct computation of delta_i
+            // as per page 17 of https://eprint.iacr.org/2020/540.pdf doc version 20200511:155431
+            let in_r3bcast = self.in_r3bcasts.vec_ref()[i].as_ref().unwrap();
+
+            // curv
+            let mut delta_i = r6_participant_data
                 .k_i
                 .mul(&r6_participant_data.gamma_i.get_element()); // k_i * gamma_i
-            for (j, mta_blind_summand) in r6_participant_data.mta_plaintexts.iter().enumerate() {
+            for (j, mta_plaintext) in r6_participant_data.mta_plaintexts.iter().enumerate() {
                 if j == i {
                     continue;
                 }
-                let mta_blind_summand = mta_blind_summand.as_ref().unwrap_or_else(|| {
-                    panic!(
-                        // TODO these checks should be unnecessary after refactoring
-                        "r7_fail_type5 participant {} missing mta_blind_summand from {} for {}",
-                        self.my_participant_index, i, j
-                    )
-                });
-                let my_mta_blind_summand_lhs_mod_q: FE =
-                    ECScalar::from(&mta_blind_summand.alpha_plaintext);
-                nonce_x_blind_summand =
-                    nonce_x_blind_summand + my_mta_blind_summand_lhs_mod_q + mta_blind_summand.beta;
-                // alpha_ij + beta_ji
+                let mta_plaintext = mta_plaintext.as_ref().unwrap();
+                let alpha: FE = ECScalar::from(&mta_plaintext.alpha_plaintext);
+                delta_i = delta_i + alpha + mta_plaintext.beta; // alpha_ij + beta_ji
             }
-            let in_r3bcast = self.in_r3bcasts.vec_ref()[i].as_ref().unwrap_or_else(|| {
-                panic!(
-                    // TODO these checks should be unnecessary after refactoring
-                    "r7_fail_type5 participant {} missing in_r3bcast from {}",
-                    self.my_participant_index, i
-                )
-            });
-            if nonce_x_blind_summand != in_r3bcast.delta_i {
-                let crime = Crime::R7FailType5BadNonceXBlindSummand;
+            if delta_i != in_r3bcast.delta_i {
+                let crime = Crime::R7FailType5BadDeltaI;
                 info!(
-                    "participant {} detect {:?} by {}",
+                    "(curv) participant {} detect {:?} by {}",
                     self.my_participant_index, crime, i
                 );
                 criminals[i].push(crime);
-                // TODO continue looking for more crimes?
+                // TODO continue looking for more crimes by this participant?
+                // continue; // participant i is known to be criminal, continue to next participant
+            }
+
+            // k256
+            let delta_i_k256 = {
+                let mut sum = r6_participant_data.k_i_256.unwrap()
+                    * r6_participant_data.gamma_i_k256.unwrap();
+                for (j, mta_plaintext) in r6_participant_data.mta_plaintexts.iter().enumerate() {
+                    if j == i {
+                        continue;
+                    }
+                    let mta_plaintext = mta_plaintext.as_ref().unwrap();
+                    let alpha_k256 = mta_plaintext.alpha_plaintext_k256.to_scalar();
+                    sum = sum + alpha_k256 + mta_plaintext.beta_k256.unwrap();
+                }
+                sum
+            };
+            if delta_i_k256 != *in_r3bcast.delta_i_k256.unwrap() {
+                let crime = Crime::R7FailType5BadDeltaI;
+                info!(
+                    "(k256) participant {} detect {:?} by {}",
+                    self.my_participant_index, crime, i
+                );
+                criminals[i].push(crime);
+                // TODO continue looking for more crimes by this participant?
                 // continue; // participant i is known to be criminal, continue to next participant
             }
 
