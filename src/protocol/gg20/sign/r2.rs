@@ -29,7 +29,7 @@ pub struct P2p {
 pub(super) struct State {
     // curv
     pub(super) betas: Vec<Option<FE>>,
-    pub(super) my_mta_blind_summands_rhs_randomness: Vec<Option<RhsRandomness>>, // needed only in r6 fail mode
+    pub(super) betas_randomness: Vec<Option<RhsRandomness>>, // needed only in r6 fail mode
     pub(super) nus: Vec<Option<FE>>,
 
     // k256
@@ -242,7 +242,7 @@ impl Sign {
             Output::Success {
                 state: State {
                     betas: my_betas.into_vec(),
-                    my_mta_blind_summands_rhs_randomness: my_beta_secrets.into_vec(),
+                    betas_randomness: my_beta_secrets.into_vec(),
                     nus: my_nus.into_vec(),
                     beta_secrets_k256,
                     nu_secrets_k256,

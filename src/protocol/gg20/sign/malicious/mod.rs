@@ -402,7 +402,7 @@ impl Protocol for BadSign {
                                 "malicious participant {} do {:?} (k_i)",
                                 self.sign.my_participant_index, self.malicious_type
                             );
-                            let ecdsa_nonce_summand = &mut out_bcast.ecdsa_nonce_summand;
+                            let ecdsa_nonce_summand = &mut out_bcast.k_i;
                             let one: FE = ECScalar::from(&BigInt::from(1));
                             *ecdsa_nonce_summand = *ecdsa_nonce_summand + one;
                             self.sign.update_state_r6fail_type5(out_bcast)
@@ -480,9 +480,9 @@ impl Protocol for BadSign {
                                 self.sign.my_participant_index, self.malicious_type
                             );
                             let mta_blind_summand =
-                                out_bcast.mta_blind_summands[victim].as_mut().unwrap();
-                            mta_blind_summand.lhs_plaintext =
-                                &mta_blind_summand.lhs_plaintext + BigInt::from(1);
+                                out_bcast.mta_plaintexts[victim].as_mut().unwrap();
+                            mta_blind_summand.alpha_plaintext =
+                                &mta_blind_summand.alpha_plaintext + BigInt::from(1);
                             self.sign.update_state_r6fail_type5(out_bcast)
                         }
                     },
@@ -558,9 +558,9 @@ impl Protocol for BadSign {
                                 self.sign.my_participant_index, self.malicious_type
                             );
                             let mta_blind_summand =
-                                out_bcast.mta_blind_summands[victim].as_mut().unwrap();
+                                out_bcast.mta_plaintexts[victim].as_mut().unwrap();
                             let one: FE = ECScalar::from(&BigInt::from(1));
-                            mta_blind_summand.rhs = mta_blind_summand.rhs + one;
+                            mta_blind_summand.beta = mta_blind_summand.beta + one;
                             self.sign.update_state_r6fail_type5(out_bcast)
                         }
                     },

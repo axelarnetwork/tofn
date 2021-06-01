@@ -32,10 +32,9 @@ impl Sign {
             // verify correct computation of nonce_x_blind_summand (delta_i)
             // as per definition of delta_i in page 17 of https://eprint.iacr.org/2020/540.pdf doc version 20200511:155431
             let mut nonce_x_blind_summand = r6_participant_data
-                .ecdsa_nonce_summand
-                .mul(&r6_participant_data.secret_blind_summand.get_element()); // k_i * gamma_i
-            for (j, mta_blind_summand) in r6_participant_data.mta_blind_summands.iter().enumerate()
-            {
+                .k_i
+                .mul(&r6_participant_data.gamma_i.get_element()); // k_i * gamma_i
+            for (j, mta_blind_summand) in r6_participant_data.mta_plaintexts.iter().enumerate() {
                 if j == i {
                     continue;
                 }
@@ -47,9 +46,9 @@ impl Sign {
                     )
                 });
                 let my_mta_blind_summand_lhs_mod_q: FE =
-                    ECScalar::from(&mta_blind_summand.lhs_plaintext);
+                    ECScalar::from(&mta_blind_summand.alpha_plaintext);
                 nonce_x_blind_summand =
-                    nonce_x_blind_summand + my_mta_blind_summand_lhs_mod_q + mta_blind_summand.rhs;
+                    nonce_x_blind_summand + my_mta_blind_summand_lhs_mod_q + mta_blind_summand.beta;
                 // alpha_ij + beta_ji
             }
             let in_r3bcast = self.in_r3bcasts.vec_ref()[i].as_ref().unwrap_or_else(|| {
@@ -80,8 +79,8 @@ impl Sign {
             let ek = &self.my_secret_key_share.all_eks[self.participant_indices[i]];
             let encrypted_ecdsa_nonce_summand = Paillier::encrypt_with_chosen_randomness(
                 ek,
-                RawPlaintext::from(r6_participant_data.ecdsa_nonce_summand.to_big_int()),
-                &Randomness::from(&r6_participant_data.ecdsa_nonce_summand_randomness),
+                RawPlaintext::from(r6_participant_data.k_i.to_big_int()),
+                &Randomness::from(&r6_participant_data.k_i_randomness),
             );
             let in_r1bcast = self.in_r1bcasts.vec_ref()[i].as_ref().unwrap_or_else(|| {
                 panic!(
@@ -103,7 +102,7 @@ impl Sign {
             }
 
             // 2. secret_blind_summand (gamma_i)
-            let public_blind_summand = GE::generator() * r6_participant_data.secret_blind_summand;
+            let public_blind_summand = GE::generator() * r6_participant_data.gamma_i;
             let in_r4bcast = self.in_r4bcasts.vec_ref()[i].as_ref().unwrap_or_else(|| {
                 panic!(
                     // TODO these checks should be unnecessary after refactoring
@@ -125,8 +124,7 @@ impl Sign {
 
             // 3. mta_blind_summands.rhs (beta_ij)
             // 4. mta_blind_summands.lhs (alpha_ij)
-            for (j, mta_blind_summand) in r6_participant_data.mta_blind_summands.iter().enumerate()
-            {
+            for (j, mta_blind_summand) in r6_participant_data.mta_plaintexts.iter().enumerate() {
                 if j == i {
                     continue;
                 }
@@ -147,13 +145,13 @@ impl Sign {
                 // TODO better variable names: switch to greek letters used in GG20 paper
                 let (mta_response_blind, mta_blind_summand_rhs) = // (enc(alpha_ij), beta_ji)
                     mta_zengo::MessageB::b_with_predefined_randomness(
-                        &r6_participant_data.secret_blind_summand,
+                        &r6_participant_data.gamma_i,
                         other_ek,
                         other_encrypted_ecdsa_nonce_summand.clone(),
-                        &mta_blind_summand.rhs_randomness.randomness,
-                        &mta_blind_summand.rhs_randomness.beta_prime,
+                        &mta_blind_summand.beta_randomness.randomness,
+                        &mta_blind_summand.beta_randomness.beta_prime,
                     );
-                if mta_blind_summand_rhs != mta_blind_summand.rhs
+                if mta_blind_summand_rhs != mta_blind_summand.beta
                     || mta_response_blind.c
                         != self.in_all_r2p2ps[i].vec_ref()[j]
                             .as_ref()
@@ -175,8 +173,8 @@ impl Sign {
                 // 4. mta_blind_summands.lhs (alpha_ij)
                 let mta_blind_summand_lhs_ciphertext = Paillier::encrypt_with_chosen_randomness(
                     ek,
-                    RawPlaintext::from(&mta_blind_summand.lhs_plaintext),
-                    &Randomness::from(&mta_blind_summand.lhs_randomness),
+                    RawPlaintext::from(&mta_blind_summand.alpha_plaintext),
+                    &Randomness::from(&mta_blind_summand.alpha_randomness),
                 );
                 if *mta_blind_summand_lhs_ciphertext.0
                     != self.in_all_r2p2ps[j].vec_ref()[i]

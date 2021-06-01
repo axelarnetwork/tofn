@@ -241,18 +241,18 @@ impl Sign {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) struct BcastFailType5 {
-    pub ecdsa_nonce_summand: FE,                // k_i
-    pub ecdsa_nonce_summand_randomness: BigInt, // k_i encryption randomness
-    pub secret_blind_summand: FE,               // gamma_i
-    pub mta_blind_summands: Vec<Option<MtaBlindSummandsData>>,
+    pub k_i: FE,                // k_i
+    pub k_i_randomness: BigInt, // k_i encryption randomness
+    pub gamma_i: FE,            // gamma_i
+    pub mta_plaintexts: Vec<Option<MtaPlaintext>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct MtaBlindSummandsData {
-    pub(super) rhs: FE,                           // beta_ji
-    pub(super) rhs_randomness: r2::RhsRandomness, // beta_ji encryption randomness
-    pub(super) lhs_plaintext: BigInt,             // alpha_ij Paillier plaintext
-    pub(super) lhs_randomness: BigInt,            // alpha_ij encryption randomness
+pub(super) struct MtaPlaintext {
+    pub(super) beta: FE,                           // beta_ji
+    pub(super) beta_randomness: r2::RhsRandomness, // beta_ji encryption randomness
+    pub(super) alpha_plaintext: BigInt,            // alpha_ij Paillier plaintext
+    pub(super) alpha_randomness: BigInt,           // alpha_ij encryption randomness
 }
 
 impl Sign {
@@ -263,13 +263,14 @@ impl Sign {
         let r1state = self.r1state.as_ref().unwrap();
         let r2state = self.r2state.as_ref().unwrap();
         let r3state = self.r3state.as_ref().unwrap();
-        let mut mta_blind_summands = FillVec::with_len(self.participant_indices.len());
+        let mut mta_plaintexts = FillVec::with_len(self.participant_indices.len());
 
         for i in 0..self.participant_indices.len() {
             if i == self.my_participant_index {
                 continue;
             }
 
+            // curv
             // recover encryption randomness for my_mta_blind_summands_lhs
             // need to decrypt again to do so
             let in_p2p = self.in_all_r2p2ps[i].vec_ref()[self.my_participant_index]
@@ -281,46 +282,64 @@ impl Sign {
                         self.my_participant_index, i
                     )
                 });
-            let (my_mta_blind_summand_lhs_plaintext, my_mta_blind_summand_lhs_randomness) =
-                Paillier::open(
-                    &self.my_secret_key_share.my_dk,
-                    &RawCiphertext::from(&in_p2p.alpha_ciphertext.c),
-                );
+            let (alpha_plaintext, alpha_randomness) = Paillier::open(
+                &self.my_secret_key_share.my_dk,
+                &RawCiphertext::from(&in_p2p.alpha_ciphertext.c),
+            );
 
-            // sanity check: we should recover the value we computed in r3
+            // sanity check: we should recover the alpha we computed in r3
             {
-                let my_mta_blind_summand_lhs_mod_q: FE =
-                    ECScalar::from(&my_mta_blind_summand_lhs_plaintext.0);
-                if my_mta_blind_summand_lhs_mod_q != r3state.alphas[i].unwrap() {
-                    error!("participant {} decryption of mta_response_blind from {} in r6 differs from r3", self.my_participant_index, i);
+                let alpha: FE = ECScalar::from(&alpha_plaintext.0);
+                if alpha != r3state.alphas[i].unwrap() {
+                    error!(
+                        "participant {} decryption of alpha from {} in r6 differs from r3",
+                        self.my_participant_index, i
+                    );
                 }
-
-                // do not return my_mta_blind_summand_lhs_mod_q
-                // need my_mta_blind_summand_lhs_plaintext because it may differ from my_mta_blind_summand_lhs_mod_q
-                // why? because the ciphertext was formed from homomorphic Paillier operations, not just encrypting my_mta_blind_summand_lhs_mod_q
             }
 
-            mta_blind_summands
+            // k256
+            // recover encryption randomness for alpha; need to decrypt again to do so
+            let in_p2p = self.in_all_r2p2ps[i].vec_ref()[self.my_participant_index]
+                .as_ref()
+                .unwrap();
+            let (alpha_plaintext_k256, alpha_randomness_k256) = self
+                .my_secret_key_share
+                .dk_k256
+                .decrypt_with_randomness(&in_p2p.alpha_ciphertext_k256);
+
+            // sanity check: we should recover the alpha we computed in r3
+            {
+                let alpha_k256 = alpha_plaintext_k256.to_scalar();
+                if alpha_k256 != r3state.alphas_k256.vec_ref()[i].unwrap() {
+                    error!(
+                        "participant {} decryption of alpha from {} in r6 differs from r3",
+                        self.my_participant_index, i
+                    );
+                }
+                // do not return alpha
+                // need alpha_plaintext because it may differ from alpha
+                // why? because the ciphertext was formed from homomorphic Paillier operations, not just encrypting alpha
+            }
+
+            mta_plaintexts
                 .insert(
                     i,
-                    MtaBlindSummandsData {
-                        rhs: r2state.betas[i].unwrap(),
-                        rhs_randomness: r2state.my_mta_blind_summands_rhs_randomness[i]
-                            .as_ref()
-                            .unwrap()
-                            .clone(),
-                        lhs_plaintext: (*my_mta_blind_summand_lhs_plaintext.0).clone(),
-                        lhs_randomness: my_mta_blind_summand_lhs_randomness.0,
+                    MtaPlaintext {
+                        beta: r2state.betas[i].unwrap(),
+                        beta_randomness: r2state.betas_randomness[i].as_ref().unwrap().clone(),
+                        alpha_plaintext: (*alpha_plaintext.0).clone(),
+                        alpha_randomness: alpha_randomness.0,
                     },
                 )
                 .unwrap();
         }
 
         BcastFailType5 {
-            ecdsa_nonce_summand: r1state.k_i,
-            ecdsa_nonce_summand_randomness: r1state.k_i_randomness.clone(),
-            secret_blind_summand: r1state.gamma_i,
-            mta_blind_summands: mta_blind_summands.into_vec(),
+            k_i: r1state.k_i,
+            k_i_randomness: r1state.k_i_randomness.clone(),
+            gamma_i: r1state.gamma_i,
+            mta_plaintexts: mta_plaintexts.into_vec(),
         }
     }
 }
