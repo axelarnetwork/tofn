@@ -1,6 +1,7 @@
 use super::{crimes::Crime, Sign, Status};
 use crate::fillvec::FillVec;
 use crate::k256_serde;
+use crate::paillier_k256::{Plaintext, Randomness};
 use crate::zkp::{chaum_pedersen, pedersen, pedersen_k256};
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
@@ -201,16 +202,25 @@ impl Sign {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) struct BcastFailType7 {
-    pub ecdsa_nonce_summand: FE,                // k_i
-    pub ecdsa_nonce_summand_randomness: BigInt, // k_i encryption randomness
-    pub mta_wc_keyshare_summands: Vec<Option<MtaWcKeyshareSummandsData>>,
+    pub k_i: FE,                // k_i
+    pub k_i_randomness: BigInt, // k_i encryption randomness
+    pub mta_wc_plaintexts: Vec<Option<MtaWcPlaintext>>,
     pub proof: chaum_pedersen::Proof,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct MtaWcKeyshareSummandsData {
-    pub(super) lhs_plaintext: BigInt,  // mu_ij Paillier plaintext
-    pub(super) lhs_randomness: BigInt, // mu_ij encryption randomness
+pub(super) struct MtaWcPlaintext {
+    // mu_plaintext instead of mu
+    // because mu_plaintext may differ from mu
+    // why? because the ciphertext was formed from homomorphic Paillier operations, not just encrypting mu
+
+    // curv
+    pub(super) mu_plaintext: BigInt,  // mu_ij Paillier plaintext
+    pub(super) mu_randomness: BigInt, // mu_ij encryption randomness
+
+    // k256
+    pub(super) mu_plaintext_k256: Plaintext,
+    pub(super) mu_randomness_k256: Randomness,
 }
 
 impl Sign {
@@ -219,44 +229,63 @@ impl Sign {
         assert!(matches!(self.status, Status::R6));
         let r3state = self.r3state.as_ref().unwrap();
 
-        let mut mta_wc_keyshare_summands = FillVec::with_len(self.participant_indices.len());
+        let mut mta_wc_plaintexts = FillVec::with_len(self.participant_indices.len());
         for i in 0..self.participant_indices.len() {
             if i == self.my_participant_index {
                 continue;
             }
 
+            // curv
             // recover encryption randomness for my_mta_wc_keyshare_summands_lhs
             // need to decrypt again to do so
             let in_p2p = self.in_all_r2p2ps[i].vec_ref()[self.my_participant_index]
                 .as_ref()
                 .unwrap();
-            let (
-                my_mta_wc_keyshare_summand_lhs_plaintext,
-                my_mta_wc_keyshare_summand_lhs_randomness,
-            ) = Paillier::open(
+            let (mu_plaintext, mu_randomness) = Paillier::open(
                 &self.my_secret_key_share.my_dk,
                 &RawCiphertext::from(&in_p2p.mu_ciphertext.c),
             );
 
             // sanity check: we should recover the value we computed in r3
             {
-                let my_mta_wc_keyshare_summand_lhs_mod_q: FE =
-                    ECScalar::from(&my_mta_wc_keyshare_summand_lhs_plaintext.0);
-                if my_mta_wc_keyshare_summand_lhs_mod_q != r3state.mus[i].unwrap() {
-                    error!("participant {} decryption of mta_wc_response_keyshare from {} in r6 differs from r3", self.my_participant_index, i);
+                let mu: FE = ECScalar::from(&mu_plaintext.0);
+                if mu != r3state.mus[i].unwrap() {
+                    error!(
+                        "participant {} decryption of mu from {} in r6 differs from r3",
+                        self.my_participant_index, i
+                    );
                 }
-
-                // do not return my_mta_wc_keyshare_summand_lhs_mod_q
-                // need my_mta_wc_keyshare_summand_lhs_plaintext because it may differ from my_mta_wc_keyshare_summand_lhs_mod_q
-                // why? because the ciphertext was formed from homomorphic Paillier operations, not just encrypting my_mta_wc_keyshare_summand_lhs_mod_q
             }
 
-            mta_wc_keyshare_summands
+            // k256
+            // recover encryption randomness for mu; need to decrypt again to do so
+            let in_p2p = self.in_all_r2p2ps[i].vec_ref()[self.my_participant_index]
+                .as_ref()
+                .unwrap();
+            let (mu_plaintext_k256, mu_randomness_k256) = self
+                .my_secret_key_share
+                .dk_k256
+                .decrypt_with_randomness(&in_p2p.mu_ciphertext_k256);
+
+            // sanity check: we should recover the mu we computed in r3
+            {
+                let mu_k256 = mu_plaintext_k256.to_scalar();
+                if mu_k256 != r3state.mus_k256.vec_ref()[i].unwrap() {
+                    error!(
+                        "participant {} decryption of mu from {} in r6 differs from r3",
+                        self.my_participant_index, i
+                    );
+                }
+            }
+
+            mta_wc_plaintexts
                 .insert(
                     i,
-                    MtaWcKeyshareSummandsData {
-                        lhs_plaintext: (*my_mta_wc_keyshare_summand_lhs_plaintext.0).clone(),
-                        lhs_randomness: my_mta_wc_keyshare_summand_lhs_randomness.0,
+                    MtaWcPlaintext {
+                        mu_plaintext: (*mu_plaintext.0).clone(),
+                        mu_randomness: mu_randomness.0,
+                        mu_plaintext_k256,
+                        mu_randomness_k256,
                     },
                 )
                 .unwrap();
@@ -277,9 +306,9 @@ impl Sign {
         let r1state = self.r1state.as_ref().unwrap();
 
         BcastFailType7 {
-            ecdsa_nonce_summand: r1state.k_i,
-            ecdsa_nonce_summand_randomness: r1state.k_i_randomness.clone(),
-            mta_wc_keyshare_summands: mta_wc_keyshare_summands.into_vec(),
+            k_i: r1state.k_i,
+            k_i_randomness: r1state.k_i_randomness.clone(),
+            mta_wc_plaintexts: mta_wc_plaintexts.into_vec(),
             proof,
         }
     }

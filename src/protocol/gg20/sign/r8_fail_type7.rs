@@ -47,8 +47,8 @@ impl Sign {
             let ek = &self.my_secret_key_share.all_eks[self.participant_indices[i]];
             let encrypted_ecdsa_nonce_summand = Paillier::encrypt_with_chosen_randomness(
                 ek,
-                RawPlaintext::from(r7bcast.ecdsa_nonce_summand.to_big_int()),
-                &Randomness::from(&r7bcast.ecdsa_nonce_summand_randomness),
+                RawPlaintext::from(r7bcast.k_i.to_big_int()),
+                &Randomness::from(&r7bcast.k_i_randomness),
             );
             let in_r1bcast = self.in_r1bcasts.vec_ref()[i].as_ref().unwrap();
             if *encrypted_ecdsa_nonce_summand.0 != in_r1bcast.k_i_ciphertext.c {
@@ -62,8 +62,7 @@ impl Sign {
             }
 
             // 2. mta_wc_keyshare_summands.lhs (mu_ij)
-            for (j, mta_wc_keyshare_summand) in r7bcast.mta_wc_keyshare_summands.iter().enumerate()
-            {
+            for (j, mta_wc_keyshare_summand) in r7bcast.mta_wc_plaintexts.iter().enumerate() {
                 if j == i {
                     continue;
                 }
@@ -71,8 +70,8 @@ impl Sign {
                 let mta_wc_keyshare_summand_lhs_ciphertext =
                     Paillier::encrypt_with_chosen_randomness(
                         ek,
-                        RawPlaintext::from(&mta_wc_keyshare_summand.lhs_plaintext),
-                        &Randomness::from(&mta_wc_keyshare_summand.lhs_randomness),
+                        RawPlaintext::from(&mta_wc_keyshare_summand.mu_plaintext),
+                        &Randomness::from(&mta_wc_keyshare_summand.mu_randomness),
                     );
                 if *mta_wc_keyshare_summand_lhs_ciphertext.0
                     != self.in_all_r2p2ps[j].vec_ref()[i]
@@ -94,9 +93,7 @@ impl Sign {
 
         // compute ecdsa nonce k = sum_i k_i
         let zero: FE = ECScalar::zero();
-        let ecdsa_nonce = all_r7bcasts
-            .iter()
-            .fold(zero, |acc, b| acc + b.ecdsa_nonce_summand);
+        let ecdsa_nonce = all_r7bcasts.iter().fold(zero, |acc, b| acc + b.k_i);
 
         // verify zkps as per page 19 of https://eprint.iacr.org/2020/540.pdf doc version 20200511:155431
         for (i, r7bcast) in all_r7bcasts.iter().enumerate() {
@@ -113,24 +110,26 @@ impl Sign {
             //   k * W_i + sum_{j!=i} (mu_ij - mu_ji) * G
 
             // compute sum_{j!=i} (mu_ij - mu_ji)
-            let mu_summation = r7bcast.mta_wc_keyshare_summands.iter().enumerate().fold(
-                zero,
-                |acc, (j, summand)| {
-                    if j == i {
-                        acc
-                    } else {
-                        let mu_ij: FE = ECScalar::from(&summand.as_ref().unwrap().lhs_plaintext);
-                        let mu_ji: FE = ECScalar::from(
-                            &all_r7bcasts[j].mta_wc_keyshare_summands[i]
-                                .as_ref()
-                                .unwrap()
-                                .lhs_plaintext,
-                        );
-                        let neg_mu_ji: FE = zero.sub(&mu_ji.get_element()); // wow zengo sucks
-                        acc + mu_ij + neg_mu_ji
-                    }
-                },
-            );
+            let mu_summation =
+                r7bcast
+                    .mta_wc_plaintexts
+                    .iter()
+                    .enumerate()
+                    .fold(zero, |acc, (j, summand)| {
+                        if j == i {
+                            acc
+                        } else {
+                            let mu_ij: FE = ECScalar::from(&summand.as_ref().unwrap().mu_plaintext);
+                            let mu_ji: FE = ECScalar::from(
+                                &all_r7bcasts[j].mta_wc_plaintexts[i]
+                                    .as_ref()
+                                    .unwrap()
+                                    .mu_plaintext,
+                            );
+                            let neg_mu_ji: FE = zero.sub(&mu_ji.get_element()); // wow zengo sucks
+                            acc + mu_ij + neg_mu_ji
+                        }
+                    });
 
             chaum_pedersen::verify(
                 &chaum_pedersen::Statement {
