@@ -161,6 +161,16 @@ fn mod_secp256k1(n: &BigInt) -> BigInt {
     n.modulus(&secp256k1_modulus())
 }
 
+#[cfg(feature = "malicious")]
+pub mod malicious {
+    use super::*;
+    impl Plaintext {
+        pub fn corrupt(&mut self) {
+            self.0 += BigInt::one();
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
