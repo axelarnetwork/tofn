@@ -20,12 +20,9 @@ pub(crate) fn mta_response(
     b: &k256::Scalar,
 ) -> (Ciphertext, Secret) {
     let beta_prime = a_ek.random_plaintext();
-    let (beta_prime_ciphertext, beta_prime_randomness) = a_ek.encrypt(&beta_prime);
-    let c_b = a_ek.add(
-        &a_ek.mul(a_ciphertext, &Plaintext::from_scalar(b)),
-        &beta_prime_ciphertext,
-    );
-    let beta = k256_serde::Scalar::from(beta_prime.to_scalar().negate());
+    let beta_prime_randomness = a_ek.sample_randomness();
+    let (c_b, beta) =
+        mta_response_from_randomness(a_ek, a_ciphertext, b, &beta_prime, &beta_prime_randomness);
     (
         c_b,
         Secret {
@@ -34,6 +31,40 @@ pub(crate) fn mta_response(
             beta_prime_randomness,
         },
     )
+}
+
+pub(crate) fn mta_response_from_randomness(
+    a_ek: &EncryptionKey,
+    a_ciphertext: &Ciphertext,
+    b: &k256::Scalar,
+    beta_prime: &Plaintext,
+    beta_prime_randomness: &Randomness,
+) -> (Ciphertext, k256_serde::Scalar) {
+    let beta_prime_ciphertext = a_ek.encrypt_with_randomness(beta_prime, beta_prime_randomness);
+    let c_b = a_ek.add(
+        &a_ek.mul(a_ciphertext, &Plaintext::from_scalar(b)),
+        &beta_prime_ciphertext,
+    );
+    let beta = k256_serde::Scalar::from(beta_prime.to_scalar().negate());
+    (c_b, beta)
+}
+
+/// Return `true` iff `mta_response_from_randomness(a_ek, a_ciphertext, b, s.beta_prime, s.beta_randomness) == (c_b, s)`
+pub(crate) fn verify_mta_response(
+    a_ek: &EncryptionKey,
+    a_ciphertext: &Ciphertext,
+    b: &k256::Scalar,
+    c_b: &Ciphertext,
+    s: &Secret,
+) -> bool {
+    let (check_c_b, check_beta) = mta_response_from_randomness(
+        a_ek,
+        a_ciphertext,
+        b,
+        &s.beta_prime,
+        &s.beta_prime_randomness,
+    );
+    check_c_b == *c_b && check_beta == s.beta
 }
 
 pub(crate) fn mta_response_with_proof(
@@ -87,7 +118,7 @@ pub(crate) fn mta_response_with_proof_wc(
 pub(crate) mod tests {
     use ecdsa::elliptic_curve::Field;
 
-    use super::mta_response_with_proof_wc;
+    use super::{mta_response_with_proof_wc, verify_mta_response};
     use crate::paillier_k256::{
         keygen_unsafe,
         zk::{mta, range, ZkSetup},
@@ -144,7 +175,15 @@ pub(crate) mod tests {
             .unwrap();
         let alpha = a_dk.decrypt_with_randomness(&c_b).0.to_scalar();
 
-        // test: a * b = alpha + beta
+        // test: correct MtA output: a * b = alpha + beta
         assert_eq!(a * b, alpha + b_secret.beta.unwrap());
+
+        assert!(verify_mta_response(
+            &a_ek,
+            &a_ciphertext,
+            &b,
+            &c_b,
+            &b_secret
+        ));
     }
 }
