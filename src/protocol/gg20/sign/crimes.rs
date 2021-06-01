@@ -23,7 +23,7 @@ pub enum Crime {
     R7FailType5MissingData, // TODO missing unit test
     R7FailType5BadDeltaI,
     R7FailType5BadKI,
-    R7FailType5BadBlindSummand,
+    R7FailType5BadGammaI,
     R7FailType5MtaBlindSummandRhs { victim: usize },
     R7FailType5MtaBlindSummandLhs { victim: usize },
     R7FailType5FalseComplaint,

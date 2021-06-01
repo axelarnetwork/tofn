@@ -10,6 +10,7 @@ use tracing::{error, info, warn};
 
 impl Sign {
     // execute blame protocol from section 4.3 of https://eprint.iacr.org/2020/540.pdf
+    #[allow(non_snake_case)]
     pub(super) fn r7_fail_type5(&self) -> Vec<Vec<Crime>> {
         assert!(matches!(self.status, Status::R6FailType5));
         assert!(self.in_r6bcasts_fail_type5.some_count() > 0);
@@ -125,9 +126,7 @@ impl Sign {
                 // continue; // participant i is known to be criminal, continue to next participant
             }
 
-            // DONE TO HERE
-
-            // 2. secret_blind_summand (gamma_i)
+            // curv: 2. gamma_i
             let public_blind_summand = GE::generator() * r6_participant_data.gamma_i;
             let in_r4bcast = self.in_r4bcasts.vec_ref()[i].as_ref().unwrap_or_else(|| {
                 panic!(
@@ -138,9 +137,24 @@ impl Sign {
             });
             if public_blind_summand != in_r4bcast.Gamma_i {
                 // this code path triggered by R1BadSecretBlindSummand
-                let crime = Crime::R7FailType5BadBlindSummand;
+                let crime = Crime::R7FailType5BadGammaI;
                 info!(
-                    "participant {} detect {:?} by {}",
+                    "(curv) participant {} detect {:?} by {}",
+                    self.my_participant_index, crime, i
+                );
+                criminals[i].push(crime);
+                // TODO continue looking for more crimes?
+                // continue; // participant i is known to be criminal, continue to next participant
+            }
+
+            // k256: 2. gamma_i
+            let Gamma_i_k256 =
+                k256::ProjectivePoint::generator() * r6_participant_data.gamma_i_k256.unwrap();
+            let in_r4bcast = self.in_r4bcasts.vec_ref()[i].as_ref().unwrap();
+            if Gamma_i_k256 != *in_r4bcast.Gamma_i_k256.unwrap() {
+                let crime = Crime::R7FailType5BadGammaI;
+                info!(
+                    "(k256) participant {} detect {:?} by {}",
                     self.my_participant_index, crime, i
                 );
                 criminals[i].push(crime);

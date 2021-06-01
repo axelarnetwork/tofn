@@ -27,7 +27,7 @@ pub enum MaliciousType {
     DisrupringSender { msg_type: MsgType },
     R3BadNonceXKeyshareSummand, // triggers r7::Output::FailType7
     R1BadProof { victim: usize },
-    R1BadSecretBlindSummand, // triggers r6::Output::FailType5
+    R1BadGammaI, // triggers r6::Output::FailType5
     R2FalseAccusation { victim: usize },
     R2BadMta { victim: usize },
     R2BadMtaWc { victim: usize },
@@ -129,7 +129,7 @@ impl Protocol for BadSign {
 
                 self.sign.update_state_r1(state, bcast, p2ps)
             }
-            R1BadSecretBlindSummand => {
+            R1BadGammaI => {
                 if !matches!(self.sign.status, Status::New) {
                     return self.sign.next_round();
                 };
@@ -139,9 +139,15 @@ impl Protocol for BadSign {
                     "malicious participant {} do {:?}",
                     self.sign.my_participant_index, self.malicious_type
                 );
-                let one: FE = ECScalar::from(&BigInt::from(1));
-                let my_secret_blind_summand = &mut state.gamma_i;
-                *my_secret_blind_summand = *my_secret_blind_summand + one;
+
+                // curv: don't do anything
+                // let one: FE = ECScalar::from(&BigInt::from(1));
+                // let my_secret_blind_summand = &mut state.gamma_i;
+                // *my_secret_blind_summand = *my_secret_blind_summand + one;
+
+                // k256
+                state.gamma_i_k256 += k256::Scalar::one();
+
                 self.sign.update_state_r1(state, bcast, p2ps)
             }
             R2FalseAccusation { victim } => {
