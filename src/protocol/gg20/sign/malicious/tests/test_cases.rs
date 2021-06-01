@@ -105,9 +105,12 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
                 | Staller { msg_type: _ }
                 | DisrupringSender { msg_type: _ }
         )
-        //  && matches!(
+        // && matches!(
         //     m,
-        //     &R5BadProof { victim: _ } | &R6FalseAccusation { victim: _ }
+        //     &R2BadMta { victim: _ }
+        //         | &R2BadMtaWc { victim: _ }
+        //         | &R3FalseAccusationMta { victim: _ }
+        //         | &R3FalseAccusationMtaWc { victim: _ }
         // )
     }) {
         basic_test_cases.push(TestCase {
