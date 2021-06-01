@@ -35,7 +35,7 @@ pub enum MaliciousType {
     R3FalseAccusationMtaWc { victim: usize },
     R3BadProof,
     R3BadDeltaI,                               // triggers r6::Output::FailType5
-    R3BadEcdsaNonceSummand,                    // triggers r6::Output::FailType5
+    R3BadKI,                                   // triggers r6::Output::FailType5
     R3BadMtaBlindSummandLhs { victim: usize }, // triggers r6::Output::FailType5
     R3BadMtaBlindSummandRhs { victim: usize }, // triggers r6::Output::FailType5
     R4BadReveal,
@@ -319,7 +319,7 @@ impl Protocol for BadSign {
                 };
                 match self.sign.r3() {
                     r3::Output::Success {
-                        mut state,
+                        state,
                         mut out_bcast,
                     } => {
                         info!(
@@ -350,7 +350,7 @@ impl Protocol for BadSign {
                     }
                 }
             }
-            R3BadEcdsaNonceSummand => {
+            R3BadKI => {
                 if !matches!(self.sign.status, Status::R2 | Status::R5) {
                     return self.sign.next_round();
                 };
@@ -358,23 +358,29 @@ impl Protocol for BadSign {
                     Status::R2 => {
                         match self.sign.r3() {
                             r3::Output::Success {
-                                mut state,
+                                state,
                                 mut out_bcast,
                             } => {
                                 info!(
                                     "malicious participant {} do {:?} (delta_i)",
                                     self.sign.my_participant_index, self.malicious_type
                                 );
-                                // later we will corrupt ecdsa_nonce_summand by adding 1
-                                // => need to add 1 * my_secret_blind_summand to nonce_x_blind_summand to maintain consistency
+                                // later we will corrupt k_i by adding 1
+                                // => need to add gamma_i to delta_i to maintain consistency
+
+                                // curv: don't do anything
                                 // need to corrupt both state and out_bcast
                                 // because they both contain a copy of nonce_x_blind_summand
-                                let nonce_x_blind_summand = &mut out_bcast.delta_i;
-                                *nonce_x_blind_summand = *nonce_x_blind_summand
-                                    + self.sign.r1state.as_ref().unwrap().gamma_i;
-                                let nonce_x_blind_summand_state = &mut state.delta_i;
-                                *nonce_x_blind_summand_state = *nonce_x_blind_summand_state
-                                    + self.sign.r1state.as_ref().unwrap().gamma_i;
+                                // let nonce_x_blind_summand = &mut out_bcast.delta_i;
+                                // *nonce_x_blind_summand = *nonce_x_blind_summand
+                                //     + self.sign.r1state.as_ref().unwrap().gamma_i;
+                                // let nonce_x_blind_summand_state = &mut state.delta_i;
+                                // *nonce_x_blind_summand_state = *nonce_x_blind_summand_state
+                                //     + self.sign.r1state.as_ref().unwrap().gamma_i;
+
+                                // k256
+                                *out_bcast.delta_i_k256.unwrap_mut() +=
+                                    self.sign.r1state.as_ref().unwrap().gamma_i_k256;
 
                                 self.sign.update_state_r3(state, out_bcast)
                             }
@@ -407,9 +413,15 @@ impl Protocol for BadSign {
                                 "malicious participant {} do {:?} (k_i)",
                                 self.sign.my_participant_index, self.malicious_type
                             );
-                            let ecdsa_nonce_summand = &mut out_bcast.k_i;
-                            let one: FE = ECScalar::from(&BigInt::from(1));
-                            *ecdsa_nonce_summand = *ecdsa_nonce_summand + one;
+
+                            // curv: don't do anything
+                            // let k_i = &mut out_bcast.k_i;
+                            // let one: FE = ECScalar::from(&BigInt::from(1));
+                            // *k_i = *k_i + one;
+
+                            // k256
+                            *out_bcast.k_i_256.unwrap_mut() += k256::Scalar::one();
+
                             self.sign.update_state_r6fail_type5(out_bcast)
                         }
                     },

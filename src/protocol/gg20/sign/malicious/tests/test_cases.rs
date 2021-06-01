@@ -73,7 +73,7 @@ pub(super) fn map_type_to_crime(t: &MaliciousType) -> Vec<Crime> {
         R6BadProof => vec![Crime::R7BadRangeProof],
         R7BadSigSummand => vec![Crime::R8BadSigSummand],
         R3BadDeltaI => vec![Crime::R7FailType5BadDeltaI],
-        R3BadEcdsaNonceSummand => vec![Crime::R7FailType5BadNonceSummand],
+        R3BadKI => vec![Crime::R7FailType5BadKI],
         R1BadSecretBlindSummand => vec![Crime::R7FailType5BadBlindSummand],
         R3BadMtaBlindSummandRhs { victim: v } => {
             vec![Crime::R7FailType5MtaBlindSummandRhs { victim: *v }]
@@ -104,7 +104,7 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
                 }
                 | Staller { msg_type: _ }
                 | DisrupringSender { msg_type: _ }
-        ) // && matches!(m, &R3BadDeltaI)
+        ) // && matches!(m, &R3BadKI)
     }) {
         basic_test_cases.push(TestCase {
             share_count,

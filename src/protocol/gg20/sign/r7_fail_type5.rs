@@ -1,4 +1,5 @@
 use super::{crimes::Crime, Sign, Status};
+use crate::paillier_k256::Plaintext;
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     FE, GE,
@@ -86,32 +87,45 @@ impl Sign {
             // 2. secret_blind_summand (gamma_i)
             // 3. mta_blind_summands.rhs (beta_ij)
             // 4. mta_blind_summands.lhs (alpha_ij)
+            let in_r1bcast = self.in_r1bcasts.vec_ref()[i].as_ref().unwrap();
 
-            // 1. ecdsa_nonce_summand (k_i)
+            // curv: 1. k_i
             let ek = &self.my_secret_key_share.all_eks[self.participant_indices[i]];
             let encrypted_ecdsa_nonce_summand = Paillier::encrypt_with_chosen_randomness(
                 ek,
                 RawPlaintext::from(r6_participant_data.k_i.to_big_int()),
                 &Randomness::from(&r6_participant_data.k_i_randomness),
             );
-            let in_r1bcast = self.in_r1bcasts.vec_ref()[i].as_ref().unwrap_or_else(|| {
-                panic!(
-                    // TODO these checks should be unnecessary after refactoring
-                    "r7_fail_type5 participant {} missing in_r1bcast from {}",
-                    self.my_participant_index, i
-                )
-            });
             if *encrypted_ecdsa_nonce_summand.0 != in_r1bcast.k_i_ciphertext.c {
                 // this code path triggered by R3BadEcdsaNonceSummand
-                let crime = Crime::R7FailType5BadNonceSummand;
+                let crime = Crime::R7FailType5BadKI;
                 info!(
-                    "participant {} detect {:?} by {}",
+                    "(curv) participant {} detect {:?} by {}",
                     self.my_participant_index, crime, i
                 );
                 criminals[i].push(crime);
                 // TODO continue looking for more crimes?
                 // continue; // participant i is known to be criminal, continue to next participant
             }
+
+            // k256: 1. k_i
+            let ek_k256 = &self.my_secret_key_share.all_eks_k256[self.participant_indices[i]];
+            let k_i_ciphertext_k256 = ek_k256.encrypt_with_randomness(
+                &Plaintext::from_scalar(r6_participant_data.k_i_256.unwrap()),
+                &r6_participant_data.k_i_randomness_k256,
+            );
+            if k_i_ciphertext_k256 != in_r1bcast.k_i_ciphertext_k256 {
+                let crime = Crime::R7FailType5BadKI;
+                info!(
+                    "(k256) participant {} detect {:?} by {}",
+                    self.my_participant_index, crime, i
+                );
+                criminals[i].push(crime);
+                // TODO continue looking for more crimes?
+                // continue; // participant i is known to be criminal, continue to next participant
+            }
+
+            // DONE TO HERE
 
             // 2. secret_blind_summand (gamma_i)
             let public_blind_summand = GE::generator() * r6_participant_data.gamma_i;

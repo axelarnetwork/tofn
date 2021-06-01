@@ -26,6 +26,7 @@ impl EncryptionKey {
         Plaintext(paillier::Randomness::sample(&self.0).0)
     }
     // TODO how to make `encrypt` generic over `T` where `&T` impls `Into<Plaintext>`?
+    // example: https://docs.rs/ecdsa/0.11.1/ecdsa/struct.Signature.html#method.from_scalars
     pub fn encrypt(&self, p: &Plaintext) -> (Ciphertext, Randomness) {
         let r = self.sample_randomness();
         (self.encrypt_with_randomness(p, &r), r)
@@ -110,7 +111,7 @@ impl From<&k256::Scalar> for Plaintext {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Ciphertext(paillier::BigInt);
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
