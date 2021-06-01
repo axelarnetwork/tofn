@@ -1,5 +1,6 @@
 use super::{r2, Sign, Status};
 use crate::fillvec::FillVec;
+use crate::mta;
 use crate::paillier_k256::{Plaintext, Randomness};
 use crate::{
     k256_serde,
@@ -268,8 +269,7 @@ pub(super) struct MtaPlaintext {
     pub(super) alpha_randomness: BigInt,           // alpha_ij encryption randomness
 
     // k256
-    pub(super) beta_k256: k256_serde::Scalar,
-    pub(super) beta_randomness_k256: Randomness,
+    pub(super) beta_secrets_k256: mta::Secret,
     pub(super) alpha_plaintext_k256: Plaintext,
     pub(super) alpha_randomness_k256: Randomness,
 }
@@ -338,7 +338,6 @@ impl Sign {
                 }
             }
 
-            let beta_secrets_k256 = r2state.beta_secrets_k256.vec_ref()[i].as_ref().unwrap();
             mta_plaintexts
                 .insert(
                     i,
@@ -347,8 +346,10 @@ impl Sign {
                         beta_randomness: r2state.betas_randomness[i].as_ref().unwrap().clone(),
                         alpha_plaintext: (*alpha_plaintext.0).clone(),
                         alpha_randomness: alpha_randomness.0,
-                        beta_k256: k256_serde::Scalar::from(beta_secrets_k256.beta),
-                        beta_randomness_k256: beta_secrets_k256.beta_prime_randomness.clone(),
+                        beta_secrets_k256: r2state.beta_secrets_k256.vec_ref()[i]
+                            .as_ref()
+                            .unwrap()
+                            .clone(),
                         alpha_plaintext_k256,
                         alpha_randomness_k256,
                     },

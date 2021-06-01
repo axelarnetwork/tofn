@@ -1,11 +1,15 @@
-use crate::paillier_k256::{
-    zk::{mta, ZkSetup},
-    Ciphertext, EncryptionKey, Plaintext, Randomness,
+use crate::{
+    k256_serde,
+    paillier_k256::{
+        zk::{mta, ZkSetup},
+        Ciphertext, EncryptionKey, Plaintext, Randomness,
+    },
 };
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct Secret {
-    pub(crate) beta: k256::Scalar,
+    pub(crate) beta: k256_serde::Scalar,
     pub(crate) beta_prime: Plaintext,
     pub(crate) beta_prime_randomness: Randomness,
 }
@@ -21,7 +25,7 @@ pub(crate) fn mta_response(
         &a_ek.mul(a_ciphertext, &Plaintext::from_scalar(b)),
         &beta_prime_ciphertext,
     );
-    let beta = beta_prime.to_scalar().negate();
+    let beta = k256_serde::Scalar::from(beta_prime.to_scalar().negate());
     (
         c_b,
         Secret {
@@ -141,6 +145,6 @@ pub(crate) mod tests {
         let alpha = a_dk.decrypt_with_randomness(&c_b).0.to_scalar();
 
         // test: a * b = alpha + beta
-        assert_eq!(a * b, alpha + b_secret.beta);
+        assert_eq!(a * b, alpha + b_secret.beta.unwrap());
     }
 }

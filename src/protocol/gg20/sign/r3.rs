@@ -271,7 +271,8 @@ impl Sign {
                     + r2state.beta_secrets_k256.vec_ref()[i]
                         .as_ref()
                         .unwrap()
-                        .beta;
+                        .beta
+                        .unwrap();
             }
             sum
         };
@@ -297,7 +298,11 @@ impl Sign {
                 }
                 sum = sum
                     + mus_k256.vec_ref()[i].as_ref().unwrap()
-                    + r2state.nu_secrets_k256.vec_ref()[i].as_ref().unwrap().beta;
+                    + r2state.nu_secrets_k256.vec_ref()[i]
+                        .as_ref()
+                        .unwrap()
+                        .beta
+                        .unwrap();
             }
             sum
         };
