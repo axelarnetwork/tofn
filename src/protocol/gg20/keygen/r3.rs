@@ -104,7 +104,7 @@ impl Keygen {
 
             if y_i_commit != r1bcast.y_i_commit {
                 let crime = Crime::R3BadReveal;
-                warn!("party {} detect {:?} by {}", self.my_index, crime, i);
+                warn!("(curv) party {} detect {:?} by {}", self.my_index, crime, i);
                 criminals[i].push(crime);
             }
 
@@ -115,9 +115,8 @@ impl Keygen {
 
             if y_i_commit_k256 != r1bcast.y_i_commit_k256 {
                 let crime = Crime::R3BadReveal;
-                warn!("party {} detect {:?} by {}", self.my_index, crime, i);
-                // TODO uncomment after the k256 migration
-                // criminals[i].push(crime);
+                warn!("(k256) party {} detect {:?} by {}", self.my_index, crime, i);
+                criminals[i].push(crime);
             }
 
             // curv: decrypt share

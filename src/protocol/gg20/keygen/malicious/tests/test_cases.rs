@@ -96,7 +96,13 @@ impl Behaviour {
 // #[rustfmt::skip] // skip formatting to make file more readable
 pub(super) fn generate_basic_cases() -> Vec<TestCase> {
     Behaviour::iter()
-        .filter(|b| !b.is_honest() && !b.is_spoofer() && !b.is_staller() && !b.is_disrupter())
+        .filter(|b| {
+            !b.is_honest()
+                && !b.is_spoofer()
+                && !b.is_staller()
+                && !b.is_disrupter()
+                && matches!(b, R1BadCommit)
+        })
         .map(|b| TestCase {
             threshold: 1,
             expect_success: false,

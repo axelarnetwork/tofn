@@ -57,7 +57,10 @@ impl Keygen {
 
         #[cfg(feature = "malicious")]
         let my_y_i_commit_k256 = if matches!(self.behaviour, Behaviour::R1BadCommit) {
-            info!("malicious party {} do {:?}", self.my_index, self.behaviour);
+            info!(
+                "(k256) malicious party {} do {:?}",
+                self.my_index, self.behaviour
+            );
             my_y_i_commit_k256.corrupt()
         } else {
             my_y_i_commit_k256
@@ -69,13 +72,17 @@ impl Keygen {
         let (my_y_i_commit, my_y_i_reveal) =
             HashCommitment::create_commitment(&my_y_i.bytes_compressed_to_big_int());
 
-        #[cfg(feature = "malicious")]
-        let my_y_i_commit = if matches!(self.behaviour, Behaviour::R1BadCommit) {
-            info!("malicious party {} do {:?}", self.my_index, self.behaviour);
-            my_y_i_commit + BigInt::one()
-        } else {
-            my_y_i_commit
-        };
+        // curv don't do anything
+        // #[cfg(feature = "malicious")]
+        // let my_y_i_commit = if matches!(self.behaviour, Behaviour::R1BadCommit) {
+        //     info!(
+        //         "(curv) malicious party {} do {:?}",
+        //         self.my_index, self.behaviour
+        //     );
+        //     my_y_i_commit + BigInt::one()
+        // } else {
+        //     my_y_i_commit
+        // };
 
         // TODO Paillier
 
