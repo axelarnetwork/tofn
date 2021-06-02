@@ -1,7 +1,7 @@
 use super::{crimes::Crime, Keygen, Status};
 use crate::{
     hash,
-    k256_serde::{self, to_bytes},
+    k256_serde::to_bytes,
     paillier_k256,
     protocol::gg20::{vss, vss_k256},
 };
@@ -49,7 +49,7 @@ pub struct Complaint {
     pub vss_share_randomness: BigInt,
 
     // k256
-    pub vss_share_k256: k256_serde::Scalar,
+    pub vss_share_k256: vss_k256::Share,
     pub vss_share_randomness_k256: paillier_k256::Randomness,
 }
 
@@ -172,7 +172,7 @@ impl Keygen {
                     criminal_index: i,
                     vss_share: u_i_share,
                     vss_share_randomness: u_i_share_randomness.0.clone(),
-                    vss_share_k256: (*u_i_share_k256.get_scalar()).into(),
+                    vss_share_k256: u_i_share_k256.clone(),
                     vss_share_randomness_k256: u_i_share_randomness_k256.clone(),
                 });
             }
@@ -194,7 +194,7 @@ impl Keygen {
                     criminal_index: i,
                     vss_share: u_i_share,
                     vss_share_randomness: u_i_share_randomness.0,
-                    vss_share_k256: (*u_i_share_k256.get_scalar()).into(),
+                    vss_share_k256: u_i_share_k256.clone(),
                     vss_share_randomness_k256: u_i_share_randomness_k256,
                 });
             }
@@ -226,13 +226,13 @@ impl Keygen {
                 vss_failures.push(Complaint {
                     criminal_index: self.my_index,
                     vss_share: FE::new_random(), // doesn't matter what we put here
-                    vss_share_randomness: BigInt::one(),
-                    vss_share_k256: k256::Scalar::one().into(),
+                    vss_share_randomness: BigInt::one(), // doesn't matter what we put here
+                    vss_share_k256: vss_k256::Share::from_scalar(k256::Scalar::one(), 1), // doesn't matter what we put here
                     vss_share_randomness_k256: self.in_r1bcasts.vec_ref()[self.my_index]
                         .as_ref()
                         .unwrap()
                         .ek_k256
-                        .sample_randomness(),
+                        .sample_randomness(), // doesn't matter what we put here
                 });
             }
             _ => (),

@@ -55,7 +55,7 @@ impl Keygen {
                         .unwrap()
                         .ek_k256;
                     let vss_share_ciphertext_k256 = accuser_ek_k256.encrypt_with_randomness(
-                        &accused.vss_share_k256.unwrap().into(),
+                        &accused.vss_share_k256.get_scalar().into(),
                         &accused.vss_share_randomness_k256,
                     );
                     if vss_share_ciphertext_k256
@@ -73,7 +73,7 @@ impl Keygen {
                         continue;
                     }
 
-                    // verify share commitment
+                    // curv: verify share commitment
                     let accused_share_commitments = &self.in_r2bcasts.vec_ref()
                         [accused.criminal_index]
                         .as_ref()
@@ -95,6 +95,30 @@ impl Keygen {
                         );
                         criminals[accused.criminal_index].push(crime);
                     }
+
+                    // k256: verify share commitment
+                    // let accused_share_commits_k256 = &self.in_r2bcasts.vec_ref()
+                    //     [accused.criminal_index]
+                    //     .as_ref()
+                    //     .unwrap()
+                    //     .u_i_share_commits_k256;
+                    // if accused_share_commits_k256.validate_share(accused.vss_share_k256) {}
+                    // if vss::validate_share(accused_share_commitments, &accused.vss_share, accuser)
+                    //     .is_ok()
+                    // {
+                    //     let crime = Crime::R4FailFalseAccusation {
+                    //         victim: accused.criminal_index,
+                    //     };
+                    //     info!("party {} detect {:?} by {}", self.my_index, crime, accuser);
+                    //     criminals[accuser].push(crime);
+                    // } else {
+                    //     let crime = Crime::R4FailBadVss { victim: accuser };
+                    //     info!(
+                    //         "party {} detect {:?} by {}",
+                    //         self.my_index, crime, accused.criminal_index,
+                    //     );
+                    //     criminals[accused.criminal_index].push(crime);
+                    // }
                 }
             }
         }

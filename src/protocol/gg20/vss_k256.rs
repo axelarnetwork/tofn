@@ -43,8 +43,9 @@ impl Vss {
                         .iter()
                         .rev()
                         .fold(k256::Scalar::zero(), |acc, coeff| {
-                            acc * &index_scalar + coeff
-                        }),
+                            acc * index_scalar + coeff
+                        })
+                        .into(),
                     index,
                 }
             })
@@ -85,18 +86,21 @@ impl Commit {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Share {
-    scalar: k256::Scalar,
+    scalar: k256_serde::Scalar,
     index: usize,
 }
 
 impl Share {
     pub fn from_scalar(scalar: k256::Scalar, index: usize) -> Self {
-        Self { scalar, index }
+        Self {
+            scalar: scalar.into(),
+            index,
+        }
     }
     pub fn get_scalar(&self) -> &k256::Scalar {
-        &self.scalar
+        self.scalar.unwrap()
     }
     pub fn get_index(&self) -> usize {
         self.index
@@ -114,7 +118,7 @@ pub fn recover_secret(shares: &[Share], threshold: usize) -> k256::Scalar {
         .take(threshold + 1)
         .map(|s| Point {
             x: k256::Scalar::from(s.index as u32 + 1), // vss indices start at 1
-            y: s.scalar,
+            y: *s.get_scalar(),
         })
         .collect();
     points
@@ -177,15 +181,15 @@ mod tests {
         // index: 2, share: p(3) = 26
         let expected_shares = vec![
             Share {
-                scalar: k256::Scalar::from(6u32),
+                scalar: k256::Scalar::from(6u32).into(),
                 index: 0,
             },
             Share {
-                scalar: k256::Scalar::from(14u32),
+                scalar: k256::Scalar::from(14u32).into(),
                 index: 1,
             },
             Share {
-                scalar: k256::Scalar::from(26u32),
+                scalar: k256::Scalar::from(26u32).into(),
                 index: 2,
             },
         ];
@@ -235,14 +239,14 @@ mod tests {
             .iter()
             .enumerate()
             .map(|(i, share)| Share {
-                scalar: share.scalar * lagrange_coefficient(i, &indices),
+                scalar: (share.get_scalar() * &lagrange_coefficient(i, &indices)).into(),
                 ..*share
             })
             .collect();
 
         let recovered_secret = additive_shares
             .iter()
-            .fold(k256::Scalar::zero(), |acc, share| acc + share.scalar);
+            .fold(k256::Scalar::zero(), |acc, share| acc + share.get_scalar());
         assert_eq!(recovered_secret, *vss.get_secret());
     }
 }

@@ -159,7 +159,7 @@ impl Keygen {
             State {
                 my_share_of_my_u_i,
                 my_u_i_share_commitments,
-                my_share_of_my_u_i_k256: my_u_i_shares_k256[self.my_index],
+                my_share_of_my_u_i_k256: my_u_i_shares_k256[self.my_index].clone(),
             },
             out_bcast,
             out_p2ps,
