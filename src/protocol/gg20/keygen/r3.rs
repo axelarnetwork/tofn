@@ -1,7 +1,8 @@
 use super::{crimes::Crime, Keygen, Status};
 use crate::{
     hash,
-    k256_serde::to_bytes,
+    k256_serde::{self, to_bytes},
+    paillier_k256,
     protocol::gg20::{vss, vss_k256},
 };
 use curv::{
@@ -42,8 +43,14 @@ pub struct BcastFail {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Complaint {
     pub criminal_index: usize,
+
+    // curv
     pub vss_share: FE,
     pub vss_share_randomness: BigInt,
+
+    // k256
+    pub vss_share_k256: k256_serde::Scalar,
+    pub vss_share_randomness_k256: paillier_k256::Randomness,
 }
 
 pub(super) enum Output {
@@ -95,20 +102,19 @@ impl Keygen {
                 .as_ref()
                 .unwrap();
 
-            // curv
+            // curv: check y_i_commit
             let y_i = &r2bcast.u_i_share_commitments[0];
             let y_i_commit = HashCommitment::create_commitment_with_user_defined_randomness(
                 &y_i.bytes_compressed_to_big_int(),
                 &r2bcast.y_i_reveal,
             );
-
             if y_i_commit != r1bcast.y_i_commit {
                 let crime = Crime::R3BadReveal;
                 warn!("(curv) party {} detect {:?} by {}", self.my_index, crime, i);
                 criminals[i].push(crime);
             }
 
-            // k256
+            // k256: check y_i_commit
             let y_i_k256 = r2bcast.u_i_share_commits_k256.secret_commit();
             let y_i_commit_k256 =
                 hash::commit_with_randomness(to_bytes(y_i_k256), &r2bcast.y_i_reveal_k256);
@@ -127,7 +133,7 @@ impl Keygen {
             let u_i_share: FE = ECScalar::from(&u_i_share_plaintext.0);
 
             // k256: decrypt share
-            let (u_i_share_plaintext_k256, _u_i_share_randomness_k256) = self
+            let (u_i_share_plaintext_k256, u_i_share_randomness_k256) = self
                 .r1state
                 .as_ref()
                 .unwrap()
@@ -136,7 +142,7 @@ impl Keygen {
             let u_i_share_k256 =
                 vss_k256::Share::from_scalar(u_i_share_plaintext_k256.to_scalar(), self.my_index);
 
-            // curv
+            // curv: validate share
             let vss_valid =
                 vss::validate_share(&r2bcast.u_i_share_commitments, &u_i_share, self.my_index)
                     .is_ok();
@@ -144,7 +150,10 @@ impl Keygen {
             #[cfg(feature = "malicious")]
             let vss_valid = match self.behaviour {
                 Behaviour::R3FalseAccusation { victim } if victim == i && vss_valid => {
-                    info!("malicious party {} do {:?}", self.my_index, self.behaviour);
+                    info!(
+                        "(curv) malicious party {} do {:?}",
+                        self.my_index, self.behaviour
+                    );
                     false
                 }
                 _ => vss_valid,
@@ -152,7 +161,29 @@ impl Keygen {
 
             if !vss_valid {
                 warn!(
-                    "party {} accuse {} of {:?}",
+                    "(curv) party {} accuse {} of {:?}",
+                    self.my_index,
+                    i,
+                    Crime::R4FailBadVss {
+                        victim: self.my_index
+                    },
+                );
+                vss_failures.push(Complaint {
+                    criminal_index: i,
+                    vss_share: u_i_share,
+                    vss_share_randomness: u_i_share_randomness.0.clone(),
+                    vss_share_k256: (*u_i_share_k256.get_scalar()).into(),
+                    vss_share_randomness_k256: u_i_share_randomness_k256.clone(),
+                });
+            }
+
+            // k256: validate share
+            if !r2bcast
+                .u_i_share_commits_k256
+                .validate_share(&u_i_share_k256)
+            {
+                warn!(
+                    "(k256) party {} accuse {} of {:?}",
                     self.my_index,
                     i,
                     Crime::R4FailBadVss {
@@ -163,22 +194,9 @@ impl Keygen {
                     criminal_index: i,
                     vss_share: u_i_share,
                     vss_share_randomness: u_i_share_randomness.0,
+                    vss_share_k256: (*u_i_share_k256.get_scalar()).into(),
+                    vss_share_randomness_k256: u_i_share_randomness_k256,
                 });
-            }
-
-            // k256
-            if !r2bcast
-                .u_i_share_commits_k256
-                .validate_share(&u_i_share_k256)
-            {
-                warn!(
-                    "party {} accuse {} of {:?} TODO k256 go to r4_fail",
-                    self.my_index,
-                    i,
-                    Crime::R4FailBadVss {
-                        victim: self.my_index
-                    },
-                );
             }
 
             // curv
@@ -209,13 +227,19 @@ impl Keygen {
                     criminal_index: self.my_index,
                     vss_share: FE::new_random(), // doesn't matter what we put here
                     vss_share_randomness: BigInt::one(),
+                    vss_share_k256: k256::Scalar::one().into(),
+                    vss_share_randomness_k256: self.in_r1bcasts.vec_ref()[self.my_index]
+                        .as_ref()
+                        .unwrap()
+                        .ek_k256
+                        .sample_randomness(),
                 });
             }
             _ => (),
         };
 
         // prioritize commit faiure path over vss failure path
-        if !criminals.iter().all(|c| c.is_empty()) {
+        if !criminals.iter().all(Vec::is_empty) {
             return Output::Fail { criminals };
         }
         if !vss_failures.is_empty() {

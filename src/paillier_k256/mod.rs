@@ -169,6 +169,12 @@ pub mod malicious {
             self.0 += BigInt::one();
         }
     }
+    impl Ciphertext {
+        pub fn corrupt(mut self) -> Self {
+            self.0 += BigInt::one();
+            self
+        }
+    }
 }
 
 #[cfg(test)]

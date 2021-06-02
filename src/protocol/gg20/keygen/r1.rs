@@ -27,16 +27,17 @@ pub(super) struct Bcast {
     pub(super) y_i_commit_k256: hash::Output,
     pub(super) ek_k256: paillier_k256::EncryptionKey,
     pub(super) zkp_k256: paillier_k256::zk::ZkSetup,
+    // TODO NICorrectKeyProof
 }
 // can't derive Debug because NonZeroScalar doesn't derive Debug
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub(super) struct State {
     // curv
     pub(super) my_dk: DecryptionKey,
-    pub(super) my_ek: EncryptionKey,
-    pub(super) my_zkp: ZkSetup,
+    pub(super) my_ek: EncryptionKey, // redundant
+    pub(super) my_zkp: ZkSetup,      // redundant
     pub(super) my_u_i: FE,
-    pub(super) my_y_i: GE,
+    pub(super) my_y_i: GE, // redundant
     pub(super) my_y_i_reveal: BigInt,
 
     // k256

@@ -102,6 +102,18 @@ impl Keygen {
             let (u_i_share_ciphertext_k256, _) =
                 ek_256.encrypt(&my_u_i_shares_k256[i].get_scalar().into());
 
+            #[cfg(feature = "malicious")]
+            let u_i_share_ciphertext_k256 = match self.behaviour {
+                Behaviour::R2BadEncryption { victim } if victim == i => {
+                    info!(
+                        "(k256) malicious party {} do {:?}",
+                        self.my_index, self.behaviour
+                    );
+                    u_i_share_ciphertext_k256.corrupt()
+                }
+                _ => u_i_share_ciphertext_k256,
+            };
+
             // curv: encrypt the share for party i
             let ek = &self.in_r1bcasts.vec_ref()[i].as_ref().unwrap().ek;
             let randomness = Randomness::sample(ek);
@@ -113,14 +125,18 @@ impl Keygen {
             .0
             .into_owned();
 
-            #[cfg(feature = "malicious")]
-            let encrypted_u_i_share = match self.behaviour {
-                Behaviour::R2BadEncryption { victim } if victim == i => {
-                    info!("malicious party {} do {:?}", self.my_index, self.behaviour);
-                    encrypted_u_i_share + BigInt::one()
-                }
-                _ => encrypted_u_i_share,
-            };
+            // curv don't do anything
+            // #[cfg(feature = "malicious")]
+            // let encrypted_u_i_share = match self.behaviour {
+            //     Behaviour::R2BadEncryption { victim } if victim == i => {
+            //         info!(
+            //             "(curv) malicious party {} do {:?}",
+            //             self.my_index, self.behaviour
+            //         );
+            //         encrypted_u_i_share + BigInt::one()
+            //     }
+            //     _ => encrypted_u_i_share,
+            // };
 
             out_p2ps
                 .insert(
