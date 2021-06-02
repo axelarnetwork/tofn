@@ -73,6 +73,7 @@ impl Sign {
 
         // (r,s) is an invalid ECDSA signature => compute criminals
         // criminals fail Eq. (1) of https://eprint.iacr.org/2020/540.pdf
+        // check: s_i*R =? m*R_i + r*S_i
         let mut criminals = vec![Vec::new(); self.participant_indices.len()];
         let r5state = self.r5state.as_ref().unwrap();
         for (i, criminal) in criminals.iter_mut().enumerate() {
@@ -80,23 +81,35 @@ impl Sign {
             let in_r6bcast = self.in_r6bcasts.vec_ref()[i].as_ref().unwrap();
             let in_r7bcast = self.in_r7bcasts.vec_ref()[i].as_ref().unwrap();
 
+            // curv
             let r_i_m = in_r5bcast.R_i * self.msg_to_sign;
             let s_i_r = in_r6bcast.S_i * r7state.r;
             let rhs = r_i_m + s_i_r;
-
             let lhs = r5state.R * in_r7bcast.s_i;
-
             if lhs != rhs {
-                let crime = Crime::R8BadSigSummand;
+                let crime = Crime::R8SICheckFail;
                 warn!(
-                    "participant {} detect {:?} by {}",
+                    "(curv) participant {} detect {:?} by {}",
+                    self.my_participant_index, crime, i
+                );
+                criminal.push(crime);
+            }
+
+            // k256
+            let rhs_k256 = in_r5bcast.R_i_k256.unwrap() * &self.msg_to_sign_k256
+                + in_r6bcast.S_i_k256.unwrap() * &r7state.r_k256;
+            let lhs_k256 = r5state.R_k256 * in_r7bcast.s_i_k256.unwrap();
+            if lhs_k256 != rhs_k256 {
+                let crime = Crime::R8SICheckFail;
+                warn!(
+                    "(k256) participant {} detect {:?} by {}",
                     self.my_participant_index, crime, i
                 );
                 criminal.push(crime);
             }
         }
 
-        if criminals.iter().map(|v| v.len()).sum::<usize>() == 0 {
+        if criminals.iter().all(Vec::is_empty) {
             error!("participant {} detect invalid signature but no criminals. proceeding to fail mode with zero criminals",
             self.my_participant_index);
         }

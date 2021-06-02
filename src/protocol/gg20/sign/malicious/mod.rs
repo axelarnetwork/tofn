@@ -43,7 +43,7 @@ pub enum MaliciousType {
     R6FalseAccusation { victim: usize },
     R6BadProof,
     R6FalseFailRandomizer,
-    R7BadSigSummand,
+    R7BadSI,
 }
 use MaliciousType::*;
 
@@ -767,26 +767,31 @@ impl Protocol for BadSign {
                 self.sign
                     .update_state_r6fail_type5(self.sign.type5_fault_output())
             }
-            R7BadSigSummand => {
+            R7BadSI => {
                 if !matches!(self.sign.status, Status::R6) {
                     return self.sign.next_round();
                 };
                 match self.sign.r7() {
                     r7::Output::Success {
-                        mut state,
+                        state,
                         mut out_bcast,
                     } => {
                         info!(
                             "malicious participant {} do {:?}",
                             self.sign.my_participant_index, self.malicious_type
                         );
-                        let one: FE = ECScalar::from(&BigInt::from(1));
+
+                        // curv: don't do anything
                         // need to corrupt both state and out_bcast
                         // because they both contain a copy of ecdsa_sig_summand
-                        let ecdsa_sig_summand = &mut out_bcast.s_i;
-                        *ecdsa_sig_summand = *ecdsa_sig_summand + one;
-                        let ecdsa_sig_summand_state = &mut state.s_i;
-                        *ecdsa_sig_summand_state = *ecdsa_sig_summand_state + one;
+                        // let one: FE = ECScalar::from(&BigInt::from(1));
+                        // let ecdsa_sig_summand = &mut out_bcast.s_i;
+                        // *ecdsa_sig_summand = *ecdsa_sig_summand + one;
+                        // let ecdsa_sig_summand_state = &mut state.s_i;
+                        // *ecdsa_sig_summand_state = *ecdsa_sig_summand_state + one;
+
+                        // k256
+                        *out_bcast.s_i_k256.unwrap_mut() += k256::Scalar::one();
 
                         self.sign.update_state_r7(state, out_bcast)
                     }

@@ -27,7 +27,7 @@ pub enum Crime {
     R7FailType5BadBeta { victim: usize },
     R7FailType5BadAlpha { victim: usize },
     R7FailType5FalseComplaint,
-    R8BadSigSummand,
+    R8SICheckFail,
     R8FailType7MissingData,             // TODO missing unit test
     R8FailType7BadKI,                   // TODO missing unit test
     R8FailType7BadMu { victim: usize }, // TODO missing unit test
