@@ -2,7 +2,7 @@ use super::{crimes::Crime, Sign, Status};
 use crate::fillvec::FillVec;
 use crate::k256_serde;
 use crate::paillier_k256::{Plaintext, Randomness};
-use crate::zkp::{chaum_pedersen, pedersen, pedersen_k256};
+use crate::zkp::{chaum_pedersen, chaum_pedersen_k256, pedersen, pedersen_k256};
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     BigInt, FE, GE,
@@ -202,10 +202,17 @@ impl Sign {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) struct BcastFailType7 {
+    pub mta_wc_plaintexts: Vec<Option<MtaWcPlaintext>>,
+
+    // curv
     pub k_i: FE,                // k_i
     pub k_i_randomness: BigInt, // k_i encryption randomness
-    pub mta_wc_plaintexts: Vec<Option<MtaWcPlaintext>>,
     pub proof: chaum_pedersen::Proof,
+
+    // k256
+    pub k_i_k256: k256_serde::Scalar,
+    pub k_i_randomness_k256: Randomness,
+    pub proof_k256: chaum_pedersen_k256::Proof,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -291,6 +298,7 @@ impl Sign {
                 .unwrap();
         }
 
+        // curv
         let proof = chaum_pedersen::prove(
             &chaum_pedersen::Statement {
                 base1: &GE::generator(),                       // G
@@ -303,13 +311,31 @@ impl Sign {
             },
         );
 
-        let r1state = self.r1state.as_ref().unwrap();
+        // k256
+        let r6bcast = self.in_r6bcasts.vec_ref()[self.my_participant_index]
+            .as_ref()
+            .unwrap();
+        let proof_k256 = chaum_pedersen_k256::prove(
+            &chaum_pedersen_k256::Statement {
+                base1: &k256::ProjectivePoint::generator(),
+                base2: &self.r5state.as_ref().unwrap().R_k256,
+                target1: &(k256::ProjectivePoint::generator() * r3state.sigma_i_k256),
+                target2: r6bcast.S_i_k256.unwrap(),
+            },
+            &chaum_pedersen_k256::Witness {
+                scalar: &r3state.sigma_i_k256,
+            },
+        );
 
+        let r1state = self.r1state.as_ref().unwrap();
         BcastFailType7 {
+            mta_wc_plaintexts: mta_wc_plaintexts.into_vec(),
             k_i: r1state.k_i,
             k_i_randomness: r1state.k_i_randomness.clone(),
-            mta_wc_plaintexts: mta_wc_plaintexts.into_vec(),
             proof,
+            k_i_k256: r1state.k_i_k256.into(),
+            k_i_randomness_k256: r1state.k_i_randomness_k256.clone(),
+            proof_k256,
         }
     }
 }

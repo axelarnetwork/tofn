@@ -1,4 +1,4 @@
-use super::{crimes::Crime, is_empty, r7, Sign, Status};
+use super::{crimes::Crime, r7, Sign, Status};
 use crate::zkp::chaum_pedersen;
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
@@ -28,7 +28,7 @@ impl Sign {
             }
         }
         // can't proceed without everyone's data
-        if !is_empty(&criminals) {
+        if !criminals.iter().all(Vec::is_empty) {
             return criminals;
         }
         // now we can safely unwrap everyone's data
@@ -43,17 +43,18 @@ impl Sign {
         // 1. ecdsa_nonce_summand (k_i)
         // 2. mta_wc_blind_summands.lhs (mu_ij)
         for (i, r7bcast) in all_r7bcasts.iter().enumerate() {
-            // 1. ecdsa_nonce_summand (k_i)
+            let in_r1bcast = self.in_r1bcasts.vec_ref()[i].as_ref().unwrap();
+
+            // curv: 1. k_i
             let ek = &self.my_secret_key_share.all_eks[self.participant_indices[i]];
-            let encrypted_ecdsa_nonce_summand = Paillier::encrypt_with_chosen_randomness(
+            let k_i_ciphertext = Paillier::encrypt_with_chosen_randomness(
                 ek,
                 RawPlaintext::from(r7bcast.k_i.to_big_int()),
                 &Randomness::from(&r7bcast.k_i_randomness),
             );
-            let in_r1bcast = self.in_r1bcasts.vec_ref()[i].as_ref().unwrap();
-            if *encrypted_ecdsa_nonce_summand.0 != in_r1bcast.k_i_ciphertext.c {
+            if *k_i_ciphertext.0 != in_r1bcast.k_i_ciphertext.c {
                 // this code path triggered by TODO
-                let crime = Crime::R8FailType7BadNonceSummand;
+                let crime = Crime::R8FailType7BadKI;
                 info!(
                     "participant {} detect {:?} by {}",
                     self.my_participant_index, crime, i
@@ -61,19 +62,33 @@ impl Sign {
                 criminals[i].push(crime);
             }
 
-            // 2. mta_wc_keyshare_summands.lhs (mu_ij)
-            for (j, mta_wc_keyshare_summand) in r7bcast.mta_wc_plaintexts.iter().enumerate() {
+            // k256: 1. k_i
+            let ek_k256 = &self.my_secret_key_share.all_eks_k256[self.participant_indices[i]];
+            let k_i_ciphertext_k256 = ek_k256.encrypt_with_randomness(
+                &r7bcast.k_i_k256.unwrap().into(),
+                &r7bcast.k_i_randomness_k256,
+            );
+            if k_i_ciphertext_k256 != in_r1bcast.k_i_ciphertext_k256 {
+                let crime = Crime::R8FailType7BadKI;
+                info!(
+                    "participant {} detect {:?} by {}",
+                    self.my_participant_index, crime, i
+                );
+                criminals[i].push(crime);
+            }
+
+            // curv: 2. mu_ij
+            for (j, mta_wc_plaintext) in r7bcast.mta_wc_plaintexts.iter().enumerate() {
                 if j == i {
                     continue;
                 }
-                let mta_wc_keyshare_summand = mta_wc_keyshare_summand.as_ref().unwrap();
-                let mta_wc_keyshare_summand_lhs_ciphertext =
-                    Paillier::encrypt_with_chosen_randomness(
-                        ek,
-                        RawPlaintext::from(&mta_wc_keyshare_summand.mu_plaintext),
-                        &Randomness::from(&mta_wc_keyshare_summand.mu_randomness),
-                    );
-                if *mta_wc_keyshare_summand_lhs_ciphertext.0
+                let mta_wc_plaintext = mta_wc_plaintext.as_ref().unwrap();
+                let mu_ciphertext = Paillier::encrypt_with_chosen_randomness(
+                    ek,
+                    RawPlaintext::from(&mta_wc_plaintext.mu_plaintext),
+                    &Randomness::from(&mta_wc_plaintext.mu_randomness),
+                );
+                if *mu_ciphertext.0
                     != self.in_all_r2p2ps[j].vec_ref()[i]
                         .as_ref()
                         .unwrap()
@@ -81,7 +96,32 @@ impl Sign {
                         .c
                 {
                     // this code path triggered by TODO
-                    let crime = Crime::R8FailType7MtaWcKeyshareSummandLhs { victim: j };
+                    let crime = Crime::R8FailType7BadMu { victim: j };
+                    info!(
+                        "participant {} detect {:?} (mu_ij) by {}",
+                        self.my_participant_index, crime, i
+                    );
+                    criminals[i].push(crime);
+                }
+            }
+
+            // k256: 2. mu_ij
+            for (j, mta_wc_plaintext) in r7bcast.mta_wc_plaintexts.iter().enumerate() {
+                if j == i {
+                    continue;
+                }
+                let mta_wc_plaintext = mta_wc_plaintext.as_ref().unwrap();
+                let mu_ciphertext_k256 = ek_k256.encrypt_with_randomness(
+                    &mta_wc_plaintext.mu_plaintext_k256,
+                    &mta_wc_plaintext.mu_randomness_k256,
+                );
+                if mu_ciphertext_k256
+                    != self.in_all_r2p2ps[j].vec_ref()[i]
+                        .as_ref()
+                        .unwrap()
+                        .mu_ciphertext_k256
+                {
+                    let crime = Crime::R8FailType7BadMu { victim: j };
                     info!(
                         "participant {} detect {:?} (mu_ij) by {}",
                         self.my_participant_index, crime, i
@@ -90,6 +130,8 @@ impl Sign {
                 }
             }
         }
+
+        // DONE TO HERE
 
         // compute ecdsa nonce k = sum_i k_i
         let zero: FE = ECScalar::zero();
@@ -151,7 +193,7 @@ impl Sign {
             });
         }
 
-        if is_empty(&criminals) {
+        if criminals.iter().all(Vec::is_empty) {
             error!(
                 "participant {} detect 'type 7' fault but found no criminals",
                 self.my_participant_index,

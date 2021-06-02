@@ -308,12 +308,6 @@ impl Sign {
 
 pub type SignOutput = Result<Vec<u8>, Vec<Vec<crimes::Crime>>>;
 
-// TODO need a fancier struct for Vec<Vec<Crime>>
-// eg. need a is_empty() method, etc
-fn is_empty(criminals: &[Vec<crimes::Crime>]) -> bool {
-    criminals.iter().all(|c| c.is_empty())
-}
-
 #[cfg(feature = "malicious")] // TODO hack type7 fault
 fn corrupt_scalar(x: &FE) -> FE {
     let one: FE = ECScalar::from(&BigInt::from(1));
