@@ -289,6 +289,13 @@ impl Sign {
             sigma_i = sigma_i + mus[i].unwrap().add(&r2state.nus[i].unwrap().get_element());
         }
 
+        #[cfg(feature = "malicious")] // TODO hack type7 fault
+        if matches!(self.behaviour, super::malicious::MaliciousType::R3BadSigmaI) {
+            use super::corrupt_scalar;
+            // curv don't do anything
+            // sigma_i = corrupt_scalar(&sigma_i);
+        }
+
         // k256
         let sigma_i_k256 = {
             let mut sum = r1state.k_i_k256 * r1state.w_i_k256; // k_i * w_i
@@ -304,17 +311,14 @@ impl Sign {
                         .beta
                         .unwrap();
             }
+
+            #[cfg(feature = "malicious")] // TODO hack type7 fault
+            if matches!(self.behaviour, super::malicious::MaliciousType::R3BadSigmaI) {
+                sum += k256::Scalar::one();
+            }
+
             sum
         };
-
-        #[cfg(feature = "malicious")] // TODO hack type7 fault
-        if matches!(
-            self.behaviour,
-            super::malicious::MaliciousType::R3BadNonceXKeyshareSummand
-        ) {
-            use super::corrupt_scalar;
-            sigma_i = corrupt_scalar(&sigma_i);
-        }
 
         // curv
         let (t_i, l_i) = pedersen::commit(&sigma_i);

@@ -143,7 +143,7 @@ impl Sign {
         // curv: check for failure of type 7 from section 4.2 of https://eprint.iacr.org/2020/540.pdf
         if S_i_sum != self.my_secret_key_share.ecdsa_public_key {
             warn!(
-                "participant {} detect 'type 7' fault",
+                "(curv) participant {} detect 'type 7' fault",
                 self.my_participant_index
             );
             return Output::FailType7 {
@@ -161,7 +161,7 @@ impl Sign {
             .unwrap();
         if S_i_sum_k256 != *self.my_secret_key_share.y_k256.unwrap() {
             warn!(
-                "participant {} detect 'type 7' fault",
+                "(k256) participant {} detect 'type 7' fault",
                 self.my_participant_index
             );
             return Output::FailType7 {

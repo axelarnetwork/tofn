@@ -1,4 +1,4 @@
-use super::keygen::SecretKeyShare;
+use super::{keygen::SecretKeyShare, vss_k256};
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
 
@@ -292,11 +292,23 @@ impl Sign {
             &self.participant_indices,
         )
     }
+    fn lagrange_coefficient_k256(&self, participant_index: usize) -> k256::Scalar {
+        vss_k256::lagrange_coefficient(participant_index, &self.participant_indices)
+    }
+    fn my_lagrange_coefficient_k256(&self) -> k256::Scalar {
+        self.lagrange_coefficient_k256(self.my_participant_index)
+    }
 
-    fn public_key_summand(&self, participant_index: usize) -> GE {
+    #[allow(non_snake_case)]
+    fn W_i(&self, participant_index: usize) -> GE {
         let party_index = self.participant_indices[participant_index];
         self.my_secret_key_share.all_ecdsa_public_key_shares[party_index]
             * self.lagrangian_coefficient(party_index)
+    }
+    #[allow(non_snake_case)]
+    fn W_i_k256(&self, participant_index: usize) -> k256::ProjectivePoint {
+        self.my_secret_key_share.all_y_i_k256[self.participant_indices[participant_index]].unwrap()
+            * &self.lagrange_coefficient_k256(participant_index)
     }
     fn my_ek_k256(&self) -> &paillier_k256::EncryptionKey {
         &self.my_secret_key_share.all_eks_k256[self.my_secret_key_share.my_index]

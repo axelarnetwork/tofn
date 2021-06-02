@@ -1,5 +1,5 @@
 use super::{crimes::Crime, r7, Sign, Status};
-use crate::zkp::chaum_pedersen;
+use crate::zkp::{chaum_pedersen, chaum_pedersen_k256};
 use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     FE, GE,
@@ -42,6 +42,9 @@ impl Sign {
         // verify that each participant's data is consistent with earlier messages:
         // 1. ecdsa_nonce_summand (k_i)
         // 2. mta_wc_blind_summands.lhs (mu_ij)
+        //
+        // TODO this code for k_i faults is identical to that of r7_fail_type5
+        // TODO maybe you can test this path by choosing fake k_i', w_i' such that k_i'*w_i' == k_i*w_i
         for (i, r7bcast) in all_r7bcasts.iter().enumerate() {
             let in_r1bcast = self.in_r1bcasts.vec_ref()[i].as_ref().unwrap();
 
@@ -56,7 +59,7 @@ impl Sign {
                 // this code path triggered by TODO
                 let crime = Crime::R8FailType7BadKI;
                 info!(
-                    "participant {} detect {:?} by {}",
+                    "(curv) participant {} detect {:?} by {}",
                     self.my_participant_index, crime, i
                 );
                 criminals[i].push(crime);
@@ -71,7 +74,7 @@ impl Sign {
             if k_i_ciphertext_k256 != in_r1bcast.k_i_ciphertext_k256 {
                 let crime = Crime::R8FailType7BadKI;
                 info!(
-                    "participant {} detect {:?} by {}",
+                    "(k256) participant {} detect {:?} by {}",
                     self.my_participant_index, crime, i
                 );
                 criminals[i].push(crime);
@@ -131,11 +134,14 @@ impl Sign {
             }
         }
 
-        // DONE TO HERE
-
-        // compute ecdsa nonce k = sum_i k_i
+        // curv: compute ecdsa nonce k = sum_i k_i
         let zero: FE = ECScalar::zero();
-        let ecdsa_nonce = all_r7bcasts.iter().fold(zero, |acc, b| acc + b.k_i);
+        let k = all_r7bcasts.iter().fold(zero, |acc, b| acc + b.k_i);
+
+        // k256: compute ecdsa nonce k = sum_i k_i
+        let k_k256 = all_r7bcasts
+            .iter()
+            .fold(k256::Scalar::zero(), |acc, b| acc + b.k_i_k256.unwrap());
 
         // verify zkps as per page 19 of https://eprint.iacr.org/2020/540.pdf doc version 20200511:155431
         for (i, r7bcast) in all_r7bcasts.iter().enumerate() {
@@ -151,7 +157,7 @@ impl Sign {
             // thus we may compute sigma_i * G as follows:
             //   k * W_i + sum_{j!=i} (mu_ij - mu_ji) * G
 
-            // compute sum_{j!=i} (mu_ij - mu_ji)
+            // curv: compute sum_{j!=i} (mu_ij - mu_ji)
             let mu_summation =
                 r7bcast
                     .mta_wc_plaintexts
@@ -173,12 +179,30 @@ impl Sign {
                         }
                     });
 
+            // k256: compute sum_{j!=i} (mu_ij - mu_ji)
+            let mu_summation_k256 = r7bcast.mta_wc_plaintexts.iter().enumerate().fold(
+                k256::Scalar::zero(),
+                |acc, (j, summand)| {
+                    if j == i {
+                        acc
+                    } else {
+                        let mu_ij_k256 = summand.as_ref().unwrap().mu_plaintext_k256.to_scalar();
+                        let mu_ji_k256 = all_r7bcasts[j].mta_wc_plaintexts[i]
+                            .as_ref()
+                            .unwrap()
+                            .mu_plaintext_k256
+                            .to_scalar();
+                        acc + mu_ij_k256 - mu_ji_k256
+                    }
+                },
+            );
+
+            // curv
             chaum_pedersen::verify(
                 &chaum_pedersen::Statement {
-                    base1: &GE::generator(),                  // G
-                    base2: &self.r5state.as_ref().unwrap().R, // R
-                    target1: &(self.public_key_summand(i) * ecdsa_nonce
-                        + (GE::generator() * mu_summation)), // sigma_i * G
+                    base1: &GE::generator(),                                        // G
+                    base2: &self.r5state.as_ref().unwrap().R,                       // R
+                    target1: &(self.W_i(i) * k + (GE::generator() * mu_summation)), // sigma_i * G
                     target2: &self.in_r6bcasts.vec_ref()[i].as_ref().unwrap().S_i, // sigma_i * R == S_i
                 },
                 &r7bcast.proof,
@@ -186,7 +210,31 @@ impl Sign {
             .unwrap_or_else(|e| {
                 let crime = Crime::R8FailType7BadZkp;
                 warn!(
-                    "participant {} detect {:?} by {} because [{}]",
+                    "(curv) participant {} detect {:?} by {} because [{}]",
+                    self.my_participant_index, crime, i, e
+                );
+                criminals[i].push(crime);
+            });
+
+            // k256
+            chaum_pedersen_k256::verify(
+                &chaum_pedersen_k256::Statement {
+                    base1: &k256::ProjectivePoint::generator(),
+                    base2: &self.r5state.as_ref().unwrap().R_k256,
+                    target1: &(self.W_i_k256(i) * k_k256
+                        + (k256::ProjectivePoint::generator() * mu_summation_k256)), // sigma_i * G
+                    target2: &self.in_r6bcasts.vec_ref()[i]
+                        .as_ref()
+                        .unwrap()
+                        .S_i_k256
+                        .unwrap(), // sigma_i * R == S_i
+                },
+                &r7bcast.proof_k256,
+            )
+            .unwrap_or_else(|e| {
+                let crime = Crime::R8FailType7BadZkp;
+                warn!(
+                    "(k256) participant {} detect {:?} by {} because [{}]",
                     self.my_participant_index, crime, i, e
                 );
                 criminals[i].push(crime);

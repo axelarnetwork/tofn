@@ -25,7 +25,7 @@ pub enum MaliciousType {
     UnauthenticatedSender { victim: usize, status: Status },
     Staller { msg_type: MsgType },
     DisrupringSender { msg_type: MsgType },
-    R3BadNonceXKeyshareSummand, // triggers r7::Output::FailType7
+    R3BadSigmaI, // triggers r7::Output::FailType7
     R1BadProof { victim: usize },
     R1BadGammaI, // triggers r6::Output::FailType5
     R2FalseAccusation { victim: usize },
@@ -98,7 +98,7 @@ impl Protocol for BadSign {
                 // act normal, faulty serialization occurs at the routing level
                 msg_type: _,
             } => self.sign.next_round(),
-            R3BadNonceXKeyshareSummand => self.sign.next_round(), // TODO hack type7 fault
+            R3BadSigmaI => self.sign.next_round(), // TODO hack type7 fault
             R1BadProof { victim } => {
                 if !matches!(self.sign.status, Status::New) {
                     return self.sign.next_round();
@@ -455,7 +455,7 @@ impl Protocol for BadSign {
                     Status::R2 => {
                         match self.sign.r3() {
                             r3::Output::Success {
-                                mut state,
+                                state,
                                 mut out_bcast,
                             } => {
                                 info!(
