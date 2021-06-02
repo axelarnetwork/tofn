@@ -147,18 +147,6 @@ impl Keygen {
                 vss::validate_share(&r2bcast.u_i_share_commitments, &u_i_share, self.my_index)
                     .is_ok();
 
-            #[cfg(feature = "malicious")]
-            let vss_valid = match self.behaviour {
-                Behaviour::R3FalseAccusation { victim } if victim == i && vss_valid => {
-                    info!(
-                        "(curv) malicious party {} do {:?}",
-                        self.my_index, self.behaviour
-                    );
-                    false
-                }
-                _ => vss_valid,
-            };
-
             if !vss_valid {
                 warn!(
                     "(curv) party {} accuse {} of {:?}",
@@ -178,10 +166,23 @@ impl Keygen {
             }
 
             // k256: validate share
-            if !r2bcast
+            let vss_valid_k256 = r2bcast
                 .u_i_share_commits_k256
-                .validate_share(&u_i_share_k256)
-            {
+                .validate_share(&u_i_share_k256);
+
+            #[cfg(feature = "malicious")]
+            let vss_valid = match self.behaviour {
+                Behaviour::R3FalseAccusation { victim } if victim == i && vss_valid_k256 => {
+                    info!(
+                        "(k256) malicious party {} do {:?}",
+                        self.my_index, self.behaviour
+                    );
+                    false
+                }
+                _ => vss_valid_k256,
+            };
+
+            if !vss_valid {
                 warn!(
                     "(k256) party {} accuse {} of {:?}",
                     self.my_index,

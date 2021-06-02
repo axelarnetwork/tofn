@@ -98,7 +98,7 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
     Behaviour::iter()
         .filter(|b| {
             !b.is_honest() && !b.is_spoofer() && !b.is_staller() && !b.is_disrupter()
-            // && matches!(b, R2BadEncryption { victim: _ })
+            // && matches!(b, R2BadShare { victim: _ })
         })
         .map(|b| TestCase {
             threshold: 1,

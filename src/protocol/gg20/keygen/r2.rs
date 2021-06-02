@@ -63,35 +63,63 @@ impl Keygen {
             }
         }
 
-        let my_u_i_shares_k256 = r1state.my_u_i_vss_k256.shares(self.share_count);
-
+        // curv: share my u_i
         let (my_u_i_share_commitments, my_u_i_shares) =
             vss::share(self.threshold, self.share_count, &r1state.my_u_i);
+        assert_eq!(my_u_i_share_commitments[0], r1state.my_y_i);
+
+        // curv don't do anything
+        // #[cfg(feature = "malicious")]
+        // let my_u_i_shares = if let Behaviour::R2BadShare { victim } = self.behaviour {
+        //     info!(
+        //         "(curv) malicious party {} do {:?}",
+        //         self.my_index, self.behaviour
+        //     );
+        //     my_u_i_shares
+        //         .iter()
+        //         .enumerate()
+        //         .map(|(i, s)| {
+        //             if i == victim {
+        //                 let one: FE = ECScalar::from(&BigInt::one());
+        //                 *s + one
+        //             } else {
+        //                 *s
+        //             }
+        //         })
+        //         .collect()
+        // } else {
+        //     my_u_i_shares
+        // };
+
+        // k256:: share my u_i
+        let my_u_i_shares_k256 = r1state.my_u_i_vss_k256.shares(self.share_count);
 
         #[cfg(feature = "malicious")]
-        let my_u_i_shares = if let Behaviour::R2BadShare { victim } = self.behaviour {
-            info!("malicious party {} do {:?}", self.my_index, self.behaviour);
-            my_u_i_shares
+        let my_u_i_shares_k256 = if let Behaviour::R2BadShare { victim } = self.behaviour {
+            info!(
+                "(k256) malicious party {} do {:?}",
+                self.my_index, self.behaviour
+            );
+            my_u_i_shares_k256
                 .iter()
                 .enumerate()
                 .map(|(i, s)| {
                     if i == victim {
-                        let one: FE = ECScalar::from(&BigInt::one());
-                        *s + one
+                        vss_k256::Share::from_scalar(
+                            s.get_scalar() + k256::Scalar::one(),
+                            s.get_index(),
+                        )
                     } else {
-                        *s
+                        s.clone()
                     }
                 })
                 .collect()
         } else {
-            my_u_i_shares
+            my_u_i_shares_k256
         };
-
-        assert_eq!(my_u_i_share_commitments[0], r1state.my_y_i);
 
         let mut out_p2ps = FillVec::with_len(self.share_count);
         let my_share_of_my_u_i = my_u_i_shares[self.my_index];
-        // let my_share_of_my_u_i_k256 = &my_u_i_shares_k256[self.my_index];
         for (i, my_u_i_share) in my_u_i_shares.into_iter().enumerate() {
             if i == self.my_index {
                 continue;
