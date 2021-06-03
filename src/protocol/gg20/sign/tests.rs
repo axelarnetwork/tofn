@@ -250,11 +250,6 @@ fn basic_correctness_inner(
         participant.in_r5bcasts = all_r5_bcasts.clone();
     }
 
-    // curv: TEST: everyone correctly computed R
-    let R = GE::generator() * k.invert();
-    for participant_R in participants.iter().map(|p| p.r5state.as_ref().unwrap().R) {
-        assert_eq!(participant_R, R);
-    }
     // k256: TEST: everyone correctly computed R
     let R_k256 = k256::ProjectivePoint::generator() * k_k256.invert().unwrap();
     for participant_R_k256 in participants

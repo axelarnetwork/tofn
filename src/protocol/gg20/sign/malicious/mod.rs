@@ -672,13 +672,6 @@ impl Protocol for BadSign {
                             self.sign.my_participant_index, self.malicious_type
                         );
 
-                        // curv
-                        let proof = &mut out_p2ps.vec_ref_mut()[victim]
-                            .as_mut()
-                            .unwrap()
-                            .k_i_range_proof_wc;
-                        *proof = range::malicious::corrupt_proof_wc(proof);
-
                         // k256
                         let proof_k256 = &mut out_p2ps.vec_ref_mut()[victim]
                             .as_mut()
