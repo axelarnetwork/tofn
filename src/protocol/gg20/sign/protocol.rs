@@ -96,8 +96,8 @@ impl Protocol for Sign {
                 }
             },
             R5 => match self.r6() {
-                r6::Output::Success { state, out_bcast } => {
-                    self.update_state_r6(state, out_bcast)?;
+                r6::Output::Success { out_bcast } => {
+                    self.update_state_r6(out_bcast)?;
                 }
                 r6::Output::Fail { out_bcast } => {
                     self.update_state_r6fail(out_bcast)?;
@@ -592,17 +592,12 @@ impl Sign {
     }
 
     // TODO refactor copied code from update_state_r2
-    pub(super) fn update_state_r6(
-        &mut self,
-        state: r6::State,
-        out_bcast: r6::Bcast,
-    ) -> ProtocolResult {
+    pub(super) fn update_state_r6(&mut self, out_bcast: r6::Bcast) -> ProtocolResult {
         self.out_r6bcast = Some(bincode::serialize(&MsgMeta {
             msg_type: MsgType::R6Bcast,
             from: self.my_participant_index,
             payload: bincode::serialize(&out_bcast)?,
         })?);
-        self.r6state = Some(state);
         self.status = R6;
         Ok(())
     }

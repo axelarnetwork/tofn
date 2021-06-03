@@ -168,7 +168,6 @@ pub struct Sign {
     r3state: Option<r3::State>,
     r4state: Option<r4::State>,
     r5state: Option<r5::State>,
-    r6state: Option<r6::State>,
     r7state: Option<r7::State>,
 
     // incoming messages
@@ -246,7 +245,6 @@ impl Sign {
             r3state: None,
             r4state: None,
             r5state: None,
-            r6state: None,
             r7state: None,
             in_r1bcasts: FillVec::with_len(participant_count),
             in_all_r1p2ps: vec![FillVec::with_len(participant_count); participant_count],

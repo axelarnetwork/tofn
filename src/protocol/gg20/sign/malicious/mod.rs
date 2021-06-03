@@ -9,7 +9,7 @@ use crate::zkp::{
     paillier::{mta, range},
     pedersen, pedersen_k256,
 };
-use curv::{elliptic::curves::traits::ECScalar, BigInt, FE};
+use curv::BigInt;
 use strum_macros::EnumIter;
 use tracing::{error, info, warn};
 
@@ -400,12 +400,12 @@ impl Protocol for BadSign {
                         }
                     }
                     Status::R5 => match self.sign.r6() {
-                        r6::Output::Success { state, out_bcast } => {
+                        r6::Output::Success { out_bcast } => {
                             error!(
                                     "malicious participant {} round 6 expect fail due to my earlier malicious behaviour in round 3, got success; can't do {:?}; reverting to honesty",
                                     self.sign.my_participant_index, self.malicious_type
                                 );
-                            self.sign.update_state_r6(state, out_bcast)
+                            self.sign.update_state_r6(out_bcast)
                         }
                         r6::Output::Fail { out_bcast } => {
                             warn!(
@@ -488,12 +488,12 @@ impl Protocol for BadSign {
                         }
                     }
                     Status::R5 => match self.sign.r6() {
-                        r6::Output::Success { state, out_bcast } => {
+                        r6::Output::Success { out_bcast } => {
                             error!(
                                     "malicious participant {} round 6 expect fail due to my earlier malicious behaviour in round 3, got success; can't do {:?}; reverting to honesty",
                                     self.sign.my_participant_index, self.malicious_type
                                 );
-                            self.sign.update_state_r6(state, out_bcast)
+                            self.sign.update_state_r6(out_bcast)
                         }
                         r6::Output::Fail { out_bcast } => {
                             warn!(
@@ -576,12 +576,12 @@ impl Protocol for BadSign {
                         }
                     }
                     Status::R5 => match self.sign.r6() {
-                        r6::Output::Success { state, out_bcast } => {
+                        r6::Output::Success { out_bcast } => {
                             error!(
                                     "malicious participant {} round 6 expect fail due to my earlier malicious behaviour in round 3, got success; can't do {:?}; reverting to honesty",
                                     self.sign.my_participant_index, self.malicious_type
                                 );
-                            self.sign.update_state_r6(state, out_bcast)
+                            self.sign.update_state_r6(out_bcast)
                         }
                         r6::Output::Fail { out_bcast } => {
                             warn!(
@@ -720,24 +720,17 @@ impl Protocol for BadSign {
                     return self.sign.next_round();
                 };
                 match self.sign.r6() {
-                    r6::Output::Success {
-                        state,
-                        mut out_bcast,
-                    } => {
+                    r6::Output::Success { mut out_bcast } => {
                         info!(
                             "malicious participant {} do {:?}",
                             self.sign.my_participant_index, self.malicious_type
                         );
 
-                        // curv
-                        let proof = &mut out_bcast.S_i_proof_wc;
-                        *proof = pedersen::malicious::corrupt_proof_wc(proof);
-
                         // k256
                         let proof_k256 = &mut out_bcast.S_i_proof_wc_k256;
                         *proof_k256 = pedersen_k256::malicious::corrupt_proof_wc(proof_k256);
 
-                        self.sign.update_state_r6(state, out_bcast)
+                        self.sign.update_state_r6(out_bcast)
                     }
                     r6::Output::Fail { out_bcast } => {
                         warn!(

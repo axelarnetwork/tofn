@@ -268,8 +268,7 @@ fn basic_correctness_inner(
     let mut all_r6_bcasts = FillVec::with_len(participants.len());
     for (i, participant) in participants.iter_mut().enumerate() {
         match participant.r6() {
-            r6::Output::Success { state, out_bcast } => {
-                participant.r6state = Some(state);
+            r6::Output::Success { out_bcast } => {
                 participant.status = Status::R6;
                 all_r6_bcasts.insert(i, out_bcast).unwrap();
             }
