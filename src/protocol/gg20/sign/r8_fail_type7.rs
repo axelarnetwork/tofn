@@ -1,10 +1,5 @@
 use super::{crimes::Crime, r7, Sign, Status};
-use crate::zkp::{chaum_pedersen, chaum_pedersen_k256};
-use curv::{
-    elliptic::curves::traits::{ECPoint, ECScalar},
-    FE, GE,
-};
-use paillier::{EncryptWithChosenRandomness, Paillier, Randomness, RawPlaintext};
+use crate::zkp::chaum_pedersen_k256;
 use tracing::{error, info, warn};
 
 impl Sign {
