@@ -68,6 +68,10 @@ impl BadSign {
         self.sign.waiting_on()
     }
 
+    pub fn found_disrupting(&self) -> bool {
+        self.sign.found_disrupting()
+    }
+
     pub fn clone_output(&self) -> Option<SignOutput> {
         self.sign.clone_output()
     }

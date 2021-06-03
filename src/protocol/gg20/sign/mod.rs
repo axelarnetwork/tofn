@@ -234,6 +234,9 @@ impl Sign {
             final_output: None,
         })
     }
+    pub fn found_disrupting(&self) -> bool {
+        !self.disrupting_parties.is_empty()
+    }
     pub fn clone_output(&self) -> Option<SignOutput> {
         self.final_output.clone()
     }

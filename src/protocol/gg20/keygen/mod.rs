@@ -128,6 +128,9 @@ impl Keygen {
             behaviour: malicious::Behaviour::Honest,
         })
     }
+    pub fn found_disrupting(&self) -> bool {
+        !self.disrupting_parties.is_empty()
+    }
     pub fn clone_output(&self) -> Option<KeygenOutput> {
         self.final_output.clone()
     }
