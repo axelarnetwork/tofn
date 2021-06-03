@@ -48,23 +48,6 @@ impl Sign {
         for (i, r7bcast) in all_r7bcasts.iter().enumerate() {
             let in_r1bcast = self.in_r1bcasts.vec_ref()[i].as_ref().unwrap();
 
-            // curv: 1. k_i
-            let ek = &self.my_secret_key_share.all_eks[self.participant_indices[i]];
-            let k_i_ciphertext = Paillier::encrypt_with_chosen_randomness(
-                ek,
-                RawPlaintext::from(r7bcast.k_i.to_big_int()),
-                &Randomness::from(&r7bcast.k_i_randomness),
-            );
-            if *k_i_ciphertext.0 != in_r1bcast.k_i_ciphertext.c {
-                // this code path triggered by TODO
-                let crime = Crime::R8FailType7BadKI;
-                info!(
-                    "(curv) participant {} detect {:?} by {}",
-                    self.my_participant_index, crime, i
-                );
-                criminals[i].push(crime);
-            }
-
             // k256: 1. k_i
             let ek_k256 = &self.my_secret_key_share.all_eks_k256[self.participant_indices[i]];
             let k_i_ciphertext_k256 = ek_k256.encrypt_with_randomness(
@@ -78,34 +61,6 @@ impl Sign {
                     self.my_participant_index, crime, i
                 );
                 criminals[i].push(crime);
-            }
-
-            // curv: 2. mu_ij
-            for (j, mta_wc_plaintext) in r7bcast.mta_wc_plaintexts.iter().enumerate() {
-                if j == i {
-                    continue;
-                }
-                let mta_wc_plaintext = mta_wc_plaintext.as_ref().unwrap();
-                let mu_ciphertext = Paillier::encrypt_with_chosen_randomness(
-                    ek,
-                    RawPlaintext::from(&mta_wc_plaintext.mu_plaintext),
-                    &Randomness::from(&mta_wc_plaintext.mu_randomness),
-                );
-                if *mu_ciphertext.0
-                    != self.in_all_r2p2ps[j].vec_ref()[i]
-                        .as_ref()
-                        .unwrap()
-                        .mu_ciphertext
-                        .c
-                {
-                    // this code path triggered by TODO
-                    let crime = Crime::R8FailType7BadMu { victim: j };
-                    info!(
-                        "participant {} detect {:?} (mu_ij) by {}",
-                        self.my_participant_index, crime, i
-                    );
-                    criminals[i].push(crime);
-                }
             }
 
             // k256: 2. mu_ij
@@ -134,10 +89,6 @@ impl Sign {
             }
         }
 
-        // curv: compute ecdsa nonce k = sum_i k_i
-        let zero: FE = ECScalar::zero();
-        let k = all_r7bcasts.iter().fold(zero, |acc, b| acc + b.k_i);
-
         // k256: compute ecdsa nonce k = sum_i k_i
         let k_k256 = all_r7bcasts
             .iter()
@@ -157,28 +108,6 @@ impl Sign {
             // thus we may compute sigma_i * G as follows:
             //   k * W_i + sum_{j!=i} (mu_ij - mu_ji) * G
 
-            // curv: compute sum_{j!=i} (mu_ij - mu_ji)
-            let mu_summation =
-                r7bcast
-                    .mta_wc_plaintexts
-                    .iter()
-                    .enumerate()
-                    .fold(zero, |acc, (j, summand)| {
-                        if j == i {
-                            acc
-                        } else {
-                            let mu_ij: FE = ECScalar::from(&summand.as_ref().unwrap().mu_plaintext);
-                            let mu_ji: FE = ECScalar::from(
-                                &all_r7bcasts[j].mta_wc_plaintexts[i]
-                                    .as_ref()
-                                    .unwrap()
-                                    .mu_plaintext,
-                            );
-                            let neg_mu_ji: FE = zero.sub(&mu_ji.get_element()); // wow zengo sucks
-                            acc + mu_ij + neg_mu_ji
-                        }
-                    });
-
             // k256: compute sum_{j!=i} (mu_ij - mu_ji)
             let mu_summation_k256 = r7bcast.mta_wc_plaintexts.iter().enumerate().fold(
                 k256::Scalar::zero(),
@@ -196,25 +125,6 @@ impl Sign {
                     }
                 },
             );
-
-            // curv
-            chaum_pedersen::verify(
-                &chaum_pedersen::Statement {
-                    base1: &GE::generator(),                                        // G
-                    base2: &self.r5state.as_ref().unwrap().R,                       // R
-                    target1: &(self.W_i(i) * k + (GE::generator() * mu_summation)), // sigma_i * G
-                    target2: &self.in_r6bcasts.vec_ref()[i].as_ref().unwrap().S_i, // sigma_i * R == S_i
-                },
-                &r7bcast.proof,
-            )
-            .unwrap_or_else(|e| {
-                let crime = Crime::R8FailType7BadZkp;
-                warn!(
-                    "(curv) participant {} detect {:?} by {} because [{}]",
-                    self.my_participant_index, crime, i, e
-                );
-                criminals[i].push(crime);
-            });
 
             // k256
             chaum_pedersen_k256::verify(
