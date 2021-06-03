@@ -29,11 +29,25 @@ impl Sign {
     #[allow(non_snake_case)]
     pub(super) fn r7(&self) -> Output {
         assert!(matches!(self.status, Status::R6));
-        let mut criminals = vec![Vec::new(); self.participant_indices.len()];
 
         // our check for 'type 5' failures succeeded in r6()
         // thus, anyone who sent us a r6::BcastRandomizer is a criminal
         if self.in_r6bcasts_fail_type5.some_count() > 0 {
+            let crime = Crime::R7FailType5FalseComplaint;
+            let criminals: Vec<Vec<Crime>> = self
+                .in_r6bcasts_fail_type5
+                .vec_ref()
+                .iter()
+                .map(|b| {
+                    if b.is_some() {
+                        vec![crime.clone()]
+                    } else {
+                        vec![]
+                    }
+                })
+                .collect();
+
+            // pretty log message
             let complainers: Vec<usize> = self
                 .in_r6bcasts_fail_type5
                 .vec_ref()
@@ -41,21 +55,18 @@ impl Sign {
                 .enumerate()
                 .filter_map(|x| if x.1.is_some() { Some(x.0) } else { None })
                 .collect();
-            let crime = Crime::R7FailType5FalseComplaint;
             warn!(
                 "participant {} detect {:?} by {:?}",
                 self.my_participant_index, crime, complainers
             );
-            for c in complainers {
-                criminals[c].push(crime.clone());
-            }
+
             return Output::Fail { criminals };
         }
 
         let r5state = self.r5state.as_ref().unwrap();
 
-        // k256: verify proofs
-        let criminals_k256: Vec<Vec<Crime>> = self
+        // verify proofs
+        let criminals: Vec<Vec<Crime>> = self
             .participant_indices
             .iter()
             .enumerate()
@@ -87,8 +98,6 @@ impl Sign {
                 }
             })
             .collect();
-
-        assert_eq!(criminals_k256, criminals);
         if !criminals.iter().all(Vec::is_empty) {
             return Output::Fail { criminals };
         }
