@@ -139,7 +139,7 @@ impl Protocol for Sign {
             self.disrupting_parties
                 .overwrite(from_index_range.first, true);
         }
-        res
+        Ok(())
     }
 
     fn get_bcast_out(&self) -> &Option<MsgBytes> {

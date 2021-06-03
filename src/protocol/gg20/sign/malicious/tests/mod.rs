@@ -120,15 +120,15 @@ impl Criminal for SignDisrupter {
         let disrupted_msg = original_msg.clone()[0..original_msg.len() / 2].to_vec();
 
         // send spoofed message to victim and ignore the result
-        // if we did our job correctly, res should be err
-        let res = receiver.set_msg_in(
-            &disrupted_msg,
-            &IndexRange {
-                first: self.index,
-                last: self.index,
-            },
-        );
-        assert!(res.is_err());
+        receiver
+            .set_msg_in(
+                &disrupted_msg,
+                &IndexRange {
+                    first: self.index,
+                    last: self.index,
+                },
+            )
+            .unwrap();
     }
     // check if the current message is the one we want to disrupt
     fn is_crime_round(&self, sender_idx: usize, msg: &[u8]) -> bool {
