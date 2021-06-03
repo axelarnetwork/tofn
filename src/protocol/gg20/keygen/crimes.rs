@@ -14,4 +14,5 @@ pub enum Crime {
     R4FailBadVss { victim: usize },
     R4FailBadEncryption { victim: usize },
     R4FailFalseAccusation { victim: usize },
+    R4BadDLProof,
 }

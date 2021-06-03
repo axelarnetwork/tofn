@@ -65,7 +65,6 @@ impl Sign {
             };
         }
 
-        // DONE TO HERE
         debug!(
             "verification success: curv: {}, k256: {}",
             curv_success, k256_success

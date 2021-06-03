@@ -1,4 +1,4 @@
-use super::{crimes::Crime, r3, Keygen, MsgMeta, MsgType, Status::*};
+use super::{crimes::Crime, r3, r4, Keygen, MsgMeta, MsgType, Status::*};
 use crate::{
     fillvec::FillVec,
     protocol::{IndexRange, MsgBytes, Protocol, ProtocolResult},
@@ -112,10 +112,13 @@ impl Protocol for Keygen {
                     self.status = R3Fail;
                 }
             },
-            R3 => {
-                self.final_output = Some(Ok(self.r4()));
-                self.status = Done;
-            }
+            R3 => match self.r4() {
+                r4::Output::Success { key_share } => {
+                    self.final_output = Some(Ok(key_share));
+                    self.status = Done;
+                }
+                r4::Output::Fail { criminals } => self.update_state_fail(criminals),
+            },
             R3Fail => self.update_state_fail(self.r4_fail()),
             Done => return Err(From::from("already done")),
             Fail => return Err(From::from("already failed")),

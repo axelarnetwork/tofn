@@ -89,9 +89,18 @@ pub(crate) fn execute_keygen(share_count: usize, threshold: usize) -> Vec<Secret
     // execute round 4 all parties and store their outputs
     let mut all_secret_key_shares = Vec::with_capacity(share_count);
     for party in parties.iter_mut() {
-        let secret_key_share = party.r4();
+        match party.r4() {
+            r4::Output::Success { key_share } => {
+                all_secret_key_shares.push(key_share);
+            }
+            r4::Output::Fail { criminals } => {
+                panic!(
+                    "r4 party {} expect success got failure with criminals: {:?}",
+                    party.my_index, criminals
+                );
+            }
+        }
         party.status = Status::Done;
-        all_secret_key_shares.push(secret_key_share);
     }
     let all_secret_key_shares = all_secret_key_shares; // make read-only
 

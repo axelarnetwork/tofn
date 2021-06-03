@@ -4,6 +4,7 @@ use crate::{
     k256_serde::to_bytes,
     paillier_k256,
     protocol::gg20::{vss, vss_k256},
+    zkp::schnorr_k256,
 };
 use curv::{
     cryptographic_primitives::{
@@ -22,7 +23,8 @@ use {super::malicious::Behaviour, tracing::info};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Bcast {
-    pub dlog_proof: DLogProof,
+    pub dlog_proof: DLogProof,          // curv
+    pub x_i_proof: schnorr_k256::Proof, // k256
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub(super) struct State {
@@ -255,6 +257,18 @@ impl Keygen {
         all_y_i_k256[self.my_index] = k256::ProjectivePoint::generator() * my_x_i_k256;
 
         Output::Success {
+            out_bcast: Bcast {
+                dlog_proof: DLogProof::prove(&my_x_i),
+                x_i_proof: schnorr_k256::prove(
+                    &schnorr_k256::Statement {
+                        base: &k256::ProjectivePoint::generator(),
+                        target: &all_y_i_k256[self.my_index],
+                    },
+                    &schnorr_k256::Witness {
+                        scalar: &my_x_i_k256,
+                    },
+                ),
+            },
             state: State {
                 y,
                 my_x_i,
@@ -262,9 +276,6 @@ impl Keygen {
                 y_k256,
                 my_x_i_k256,
                 all_y_i_k256,
-            },
-            out_bcast: Bcast {
-                dlog_proof: DLogProof::prove(&my_x_i),
             },
         }
     }
