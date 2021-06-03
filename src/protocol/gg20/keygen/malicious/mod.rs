@@ -17,6 +17,7 @@ pub enum Behaviour {
     R2BadShare { victim: usize },
     R2BadEncryption { victim: usize },
     R3FalseAccusation { victim: usize },
+    R3BadXIWitness,
 }
 
 impl Keygen {

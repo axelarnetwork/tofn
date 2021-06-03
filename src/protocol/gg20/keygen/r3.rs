@@ -256,6 +256,12 @@ impl Keygen {
         // k256
         all_y_i_k256[self.my_index] = k256::ProjectivePoint::generator() * my_x_i_k256;
 
+        #[cfg(feature = "malicious")]
+        if matches!(self.behaviour, Behaviour::R3BadXIWitness) {
+            info!("malicious party {} do {:?}", self.my_index, self.behaviour);
+            my_x_i_k256 += k256::Scalar::one();
+        }
+
         Output::Success {
             out_bcast: Bcast {
                 dlog_proof: DLogProof::prove(&my_x_i),

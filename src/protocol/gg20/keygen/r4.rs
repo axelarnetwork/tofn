@@ -20,13 +20,13 @@ impl Keygen {
             .vec_ref()
             .iter()
             .enumerate()
-            .filter_map(|(i, b)| {
+            .map(|(i, b)| {
                 if DLogProof::verify(&b.as_ref().unwrap().dlog_proof).is_err() {
                     let crime = Crime::R4BadDLProof;
                     warn!("(curv) party {} detect {:?} by {}", self.my_index, crime, i);
-                    Some(vec![crime])
+                    vec![crime]
                 } else {
-                    None
+                    vec![]
                 }
             })
             .collect();
@@ -40,7 +40,7 @@ impl Keygen {
             .vec_ref()
             .iter()
             .enumerate()
-            .filter_map(|(i, b)| {
+            .map(|(i, b)| {
                 if schnorr_k256::verify(
                     &schnorr_k256::Statement {
                         base: &k256::ProjectivePoint::generator(),
@@ -52,9 +52,9 @@ impl Keygen {
                 {
                     let crime = Crime::R4BadDLProof;
                     warn!("(k256) party {} detect {:?} by {}", self.my_index, crime, i);
-                    Some(vec![crime])
+                    vec![crime]
                 } else {
-                    None
+                    vec![]
                 }
             })
             .collect();
