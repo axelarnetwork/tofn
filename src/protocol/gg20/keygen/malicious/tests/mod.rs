@@ -235,8 +235,8 @@ fn execute_test_case(t: &test_cases::TestCase) {
             }),
             _ => None,
         })
-        .filter(|staller| staller.is_some())
-        .map(|staller| staller.unwrap())
+        .filter(|disrupter| disrupter.is_some())
+        .map(|disrupter| disrupter.unwrap())
         .collect();
 
     // need to do an extra iteration because we can't return reference to temp objects
