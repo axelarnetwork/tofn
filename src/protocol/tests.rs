@@ -59,7 +59,7 @@ pub(crate) fn execute_protocol_vec_with_criminals(
                             continue;
                         }
                     }
-                    parties[j].set_msg_in(&bcast, &from_index_range).unwrap();
+                    parties[j].set_msg_in(&bcast, &from_index_range);
                 }
             }
 
@@ -76,7 +76,7 @@ pub(crate) fn execute_protocol_vec_with_criminals(
                                     continue;
                                 }
                             }
-                            parties[j].set_msg_in(&p2p, &from_index_range).unwrap();
+                            parties[j].set_msg_in(&p2p, &from_index_range);
                         }
                     }
                 }
