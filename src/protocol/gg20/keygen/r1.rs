@@ -27,7 +27,7 @@ pub(super) struct Bcast {
     pub(super) y_i_commit_k256: hash::Output,
     pub(super) ek_k256: paillier_k256::EncryptionKey,
     pub(super) zkp_k256: paillier_k256::zk::ZkSetup,
-    // TODO NICorrectKeyProof
+    // TODO zk proofs for Paillier keys
 }
 // can't derive Debug because NonZeroScalar doesn't derive Debug
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize

@@ -311,12 +311,10 @@ fn basic_correctness_inner(
     }
 
     // execute round 8 all participants and store their outputs
-    let mut all_sigs = FillVec::with_len(participants.len());
     let mut all_sigs_k256 = FillVec::with_len(participants.len());
     for (i, participant) in participants.iter_mut().enumerate() {
         match participant.r8() {
-            r8::Output::Success { sig, sig_k256 } => {
-                all_sigs.insert(i, sig).unwrap();
+            r8::Output::Success { sig_k256 } => {
                 all_sigs_k256.insert(i, sig_k256).unwrap();
             }
             r8::Output::Fail { criminals } => {
@@ -327,28 +325,6 @@ fn basic_correctness_inner(
             }
         };
         participant.status = Status::Done;
-    }
-
-    // curv: TEST: everyone correctly computed the signature
-    let msg_to_sign_curv = ECScalar::from(&BigInt::from(&msg_to_sign[..]));
-    let r: FE = ECScalar::from(&R.x_coor().unwrap().mod_floor(&FE::q()));
-    let s: FE = k * (msg_to_sign_curv + x * r);
-    let s = {
-        // normalize s
-        let s_bigint = s.to_big_int();
-        let s_neg = FE::q() - &s_bigint;
-        if s_bigint > s_neg {
-            ECScalar::from(&s_neg)
-        } else {
-            s
-        }
-    };
-    for sig in all_sigs.vec_ref().iter() {
-        let (sig_r, sig_s) = extract_r_s(sig.as_ref().unwrap());
-        let (sig_r, sig_s) = (sig_r.as_slice(), sig_s.as_slice());
-        let (sig_r, sig_s): (BigInt, BigInt) = (BigInt::from(sig_r), BigInt::from(sig_s));
-        assert_eq!(sig_r, r.to_big_int());
-        assert_eq!(sig_s, s.to_big_int());
     }
 
     // k256: TEST: everyone correctly computed the signature
@@ -368,10 +344,6 @@ fn basic_correctness_inner(
             sig_k256
         );
     }
-
-    // curv: TEST: the signature verifies
-    let sig = EcdsaSig { r, s };
-    assert!(sig.verify(&y, &msg_to_sign_curv));
 
     // k256: TEST: the signature verifies
     let verifying_key_k256 = y_k256.to_affine();

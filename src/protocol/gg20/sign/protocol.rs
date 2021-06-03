@@ -120,7 +120,7 @@ impl Protocol for Sign {
             R6Fail => self.update_state_fail(self.r7_fail()),
             R6FailType5 => self.update_state_fail(self.r7_fail_type5()),
             R7 => match self.r8() {
-                r8::Output::Success { sig, sig_k256 } => {
+                r8::Output::Success { sig_k256 } => {
                     self.final_output = Some(Ok(sig_k256.as_bytes().to_vec()));
                     self.status = Done;
                 }
