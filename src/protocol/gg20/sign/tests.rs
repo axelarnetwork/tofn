@@ -3,10 +3,7 @@ use crate::protocol::{
     gg20::keygen::{self, SecretKeyShare},
     gg20::tests::sign::{MSG_TO_SIGN, TEST_CASES},
 };
-use curv::{
-    elliptic::curves::traits::{ECPoint, ECScalar},
-    BigInt,
-};
+use curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use ecdsa::{elliptic_curve::sec1::ToEncodedPoint, hazmat::VerifyPrimitive};
 use k256::{
     ecdsa::{DerSignature, Signature},
@@ -47,8 +44,6 @@ fn basic_correctness_inner(
             p.my_secret_key_share.my_index
         );
     }
-
-    let one: FE = ECScalar::from(&BigInt::from(1));
 
     // execute round 1 all participants and store their outputs
     let mut all_r1_bcasts = FillVec::with_len(participants.len());
@@ -134,26 +129,6 @@ fn basic_correctness_inner(
     for participant in participants.iter_mut() {
         participant.in_r3bcasts = all_r3_bcasts.clone();
     }
-
-    // curv: TEST: MtA for delta_i, sigma_i
-    let k = participants
-        .iter()
-        .map(|p| p.r1state.as_ref().unwrap().k_i)
-        .fold(FE::zero(), |acc, x| acc + x);
-    let gamma = participants
-        .iter()
-        .map(|p| p.r1state.as_ref().unwrap().gamma_i)
-        .fold(FE::zero(), |acc, x| acc + x);
-    let k_gamma = participants
-        .iter()
-        .map(|p| p.r3state.as_ref().unwrap().delta_i)
-        .fold(FE::zero(), |acc, x| acc + x);
-    assert_eq!(k_gamma, k * gamma);
-    let k_x = participants
-        .iter()
-        .map(|p| p.r3state.as_ref().unwrap().sigma_i)
-        .fold(FE::zero(), |acc, x| acc + x);
-    assert_eq!(k_x, k * x);
 
     // k256: TEST: MtA for delta_i, sigma_i
     let k_k256 = participants
