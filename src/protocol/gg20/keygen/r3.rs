@@ -1,20 +1,7 @@
 use super::{crimes::Crime, Keygen, Status};
 use crate::{
-    hash,
-    k256_serde::to_bytes,
-    paillier_k256,
-    protocol::gg20::{vss, vss_k256},
-    zkp::schnorr_k256,
+    hash, k256_serde::to_bytes, paillier_k256, protocol::gg20::vss_k256, zkp::schnorr_k256,
 };
-use curv::{
-    cryptographic_primitives::{
-        commitments::{hash_commitment::HashCommitment, traits::Commitment},
-        proofs::sigma_dlog::{DLogProof, ProveDLog},
-    },
-    elliptic::curves::traits::{ECPoint, ECScalar},
-    BigInt, FE, GE,
-};
-use paillier::{Open, Paillier, RawCiphertext};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
@@ -23,15 +10,10 @@ use {super::malicious::Behaviour, tracing::info};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Bcast {
-    pub dlog_proof: DLogProof,          // curv
-    pub x_i_proof: schnorr_k256::Proof, // k256
+    pub x_i_proof: schnorr_k256::Proof,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub(super) struct State {
-    pub(super) y: GE, // the final pub key
-    pub(super) my_x_i: FE,
-    pub(super) all_y_i: Vec<GE>, // these sum to y
-
     pub(super) y_k256: k256::ProjectivePoint,
     pub(super) my_x_i_k256: k256::Scalar,
     pub(super) all_y_i_k256: Vec<k256::ProjectivePoint>,
@@ -45,12 +27,6 @@ pub struct BcastFail {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Complaint {
     pub criminal_index: usize,
-
-    // curv
-    pub vss_share: FE,
-    pub vss_share_randomness: BigInt,
-
-    // k256
     pub vss_share_k256: vss_k256::Share,
     pub vss_share_randomness_k256: paillier_k256::Randomness,
 }
@@ -64,24 +40,13 @@ pub(super) enum Output {
 impl Keygen {
     pub(super) fn r3(&self) -> Output {
         assert!(matches!(self.status, Status::R2));
-        let r1state = self.r1state.as_ref().unwrap();
         let r2state = self.r2state.as_ref().unwrap();
 
         let mut criminals = vec![Vec::new(); self.share_count];
         let mut vss_failures = Vec::new();
 
         // check commitments
-        // compute my_ecdsa_secret_key_share, ecdsa_public_key, all_ecdsa_public_key_shares
-
-        // curv
-        let mut y = r1state.my_y_i;
-        let mut my_x_i = r2state.my_share_of_my_u_i;
-        let mut all_y_i: Vec<GE> = (0..self.share_count)
-            // start each summation with my contribution
-            .map(|i| vss::get_point_commitment(&r2state.my_u_i_share_commitments, i))
-            .collect();
-
-        // k256
+        // compute x_i, y, all y_i
         let my_vss_commit_k256 = &self.in_r2bcasts.vec_ref()[self.my_index]
             .as_ref()
             .unwrap()
@@ -104,18 +69,6 @@ impl Keygen {
                 .as_ref()
                 .unwrap();
 
-            // curv: check y_i_commit
-            let y_i = &r2bcast.u_i_share_commitments[0];
-            let y_i_commit = HashCommitment::create_commitment_with_user_defined_randomness(
-                &y_i.bytes_compressed_to_big_int(),
-                &r2bcast.y_i_reveal,
-            );
-            if y_i_commit != r1bcast.y_i_commit {
-                let crime = Crime::R3BadReveal;
-                warn!("(curv) party {} detect {:?} by {}", self.my_index, crime, i);
-                criminals[i].push(crime);
-            }
-
             // k256: check y_i_commit
             let y_i_k256 = r2bcast.u_i_share_commits_k256.secret_commit();
             let y_i_commit_k256 =
@@ -127,13 +80,6 @@ impl Keygen {
                 criminals[i].push(crime);
             }
 
-            // curv: decrypt share
-            let (u_i_share_plaintext, u_i_share_randomness) = Paillier::open(
-                &self.r1state.as_ref().unwrap().my_dk,
-                &RawCiphertext::from(&my_r2p2p.encrypted_u_i_share),
-            );
-            let u_i_share: FE = ECScalar::from(&u_i_share_plaintext.0);
-
             // k256: decrypt share
             let (u_i_share_plaintext_k256, u_i_share_randomness_k256) = self
                 .r1state
@@ -143,29 +89,6 @@ impl Keygen {
                 .decrypt_with_randomness(&my_r2p2p.u_i_share_ciphertext_k256);
             let u_i_share_k256 =
                 vss_k256::Share::from_scalar(u_i_share_plaintext_k256.to_scalar(), self.my_index);
-
-            // curv: validate share
-            let vss_valid =
-                vss::validate_share(&r2bcast.u_i_share_commitments, &u_i_share, self.my_index)
-                    .is_ok();
-
-            if !vss_valid {
-                warn!(
-                    "(curv) party {} accuse {} of {:?}",
-                    self.my_index,
-                    i,
-                    Crime::R4FailBadVss {
-                        victim: self.my_index
-                    },
-                );
-                vss_failures.push(Complaint {
-                    criminal_index: i,
-                    vss_share: u_i_share,
-                    vss_share_randomness: u_i_share_randomness.0.clone(),
-                    vss_share_k256: u_i_share_k256.clone(),
-                    vss_share_randomness_k256: u_i_share_randomness_k256.clone(),
-                });
-            }
 
             // k256: validate share
             let vss_valid_k256 = r2bcast
@@ -195,22 +118,11 @@ impl Keygen {
                 );
                 vss_failures.push(Complaint {
                     criminal_index: i,
-                    vss_share: u_i_share,
-                    vss_share_randomness: u_i_share_randomness.0,
                     vss_share_k256: u_i_share_k256.clone(),
                     vss_share_randomness_k256: u_i_share_randomness_k256,
                 });
             }
 
-            // curv
-            y = y + y_i;
-            my_x_i = my_x_i + u_i_share;
-
-            for (j, y_i) in all_y_i.iter_mut().enumerate() {
-                *y_i = *y_i + vss::get_point_commitment(&r2bcast.u_i_share_commitments, j);
-            }
-
-            // k256
             y_k256 = y_k256 + y_i_k256;
             my_x_i_k256 = my_x_i_k256 + u_i_share_k256.get_scalar();
 
@@ -228,8 +140,6 @@ impl Keygen {
                 );
                 vss_failures.push(Complaint {
                     criminal_index: self.my_index,
-                    vss_share: FE::new_random(), // doesn't matter what we put here
-                    vss_share_randomness: BigInt::one(), // doesn't matter what we put here
                     vss_share_k256: vss_k256::Share::from_scalar(k256::Scalar::one(), 1), // doesn't matter what we put here
                     vss_share_randomness_k256: self.in_r1bcasts.vec_ref()[self.my_index]
                         .as_ref()
@@ -251,9 +161,6 @@ impl Keygen {
             };
         }
 
-        // curv
-        all_y_i[self.my_index] = GE::generator() * my_x_i;
-        // k256
         all_y_i_k256[self.my_index] = k256::ProjectivePoint::generator() * my_x_i_k256;
 
         #[cfg(feature = "malicious")]
@@ -264,7 +171,6 @@ impl Keygen {
 
         Output::Success {
             out_bcast: Bcast {
-                dlog_proof: DLogProof::prove(&my_x_i),
                 x_i_proof: schnorr_k256::prove(
                     &schnorr_k256::Statement {
                         base: &k256::ProjectivePoint::generator(),
@@ -276,9 +182,6 @@ impl Keygen {
                 ),
             },
             state: State {
-                y,
-                my_x_i,
-                all_y_i,
                 y_k256,
                 my_x_i_k256,
                 all_y_i_k256,
