@@ -18,6 +18,7 @@ pub(super) struct State {
     pub(super) r_k256: k256::Scalar, // k256
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub(super) enum Output {
     Success { state: State, out_bcast: Bcast },

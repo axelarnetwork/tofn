@@ -15,6 +15,9 @@ impl Scalar {
     pub fn unwrap(&self) -> &k256::Scalar {
         &self.0
     }
+
+    // clippy appeasement: unwrap_mut currently used only in malicious mode
+    #[cfg(feature = "malicious")]
     pub fn unwrap_mut(&mut self) -> &mut k256::Scalar {
         &mut self.0
     }
@@ -70,13 +73,7 @@ impl<'de> Visitor<'de> for ScalarVisitor {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct AffinePoint(k256::AffinePoint);
-
-impl AffinePoint {
-    pub fn unwrap(&self) -> &k256::AffinePoint {
-        &self.0
-    }
-}
+struct AffinePoint(k256::AffinePoint);
 
 impl Serialize for AffinePoint {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -113,9 +110,7 @@ impl<'de> Visitor<'de> for AffinePointVisitor {
             k256::AffinePoint::from_encoded_point(
                 &k256::EncodedPoint::from_bytes(v).map_err(E::custom)?,
             )
-            .ok_or(E::custom(
-                "SEC1-encoded point is not on curve secp256k (K-256)",
-            ))?,
+            .ok_or_else(|| E::custom("SEC1-encoded point is not on curve secp256k (K-256)"))?,
         ))
     }
 }

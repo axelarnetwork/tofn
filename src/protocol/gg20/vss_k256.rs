@@ -65,7 +65,7 @@ impl Commit {
             .iter()
             .rev()
             .fold(k256::ProjectivePoint::identity(), |acc, p| {
-                acc * &index_scalar + p.unwrap()
+                acc * index_scalar + p.unwrap()
             })
     }
     pub fn secret_commit(&self) -> &k256::ProjectivePoint {
@@ -107,6 +107,8 @@ impl Share {
     }
 }
 
+// clippy appeasement: recover_secret currently used only in tests
+#[cfg(test)]
 pub fn recover_secret(shares: &[Share], threshold: usize) -> k256::Scalar {
     assert!(shares.len() > threshold);
     struct Point {

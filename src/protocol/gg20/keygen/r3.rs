@@ -51,8 +51,8 @@ impl Keygen {
             .as_ref()
             .unwrap()
             .u_i_share_commits_k256;
-        let mut y_k256 = my_vss_commit_k256.secret_commit().clone();
-        let mut my_x_i_k256 = r2state.my_share_of_my_u_i_k256.get_scalar().clone();
+        let mut y_k256 = *my_vss_commit_k256.secret_commit();
+        let mut my_x_i_k256 = *r2state.my_share_of_my_u_i_k256.get_scalar();
         let mut all_y_i_k256: Vec<k256::ProjectivePoint> = (0..self.share_count)
             // start each summation with my contribution
             .map(|i| my_vss_commit_k256.share_commit(i))
@@ -123,11 +123,11 @@ impl Keygen {
                 });
             }
 
-            y_k256 = y_k256 + y_i_k256;
-            my_x_i_k256 = my_x_i_k256 + u_i_share_k256.get_scalar();
+            y_k256 += y_i_k256;
+            my_x_i_k256 += u_i_share_k256.get_scalar();
 
             for (j, y_i_k256) in all_y_i_k256.iter_mut().enumerate() {
-                *y_i_k256 = *y_i_k256 + r2bcast.u_i_share_commits_k256.share_commit(j);
+                *y_i_k256 += r2bcast.u_i_share_commits_k256.share_commit(j);
             }
         }
 

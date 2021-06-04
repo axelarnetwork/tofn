@@ -67,11 +67,12 @@ impl ZkSetup {
         mulm(&h1_x, &h2_r, self.n_tilde())
     }
 
-    pub fn verify_composite_dlog_proof(&self) -> bool {
-        self.composite_dlog_proof
-            .verify(&self.composite_dlog_statement)
-            .is_ok()
-    }
+    // TODO Paillier proof cleanup
+    // pub fn verify_composite_dlog_proof(&self) -> bool {
+    //     self.composite_dlog_proof
+    //         .verify(&self.composite_dlog_statement)
+    //         .is_ok()
+    // }
 }
 
 // re-implement low-level BigInt functions

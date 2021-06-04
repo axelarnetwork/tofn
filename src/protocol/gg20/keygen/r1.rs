@@ -46,9 +46,9 @@ impl Keygen {
 
         (
             State {
+                dk_k256,
                 my_u_i_vss_k256,
                 my_y_i_reveal_k256,
-                dk_k256,
             },
             Bcast {
                 y_i_commit_k256: my_y_i_commit_k256,
