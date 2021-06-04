@@ -4,10 +4,7 @@ use crate::protocol::{
     gg20::tests::sign::{MSG_TO_SIGN, TEST_CASES},
 };
 use ecdsa::{elliptic_curve::sec1::ToEncodedPoint, hazmat::VerifyPrimitive};
-use k256::{
-    ecdsa::{DerSignature, Signature},
-    FieldBytes,
-};
+use k256::ecdsa::Signature;
 use keygen::tests::execute_keygen;
 use tracing::debug;
 use tracing_test::traced_test; // enable logs in tests
@@ -300,10 +297,4 @@ fn basic_correctness_inner(
     assert!(verifying_key_k256
         .verify_prehashed(&msg_to_sign_k256, &sig_k256)
         .is_ok());
-}
-
-fn extract_r_s(asn1_sig: &DerSignature) -> (FieldBytes, FieldBytes) {
-    let sig = Signature::from_der(asn1_sig.as_bytes()).unwrap();
-    let (sig_r, sig_s) = (sig.r(), sig.s());
-    (From::from(sig_r), From::from(sig_s))
 }

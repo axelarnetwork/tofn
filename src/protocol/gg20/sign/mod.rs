@@ -1,52 +1,7 @@
 use super::{keygen::SecretKeyShare, vss_k256};
+use crate::{fillvec::FillVec, paillier_k256, protocol::MsgBytes};
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
-
-use crate::{
-    fillvec::FillVec,
-    paillier_k256,
-    protocol::{gg20::vss, MsgBytes},
-};
-use curv::{
-    elliptic::curves::traits::{ECPoint, ECScalar},
-    BigInt, FE, GE,
-};
-use k256::{ecdsa::Signature, FieldBytes};
-
-// TODO isn't there a library for this? Yes. It's called k256.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct EcdsaSig {
-    pub r: FE,
-    pub s: FE,
-}
-impl EcdsaSig {
-    pub fn verify(&self, pubkey: &GE, msg: &FE) -> bool {
-        let s_inv = self.s.invert();
-        let randomizer = GE::generator() * (*msg * s_inv) + *pubkey * (self.r * s_inv);
-        self.r == ECScalar::from(&randomizer.x_coor().unwrap().mod_floor(&FE::q()))
-    }
-    pub fn to_k256(&self) -> Signature {
-        let (r, s) = (&self.r.to_big_int(), &self.s.to_big_int());
-        let (r, s): (Vec<u8>, Vec<u8>) = (r.into(), s.into());
-        let (r, s) = (Self::pad(r), Self::pad(s));
-        let (r, s): (FieldBytes, FieldBytes) =
-            (*FieldBytes::from_slice(&r), *FieldBytes::from_slice(&s));
-        let mut sig =
-            Signature::from_scalars(r, s).expect("fail to convert signature bytes to asn1");
-        sig.normalize_s()
-            .expect("fail to normalize signature s value");
-        sig
-    }
-    pub fn pad(v: Vec<u8>) -> Vec<u8> {
-        assert!(v.len() <= 32);
-        if v.len() == 32 {
-            return v;
-        }
-        let mut v_pad = vec![0; 32];
-        v_pad[(32 - v.len())..].copy_from_slice(&v);
-        v_pad
-    }
-}
 
 // only include malicious module in malicious build
 #[cfg(feature = "malicious")]
@@ -148,7 +103,6 @@ pub struct Sign {
 
     // state data
     my_secret_key_share: SecretKeyShare,
-    msg_to_sign: FE, // not used until round 7
     msg_to_sign_k256: k256::Scalar,
 
     // TODO this is a source of bugs
@@ -228,7 +182,6 @@ impl Sign {
     ) -> Result<Self, ParamsError> {
         let my_participant_index = validate_params(my_secret_key_share, participant_indices)?;
         let participant_count = participant_indices.len();
-        let msg_to_sign_curv: FE = ECScalar::from(&BigInt::from(&msg_to_sign[..]));
         let msg_to_sign_k256 =
             k256::Scalar::from_bytes_reduced(k256::FieldBytes::from_slice(&msg_to_sign[..]));
         Ok(Self {
@@ -238,7 +191,6 @@ impl Sign {
             my_secret_key_share: my_secret_key_share.clone(),
             participant_indices: participant_indices.to_vec(),
             my_participant_index,
-            msg_to_sign: msg_to_sign_curv,
             msg_to_sign_k256,
             r1state: None,
             r2state: None,
@@ -283,26 +235,13 @@ impl Sign {
         self.final_output.clone()
     }
 
-    fn lagrangian_coefficient(&self, party_index: usize) -> FE {
-        vss::lagrangian_coefficient(
-            self.my_secret_key_share.share_count,
-            party_index,
-            &self.participant_indices,
-        )
-    }
     fn lagrange_coefficient_k256(&self, participant_index: usize) -> k256::Scalar {
         vss_k256::lagrange_coefficient(participant_index, &self.participant_indices)
     }
-    fn my_lagrange_coefficient_k256(&self) -> k256::Scalar {
-        self.lagrange_coefficient_k256(self.my_participant_index)
-    }
+    // fn my_lagrange_coefficient_k256(&self) -> k256::Scalar {
+    //     self.lagrange_coefficient_k256(self.my_participant_index)
+    // }
 
-    #[allow(non_snake_case)]
-    fn W_i(&self, participant_index: usize) -> GE {
-        let party_index = self.participant_indices[participant_index];
-        self.my_secret_key_share.all_ecdsa_public_key_shares[party_index]
-            * self.lagrangian_coefficient(party_index)
-    }
     #[allow(non_snake_case)]
     fn W_i_k256(&self, participant_index: usize) -> k256::ProjectivePoint {
         self.my_secret_key_share.all_y_i_k256[self.participant_indices[participant_index]].unwrap()
@@ -317,12 +256,6 @@ impl Sign {
 }
 
 pub type SignOutput = Result<Vec<u8>, Vec<Vec<crimes::Crime>>>;
-
-#[cfg(feature = "malicious")] // TODO hack type7 fault
-fn corrupt_scalar(x: &FE) -> FE {
-    let one: FE = ECScalar::from(&BigInt::from(1));
-    *x + one
-}
 
 /// validate_params helper with custom error type
 /// Assume `secret_key_share` is valid and check `participant_indices` against it.
@@ -409,6 +342,3 @@ impl std::fmt::Display for ParamsError {
 
 #[cfg(test)]
 pub(crate) mod tests;
-
-#[cfg(test)]
-mod k256_tests;
