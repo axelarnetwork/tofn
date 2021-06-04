@@ -5,10 +5,7 @@ use crate::paillier_k256;
 use crate::protocol::{
     gg20::keygen::SecretKeyShare, IndexRange, MsgBytes, Protocol, ProtocolResult,
 };
-use crate::zkp::{
-    paillier::{mta, range},
-    pedersen_k256,
-};
+use crate::zkp::{paillier::range, pedersen_k256};
 use strum_macros::EnumIter;
 use tracing::{error, info, warn};
 
@@ -185,19 +182,11 @@ impl Protocol for BadSign {
                             "malicious participant {} do {:?}",
                             self.sign.my_participant_index, self.malicious_type
                         );
-
-                        // curv
-                        let proof =
-                            &mut out_p2ps.vec_ref_mut()[victim].as_mut().unwrap().alpha_proof;
-                        *proof = mta::malicious::corrupt_proof(proof);
-
-                        // k256
                         let proof_k256 = &mut out_p2ps.vec_ref_mut()[victim]
                             .as_mut()
                             .unwrap()
                             .alpha_proof_k256;
                         *proof_k256 = paillier_k256::zk::mta::malicious::corrupt_proof(proof_k256);
-
                         self.sign.update_state_r2(state, out_p2ps)
                     }
                     r2::Output::Fail { out_bcast } => {
@@ -229,19 +218,12 @@ impl Protocol for BadSign {
                             "malicious participant {} do {:?}",
                             self.sign.my_participant_index, self.malicious_type
                         );
-
-                        // curv
-                        let proof = &mut out_p2ps.vec_ref_mut()[victim].as_mut().unwrap().mu_proof;
-                        *proof = mta::malicious::corrupt_proof_wc(proof);
-
-                        // k256
                         let proof_k256 = &mut out_p2ps.vec_ref_mut()[victim]
                             .as_mut()
                             .unwrap()
                             .mu_proof_k256;
                         *proof_k256 =
                             paillier_k256::zk::mta::malicious::corrupt_proof_wc(proof_k256);
-
                         self.sign.update_state_r2(state, out_p2ps)
                     }
                     r2::Output::Fail { out_bcast } => {
