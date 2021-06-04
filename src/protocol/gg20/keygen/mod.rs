@@ -13,17 +13,6 @@ pub struct SecretKeyShare {
     pub threshold: usize,
     pub my_index: usize,
 
-    // curv
-    pub my_dk: DecryptionKey,
-    pub my_ek: EncryptionKey,                 // redundant
-    pub my_zkp: ZkSetup,                      // redundant
-    pub ecdsa_public_key: GE,                 // y
-    pub my_ecdsa_secret_key_share: FE,        // x_i
-    pub all_ecdsa_public_key_shares: Vec<GE>, // y_i
-    pub all_eks: Vec<EncryptionKey>,
-    pub all_zkps: Vec<ZkSetup>,
-
-    // k256
     pub dk_k256: paillier_k256::DecryptionKey,
     pub y_k256: k256_serde::ProjectivePoint,
     pub my_x_i_k256: k256_serde::Scalar,
@@ -224,9 +213,6 @@ impl std::fmt::Display for ParamsError {
         }
     }
 }
-
-#[cfg(test)]
-pub(super) mod tests; // pub(super) so that sign module can see tests::execute_keygen
 
 #[cfg(test)]
 pub(super) mod tests_k256; // pub(super) so that sign module can see tests::execute_keygen

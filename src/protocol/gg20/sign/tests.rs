@@ -5,7 +5,7 @@ use crate::protocol::{
 };
 use ecdsa::{elliptic_curve::sec1::ToEncodedPoint, hazmat::VerifyPrimitive};
 use k256::ecdsa::Signature;
-use keygen::tests::execute_keygen;
+use keygen::tests_k256::execute_keygen;
 use tracing::debug;
 use tracing_test::traced_test; // enable logs in tests
 

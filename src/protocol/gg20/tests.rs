@@ -25,7 +25,7 @@ pub mod keygen {
             let key_share = parties[0].clone_output().unwrap().unwrap();
             for p in parties.iter() {
                 let cur_key = p.clone_output().unwrap().unwrap();
-                assert_eq!(cur_key.ecdsa_public_key, key_share.ecdsa_public_key);
+                assert_eq!(cur_key.y_k256, key_share.y_k256);
             }
         }
 
@@ -37,7 +37,7 @@ pub mod keygen {
 
 pub mod sign {
     use crate::protocol::{
-        gg20::{keygen::tests::execute_keygen, sign::Sign},
+        gg20::{keygen::tests_k256::execute_keygen, sign::Sign},
         tests::execute_protocol_vec,
         Protocol,
     };

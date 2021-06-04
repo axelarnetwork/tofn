@@ -1,7 +1,7 @@
 use super::*;
 use crate::protocol::{
     gg20::{
-        keygen::tests::execute_keygen,
+        keygen::tests_k256::execute_keygen,
         sign::{MsgMeta, MsgType},
         tests::sign::MSG_TO_SIGN,
     },
