@@ -4,13 +4,13 @@ use serde::{Deserialize, Serialize};
 // final output of keygen
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecretKeyShare {
-    pub group: Group,
-    pub share: Share,
+    pub group: KeyGroup,
+    pub share: KeyShare,
 }
 
 /// `Group` contains only info that is identical across all keygen parties
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Group {
+pub struct KeyGroup {
     share_count: usize,
     threshold: usize,
     y_k256: k256_serde::ProjectivePoint,
@@ -19,12 +19,30 @@ pub struct Group {
     all_zkps_k256: Vec<paillier_k256::zk::ZkSetup>,
 }
 
+impl KeyGroup {
+    pub fn share_count(&self) -> usize {
+        self.share_count
+    }
+    pub fn threshold(&self) -> usize {
+        self.threshold
+    }
+    pub fn pubkey_bytes(&self) -> Vec<u8> {
+        self.y_k256.bytes()
+    }
+}
+
 /// `Share` contains only info that is specific to this keygen share
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Share {
+pub struct KeyShare {
     my_index: usize,
     dk_k256: paillier_k256::DecryptionKey,
     my_x_i_k256: k256_serde::Scalar,
+}
+
+impl KeyShare {
+    pub fn index(&self) -> usize {
+        self.my_index
+    }
 }
 
 pub mod keygen;

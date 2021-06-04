@@ -1,4 +1,4 @@
-use super::{vss_k256, Group, SecretKeyShare, Share};
+use super::{vss_k256, KeyGroup, KeyShare, SecretKeyShare};
 use crate::{fillvec::FillVec, paillier_k256, protocol::MsgBytes};
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
@@ -176,8 +176,8 @@ pub struct Sign {
 
 impl Sign {
     pub fn new(
-        key_group: &Group,
-        key_share: &Share,
+        key_group: &KeyGroup,
+        key_share: &KeyShare,
         participant_indices: &[usize],
         msg_to_sign: &[u8; 32],
     ) -> Result<Self, ParamsError> {
@@ -266,8 +266,8 @@ pub type SignOutput = Result<Vec<u8>, Vec<Vec<crimes::Crime>>>;
 /// Assume `secret_key_share` is valid and check `participant_indices` against it.
 /// Returns my index in participant_indices.
 pub fn validate_params(
-    key_group: &Group,
-    key_share: &Share,
+    key_group: &KeyGroup,
+    key_share: &KeyShare,
     participant_indices: &[usize],
 ) -> Result<usize, ParamsError> {
     // number of participants must be at least threshold + 1

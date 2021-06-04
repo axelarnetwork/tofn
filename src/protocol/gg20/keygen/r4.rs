@@ -1,7 +1,7 @@
 use super::{crimes::Crime, Keygen, Status};
 use crate::{
     k256_serde,
-    protocol::gg20::{Group, SecretKeyShare, Share},
+    protocol::gg20::{KeyGroup, KeyShare, SecretKeyShare},
     zkp::schnorr_k256,
 };
 use tracing::warn;
@@ -61,7 +61,7 @@ impl Keygen {
 
         Output::Success {
             key_share: SecretKeyShare {
-                group: Group {
+                group: KeyGroup {
                     share_count: self.share_count,
                     threshold: self.threshold,
                     y_k256: r3state.y_k256.into(),
@@ -73,7 +73,7 @@ impl Keygen {
                     all_eks_k256,
                     all_zkps_k256,
                 },
-                share: Share {
+                share: KeyShare {
                     my_index: self.my_index,
                     dk_k256: r1state.dk_k256.clone(),
                     my_x_i_k256: r3state.my_x_i_k256.into(),
