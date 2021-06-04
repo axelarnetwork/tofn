@@ -1,4 +1,4 @@
-use super::{vss_k256, KeyGroup, KeyShare, SecretKeyShare};
+use super::{vss_k256, KeyGroup, KeyShare, MessageDigest, SecretKeyShare};
 use crate::{fillvec::FillVec, paillier_k256, protocol::MsgBytes};
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
@@ -179,7 +179,7 @@ impl Sign {
         key_group: &KeyGroup,
         key_share: &KeyShare,
         participant_indices: &[usize],
-        msg_to_sign: &[u8; 32],
+        msg_to_sign: &MessageDigest,
     ) -> Result<Self, ParamsError> {
         let my_participant_index = validate_params(key_group, key_share, participant_indices)?;
         let participant_count = participant_indices.len();

@@ -37,13 +37,13 @@ pub mod keygen {
 
 pub mod sign {
     use crate::protocol::{
-        gg20::{keygen::tests_k256::execute_keygen, sign::Sign},
+        gg20::{keygen::tests_k256::execute_keygen, sign::Sign, MessageDigest},
         tests::execute_protocol_vec,
         Protocol,
     };
     use tracing_test::traced_test; // enable logs in tests
 
-    pub const MSG_TO_SIGN: [u8; 32] = [
+    pub const MSG_TO_SIGN: MessageDigest = [
         42, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0,
     ];

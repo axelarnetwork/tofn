@@ -1,11 +1,13 @@
 use super::*;
 use crate::protocol::{
-    gg20::keygen::{self},
-    gg20::tests::sign::{MSG_TO_SIGN, TEST_CASES},
+    gg20::keygen::tests_k256::execute_keygen,
+    gg20::{
+        tests::sign::{MSG_TO_SIGN, TEST_CASES},
+        MessageDigest,
+    },
 };
 use ecdsa::{elliptic_curve::sec1::ToEncodedPoint, hazmat::VerifyPrimitive};
 use k256::ecdsa::Signature;
-use keygen::tests_k256::execute_keygen;
 use tracing::debug;
 use tracing_test::traced_test; // enable logs in tests
 
@@ -26,7 +28,7 @@ fn basic_correctness() {
 fn basic_correctness_inner(
     key_shares: &[SecretKeyShare],
     participant_indices: &[usize],
-    msg_to_sign: &[u8; 32],
+    msg_to_sign: &MessageDigest,
 ) {
     let mut participants: Vec<Sign> = participant_indices
         .iter()

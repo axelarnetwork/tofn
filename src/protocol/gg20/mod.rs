@@ -1,6 +1,9 @@
 use crate::{k256_serde, paillier_k256};
 use serde::{Deserialize, Serialize};
 
+/// sign only 32-byte hash digests
+pub type MessageDigest = [u8; 32];
+
 // final output of keygen
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecretKeyShare {
