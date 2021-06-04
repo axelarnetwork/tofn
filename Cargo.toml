@@ -21,10 +21,9 @@ ecdsa = "0" # needed only for FromDigest trait
 log = "0.4"
 tracing = "0.1"
 
-# baggage from multi-party-ecdsa
-multi-party-ecdsa = { git = "https://github.com/ZenGo-X/multi-party-ecdsa", tag = "v0.4.3" } # for utilities::mta
-curv = { git = "https://github.com/KZen-networks/curv", tag = "v0.2.6", features = ["ec_secp256k1"] }
-paillier = { git = "https://github.com/KZen-networks/rust-paillier", tag = "v0.3.4"}
+# TODO eliminate paillier, zk-paillier dependencies
+# used only in paillier_k256 module
+paillier = { git = "https://github.com/KZen-networks/rust-paillier", tag = "v0.3.4"} 
 zk-paillier = { git = "https://github.com/KZen-networks/zk-paillier", tag = "v0.2.9"}
 
 # iterate enums

@@ -1,10 +1,3 @@
-// use curv::{
-//     arithmetic::traits::{Modulo, Samplable},
-//     cryptographic_primitives::hashing::{hash_sha256::HSha256, traits::Hash},
-//     elliptic::curves::traits::{ECPoint, ECScalar},
-//     BigInt, FE, GE,
-// };
-// use paillier::{EncryptWithChosenRandomness, EncryptionKey, Paillier, Randomness, RawPlaintext};
 use crate::{
     k256_serde,
     paillier_k256::{
@@ -278,10 +271,9 @@ pub mod malicious {
 pub(crate) mod tests {
     use super::{
         malicious::{corrupt_proof, corrupt_proof_wc},
-        Statement, StatementWc, Witness, ZkSetup,
+        BigInt, Statement, StatementWc, Witness, ZkSetup,
     };
     use crate::paillier_k256::{keygen_unsafe, zk::random, Ciphertext, Plaintext};
-    use curv::BigInt;
     use ecdsa::elliptic_curve::Field;
     use tracing_test::traced_test; // enable logs in tests
 
