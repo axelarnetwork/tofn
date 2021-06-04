@@ -11,10 +11,10 @@ crate-type = ["lib"]
 serde = { version = "1.0", features = ["derive"] }
 bincode = "1.2.1"
 
-# k256 baggate
-k256 = "0"
+# k256 baggage
+k256 = "0.8"
 rand = "0.8" # should specify "0" except curv already depends on older versions
-sha2 = "0"
+sha2 = "0.9"
 ecdsa = "0" # needed only for FromDigest trait
 
 # logging
