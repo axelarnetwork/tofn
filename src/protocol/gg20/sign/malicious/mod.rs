@@ -630,14 +630,7 @@ impl Protocol for BadSign {
                             "malicious participant {} do {:?}",
                             self.sign.my_participant_index, self.malicious_type
                         );
-
-                        // curv
-                        let reveal = &mut out_bcast.Gamma_i_reveal;
-                        *reveal += BigInt::from(1);
-
-                        // k256
                         out_bcast.Gamma_i_reveal_k256.corrupt();
-
                         self.sign.update_state_r4(state, out_bcast)
                     }
                     r4::Output::Fail { criminals } => {

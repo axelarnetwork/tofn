@@ -1,9 +1,5 @@
 use super::{crimes::Crime, Sign, Status};
-use crate::{
-    hash, k256_serde,
-    zkp::{pedersen, pedersen_k256},
-};
-use curv::{elliptic::curves::traits::ECScalar, BigInt, FE, GE};
+use crate::{hash, k256_serde, zkp::pedersen_k256};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
@@ -12,17 +8,11 @@ use tracing::warn;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(non_snake_case)]
 pub struct Bcast {
-    // curv
-    pub Gamma_i: GE,
-    pub Gamma_i_reveal: BigInt,
-
-    // k256
     pub Gamma_i_k256: k256_serde::ProjectivePoint,
     pub Gamma_i_reveal_k256: hash::Randomness,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub(super) struct State {
-    pub(super) delta_inv: FE,                // curv
     pub(super) delta_inv_k256: k256::Scalar, // k256
 }
 
@@ -35,37 +25,9 @@ impl Sign {
     pub(super) fn r4(&self) -> Output {
         assert!(matches!(self.status, Status::R3));
         let r1state = self.r1state.as_ref().unwrap();
-        let r3state = self.r3state.as_ref().unwrap();
 
-        // curv: verify proofs, compute delta
-        let mut delta = r3state.delta_i;
-        let mut criminals = vec![Vec::new(); self.participant_indices.len()];
-        for (i, in_r3bcast) in self.in_r3bcasts.vec_ref().iter().enumerate() {
-            if i == self.my_participant_index {
-                continue;
-            }
-            let in_r3bcast = in_r3bcast.as_ref().unwrap();
-
-            pedersen::verify(
-                &pedersen::Statement {
-                    commit: &in_r3bcast.T_i,
-                },
-                &in_r3bcast.T_i_proof,
-            )
-            .unwrap_or_else(|e| {
-                let crime = Crime::R4BadPedersenProof;
-                warn!(
-                    "(curv) participant {} detect {:?} by {} because [{}]",
-                    self.my_participant_index, crime, i, e
-                );
-                criminals[i].push(crime);
-            });
-
-            delta = delta + in_r3bcast.delta_i;
-        }
-
-        // k256: verify proofs
-        let criminals_k256: Vec<Vec<Crime>> = self
+        // verify proofs
+        let criminals: Vec<Vec<Crime>> = self
             .in_r3bcasts
             .vec_ref()
             .iter()
@@ -92,8 +54,6 @@ impl Sign {
                 }
             })
             .collect();
-
-        assert_eq!(criminals_k256, criminals);
         if !criminals.iter().all(Vec::is_empty) {
             return Output::Fail { criminals };
         }
@@ -111,13 +71,8 @@ impl Sign {
             .unwrap();
 
         Output::Success {
-            state: State {
-                delta_inv: delta.invert(),
-                delta_inv_k256,
-            },
+            state: State { delta_inv_k256 },
             out_bcast: Bcast {
-                Gamma_i: r1state.Gamma_i,
-                Gamma_i_reveal: r1state.Gamma_i_reveal.clone(),
                 Gamma_i_k256: r1state.Gamma_i_k256.into(),
                 Gamma_i_reveal_k256: r1state.Gamma_i_reveal_k256.clone(),
             },

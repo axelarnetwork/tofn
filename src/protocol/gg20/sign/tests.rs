@@ -204,14 +204,6 @@ fn basic_correctness_inner(
         participant.in_r4bcasts = all_r4_bcasts.clone();
     }
 
-    // curv: TEST: everyone correctly computed nonce_x_blind (delta = k*gamma)
-    for delta_inv in participants
-        .iter()
-        .map(|p| p.r4state.as_ref().unwrap().delta_inv)
-    {
-        assert_eq!(delta_inv * k_gamma, one);
-    }
-
     // k256: TEST: everyone correctly computed delta = k * gamma
     for delta_inv_k256 in participants
         .iter()
