@@ -3,7 +3,6 @@ use crate::protocol::{
     gg20::keygen::{self, SecretKeyShare},
     gg20::tests::sign::{MSG_TO_SIGN, TEST_CASES},
 };
-use curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use ecdsa::{elliptic_curve::sec1::ToEncodedPoint, hazmat::VerifyPrimitive};
 use k256::{
     ecdsa::{DerSignature, Signature},
@@ -61,16 +60,6 @@ fn basic_correctness_inner(
     for participant in participants.iter_mut() {
         participant.in_all_r1p2ps = all_r1_p2ps.clone();
         participant.in_r1bcasts = all_r1_bcasts.clone();
-    }
-
-    // curv: TEST: secret key shares yield the pubkey
-    let x = participants
-        .iter()
-        .map(|p| p.r1state.as_ref().unwrap().w_i)
-        .fold(FE::zero(), |acc, w_i| acc + w_i);
-    let y = GE::generator() * x;
-    for key_share in key_shares.iter() {
-        assert_eq!(y, key_share.ecdsa_public_key);
     }
 
     // k256: TEST: secret key shares yield the pubkey

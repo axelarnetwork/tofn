@@ -5,7 +5,7 @@ use crate::paillier_k256;
 use crate::protocol::{
     gg20::keygen::SecretKeyShare, IndexRange, MsgBytes, Protocol, ProtocolResult,
 };
-use crate::zkp::{paillier::range, pedersen_k256};
+use crate::zkp::pedersen_k256;
 use strum_macros::EnumIter;
 use tracing::{error, info, warn};
 
@@ -111,18 +111,11 @@ impl Protocol for BadSign {
                     "malicious participant {} do {:?}",
                     self.sign.my_participant_index, self.malicious_type
                 );
-
-                // curv
-                let proof = &mut p2ps.vec_ref_mut()[victim].as_mut().unwrap().range_proof;
-                *proof = range::malicious::corrupt_proof(proof);
-
-                // k256
                 let proof_k256 = &mut p2ps.vec_ref_mut()[victim]
                     .as_mut()
                     .unwrap()
                     .range_proof_k256;
                 *proof_k256 = paillier_k256::zk::range::malicious::corrupt_proof(proof_k256);
-
                 self.sign.update_state_r1(state, bcast, p2ps)
             }
             R1BadGammaI => {
