@@ -37,10 +37,10 @@ impl Sign {
                         .as_ref()
                         .unwrap()
                         .k_i_ciphertext_k256;
-                    let verifier_ek_k256 =
-                        &self.my_secret_key_share.all_eks_k256[self.participant_indices[accuser]];
-                    let verifier_zkp_k256 =
-                        &self.my_secret_key_share.all_zkps_k256[self.participant_indices[accuser]];
+                    let verifier_ek_k256 = &self.my_secret_key_share.group.all_eks_k256
+                        [self.participant_indices[accuser]];
+                    let verifier_zkp_k256 = &self.my_secret_key_share.group.all_zkps_k256
+                        [self.participant_indices[accuser]];
                     let prover_r2p2p = self.in_all_r2p2ps[accused.participant_index].vec_ref()
                         [accuser]
                         .as_ref()
@@ -81,12 +81,13 @@ impl Sign {
                         r3::Crime::MtaWc => {
                             let prover_party_index =
                                 self.participant_indices[accused.participant_index];
-                            let prover_y_i_k256 =
-                                self.my_secret_key_share.all_y_i_k256[prover_party_index].unwrap()
-                                    * &vss_k256::lagrange_coefficient(
-                                        accused.participant_index,
-                                        &self.participant_indices,
-                                    );
+                            let prover_y_i_k256 = self.my_secret_key_share.group.all_y_i_k256
+                                [prover_party_index]
+                                .unwrap()
+                                * &vss_k256::lagrange_coefficient(
+                                    accused.participant_index,
+                                    &self.participant_indices,
+                                );
 
                             let stmt_k256 = &zk::mta::StatementWc {
                                 stmt: zk::mta::Statement {

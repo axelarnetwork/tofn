@@ -2,9 +2,9 @@ use super::{
     crimes::Crime, r2, r3, r4, r5, r6, r7, MsgType, ParamsError, Sign, SignOutput, Status,
 };
 use crate::paillier_k256;
-use crate::protocol::{
-    gg20::keygen::SecretKeyShare, IndexRange, MsgBytes, Protocol, ProtocolResult,
-};
+use crate::protocol::gg20::Group;
+use crate::protocol::gg20::Share;
+use crate::protocol::{IndexRange, MsgBytes, Protocol, ProtocolResult};
 use crate::zkp::pedersen_k256;
 use strum_macros::EnumIter;
 use tracing::{error, info, warn};
@@ -50,13 +50,14 @@ pub struct BadSign {
 
 impl BadSign {
     pub fn new(
-        my_secret_key_share: &SecretKeyShare,
+        key_group: &Group,
+        key_share: &Share,
         participant_indices: &[usize],
         msg_to_sign: &[u8; 32],
         malicious_type: MaliciousType,
     ) -> Result<Self, ParamsError> {
         // TODO hack type7 fault
-        let mut sign = Sign::new(my_secret_key_share, participant_indices, msg_to_sign)?;
+        let mut sign = Sign::new(key_group, key_share, participant_indices, msg_to_sign)?;
         sign.behaviour = malicious_type.clone();
         Ok(Self {
             sign,

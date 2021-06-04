@@ -59,7 +59,7 @@ impl Sign {
             // 3. beta_ij
             // 4. alpha_ij
             let in_r1bcast = self.in_r1bcasts.vec_ref()[i].as_ref().unwrap();
-            let ek_k256 = &self.my_secret_key_share.all_eks_k256[self.participant_indices[i]];
+            let ek_k256 = &self.my_secret_key_share.group.all_eks_k256[self.participant_indices[i]];
 
             // k_i
             let k_i_ciphertext_k256 = ek_k256.encrypt_with_randomness(
@@ -101,7 +101,7 @@ impl Sign {
 
                 // beta_ij
                 let other_ek_k256 =
-                    &self.my_secret_key_share.all_eks_k256[self.participant_indices[j]];
+                    &self.my_secret_key_share.group.all_eks_k256[self.participant_indices[j]];
                 let other_k_i_ciphertext_k256 = &self.in_r1bcasts.vec_ref()[j]
                     .as_ref()
                     .unwrap()

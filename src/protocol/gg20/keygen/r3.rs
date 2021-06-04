@@ -91,20 +91,20 @@ impl Keygen {
                 vss_k256::Share::from_scalar(u_i_share_plaintext_k256.to_scalar(), self.my_index);
 
             // k256: validate share
-            let vss_valid_k256 = r2bcast
+            let vss_valid = r2bcast
                 .u_i_share_commits_k256
                 .validate_share(&u_i_share_k256);
 
             #[cfg(feature = "malicious")]
             let vss_valid = match self.behaviour {
-                Behaviour::R3FalseAccusation { victim } if victim == i && vss_valid_k256 => {
+                Behaviour::R3FalseAccusation { victim } if victim == i && vss_valid => {
                     info!(
                         "(k256) malicious party {} do {:?}",
                         self.my_index, self.behaviour
                     );
                     false
                 }
-                _ => vss_valid_k256,
+                _ => vss_valid,
             };
 
             if !vss_valid {

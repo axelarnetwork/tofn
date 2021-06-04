@@ -1,4 +1,4 @@
-use super::{keygen::SecretKeyShare, vss_k256};
+use super::{vss_k256, Group, SecretKeyShare, Share};
 use crate::{fillvec::FillVec, paillier_k256, protocol::MsgBytes};
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
@@ -176,11 +176,12 @@ pub struct Sign {
 
 impl Sign {
     pub fn new(
-        my_secret_key_share: &SecretKeyShare,
+        key_group: &Group,
+        key_share: &Share,
         participant_indices: &[usize],
         msg_to_sign: &[u8; 32],
     ) -> Result<Self, ParamsError> {
-        let my_participant_index = validate_params(my_secret_key_share, participant_indices)?;
+        let my_participant_index = validate_params(key_group, key_share, participant_indices)?;
         let participant_count = participant_indices.len();
         let msg_to_sign_k256 =
             k256::Scalar::from_bytes_reduced(k256::FieldBytes::from_slice(&msg_to_sign[..]));
@@ -188,7 +189,10 @@ impl Sign {
             #[cfg(feature = "malicious")] // TODO hack type7 fault
             behaviour: malicious::MaliciousType::Honest,
             status: Status::New,
-            my_secret_key_share: my_secret_key_share.clone(),
+            my_secret_key_share: SecretKeyShare{
+                group: key_group.clone(),
+                share: key_share.clone(),
+            },
             participant_indices: participant_indices.to_vec(),
             my_participant_index,
             msg_to_sign_k256,
@@ -244,14 +248,15 @@ impl Sign {
 
     #[allow(non_snake_case)]
     fn W_i_k256(&self, participant_index: usize) -> k256::ProjectivePoint {
-        self.my_secret_key_share.all_y_i_k256[self.participant_indices[participant_index]].unwrap()
+        self.my_secret_key_share.group.all_y_i_k256[self.participant_indices[participant_index]]
+            .unwrap()
             * &self.lagrange_coefficient_k256(participant_index)
     }
     fn my_ek_k256(&self) -> &paillier_k256::EncryptionKey {
-        &self.my_secret_key_share.all_eks_k256[self.my_secret_key_share.my_index]
+        &self.my_secret_key_share.group.all_eks_k256[self.my_secret_key_share.share.my_index]
     }
     fn my_zkp_k256(&self) -> &paillier_k256::zk::ZkSetup {
-        &self.my_secret_key_share.all_zkps_k256[self.my_secret_key_share.my_index]
+        &self.my_secret_key_share.group.all_zkps_k256[self.my_secret_key_share.share.my_index]
     }
 }
 
@@ -261,11 +266,12 @@ pub type SignOutput = Result<Vec<u8>, Vec<Vec<crimes::Crime>>>;
 /// Assume `secret_key_share` is valid and check `participant_indices` against it.
 /// Returns my index in participant_indices.
 pub fn validate_params(
-    secret_key_share: &SecretKeyShare,
+    key_group: &Group,
+    key_share: &Share,
     participant_indices: &[usize],
 ) -> Result<usize, ParamsError> {
     // number of participants must be at least threshold + 1
-    let t_plus_1 = secret_key_share.threshold + 1;
+    let t_plus_1 = key_group.threshold + 1;
     if participant_indices.len() < t_plus_1 {
         return Err(ParamsError::InvalidParticipantCount(
             t_plus_1,
@@ -276,9 +282,9 @@ pub fn validate_params(
     // check that my index is in the list
     let my_participant_index = participant_indices
         .iter()
-        .position(|&i| i == secret_key_share.my_index);
+        .position(|&i| i == key_share.my_index);
     if my_participant_index.is_none() {
-        return Err(ParamsError::ImNotAParticipant(secret_key_share.my_index));
+        return Err(ParamsError::ImNotAParticipant(key_share.my_index));
     }
 
     // check for duplicate party ids
@@ -294,9 +300,9 @@ pub fn validate_params(
     // check that indices are within range
     // participant_indices_dedup is now sorted and has len > 0, so we need only check the final index
     let max_index = *participant_indices_dedup.last().unwrap();
-    if max_index >= secret_key_share.share_count {
+    if max_index >= key_group.share_count {
         return Err(ParamsError::InvalidParticipantIndex(
-            secret_key_share.share_count - 1,
+            key_group.share_count - 1,
             max_index,
         ));
     }

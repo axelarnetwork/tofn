@@ -243,7 +243,8 @@ fn execute_test_case(t: &test_cases::TestCase) {
         .iter()
         .map(|p| {
             BadSign::new(
-                &key_shares[p.party_index],
+                &key_shares[p.party_index].group,
+                &key_shares[p.party_index].share,
                 &participant_indices,
                 &MSG_TO_SIGN,
                 p.behaviour.clone(),

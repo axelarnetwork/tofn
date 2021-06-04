@@ -1,5 +1,9 @@
-use super::{crimes::Crime, Keygen, SecretKeyShare, Status};
-use crate::{k256_serde, zkp::schnorr_k256};
+use super::{crimes::Crime, Keygen, Status};
+use crate::{
+    k256_serde,
+    protocol::gg20::{Group, SecretKeyShare, Share},
+    zkp::schnorr_k256,
+};
 use tracing::warn;
 
 pub(super) enum Output {
@@ -57,19 +61,23 @@ impl Keygen {
 
         Output::Success {
             key_share: SecretKeyShare {
-                share_count: self.share_count,
-                threshold: self.threshold,
-                my_index: self.my_index,
-                dk_k256: r1state.dk_k256.clone(),
-                y_k256: r3state.y_k256.into(),
-                my_x_i_k256: r3state.my_x_i_k256.into(),
-                all_y_i_k256: r3state
-                    .all_y_i_k256
-                    .iter()
-                    .map(k256_serde::ProjectivePoint::from)
-                    .collect(),
-                all_eks_k256,
-                all_zkps_k256,
+                group: Group {
+                    share_count: self.share_count,
+                    threshold: self.threshold,
+                    y_k256: r3state.y_k256.into(),
+                    all_y_i_k256: r3state
+                        .all_y_i_k256
+                        .iter()
+                        .map(k256_serde::ProjectivePoint::from)
+                        .collect(),
+                    all_eks_k256,
+                    all_zkps_k256,
+                },
+                share: Share {
+                    my_index: self.my_index,
+                    dk_k256: r1state.dk_k256.clone(),
+                    my_x_i_k256: r3state.my_x_i_k256.into(),
+                },
             },
         }
     }

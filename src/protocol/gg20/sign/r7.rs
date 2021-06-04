@@ -110,7 +110,7 @@ impl Sign {
             .map(|o| *o.as_ref().unwrap().S_i_k256.unwrap())
             .reduce(|acc, S_i| acc + S_i)
             .unwrap();
-        if S_i_sum_k256 != *self.my_secret_key_share.y_k256.unwrap() {
+        if S_i_sum_k256 != *self.my_secret_key_share.group.y_k256.unwrap() {
             warn!(
                 "(k256) participant {} detect 'type 7' fault",
                 self.my_participant_index
@@ -181,6 +181,7 @@ impl Sign {
                 .unwrap();
             let (mu_plaintext_k256, mu_randomness_k256) = self
                 .my_secret_key_share
+                .share
                 .dk_k256
                 .decrypt_with_randomness(&in_p2p.mu_ciphertext_k256);
 

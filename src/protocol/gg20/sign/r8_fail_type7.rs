@@ -44,7 +44,7 @@ impl Sign {
             let in_r1bcast = self.in_r1bcasts.vec_ref()[i].as_ref().unwrap();
 
             // k256: 1. k_i
-            let ek_k256 = &self.my_secret_key_share.all_eks_k256[self.participant_indices[i]];
+            let ek_k256 = &self.my_secret_key_share.group.all_eks_k256[self.participant_indices[i]];
             let k_i_ciphertext_k256 = ek_k256.encrypt_with_randomness(
                 &r7bcast.k_i_k256.unwrap().into(),
                 &r7bcast.k_i_randomness_k256,
