@@ -285,8 +285,7 @@ fn basic_correctness_inner(
     }
 
     // k256: TEST: everyone correctly computed the signature
-    let msg_to_sign_k256 =
-        k256::Scalar::from_bytes_reduced(k256::FieldBytes::from_slice(&msg_to_sign[..]));
+    let msg_to_sign_k256 = msg_to_sign.into();
     let r_k256 =
         k256::Scalar::from_bytes_reduced(R_k256.to_affine().to_encoded_point(true).x().unwrap());
     let s_k256 = k_k256 * (msg_to_sign_k256 + x_k256 * r_k256);

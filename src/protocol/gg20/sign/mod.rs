@@ -183,8 +183,7 @@ impl Sign {
     ) -> Result<Self, ParamsError> {
         let my_participant_index = validate_params(key_group, key_share, participant_indices)?;
         let participant_count = participant_indices.len();
-        let msg_to_sign_k256 =
-            k256::Scalar::from_bytes_reduced(k256::FieldBytes::from_slice(&msg_to_sign[..]));
+        let msg_to_sign_k256 = msg_to_sign.into();
         Ok(Self {
             #[cfg(feature = "malicious")] // TODO hack type7 fault
             behaviour: malicious::MaliciousType::Honest,
