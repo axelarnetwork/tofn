@@ -23,8 +23,9 @@ tracing = "0.1"
 
 # TODO eliminate paillier, zk-paillier dependencies
 # used only in paillier_k256 module
-paillier = { git = "https://github.com/KZen-networks/rust-paillier", tag = "v0.3.4"} 
-zk-paillier = { git = "https://github.com/KZen-networks/zk-paillier", tag = "v0.2.9"}
+# paillier = { git = "https://github.com/KZen-networks/rust-paillier", tag = "v0.3.4"} 
+paillier = { path = "../rust-paillier2" }
+# zk-paillier = { git = "https://github.com/KZen-networks/zk-paillier", tag = "v0.2.9"}
 
 # iterate enums
 strum = "0.20"

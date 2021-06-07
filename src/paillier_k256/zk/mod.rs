@@ -1,8 +1,9 @@
 //! Minimize direct use of paillier, zk_paillier crates
 use super::{keygen_unsafe, BigInt, DecryptionKey, EncryptionKey};
+use paillier::zk::{CompositeDLogProof, DLogStatement};
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
-use zk_paillier::zkproofs::{CompositeDLogProof, DLogStatement};
+// use zk_paillier::zkproofs::{CompositeDLogProof, DLogStatement};
 
 pub(crate) mod mta;
 pub(crate) mod range;
