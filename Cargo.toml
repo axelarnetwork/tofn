@@ -13,19 +13,16 @@ bincode = "1.2.1"
 
 # k256 baggage
 k256 = "0.8"
-rand = "0.8" # should specify "0" except curv already depends on older versions
+rand = "0.8"
 sha2 = "0.9"
-ecdsa = "0" # needed only for FromDigest trait
+ecdsa = "0.11" # needed only for FromDigest trait
 
 # logging
 log = "0.4"
 tracing = "0.1"
 
-# TODO eliminate paillier, zk-paillier dependencies
-# used only in paillier_k256 module
-# paillier = { git = "https://github.com/KZen-networks/rust-paillier", tag = "v0.3.4"} 
-paillier = { path = "../rust-paillier2" }
-# zk-paillier = { git = "https://github.com/KZen-networks/zk-paillier", tag = "v0.2.9"}
+# TODO need a better Paillier library
+paillier = { git = "https://github.com/axelarnetwork/rust-paillier"} 
 
 # iterate enums
 strum = "0.20"
