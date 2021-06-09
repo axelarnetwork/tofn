@@ -5,7 +5,7 @@ use crate::protocol::gg20::sign::{crimes::Crime, SignOutput};
 
 pub(super) struct SignParticipant {
     pub(super) party_index: usize,
-    pub(super) behaviour: MaliciousType,
+    pub(super) behaviour: Behaviour,
     pub(super) expected_crimes: Vec<Crime>,
 }
 
@@ -44,7 +44,7 @@ impl TestCase {
     }
 }
 
-pub(super) fn map_type_to_crime(t: &MaliciousType) -> Vec<Crime> {
+pub(super) fn map_type_to_crime(t: &Behaviour) -> Vec<Crime> {
     match t {
         Honest => vec![],
         Staller { msg_type: mt } => vec![Crime::StalledMessage {
@@ -94,7 +94,7 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
     let threshold = 2;
     let expect_success = false;
     // skip Honest and Unauthenticated
-    for m in MaliciousType::iter().filter(|m| {
+    for m in Behaviour::iter().filter(|m| {
         !matches!(
             m,
             Honest
@@ -152,7 +152,7 @@ pub(super) fn generate_spoof_before_honest_cases() -> Vec<TestCase> {
             victim: 1,
             status: s,
         })
-        .collect::<Vec<MaliciousType>>();
+        .collect::<Vec<Behaviour>>();
 
     spoofers
         .iter()
@@ -201,7 +201,7 @@ pub(super) fn generate_spoof_after_honest_cases() -> Vec<TestCase> {
             victim: 0,
             status: s,
         })
-        .collect::<Vec<MaliciousType>>();
+        .collect::<Vec<Behaviour>>();
 
     spoofers
         .iter()
@@ -270,7 +270,7 @@ pub(super) fn generate_skipping_cases() -> Vec<TestCase> {
 pub(super) fn generate_multiple_faults_in_same_round() -> Vec<TestCase> {
     // list all bad behaviours per round
     // I wish all faults of the round X would have a common prefix R'X' so I could use
-    // let r1_faults = MaliciousType:iter().filter(|type| type.contains("R1"));
+    // let r1_faults = Behaviour:iter().filter(|type| type.contains("R1"));
     // instead of manually listing them
     let victim = 0;
     let all_rounds_faults = vec![
@@ -455,7 +455,7 @@ pub(super) fn generate_stall_cases() -> Vec<TestCase> {
             )
         }) // don't match fail types
         .map(|msg_type| Staller { msg_type })
-        .collect::<Vec<MaliciousType>>();
+        .collect::<Vec<Behaviour>>();
 
     stallers
         .iter()
@@ -502,7 +502,7 @@ pub(super) fn generate_disrupt_cases() -> Vec<TestCase> {
             )
         }) // don't match fail types
         .map(|msg_type| DisrupringSender { msg_type })
-        .collect::<Vec<MaliciousType>>();
+        .collect::<Vec<Behaviour>>();
 
     disrupters
         .iter()

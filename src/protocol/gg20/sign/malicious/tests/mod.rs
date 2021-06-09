@@ -209,7 +209,7 @@ fn test_disrupt_cases() {
 
 fn execute_test_case_list(test_cases: &[test_cases::TestCase]) {
     for t in test_cases {
-        let malicious_participants: Vec<(usize, MaliciousType)> = t
+        let malicious_participants: Vec<(usize, Behaviour)> = t
             .sign_participants
             .iter()
             .enumerate()
@@ -248,7 +248,7 @@ fn execute_test_case(t: &test_cases::TestCase) {
     let spoofers: Vec<SignSpoofer> = signers
         .iter()
         .enumerate()
-        .map(|(index, s)| match s.malicious_type.clone() {
+        .map(|(index, s)| match s.behaviour.clone() {
             UnauthenticatedSender { victim, status: s } => Some(SignSpoofer {
                 index,
                 victim,
@@ -263,7 +263,7 @@ fn execute_test_case(t: &test_cases::TestCase) {
     let stallers: Vec<SignStaller> = signers
         .iter()
         .enumerate()
-        .map(|(index, s)| match s.malicious_type.clone() {
+        .map(|(index, s)| match s.behaviour.clone() {
             Staller { msg_type } => Some(SignStaller {
                 index,
                 msg_type: msg_type.clone(),
@@ -277,7 +277,7 @@ fn execute_test_case(t: &test_cases::TestCase) {
     let disrupters: Vec<SignDisrupter> = signers
         .iter()
         .enumerate()
-        .map(|(index, s)| match s.malicious_type.clone() {
+        .map(|(index, s)| match s.behaviour.clone() {
             DisrupringSender { msg_type } => Some(SignDisrupter {
                 index,
                 msg_type: msg_type.clone(),
@@ -299,10 +299,7 @@ fn execute_test_case(t: &test_cases::TestCase) {
     execute_protocol_vec_with_criminals(&mut protocols, &criminals);
 
     // TEST: honest parties finished and correctly computed the criminals list
-    for signer in signers
-        .iter()
-        .filter(|s| matches!(s.malicious_type, Honest))
-    {
+    for signer in signers.iter().filter(|s| matches!(s.behaviour, Honest)) {
         // if party has finished, check that result was the expected one
         if let Some(output) = signer.clone_output() {
             t.assert_expected_output(&output);

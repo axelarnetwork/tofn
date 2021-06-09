@@ -16,8 +16,8 @@ pub enum Status {
     Fail,
 }
 
-// MaliciousType includes UnauthonticatedSender{victim, status} and we use
-// strum to make MaliciousType iterable. Strum needs for all included enums
+// Behaviour includes UnauthonticatedSender{victim, status} and we use
+// strum to make Behaviour iterable. Strum needs for all included enums
 // that contain complex data to provide a default method:
 // https://docs.rs/strum/0.14.0/strum/?search=#strum-macros
 impl Default for Status {
