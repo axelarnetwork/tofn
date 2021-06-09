@@ -40,8 +40,8 @@ impl Keygen {
             my_y_i_commit_k256
         };
 
-        let (ek_k256, dk_k256) = paillier_k256::keygen_unsafe();
-        let zkp_k256 = paillier_k256::zk::ZkSetup::new_unsafe();
+        let (ek_k256, dk_k256) = paillier_k256::keygen_unsafe(&mut rand::thread_rng());
+        let zkp_k256 = paillier_k256::zk::ZkSetup::new_unsafe(&mut rand::thread_rng());
         // TODO Paillier key proofs
 
         (

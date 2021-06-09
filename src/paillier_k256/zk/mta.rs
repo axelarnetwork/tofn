@@ -281,7 +281,7 @@ pub(crate) mod tests {
     #[traced_test]
     fn basic_correctness() {
         // create a (statement, witness) pair
-        let (ek, _dk) = &keygen_unsafe();
+        let (ek, _dk) = &keygen_unsafe(&mut rand::thread_rng());
         let msg = &Plaintext(ek.sample_randomness().0);
         let x = &k256::Scalar::random(rand::thread_rng());
         let x_g = &(k256::ProjectivePoint::generator() * x);
@@ -302,7 +302,7 @@ pub(crate) mod tests {
         };
         let stmt = &stmt_wc.stmt;
         let wit = &Witness { msg, randomness, x };
-        let zkp = ZkSetup::new_unsafe();
+        let zkp = ZkSetup::new_unsafe(&mut rand::thread_rng());
 
         // test: valid proof
         let proof = zkp.mta_proof(stmt, wit);
