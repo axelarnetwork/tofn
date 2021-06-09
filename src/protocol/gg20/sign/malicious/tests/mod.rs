@@ -23,30 +23,26 @@ impl Criminal for SignSpoofer {
     // send to the victim the original message and a spoofed duplicated one
     fn do_crime(&self, original_msg: &[u8], victim: &mut dyn Protocol) {
         // first, send the message to receiver and then create a _duplicate_ message
-        victim
-            .set_msg_in(
-                &original_msg,
-                &IndexRange {
-                    first: self.index,
-                    last: self.index,
-                },
-            )
-            .unwrap();
+        victim.set_msg_in(
+            &original_msg,
+            &IndexRange {
+                first: self.index,
+                last: self.index,
+            },
+        );
 
         // deserialize message and change `from` field
         let mut msg: MsgMeta = bincode::deserialize(original_msg).unwrap();
         msg.from = self.victim;
         let msg = bincode::serialize(&msg).unwrap();
         // send spoofed message to victim
-        victim
-            .set_msg_in(
-                &msg,
-                &IndexRange {
-                    first: self.index,
-                    last: self.index,
-                },
-            )
-            .unwrap();
+        victim.set_msg_in(
+            &msg,
+            &IndexRange {
+                first: self.index,
+                last: self.index,
+            },
+        );
     }
     // check if the current round is the spoof round
     fn is_crime_round(&self, sender_idx: usize, msg: &[u8]) -> bool {
@@ -106,29 +102,25 @@ impl Criminal for SignDisrupter {
     // mess bytes and send to receiver
     fn do_crime(&self, original_msg: &[u8], receiver: &mut dyn Protocol) {
         // first, send the message to receiver and then create a _duplicate_ message
-        receiver
-            .set_msg_in(
-                &original_msg,
-                &IndexRange {
-                    first: self.index,
-                    last: self.index,
-                },
-            )
-            .unwrap();
+        receiver.set_msg_in(
+            &original_msg,
+            &IndexRange {
+                first: self.index,
+                last: self.index,
+            },
+        );
 
         // disrupt the message
         let disrupted_msg = original_msg.clone()[0..original_msg.len() / 2].to_vec();
 
         // send spoofed message to victim and ignore the result
-        // if we did our job correctly, res should be err
-        let res = receiver.set_msg_in(
+        receiver.set_msg_in(
             &disrupted_msg,
             &IndexRange {
                 first: self.index,
                 last: self.index,
             },
         );
-        assert!(res.is_err());
     }
     // check if the current message is the one we want to disrupt
     fn is_crime_round(&self, sender_idx: usize, msg: &[u8]) -> bool {

@@ -68,6 +68,10 @@ impl BadSign {
         self.sign.waiting_on()
     }
 
+    pub fn found_disrupting(&self) -> bool {
+        self.sign.found_disrupting()
+    }
+
     pub fn clone_output(&self) -> Option<SignOutput> {
         self.sign.clone_output()
     }
@@ -760,8 +764,8 @@ impl Protocol for BadSign {
             }
         }
     }
-    fn set_msg_in(&mut self, msg: &[u8], index_range: &IndexRange) -> ProtocolResult {
-        self.sign.set_msg_in(msg, index_range)
+    fn set_msg_in(&mut self, msg: &[u8], index_range: &IndexRange) {
+        self.sign.set_msg_in(msg, index_range);
     }
     fn get_bcast_out(&self) -> &Option<MsgBytes> {
         self.sign.get_bcast_out()

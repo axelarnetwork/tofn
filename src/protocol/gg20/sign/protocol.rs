@@ -133,13 +133,12 @@ impl Protocol for Sign {
         Ok(())
     }
 
-    fn set_msg_in(&mut self, msg: &[u8], from_index_range: &IndexRange) -> ProtocolResult {
+    fn set_msg_in(&mut self, msg: &[u8], from_index_range: &IndexRange) {
         let res = self.set_msg_in_inner(&msg, &from_index_range);
         if res.is_err() {
             self.disrupting_parties
                 .overwrite(from_index_range.first, true);
         }
-        res
     }
 
     fn get_bcast_out(&self) -> &Option<MsgBytes> {
