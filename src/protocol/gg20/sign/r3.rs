@@ -183,7 +183,7 @@ impl Sign {
             }
 
             #[cfg(feature = "malicious")] // TODO hack type7 fault
-            if matches!(self.behaviour, super::malicious::MaliciousType::R3BadSigmaI) {
+            if matches!(self.behaviour, super::malicious::Behaviour::R3BadSigmaI) {
                 sum += k256::Scalar::one();
             }
 
