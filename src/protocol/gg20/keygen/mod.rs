@@ -1,26 +1,9 @@
-use crate::{fillvec::FillVec, protocol::MsgBytes, zkp::paillier::ZkSetup};
-use curv::{FE, GE};
-use paillier::{DecryptionKey, EncryptionKey};
+use super::SecretKeyShare;
+use crate::{fillvec::FillVec, protocol::MsgBytes};
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
 
-// final output of keygen
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SecretKeyShare {
-    pub share_count: usize,
-    pub threshold: usize,
-    pub my_index: usize,
-    pub my_dk: DecryptionKey,
-    pub my_ek: EncryptionKey,
-    pub my_zkp: ZkSetup,
-    pub ecdsa_public_key: GE,
-    pub my_ecdsa_secret_key_share: FE,
-    pub all_ecdsa_public_key_shares: Vec<GE>,
-    pub all_eks: Vec<EncryptionKey>,
-    pub all_zkps: Vec<ZkSetup>,
-}
-
-pub use curv::elliptic::curves::traits::{ECPoint, ECScalar};
+pub type KeygenOutput = Result<SecretKeyShare, Vec<Vec<crimes::Crime>>>;
 
 #[derive(Clone, Debug, EnumIter, PartialEq)]
 pub enum Status {
@@ -116,30 +99,6 @@ pub struct Keygen {
     behaviour: malicious::Behaviour,
 }
 
-// CommonInfo and ShareInfo only used by tofnd. We choose to define them in
-// tofn because they contain many types that are either private within tofn's
-// scope or belong to crates impored by tofn. To avoid making tofn's structs
-// public and importing creates from tofnd, we only expose these structs that
-// contain all types we need from tofnd's side.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CommonInfo {
-    pub threshold: usize,
-    pub ecdsa_public_key: GE,
-    pub all_ecdsa_public_key_shares: Vec<GE>,
-    pub all_eks: Vec<EncryptionKey>,
-    pub all_zkps: Vec<ZkSetup>,
-    pub share_count: usize,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ShareInfo {
-    pub my_index: usize,
-    pub my_dk: DecryptionKey,
-    pub my_ek: EncryptionKey,
-    pub my_zkp: ZkSetup,
-    pub my_ecdsa_secret_key_share: FE,
-}
-
 impl Keygen {
     pub fn new(share_count: usize, threshold: usize, my_index: usize) -> Result<Self, ParamsError> {
         validate_params(share_count, threshold, my_index)?;
@@ -173,8 +132,6 @@ impl Keygen {
         self.final_output.clone()
     }
 }
-
-pub type KeygenOutput = Result<SecretKeyShare, Vec<Vec<crimes::Crime>>>;
 
 // validate_params helper with custom error type
 // TODO enforce a maximum share_count?
@@ -214,4 +171,4 @@ impl std::fmt::Display for ParamsError {
 }
 
 #[cfg(test)]
-pub(super) mod tests; // pub(super) so that sign module can see tests::execute_keygen
+pub(super) mod tests_k256; // pub(super) so that sign module can see tests::execute_keygen

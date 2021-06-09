@@ -1,47 +1,51 @@
 use std::ops::Neg;
 
-use super::ZkSetup;
-use curv::{
-    arithmetic::traits::{Modulo, Samplable},
-    cryptographic_primitives::hashing::{hash_sha256::HSha256, traits::Hash},
-    elliptic::curves::traits::{ECPoint, ECScalar},
-    BigInt, FE, GE,
+use crate::{
+    k256_serde,
+    paillier_k256::{
+        to_bigint, to_scalar, to_vec,
+        zk::{random, ZkSetup},
+        BigInt, Ciphertext, EncryptionKey, Plaintext, Randomness,
+    },
 };
-use paillier::{EncryptWithChosenRandomness, EncryptionKey, Paillier, Randomness, RawPlaintext};
+use ecdsa::hazmat::FromDigest;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+
+use super::mulm;
 
 #[derive(Clone, Debug)]
 pub struct Statement<'a> {
-    pub ciphertext: &'a BigInt,
+    pub ciphertext: &'a Ciphertext,
     pub ek: &'a EncryptionKey,
 }
 #[derive(Clone, Debug)]
 pub struct Witness<'a> {
-    pub msg: &'a FE,
-    pub randomness: &'a BigInt, // TODO use Paillier::Ransomness instead?
+    pub msg: &'a k256::Scalar,
+    pub randomness: &'a Randomness,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Proof {
     z: BigInt,
-    u: BigInt, // TODO use Paillier::RawCiphertext instead?
+    u: Ciphertext,
     w: BigInt,
-    s: BigInt,
-    s1: BigInt,
+    s: Randomness,
+    s1: Plaintext,
     s2: BigInt,
 }
 
 #[derive(Clone, Debug)]
 pub struct StatementWc<'a> {
     pub stmt: Statement<'a>,
-    pub msg_g: &'a GE,
-    pub g: &'a GE,
+    pub msg_g: &'a k256::ProjectivePoint,
+    pub g: &'a k256::ProjectivePoint,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ProofWc {
     proof: Proof,
-    u1: GE,
+    u1: k256_serde::ProjectivePoint,
 }
 
 impl ZkSetup {
@@ -65,7 +69,7 @@ impl ZkSetup {
         let (proof, u1) = self.range_proof_inner(&stmt.stmt, Some((stmt.msg_g, stmt.g)), wit);
         ProofWc {
             proof,
-            u1: u1.unwrap(),
+            u1: k256_serde::ProjectivePoint::from(u1.unwrap()),
         }
     }
 
@@ -77,7 +81,7 @@ impl ZkSetup {
         self.verify_range_proof_inner(
             &stmt.stmt,
             &proof.proof,
-            Some((stmt.msg_g, stmt.g, &proof.u1)),
+            Some((stmt.msg_g, stmt.g, &proof.u1.unwrap())),
         )
     }
 
@@ -85,49 +89,40 @@ impl ZkSetup {
     fn range_proof_inner(
         &self,
         stmt: &Statement,
-        msg_g_g: Option<(&GE, &GE)>, // (msg_g, g)
+        msg_g_g: Option<(&k256::ProjectivePoint, &k256::ProjectivePoint)>, // (msg_g, g)
         wit: &Witness,
-    ) -> (Proof, Option<GE>) {
-        let alpha = BigInt::sample_below(&self.q3);
-        let beta = Randomness::sample(&stmt.ek); // TODO sample() may not be coprime to stmt.ek.n; do we care?
-        let rho = BigInt::sample_below(&self.q_n_tilde);
-        let gamma = BigInt::sample_below(&self.q3_n_tilde);
+    ) -> (Proof, Option<k256::ProjectivePoint>) {
+        let alpha_pt = Plaintext(random(&self.q3));
+        let alpha_bigint = &alpha_pt.0;
+        let rho = random(&self.q_n_tilde);
+        let gamma = random(&self.q3_n_tilde);
 
-        let z = self.commit(&wit.msg.to_big_int(), &rho);
-        let u =
-            Paillier::encrypt_with_chosen_randomness(stmt.ek, RawPlaintext::from(&alpha), &beta)
-                .0
-                .clone()
-                .into_owned(); // TODO wtf clone into_owned why does paillier suck so bad?
-        let w = self.commit(&alpha, &gamma);
+        let z = self.commit(&to_bigint(&wit.msg), &rho);
+        let (u, beta) = stmt.ek.encrypt(&alpha_pt);
+        let w = self.commit(&alpha_bigint, &gamma);
 
-        let u1 = msg_g_g.map::<GE, _>(|(_, g)| {
-            let alpha: FE = ECScalar::from(&alpha);
-            g * &alpha
-        });
+        let u1 = msg_g_g.map::<k256::ProjectivePoint, _>(|(_, g)| g * &alpha_pt.to_scalar());
 
-        let e = HSha256::create_hash(&[
-            &stmt.ek.n,
-            // TODO add stmt.ek.gamma to this hash like binance? zengo puts a bunch of other crap in here
-            &stmt.ciphertext,
-            &msg_g_g.map_or(BigInt::zero(), |(msg_g, _)| {
-                msg_g.bytes_compressed_to_big_int()
-            }),
-            &msg_g_g.map_or(BigInt::zero(), |(_, g)| g.bytes_compressed_to_big_int()),
-            &z,
-            &u,
-            &u1.map_or(BigInt::zero(), |u1| u1.bytes_compressed_to_big_int()),
-            &w,
-        ])
-        .modulus(&FE::q());
-
-        let s = BigInt::mod_mul(
-            &BigInt::mod_pow(&wit.randomness, &e, &stmt.ek.n),
-            &beta.0,
-            &stmt.ek.n,
+        let e = k256::Scalar::from_digest(
+            Sha256::new()
+                .chain(to_vec(&stmt.ek.0.n))
+                .chain(to_vec(&stmt.ciphertext.0))
+                .chain(&msg_g_g.map_or(Vec::new(), |(msg_g, _)| k256_serde::to_bytes(&msg_g)))
+                .chain(&msg_g_g.map_or(Vec::new(), |(_, g)| k256_serde::to_bytes(&g)))
+                .chain(to_vec(&z))
+                .chain(to_vec(&u.0))
+                .chain(&u1.map_or(Vec::new(), |u1| k256_serde::to_bytes(&u1)))
+                .chain(to_vec(&w)),
         );
-        let s1 = &e * wit.msg.to_big_int() + alpha;
-        let s2 = e * rho + gamma;
+        let e_bigint = to_bigint(&e);
+
+        let s = Randomness(mulm(
+            &wit.randomness.0.powm(&e_bigint, &stmt.ek.0.n),
+            &beta.0,
+            &stmt.ek.0.n,
+        ));
+        let s1 = Plaintext(e_bigint.clone() * to_bigint(wit.msg) + alpha_bigint);
+        let s2 = e_bigint * rho + gamma;
 
         (Proof { z, u, w, s, s1, s2 }, u1)
     }
@@ -136,56 +131,51 @@ impl ZkSetup {
         &self,
         stmt: &Statement,
         proof: &Proof,
-        msg_g_g_u1: Option<(&GE, &GE, &GE)>, // (msg_g, g, u1)
+        msg_g_g_u1: Option<(
+            &k256::ProjectivePoint,
+            &k256::ProjectivePoint,
+            &k256::ProjectivePoint,
+        )>, // (msg_g, g, u1)
     ) -> Result<(), &'static str> {
-        if proof.s1 > self.q3 || proof.s1 < BigInt::zero() {
+        if proof.s1.0 > self.q3 || proof.s1.0 < BigInt::zero() {
             return Err("s1 not in range q^3");
         }
-        let e_neg = HSha256::create_hash(&[
-            &stmt.ek.n,
-            &stmt.ciphertext,
-            &msg_g_g_u1.map_or(BigInt::zero(), |(msg_g, _, _)| {
-                msg_g.bytes_compressed_to_big_int()
-            }),
-            &msg_g_g_u1.map_or(BigInt::zero(), |(_, g, _)| g.bytes_compressed_to_big_int()),
-            &proof.z,
-            &proof.u,
-            &msg_g_g_u1.map_or(BigInt::zero(), |(_, _, u1)| {
-                u1.bytes_compressed_to_big_int()
-            }),
-            &proof.w,
-        ])
-        .modulus(&FE::q())
-        .neg();
+        let e = k256::Scalar::from_digest(
+            Sha256::new()
+                .chain(to_vec(&stmt.ek.0.n))
+                .chain(to_vec(&stmt.ciphertext.0))
+                .chain(&msg_g_g_u1.map_or(Vec::new(), |(msg_g, _, _)| k256_serde::to_bytes(&msg_g)))
+                .chain(&msg_g_g_u1.map_or(Vec::new(), |(_, g, _)| k256_serde::to_bytes(&g)))
+                .chain(to_vec(&proof.z))
+                .chain(to_vec(&proof.u.0))
+                .chain(&msg_g_g_u1.map_or(Vec::new(), |(_, _, u1)| k256_serde::to_bytes(&u1)))
+                .chain(to_vec(&proof.w)),
+        );
+        let e_neg_bigint = to_bigint(&e).neg();
+        let e_neg = e.negate();
 
         if let Some((msg_g, g, u1)) = msg_g_g_u1 {
-            let s1: FE = ECScalar::from(&proof.s1);
+            let s1 = to_scalar(&proof.s1.0);
             let s1_g = g * &s1;
-            let e_neg: FE = ECScalar::from(&e_neg);
             let u1_check = msg_g * &e_neg + s1_g;
             if u1_check != *u1 {
                 return Err("'wc' check fail");
             }
         }
 
-        let u_check = BigInt::mod_mul(
-            &Paillier::encrypt_with_chosen_randomness(
-                stmt.ek,
-                RawPlaintext::from(&proof.s1),
-                &Randomness::from(&proof.s),
-            )
-            .0,
-            &BigInt::mod_pow(&stmt.ciphertext, &e_neg, &stmt.ek.nn),
-            &stmt.ek.nn,
+        let u_check = mulm(
+            &stmt.ek.encrypt_with_randomness(&proof.s1, &proof.s).0,
+            &stmt.ciphertext.0.powm(&e_neg_bigint, &stmt.ek.0.nn),
+            &stmt.ek.0.nn,
         );
-        if u_check != proof.u {
+        if u_check != proof.u.0 {
             return Err("u check fail");
         }
 
-        let w_check = BigInt::mod_mul(
-            &self.commit(&proof.s1, &proof.s2),
-            &BigInt::mod_pow(&proof.z, &e_neg, &self.n_tilde()),
-            &self.n_tilde(),
+        let w_check = mulm(
+            &self.commit(&proof.s1.0, &proof.s2),
+            &proof.z.powm(&e_neg_bigint, self.n_tilde()),
+            self.n_tilde(),
         );
         if w_check != proof.w {
             return Err("w check fail");
@@ -202,13 +192,15 @@ impl ZkSetup {
 // 3. zkp::range
 // in non-malicious test build to avoid code-duplication for malicious tests.
 #[cfg(any(test, feature = "malicious"))]
-pub(crate) mod malicious {
+pub mod malicious {
+    use crate::k256_serde::ProjectivePoint;
+
     use super::*;
 
     pub fn corrupt_proof(proof: &Proof) -> Proof {
         let proof = proof.clone();
         Proof {
-            u: proof.u + BigInt::from(1),
+            u: Ciphertext(proof.u.0 + BigInt::one()),
             ..proof
         }
     }
@@ -216,13 +208,15 @@ pub(crate) mod malicious {
     pub fn corrupt_proof_wc(proof_wc: &ProofWc) -> ProofWc {
         let proof_wc = proof_wc.clone();
         ProofWc {
-            u1: proof_wc.u1 + GE::generator(),
+            u1: ProjectivePoint::from(k256::ProjectivePoint::generator() + proof_wc.u1.unwrap()),
             ..proof_wc
         }
     }
 }
 #[cfg(test)]
 pub mod tests {
+    use crate::paillier_k256::keygen_unsafe;
+
     use super::{
         ZkSetup,
         {
@@ -230,32 +224,18 @@ pub mod tests {
             Statement, StatementWc, Witness,
         },
     };
-    use curv::{
-        elliptic::curves::traits::{ECPoint, ECScalar},
-        BigInt, FE, GE,
-    };
-    use paillier::{
-        EncryptWithChosenRandomness, KeyGeneration, Paillier, Randomness, RawPlaintext,
-    };
+    use ecdsa::elliptic_curve::Field;
     use tracing_test::traced_test; // enable logs in tests
 
     #[test]
     #[traced_test]
     fn basic_correctness() {
         // create a (statement, witness) pair
-        let (ek, _dk) = &Paillier::keypair().keys(); // not using safe primes
-        let msg = &FE::new_random();
-        let g = &GE::generator();
+        let (ek, _dk) = &keygen_unsafe();
+        let msg = &k256::Scalar::random(rand::thread_rng());
+        let g = &k256::ProjectivePoint::generator();
         let msg_g = &(g * msg);
-        let randomness = Randomness::sample(&ek);
-        let ciphertext = &Paillier::encrypt_with_chosen_randomness(
-            ek,
-            RawPlaintext::from(msg.to_big_int()),
-            &randomness,
-        )
-        .0
-        .clone()
-        .into_owned();
+        let (ciphertext, randomness) = &ek.encrypt(&msg.into());
 
         let stmt_wc = &StatementWc {
             stmt: Statement { ciphertext, ek },
@@ -263,10 +243,7 @@ pub mod tests {
             g,
         };
         let stmt = &stmt_wc.stmt;
-        let wit = &Witness {
-            msg,
-            randomness: &randomness.0,
-        };
+        let wit = &Witness { msg, randomness };
         let zkp = ZkSetup::new_unsafe();
 
         // test: valid proof
@@ -287,11 +264,8 @@ pub mod tests {
             .unwrap_err();
 
         // test: bad witness
-        // curv library sucks so bad that I cannot possibly write a corrupt_witness function
-        // curv library does not allow in-place arithmetic
-        let one: FE = ECScalar::from(&BigInt::one());
         let bad_wit = &Witness {
-            msg: &(*wit.msg + one),
+            msg: &(*wit.msg + k256::Scalar::one()),
             ..*wit
         };
         let bad_proof = zkp.range_proof(stmt, bad_wit);

@@ -25,7 +25,7 @@ pub mod keygen {
             let key_share = parties[0].clone_output().unwrap().unwrap();
             for p in parties.iter() {
                 let cur_key = p.clone_output().unwrap().unwrap();
-                assert_eq!(cur_key.ecdsa_public_key, key_share.ecdsa_public_key);
+                assert_eq!(cur_key.group.y_k256, key_share.group.y_k256);
             }
         }
 
@@ -37,14 +37,18 @@ pub mod keygen {
 
 pub mod sign {
     use crate::protocol::{
-        gg20::{keygen::tests::execute_keygen, sign::Sign},
+        gg20::{keygen::tests_k256::execute_keygen, sign::Sign, MessageDigest},
         tests::execute_protocol_vec,
         Protocol,
     };
     use tracing_test::traced_test; // enable logs in tests
 
+    pub const MSG_TO_SIGN: MessageDigest = MessageDigest([
+        42, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0,
+    ]);
+
     lazy_static::lazy_static! {
-        pub static ref MSG_TO_SIGN: Vec<u8> = vec![42];
         pub static ref TEST_CASES: Vec<(usize, usize, Vec<usize>)> = vec![ // (share_count, threshold, participant_indices)
             // (5, 2, vec![1,2,4]),
             (5, 2, vec![4,1,2]),
@@ -64,7 +68,15 @@ pub mod sign {
             // keep it on the stack: avoid use of Box<dyn Protocol> https://doc.rust-lang.org/book/ch17-02-trait-objects.html
             let mut participants: Vec<Sign> = participant_indices
                 .iter()
-                .map(|i| Sign::new(&key_shares[*i], &participant_indices, &MSG_TO_SIGN).unwrap())
+                .map(|i| {
+                    Sign::new(
+                        &key_shares[*i].group,
+                        &key_shares[*i].share,
+                        &participant_indices,
+                        &MSG_TO_SIGN,
+                    )
+                    .unwrap()
+                })
                 .collect();
             let mut protocols: Vec<&mut dyn Protocol> = participants
                 .iter_mut()

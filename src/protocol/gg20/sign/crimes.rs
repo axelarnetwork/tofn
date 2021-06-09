@@ -12,22 +12,24 @@ pub enum Crime {
     R3FailBadRangeProof { victim: usize },
     R3FailFalseAccusation { victim: usize },
     R4BadPedersenProof,
-    R4FailBadRangeProof { victim: usize },
-    R4FailFalseAccusation { victim: usize },
+    R4FailBadMta { victim: usize },
+    R4FailBadMtaWc { victim: usize },
+    R4FailFalseAccusationMta { victim: usize },
+    R4FailFalseAccusationMtaWc { victim: usize },
     R5BadHashCommit,
     R7FailBadRangeProof { victim: usize },
     R7FailFalseAccusation { victim: usize },
     R7BadRangeProof,
     R7FailType5MissingData, // TODO missing unit test
-    R7FailType5BadNonceXBlindSummand,
-    R7FailType5BadNonceSummand,
-    R7FailType5BadBlindSummand,
-    R7FailType5MtaBlindSummandRhs { victim: usize },
-    R7FailType5MtaBlindSummandLhs { victim: usize },
+    R7FailType5BadDeltaI,
+    R7FailType5BadKI,
+    R7FailType5BadGammaI,
+    R7FailType5BadBeta { victim: usize },
+    R7FailType5BadAlpha { victim: usize },
     R7FailType5FalseComplaint,
-    R8BadSigSummand,
-    R8FailType7MissingData,     // TODO missing unit test
-    R8FailType7BadNonceSummand, // TODO missing unit test
-    R8FailType7MtaWcKeyshareSummandLhs { victim: usize }, // TODO missing unit test
+    R8SICheckFail,
+    R8FailType7MissingData,             // TODO missing unit test
+    R8FailType7BadKI,                   // TODO missing unit test
+    R8FailType7BadMu { victim: usize }, // TODO missing unit test
     R8FailType7BadZkp,
 }

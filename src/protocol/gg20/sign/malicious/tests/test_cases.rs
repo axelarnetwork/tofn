@@ -60,27 +60,29 @@ pub(super) fn map_type_to_crime(t: &MaliciousType) -> Vec<Crime> {
         DisrupringSender { msg_type: _ } => vec![Crime::DisruptedMessage],
         R1BadProof { victim: v } => vec![Crime::R3FailBadRangeProof { victim: *v }],
         R2FalseAccusation { victim: v } => vec![Crime::R3FailFalseAccusation { victim: *v }],
-        R2BadMta { victim: v } => vec![Crime::R4FailBadRangeProof { victim: *v }],
-        R2BadMtaWc { victim: v } => vec![Crime::R4FailBadRangeProof { victim: *v }],
-        R3FalseAccusationMta { victim: v } => vec![Crime::R4FailFalseAccusation { victim: *v }],
-        R3FalseAccusationMtaWc { victim: v } => vec![Crime::R4FailFalseAccusation { victim: *v }],
+        R2BadMta { victim: v } => vec![Crime::R4FailBadMta { victim: *v }],
+        R2BadMtaWc { victim: v } => vec![Crime::R4FailBadMtaWc { victim: *v }],
+        R3FalseAccusationMta { victim: v } => vec![Crime::R4FailFalseAccusationMta { victim: *v }],
+        R3FalseAccusationMtaWc { victim: v } => {
+            vec![Crime::R4FailFalseAccusationMtaWc { victim: *v }]
+        }
         R3BadProof => vec![Crime::R4BadPedersenProof],
         R4BadReveal => vec![Crime::R5BadHashCommit],
         R5BadProof { victim: v } => vec![Crime::R7FailBadRangeProof { victim: *v }],
         R6FalseAccusation { victim: v } => vec![Crime::R7FailFalseAccusation { victim: *v }],
         R6BadProof => vec![Crime::R7BadRangeProof],
-        R7BadSigSummand => vec![Crime::R8BadSigSummand],
-        R3BadNonceXBlindSummand => vec![Crime::R7FailType5BadNonceXBlindSummand],
-        R3BadEcdsaNonceSummand => vec![Crime::R7FailType5BadNonceSummand],
-        R1BadSecretBlindSummand => vec![Crime::R7FailType5BadBlindSummand],
-        R3BadMtaBlindSummandRhs { victim: v } => {
-            vec![Crime::R7FailType5MtaBlindSummandRhs { victim: *v }]
+        R7BadSI => vec![Crime::R8SICheckFail],
+        R3BadDeltaI => vec![Crime::R7FailType5BadDeltaI],
+        R3BadKI => vec![Crime::R7FailType5BadKI],
+        R1BadGammaI => vec![Crime::R7FailType5BadGammaI],
+        R3BadBeta { victim: v } => {
+            vec![Crime::R7FailType5BadBeta { victim: *v }]
         }
-        R3BadMtaBlindSummandLhs { victim: v } => {
-            vec![Crime::R7FailType5MtaBlindSummandLhs { victim: *v }]
+        R3BadAlpha { victim: v } => {
+            vec![Crime::R7FailType5BadAlpha { victim: *v }]
         }
         R6FalseFailRandomizer => vec![Crime::R7FailType5FalseComplaint],
-        R3BadNonceXKeyshareSummand => vec![Crime::R8FailType7BadZkp],
+        R3BadSigmaI => vec![Crime::R8FailType7BadZkp],
     }
 }
 
@@ -102,7 +104,7 @@ pub(super) fn generate_basic_cases() -> Vec<TestCase> {
                 }
                 | Staller { msg_type: _ }
                 | DisrupringSender { msg_type: _ }
-        )
+        ) //&& matches!(m, &R7BadSI)
     }) {
         basic_test_cases.push(TestCase {
             share_count,
@@ -239,8 +241,8 @@ pub(super) fn generate_skipping_cases() -> Vec<TestCase> {
         R2BadMtaWc { victim },
         // R3FalseAccusationMta { victim }, // this produces criminals
         // R3FalseAccusationMtaWc { victim }, // this produces criminals
-        R3BadMtaBlindSummandLhs { victim },
-        R3BadMtaBlindSummandRhs { victim },
+        R3BadAlpha { victim },
+        R3BadBeta { victim },
         // R5FalseAccusation { victim }, // this produces criminals
         R5BadProof { victim },
         // R6FalseAccusation { victim }, // this produces criminals
@@ -290,7 +292,7 @@ pub(super) fn generate_multiple_faults_in_same_round() -> Vec<TestCase> {
         // round 6 faults
         vec![R6BadProof],
         // round 7 faults
-        vec![R7BadSigSummand],
+        vec![R7BadSI],
     ];
 
     // create test cases for all rounds
@@ -368,7 +370,7 @@ pub(super) fn generate_multiple_faults() -> Vec<TestCase> {
                 SignParticipant { party_index: 4, behaviour: R4BadReveal, expected_crimes: vec![]},
                 SignParticipant { party_index: 5, behaviour: R5BadProof{victim: 3}, expected_crimes: vec![]},
                 SignParticipant { party_index: 6, behaviour: R6BadProof, expected_crimes: vec![]},
-                SignParticipant { party_index: 7, behaviour: R7BadSigSummand, expected_crimes: vec![]},
+                SignParticipant { party_index: 7, behaviour: R7BadSI, expected_crimes: vec![]},
             ],
         },
         TestCase {
@@ -381,7 +383,7 @@ pub(super) fn generate_multiple_faults() -> Vec<TestCase> {
                 SignParticipant { party_index: 4, behaviour: R4BadReveal, expected_crimes: vec![]},
                 SignParticipant { party_index: 5, behaviour: R5BadProof{victim: 3}, expected_crimes: vec![]},
                 SignParticipant { party_index: 6, behaviour: R6BadProof, expected_crimes: vec![]},
-                SignParticipant { party_index: 7, behaviour: R7BadSigSummand, expected_crimes: vec![]},
+                SignParticipant { party_index: 7, behaviour: R7BadSI, expected_crimes: vec![]},
             ],
         },
     ]

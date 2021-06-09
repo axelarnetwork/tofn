@@ -1,28 +1,25 @@
-use curv::{elliptic::curves::traits::ECScalar, BigInt, FE, GE};
-use paillier::{EncryptWithChosenRandomness, Paillier, Randomness, RawPlaintext};
 use serde::{Deserialize, Serialize};
 
 use super::{Keygen, Status};
-use crate::{fillvec::FillVec, protocol::gg20::vss};
+use crate::{fillvec::FillVec, hash, paillier_k256, protocol::gg20::vss_k256};
 
 #[cfg(feature = "malicious")]
 use {super::malicious::Behaviour, tracing::info};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Bcast {
-    pub y_i_reveal: BigInt,
-    pub u_i_share_commitments: Vec<GE>,
+pub(super) struct Bcast {
+    pub(super) y_i_reveal_k256: hash::Randomness,
+    pub(super) u_i_share_commits_k256: vss_k256::Commit,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct P2p {
-    pub encrypted_u_i_share: BigInt, // threshold share of my_ecdsa_secret_summand
+pub(crate) struct P2p {
+    pub(crate) u_i_share_ciphertext_k256: paillier_k256::Ciphertext,
 }
 
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
-pub struct State {
-    pub(super) my_share_of_my_u_i: FE,
-    pub(super) my_u_i_share_commitments: Vec<GE>,
+pub(super) struct State {
+    pub(super) my_share_of_my_u_i_k256: vss_k256::Share,
 }
 
 impl Keygen {
@@ -30,98 +27,96 @@ impl Keygen {
         assert!(matches!(self.status, Status::R1));
         let r1state = self.r1state.as_ref().unwrap();
 
-        // TODO Paillier, delete this for loop
-        for (i, in_r1bcast) in self.in_r1bcasts.vec_ref().iter().enumerate() {
-            if i == self.my_index {
-                continue;
-            }
-            let r1bcast = in_r1bcast.as_ref().unwrap();
-            r1bcast
-                .correct_key_proof
-                .verify(&r1bcast.ek)
-                .unwrap_or_else(|_| {
-                    panic!(
-                        "party {} says: key proof failed to verify for party {}",
-                        self.my_index, i
-                    )
-                });
-            if !r1bcast.zkp.verify_composite_dlog_proof() {
-                panic!(
-                    "party {} says: dlog proof failed to verify for party {}",
-                    self.my_index, i
-                );
-            }
-        }
+        // TODO check Paillier proofs?
+        // for (i, in_r1bcast) in self.in_r1bcasts.vec_ref().iter().enumerate() {
+        //     if i == self.my_index {
+        //         continue;
+        //     }
+        //     let r1bcast = in_r1bcast.as_ref().unwrap();
+        //     r1bcast
+        //         .correct_key_proof
+        //         .verify(&r1bcast.ek)
+        //         .unwrap_or_else(|_| {
+        //             panic!(
+        //                 "party {} says: key proof failed to verify for party {}",
+        //                 self.my_index, i
+        //             )
+        //         });
+        //     if !r1bcast.zkp.verify_composite_dlog_proof() {
+        //         panic!(
+        //             "party {} says: dlog proof failed to verify for party {}",
+        //             self.my_index, i
+        //         );
+        //     }
+        // }
 
-        let (my_u_i_share_commitments, my_u_i_shares) =
-            vss::share(self.threshold, self.share_count, &r1state.my_u_i);
+        // k256:: share my u_i
+        let my_u_i_shares_k256 = r1state.my_u_i_vss_k256.shares(self.share_count);
 
         #[cfg(feature = "malicious")]
-        let my_u_i_shares = if let Behaviour::R2BadShare { victim } = self.behaviour {
-            info!("malicious party {} do {:?}", self.my_index, self.behaviour);
-            my_u_i_shares
+        let my_u_i_shares_k256 = if let Behaviour::R2BadShare { victim } = self.behaviour {
+            info!(
+                "(k256) malicious party {} do {:?}",
+                self.my_index, self.behaviour
+            );
+            my_u_i_shares_k256
                 .iter()
                 .enumerate()
                 .map(|(i, s)| {
                     if i == victim {
-                        let one: FE = ECScalar::from(&BigInt::one());
-                        *s + one
+                        vss_k256::Share::from_scalar(
+                            s.get_scalar() + k256::Scalar::one(),
+                            s.get_index(),
+                        )
                     } else {
-                        *s
+                        s.clone()
                     }
                 })
                 .collect()
         } else {
-            my_u_i_shares
+            my_u_i_shares_k256
         };
 
-        assert_eq!(my_u_i_share_commitments[0], r1state.my_y_i);
-
         let mut out_p2ps = FillVec::with_len(self.share_count);
-        let my_share_of_my_u_i = my_u_i_shares[self.my_index];
-        for (i, my_u_i_share) in my_u_i_shares.into_iter().enumerate() {
+        for (i, my_u_i_share_k256) in my_u_i_shares_k256.iter().enumerate() {
             if i == self.my_index {
                 continue;
             }
 
-            // encrypt the share for party i
-            let ek = &self.in_r1bcasts.vec_ref()[i].as_ref().unwrap().ek;
-            let randomness = Randomness::sample(ek);
-            let encrypted_u_i_share = Paillier::encrypt_with_chosen_randomness(
-                ek,
-                RawPlaintext::from(my_u_i_share.to_big_int()),
-                &randomness,
-            )
-            .0
-            .into_owned();
+            // k256: encrypt the share for party i
+            let ek_256 = &self.in_r1bcasts.vec_ref()[i].as_ref().unwrap().ek_k256;
+            let (u_i_share_ciphertext_k256, _) =
+                ek_256.encrypt(&my_u_i_share_k256.get_scalar().into());
 
             #[cfg(feature = "malicious")]
-            let encrypted_u_i_share = match self.behaviour {
+            let u_i_share_ciphertext_k256 = match self.behaviour {
                 Behaviour::R2BadEncryption { victim } if victim == i => {
-                    info!("malicious party {} do {:?}", self.my_index, self.behaviour);
-                    encrypted_u_i_share + BigInt::one()
+                    info!(
+                        "(k256) malicious party {} do {:?}",
+                        self.my_index, self.behaviour
+                    );
+                    u_i_share_ciphertext_k256.corrupt()
                 }
-                _ => encrypted_u_i_share,
+                _ => u_i_share_ciphertext_k256,
             };
 
             out_p2ps
                 .insert(
                     i,
                     P2p {
-                        encrypted_u_i_share,
+                        u_i_share_ciphertext_k256,
                     },
                 )
                 .unwrap();
         }
 
         let out_bcast = Bcast {
-            y_i_reveal: r1state.my_y_i_reveal.clone(),
-            u_i_share_commitments: my_u_i_share_commitments.clone(),
+            y_i_reveal_k256: r1state.my_y_i_reveal_k256.clone(),
+            u_i_share_commits_k256: r1state.my_u_i_vss_k256.commit(),
         };
         (
             State {
-                my_share_of_my_u_i,
-                my_u_i_share_commitments,
+                my_share_of_my_u_i_k256: my_u_i_shares_k256[self.my_index].clone(),
             },
             out_bcast,
             out_p2ps,

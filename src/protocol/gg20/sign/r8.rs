@@ -1,11 +1,12 @@
-use super::{crimes::Crime, EcdsaSig, Sign, Status};
-use k256::ecdsa::Asn1Signature;
+use super::{crimes::Crime, Sign, Status};
+use ecdsa::hazmat::VerifyPrimitive;
+use k256::ecdsa::{DerSignature, Signature};
 use tracing::{error, warn};
 
 // round 8
 
 pub(super) enum Output {
-    Success { sig: Asn1Signature },
+    Success { sig_k256: DerSignature },
     Fail { criminals: Vec<Vec<Crime>> },
 }
 
@@ -14,30 +15,36 @@ impl Sign {
         assert!(matches!(self.status, Status::R7));
         let r7state = self.r7state.as_ref().unwrap();
 
-        // compute s = sum of s_i (aka ecdsa_sig_summand) as per phase 7 of 2020/540
-        let mut s = r7state.my_ecdsa_sig_summand;
-        for (i, in_r7bcast) in self.in_r7bcasts.vec_ref().iter().enumerate() {
-            if i == self.my_participant_index {
-                continue;
-            }
-            let in_r7bcast = in_r7bcast.as_ref().unwrap();
-            s = s + in_r7bcast.ecdsa_sig_summand;
-        }
+        // compute s = sum_i s_i
+        let s_k256 = self
+            .in_r7bcasts
+            .vec_ref()
+            .iter()
+            .map(|o| *o.as_ref().unwrap().s_i_k256.unwrap())
+            .reduce(|acc, s_i| acc + s_i)
+            .unwrap();
 
-        // if (r,s) is a valid ECDSA signature then we're done
-        let sig = EcdsaSig { r: r7state.r, s };
-        if sig.verify(
-            &self.my_secret_key_share.ecdsa_public_key,
-            &self.msg_to_sign,
-        ) {
-            // convet signature into ASN1/DER (Bitcoin) format
+        // k256: if (r,s) is a valid ECDSA signature then we're done
+        let sig_k256 = {
+            let mut sig_k256 = Signature::from_scalars(r7state.r_k256, s_k256)
+                .expect("fail to convert scalars to signature");
+            sig_k256.normalize_s().expect("fail to normalize signature");
+            sig_k256
+        };
+        let verifying_key_k256 = &self.my_secret_key_share.group.y_k256.unwrap().to_affine();
+        if verifying_key_k256
+            .verify_prehashed(&self.msg_to_sign_k256, &sig_k256)
+            .is_ok()
+        {
+            // convert signature into ASN1/DER (Bitcoin) format
             return Output::Success {
-                sig: sig.to_k256().to_asn1(),
+                sig_k256: sig_k256.to_der(),
             };
         }
 
         // (r,s) is an invalid ECDSA signature => compute criminals
         // criminals fail Eq. (1) of https://eprint.iacr.org/2020/540.pdf
+        // check: s_i*R =? m*R_i + r*S_i
         let mut criminals = vec![Vec::new(); self.participant_indices.len()];
         let r5state = self.r5state.as_ref().unwrap();
         for (i, criminal) in criminals.iter_mut().enumerate() {
@@ -45,23 +52,20 @@ impl Sign {
             let in_r6bcast = self.in_r6bcasts.vec_ref()[i].as_ref().unwrap();
             let in_r7bcast = self.in_r7bcasts.vec_ref()[i].as_ref().unwrap();
 
-            let r_i_m = in_r5bcast.ecdsa_randomizer_x_nonce_summand * self.msg_to_sign;
-            let s_i_r = in_r6bcast.ecdsa_public_key_check * r7state.r;
-            let rhs = r_i_m + s_i_r;
-
-            let lhs = r5state.ecdsa_randomizer * in_r7bcast.ecdsa_sig_summand;
-
-            if lhs != rhs {
-                let crime = Crime::R8BadSigSummand;
+            let rhs_k256 = in_r5bcast.R_i_k256.unwrap() * &self.msg_to_sign_k256
+                + in_r6bcast.S_i_k256.unwrap() * &r7state.r_k256;
+            let lhs_k256 = r5state.R_k256 * in_r7bcast.s_i_k256.unwrap();
+            if lhs_k256 != rhs_k256 {
+                let crime = Crime::R8SICheckFail;
                 warn!(
-                    "participant {} detect {:?} by {}",
+                    "(k256) participant {} detect {:?} by {}",
                     self.my_participant_index, crime, i
                 );
                 criminal.push(crime);
             }
         }
 
-        if criminals.iter().map(|v| v.len()).sum::<usize>() == 0 {
+        if criminals.iter().all(Vec::is_empty) {
             error!("participant {} detect invalid signature but no criminals. proceeding to fail mode with zero criminals",
             self.my_participant_index);
         }

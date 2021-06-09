@@ -1,20 +1,19 @@
 use super::{crimes::Crime, Sign, Status};
-use crate::zkp::pedersen;
-use curv::{elliptic::curves::traits::ECScalar, BigInt, FE, GE};
+use crate::{hash, k256_serde, zkp::pedersen_k256};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 // round 4
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(non_snake_case)]
 pub struct Bcast {
-    // TODO bundle these two fields as a commit-reveal
-    pub public_blind_summand: GE,
-    pub reveal: BigInt,
+    pub Gamma_i_k256: k256_serde::ProjectivePoint,
+    pub Gamma_i_reveal_k256: hash::Randomness,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
-pub struct State {
-    pub(super) nonce_x_blind_inv: FE,
+pub(super) struct State {
+    pub(super) delta_inv_k256: k256::Scalar, // k256
 }
 
 pub(super) enum Output {
@@ -26,49 +25,57 @@ impl Sign {
     pub(super) fn r4(&self) -> Output {
         assert!(matches!(self.status, Status::R3));
         let r1state = self.r1state.as_ref().unwrap();
-        let r3state = self.r3state.as_ref().unwrap();
 
-        // verify proofs and compute nonce_x_blind (delta_i)
-        let mut nonce_x_blind = r3state.my_nonce_x_blind_summand;
-        let mut criminals = vec![Vec::new(); self.participant_indices.len()];
-
-        for (i, in_r3bcast) in self.in_r3bcasts.vec_ref().iter().enumerate() {
-            if i == self.my_participant_index {
-                continue;
-            }
-            let in_r3bcast = in_r3bcast.as_ref().unwrap();
-
-            pedersen::verify(
-                &pedersen::Statement {
-                    commit: &in_r3bcast.nonce_x_keyshare_summand_commit,
-                },
-                &in_r3bcast.nonce_x_keyshare_summand_proof,
-            )
-            .unwrap_or_else(|e| {
-                let crime = Crime::R4BadPedersenProof;
-                warn!(
-                    "participant {} detect {:?} by {} because [{}]",
-                    self.my_participant_index, crime, i, e
-                );
-                criminals[i].push(crime);
-            });
-
-            nonce_x_blind = nonce_x_blind + in_r3bcast.nonce_x_blind_summand;
+        // verify proofs
+        let criminals: Vec<Vec<Crime>> = self
+            .in_r3bcasts
+            .vec_ref()
+            .iter()
+            .enumerate()
+            .map(|(i, bcast)| {
+                if i == self.my_participant_index {
+                    return Vec::new(); // don't verify my own proof
+                }
+                let bcast = bcast.as_ref().unwrap();
+                if let Err(e) = pedersen_k256::verify(
+                    &pedersen_k256::Statement {
+                        commit: bcast.T_i_k256.unwrap(),
+                    },
+                    &bcast.T_i_proof_k256,
+                ) {
+                    let crime = Crime::R4BadPedersenProof;
+                    warn!(
+                        "(k256) participant {} detect {:?} by {} because [{}]",
+                        self.my_participant_index, crime, i, e
+                    );
+                    vec![crime]
+                } else {
+                    Vec::new()
+                }
+            })
+            .collect();
+        if !criminals.iter().all(Vec::is_empty) {
+            return Output::Fail { criminals };
         }
 
-        if criminals.iter().map(|v| v.len()).sum::<usize>() == 0 {
-            Output::Success {
-                state: State {
-                    nonce_x_blind_inv: nonce_x_blind.invert(),
-                },
-                out_bcast: Bcast {
-                    public_blind_summand: r1state.my_public_blind_summand,
-                    // TODO hash commitment randomness?
-                    reveal: r1state.my_reveal.clone(),
-                },
-            }
-        } else {
-            Output::Fail { criminals }
+        // k256: compute delta_inv
+        // experiment: use `reduce` instead of `fold`
+        let delta_inv_k256 = self
+            .in_r3bcasts
+            .vec_ref()
+            .iter()
+            .map(|o| *o.as_ref().unwrap().delta_i_k256.unwrap())
+            .reduce(|acc, delta_i| acc + delta_i)
+            .unwrap()
+            .invert()
+            .unwrap();
+
+        Output::Success {
+            state: State { delta_inv_k256 },
+            out_bcast: Bcast {
+                Gamma_i_k256: r1state.Gamma_i_k256.into(),
+                Gamma_i_reveal_k256: r1state.Gamma_i_reveal_k256.clone(),
+            },
         }
     }
 }

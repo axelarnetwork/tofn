@@ -1,53 +1,84 @@
-use super::{Keygen, SecretKeyShare, Status};
-use curv::cryptographic_primitives::proofs::sigma_dlog::{DLogProof, ProveDLog};
+use super::{crimes::Crime, Keygen, Status};
+use crate::{
+    k256_serde,
+    protocol::gg20::{KeyGroup, KeyShare, SecretKeyShare},
+    zkp::schnorr_k256,
+};
+use tracing::warn;
+
+pub(super) enum Output {
+    Success { key_share: SecretKeyShare },
+    Fail { criminals: Vec<Vec<Crime>> },
+}
 
 impl Keygen {
-    pub(super) fn r4(&self) -> SecretKeyShare {
+    pub(super) fn r4(&self) -> Output {
         assert!(matches!(self.status, Status::R3));
         let r1state = self.r1state.as_ref().unwrap();
         let r3state = self.r3state.as_ref().unwrap();
 
-        // verify other parties' proofs
-        for (i, bcast) in self.in_r3bcasts.vec_ref().iter().enumerate() {
-            if i == self.my_index {
-                continue;
-            }
-            let bcast = bcast.clone().unwrap_or_else(|| {
-                panic!(
-                    "party {} says: missing bcast input for party {}",
-                    self.my_index, i
+        // k256: verify proofs
+        let criminals_k256: Vec<Vec<Crime>> = self
+            .in_r3bcasts
+            .vec_ref()
+            .iter()
+            .enumerate()
+            .map(|(i, b)| {
+                if schnorr_k256::verify(
+                    &schnorr_k256::Statement {
+                        base: &k256::ProjectivePoint::generator(),
+                        target: &self.r3state.as_ref().unwrap().all_y_i_k256[i],
+                    },
+                    &b.as_ref().unwrap().x_i_proof,
                 )
-            });
-            DLogProof::verify(&bcast.dlog_proof).unwrap_or_else(|_| {
-                panic!(
-                    "party {} says: dlog proof failed to verify for party {}",
-                    self.my_index, i
-                )
-            });
+                .is_err()
+                {
+                    let crime = Crime::R4BadDLProof;
+                    warn!("(k256) party {} detect {:?} by {}", self.my_index, crime, i);
+                    vec![crime]
+                } else {
+                    vec![]
+                }
+            })
+            .collect();
+        if !criminals_k256.iter().all(Vec::is_empty) {
+            return Output::Fail {
+                criminals: criminals_k256,
+            };
         }
 
         // prepare data for final output
         let r1bcasts = self.in_r1bcasts.vec_ref();
-        let all_eks = r1bcasts
+
+        let all_eks_k256 = r1bcasts
             .iter()
-            .map(|b| b.as_ref().unwrap().ek.clone())
+            .map(|b| b.as_ref().unwrap().ek_k256.clone())
             .collect();
-        let all_zkps = r1bcasts
+        let all_zkps_k256 = r1bcasts
             .iter()
-            .map(|b| b.as_ref().unwrap().zkp.clone())
+            .map(|b| b.as_ref().unwrap().zkp_k256.clone())
             .collect();
-        SecretKeyShare {
-            share_count: self.share_count,
-            threshold: self.threshold,
-            my_index: self.my_index,
-            my_dk: r1state.my_dk.clone(),
-            my_ek: r1state.my_ek.clone(),
-            my_zkp: r1state.my_zkp.clone(),
-            ecdsa_public_key: r3state.ecdsa_public_key,
-            my_ecdsa_secret_key_share: r3state.my_ecdsa_secret_key_share,
-            all_ecdsa_public_key_shares: r3state.all_ecdsa_public_key_shares.clone(),
-            all_eks,
-            all_zkps,
+
+        Output::Success {
+            key_share: SecretKeyShare {
+                group: KeyGroup {
+                    share_count: self.share_count,
+                    threshold: self.threshold,
+                    y_k256: r3state.y_k256.into(),
+                    all_y_i_k256: r3state
+                        .all_y_i_k256
+                        .iter()
+                        .map(k256_serde::ProjectivePoint::from)
+                        .collect(),
+                    all_eks_k256,
+                    all_zkps_k256,
+                },
+                share: KeyShare {
+                    my_index: self.my_index,
+                    dk_k256: r1state.dk_k256.clone(),
+                    my_x_i_k256: r3state.my_x_i_k256.into(),
+                },
+            },
         }
     }
 }

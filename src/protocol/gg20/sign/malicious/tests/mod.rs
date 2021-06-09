@@ -1,15 +1,14 @@
 use super::*;
 use crate::protocol::{
     gg20::{
-        keygen::tests::execute_keygen,
+        keygen::tests_k256::execute_keygen,
         sign::{MsgMeta, MsgType},
+        tests::sign::MSG_TO_SIGN,
     },
     tests::{execute_protocol_vec_with_criminals, Criminal},
     Protocol,
 };
 use tracing_test::traced_test; // enable logs in tests
-
-static MESSAGE_TO_SIGN: [u8; 2] = [42, 24];
 
 struct SignSpoofer {
     index: usize,
@@ -244,9 +243,10 @@ fn execute_test_case(t: &test_cases::TestCase) {
         .iter()
         .map(|p| {
             BadSign::new(
-                &key_shares[p.party_index],
+                &key_shares[p.party_index].group,
+                &key_shares[p.party_index].share,
                 &participant_indices,
-                &MESSAGE_TO_SIGN,
+                &MSG_TO_SIGN,
                 p.behaviour.clone(),
             )
             .unwrap()

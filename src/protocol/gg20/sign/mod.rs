@@ -1,51 +1,7 @@
-use super::keygen::SecretKeyShare;
+use super::{vss_k256, KeyGroup, KeyShare, MessageDigest, SecretKeyShare};
+use crate::{fillvec::FillVec, paillier_k256, protocol::MsgBytes};
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
-
-use crate::{
-    fillvec::FillVec,
-    protocol::{gg20::vss, MsgBytes},
-};
-use curv::{
-    elliptic::curves::traits::{ECPoint, ECScalar},
-    BigInt, FE, GE,
-};
-use k256::{ecdsa::Signature, FieldBytes};
-
-// TODO isn't there a library for this? Yes. It's called k256.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct EcdsaSig {
-    pub r: FE,
-    pub s: FE,
-}
-impl EcdsaSig {
-    pub fn verify(&self, pubkey: &GE, msg: &FE) -> bool {
-        let s_inv = self.s.invert();
-        let randomizer = GE::generator() * (*msg * s_inv) + *pubkey * (self.r * s_inv);
-        self.r == ECScalar::from(&randomizer.x_coor().unwrap().mod_floor(&FE::q()))
-    }
-    pub fn to_k256(&self) -> Signature {
-        let (r, s) = (&self.r.to_big_int(), &self.s.to_big_int());
-        let (r, s): (Vec<u8>, Vec<u8>) = (r.into(), s.into());
-        let (r, s) = (Self::pad(r), Self::pad(s));
-        let (r, s): (FieldBytes, FieldBytes) =
-            (*FieldBytes::from_slice(&r), *FieldBytes::from_slice(&s));
-        let mut sig =
-            Signature::from_scalars(r, s).expect("fail to convert signature bytes to asn1");
-        sig.normalize_s()
-            .expect("fail to normalize signature s value");
-        sig
-    }
-    pub fn pad(v: Vec<u8>) -> Vec<u8> {
-        assert!(v.len() <= 32);
-        if v.len() == 32 {
-            return v;
-        }
-        let mut v_pad = vec![0; 32];
-        v_pad[(32 - v.len())..].copy_from_slice(&v);
-        v_pad
-    }
-}
 
 // only include malicious module in malicious build
 #[cfg(feature = "malicious")]
@@ -147,7 +103,7 @@ pub struct Sign {
 
     // state data
     my_secret_key_share: SecretKeyShare,
-    msg_to_sign: FE, // not used until round 7
+    msg_to_sign_k256: k256::Scalar,
 
     // TODO this is a source of bugs
     // "party" indices are in 0..share_count from keygen
@@ -166,7 +122,6 @@ pub struct Sign {
     r3state: Option<r3::State>,
     r4state: Option<r4::State>,
     r5state: Option<r5::State>,
-    r6state: Option<r6::State>,
     r7state: Option<r7::State>,
 
     // incoming messages
@@ -221,27 +176,30 @@ pub struct Sign {
 
 impl Sign {
     pub fn new(
-        my_secret_key_share: &SecretKeyShare,
+        key_group: &KeyGroup,
+        key_share: &KeyShare,
         participant_indices: &[usize],
-        msg_to_sign: &[u8],
+        msg_to_sign: &MessageDigest,
     ) -> Result<Self, ParamsError> {
-        let my_participant_index = validate_params(my_secret_key_share, participant_indices)?;
+        let my_participant_index = validate_params(key_group, key_share, participant_indices)?;
         let participant_count = participant_indices.len();
-        let msg_to_sign: FE = ECScalar::from(&BigInt::from(msg_to_sign));
+        let msg_to_sign_k256 = msg_to_sign.into();
         Ok(Self {
             #[cfg(feature = "malicious")] // TODO hack type7 fault
             behaviour: malicious::MaliciousType::Honest,
             status: Status::New,
-            my_secret_key_share: my_secret_key_share.clone(),
+            my_secret_key_share: SecretKeyShare{
+                group: key_group.clone(),
+                share: key_share.clone(),
+            },
             participant_indices: participant_indices.to_vec(),
             my_participant_index,
-            msg_to_sign,
+            msg_to_sign_k256,
             r1state: None,
             r2state: None,
             r3state: None,
             r4state: None,
             r5state: None,
-            r6state: None,
             r7state: None,
             in_r1bcasts: FillVec::with_len(participant_count),
             in_all_r1p2ps: vec![FillVec::with_len(participant_count); participant_count],
@@ -280,44 +238,39 @@ impl Sign {
         self.final_output.clone()
     }
 
-    fn lagrangian_coefficient(&self, party_index: usize) -> FE {
-        vss::lagrangian_coefficient(
-            self.my_secret_key_share.share_count,
-            party_index,
-            &self.participant_indices,
-        )
+    fn lagrange_coefficient_k256(&self, participant_index: usize) -> k256::Scalar {
+        vss_k256::lagrange_coefficient(participant_index, &self.participant_indices)
     }
+    // fn my_lagrange_coefficient_k256(&self) -> k256::Scalar {
+    //     self.lagrange_coefficient_k256(self.my_participant_index)
+    // }
 
-    fn public_key_summand(&self, participant_index: usize) -> GE {
-        let party_index = self.participant_indices[participant_index];
-        self.my_secret_key_share.all_ecdsa_public_key_shares[party_index]
-            * self.lagrangian_coefficient(party_index)
+    #[allow(non_snake_case)]
+    fn W_i_k256(&self, participant_index: usize) -> k256::ProjectivePoint {
+        self.my_secret_key_share.group.all_y_i_k256[self.participant_indices[participant_index]]
+            .unwrap()
+            * &self.lagrange_coefficient_k256(participant_index)
+    }
+    fn my_ek_k256(&self) -> &paillier_k256::EncryptionKey {
+        &self.my_secret_key_share.group.all_eks_k256[self.my_secret_key_share.share.my_index]
+    }
+    fn my_zkp_k256(&self) -> &paillier_k256::zk::ZkSetup {
+        &self.my_secret_key_share.group.all_zkps_k256[self.my_secret_key_share.share.my_index]
     }
 }
 
 pub type SignOutput = Result<Vec<u8>, Vec<Vec<crimes::Crime>>>;
 
-// TODO need a fancier struct for Vec<Vec<Crime>>
-// eg. need a is_empty() method, etc
-fn is_empty(criminals: &[Vec<crimes::Crime>]) -> bool {
-    criminals.iter().all(|c| c.is_empty())
-}
-
-#[cfg(feature = "malicious")] // TODO hack type7 fault
-fn corrupt_scalar(x: &FE) -> FE {
-    let one: FE = ECScalar::from(&BigInt::from(1));
-    *x + one
-}
-
 /// validate_params helper with custom error type
 /// Assume `secret_key_share` is valid and check `participant_indices` against it.
 /// Returns my index in participant_indices.
 pub fn validate_params(
-    secret_key_share: &SecretKeyShare,
+    key_group: &KeyGroup,
+    key_share: &KeyShare,
     participant_indices: &[usize],
 ) -> Result<usize, ParamsError> {
     // number of participants must be at least threshold + 1
-    let t_plus_1 = secret_key_share.threshold + 1;
+    let t_plus_1 = key_group.threshold + 1;
     if participant_indices.len() < t_plus_1 {
         return Err(ParamsError::InvalidParticipantCount(
             t_plus_1,
@@ -328,9 +281,9 @@ pub fn validate_params(
     // check that my index is in the list
     let my_participant_index = participant_indices
         .iter()
-        .position(|&i| i == secret_key_share.my_index);
+        .position(|&i| i == key_share.my_index);
     if my_participant_index.is_none() {
-        return Err(ParamsError::ImNotAParticipant(secret_key_share.my_index));
+        return Err(ParamsError::ImNotAParticipant(key_share.my_index));
     }
 
     // check for duplicate party ids
@@ -346,9 +299,9 @@ pub fn validate_params(
     // check that indices are within range
     // participant_indices_dedup is now sorted and has len > 0, so we need only check the final index
     let max_index = *participant_indices_dedup.last().unwrap();
-    if max_index >= secret_key_share.share_count {
+    if max_index >= key_group.share_count {
         return Err(ParamsError::InvalidParticipantIndex(
-            secret_key_share.share_count - 1,
+            key_group.share_count - 1,
             max_index,
         ));
     }
@@ -394,6 +347,3 @@ impl std::fmt::Display for ParamsError {
 
 #[cfg(test)]
 pub(crate) mod tests;
-
-#[cfg(test)]
-mod k256_tests;

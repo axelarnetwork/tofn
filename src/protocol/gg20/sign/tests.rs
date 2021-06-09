@@ -1,47 +1,55 @@
 use super::*;
 use crate::protocol::{
-    gg20::keygen::{self, SecretKeyShare},
-    gg20::tests::sign::{MSG_TO_SIGN, TEST_CASES},
+    gg20::keygen::tests_k256::execute_keygen,
+    gg20::{
+        tests::sign::{MSG_TO_SIGN, TEST_CASES},
+        MessageDigest,
+    },
 };
-use curv::{
-    elliptic::curves::traits::{ECPoint, ECScalar},
-    BigInt,
-};
-use k256::{
-    ecdsa::{Asn1Signature, Signature},
-    FieldBytes,
-};
-use keygen::tests::execute_keygen;
+use ecdsa::{elliptic_curve::sec1::ToEncodedPoint, hazmat::VerifyPrimitive};
+use k256::ecdsa::Signature;
+use tracing::debug;
 use tracing_test::traced_test; // enable logs in tests
 
 #[test]
 #[traced_test]
 fn basic_correctness() {
     for (share_count, threshold, participant_indices) in TEST_CASES.iter() {
+        debug!(
+            "test case: share_count {}, threshold {}, participants: {:?}",
+            share_count, threshold, participant_indices
+        );
         let key_shares = execute_keygen(*share_count, *threshold);
         basic_correctness_inner(&key_shares, participant_indices, &MSG_TO_SIGN);
     }
 }
 
+#[allow(non_snake_case)]
 fn basic_correctness_inner(
     key_shares: &[SecretKeyShare],
     participant_indices: &[usize],
-    msg_to_sign: &[u8],
+    msg_to_sign: &MessageDigest,
 ) {
     let mut participants: Vec<Sign> = participant_indices
         .iter()
-        .map(|i| Sign::new(&key_shares[*i], participant_indices, msg_to_sign).unwrap())
+        .map(|i| {
+            Sign::new(
+                &key_shares[*i].group,
+                &key_shares[*i].share,
+                participant_indices,
+                msg_to_sign,
+            )
+            .unwrap()
+        })
         .collect();
 
     // TEST: indices are correct
     for p in participants.iter() {
         assert_eq!(
             p.participant_indices[p.my_participant_index],
-            p.my_secret_key_share.my_index
+            p.my_secret_key_share.share.my_index
         );
     }
-
-    let one: FE = ECScalar::from(&BigInt::from(1));
 
     // execute round 1 all participants and store their outputs
     let mut all_r1_bcasts = FillVec::with_len(participants.len());
@@ -61,14 +69,14 @@ fn basic_correctness_inner(
         participant.in_r1bcasts = all_r1_bcasts.clone();
     }
 
-    // TEST: secret key shares yield the pubkey
-    let ecdsa_secret_key = participants
+    // k256: TEST: secret key shares yield the pubkey
+    let x_k256 = participants
         .iter()
-        .map(|p| p.r1state.as_ref().unwrap().my_secret_key_summand)
-        .fold(FE::zero(), |acc, x| acc + x);
-    let ecdsa_public_key = GE::generator() * ecdsa_secret_key;
+        .map(|p| p.r1state.as_ref().unwrap().w_i_k256)
+        .fold(k256::Scalar::zero(), |acc, w_i| acc + w_i);
+    let y_k256 = k256::ProjectivePoint::generator() * x_k256;
     for key_share in key_shares.iter() {
-        assert_eq!(ecdsa_public_key, key_share.ecdsa_public_key);
+        assert_eq!(y_k256, *key_share.group.y_k256.unwrap());
     }
 
     // execute round 2 all participants and store their outputs
@@ -83,7 +91,7 @@ fn basic_correctness_inner(
             r2::Output::Fail { out_bcast } => {
                 panic!(
                     "r2 party {} expect success got failure with culprits: {:?}",
-                    participant.my_secret_key_share.my_index, out_bcast
+                    participant.my_secret_key_share.share.my_index, out_bcast
                 );
             }
         }
@@ -107,7 +115,7 @@ fn basic_correctness_inner(
             r3::Output::Fail { out_bcast } => {
                 panic!(
                     "r3 party {} expect success got failure with culprits: {:?}",
-                    participant.my_secret_key_share.my_index, out_bcast
+                    participant.my_secret_key_share.share.my_index, out_bcast
                 );
             }
         }
@@ -118,25 +126,31 @@ fn basic_correctness_inner(
         participant.in_r3bcasts = all_r3_bcasts.clone();
     }
 
-    // TEST: MtA for nonce_x_blind (delta_i), nonce_x_secret_key (sigma_i)
-    let nonce = participants
+    // k256: TEST: MtA for delta_i, sigma_i
+    let k_k256 = participants
         .iter()
-        .map(|p| p.r1state.as_ref().unwrap().my_ecdsa_nonce_summand)
-        .fold(FE::zero(), |acc, x| acc + x);
-    let blind = participants
+        .map(|p| p.r1state.as_ref().unwrap().k_i_k256)
+        .fold(k256::Scalar::zero(), |acc, x| acc + x);
+    let gamma_k256 = participants
         .iter()
-        .map(|p| p.r1state.as_ref().unwrap().my_secret_blind_summand)
-        .fold(FE::zero(), |acc, x| acc + x);
-    let nonce_x_blind = participants
+        .map(|p| p.r1state.as_ref().unwrap().gamma_i_k256)
+        .fold(k256::Scalar::zero(), |acc, x| acc + x);
+    let k_gamma_k256 = participants
         .iter()
-        .map(|p| p.r3state.as_ref().unwrap().my_nonce_x_blind_summand)
-        .fold(FE::zero(), |acc, x| acc + x);
-    assert_eq!(nonce_x_blind, nonce * blind);
-    let nonce_x_secret_key = participants
+        .map(|p| {
+            p.in_r3bcasts.vec_ref()[p.my_participant_index]
+                .as_ref()
+                .unwrap()
+                .delta_i_k256
+                .unwrap()
+        })
+        .fold(k256::Scalar::zero(), |acc, x| acc + x);
+    assert_eq!(k_gamma_k256, k_k256 * gamma_k256);
+    let k_x_k256 = participants
         .iter()
-        .map(|p| p.r3state.as_ref().unwrap().my_nonce_x_keyshare_summand)
-        .fold(FE::zero(), |acc, x| acc + x);
-    assert_eq!(nonce_x_secret_key, nonce * ecdsa_secret_key);
+        .map(|p| p.r3state.as_ref().unwrap().sigma_i_k256)
+        .fold(k256::Scalar::zero(), |acc, x| acc + x);
+    assert_eq!(k_x_k256, k_k256 * x_k256);
 
     // execute round 4 all participants and store their outputs
     let mut all_r4_bcasts = FillVec::with_len(participants.len());
@@ -150,7 +164,7 @@ fn basic_correctness_inner(
             r4::Output::Fail { criminals } => {
                 panic!(
                     "r4 party {} expect success got failure with criminals: {:?}",
-                    participant.my_secret_key_share.my_index, criminals
+                    participant.my_secret_key_share.share.my_index, criminals
                 );
             }
         }
@@ -161,12 +175,12 @@ fn basic_correctness_inner(
         participant.in_r4bcasts = all_r4_bcasts.clone();
     }
 
-    // TEST: everyone correctly computed nonce_x_blind (delta = k*gamma)
-    for nonce_x_blind_inv in participants
+    // k256: TEST: everyone correctly computed delta = k * gamma
+    for delta_inv_k256 in participants
         .iter()
-        .map(|p| p.r4state.as_ref().unwrap().nonce_x_blind_inv)
+        .map(|p| p.r4state.as_ref().unwrap().delta_inv_k256)
     {
-        assert_eq!(nonce_x_blind_inv * nonce_x_blind, one);
+        assert_eq!(delta_inv_k256 * k_gamma_k256, k256::Scalar::one());
     }
 
     // execute round 5 all participants and store their outputs
@@ -187,7 +201,7 @@ fn basic_correctness_inner(
             r5::Output::Fail { criminals } => {
                 panic!(
                     "r5 party {} expect success got failure with criminals: {:?}",
-                    participant.my_secret_key_share.my_index, criminals
+                    participant.my_secret_key_share.share.my_index, criminals
                 );
             }
         }
@@ -199,28 +213,27 @@ fn basic_correctness_inner(
         participant.in_r5bcasts = all_r5_bcasts.clone();
     }
 
-    // TEST: everyone correctly computed ecdsa_randomizer (R)
-    let randomizer = GE::generator() * nonce.invert();
-    for ecdsa_randomizer in participants
+    // k256: TEST: everyone correctly computed R
+    let R_k256 = k256::ProjectivePoint::generator() * k_k256.invert().unwrap();
+    for participant_R_k256 in participants
         .iter()
-        .map(|p| p.r5state.as_ref().unwrap().ecdsa_randomizer)
+        .map(|p| p.r5state.as_ref().unwrap().R_k256)
     {
-        assert_eq!(ecdsa_randomizer, randomizer);
+        assert_eq!(participant_R_k256, R_k256);
     }
 
     // execute round 6 all participants and store their outputs
     let mut all_r6_bcasts = FillVec::with_len(participants.len());
     for (i, participant) in participants.iter_mut().enumerate() {
         match participant.r6() {
-            r6::Output::Success { state, out_bcast } => {
-                participant.r6state = Some(state);
+            r6::Output::Success { out_bcast } => {
                 participant.status = Status::R6;
                 all_r6_bcasts.insert(i, out_bcast).unwrap();
             }
             r6_output => {
                 panic!(
                     "r6 party {} expect success got failure {:?}",
-                    participant.my_secret_key_share.my_index, r6_output
+                    participant.my_secret_key_share.share.my_index, r6_output
                 );
             }
         }
@@ -243,7 +256,7 @@ fn basic_correctness_inner(
             r7_output => {
                 panic!(
                     "r7 party {} expect success got failure {:?}",
-                    participant.my_secret_key_share.my_index, r7_output
+                    participant.my_secret_key_share.share.my_index, r7_output
                 );
             }
         }
@@ -255,49 +268,42 @@ fn basic_correctness_inner(
     }
 
     // execute round 8 all participants and store their outputs
-    let mut all_sigs = FillVec::with_len(participants.len());
+    let mut all_sigs_k256 = FillVec::with_len(participants.len());
     for (i, participant) in participants.iter_mut().enumerate() {
-        let sig = match participant.r8() {
-            r8::Output::Success { sig } => sig,
+        match participant.r8() {
+            r8::Output::Success { sig_k256 } => {
+                all_sigs_k256.insert(i, sig_k256).unwrap();
+            }
             r8::Output::Fail { criminals } => {
                 panic!(
                     "r8 party {} expect success got failure with criminals: {:?}",
-                    participant.my_secret_key_share.my_index, criminals
+                    participant.my_secret_key_share.share.my_index, criminals
                 );
             }
         };
         participant.status = Status::Done;
-        all_sigs.insert(i, sig).unwrap();
     }
 
-    // TEST: everyone correctly computed the signature
-    let msg_to_sign = ECScalar::from(&BigInt::from(msg_to_sign));
-    let r: FE = ECScalar::from(&randomizer.x_coor().unwrap().mod_floor(&FE::q()));
-    let s: FE = nonce * (msg_to_sign + ecdsa_secret_key * r);
-    let s = {
-        // normalize s
-        let s_bigint = s.to_big_int();
-        let s_neg = FE::q() - &s_bigint;
-        if s_bigint > s_neg {
-            ECScalar::from(&s_neg)
-        } else {
-            s
-        }
+    // k256: TEST: everyone correctly computed the signature
+    let msg_to_sign_k256 = msg_to_sign.into();
+    let r_k256 =
+        k256::Scalar::from_bytes_reduced(R_k256.to_affine().to_encoded_point(true).x().unwrap());
+    let s_k256 = k_k256 * (msg_to_sign_k256 + x_k256 * r_k256);
+    let sig_k256 = {
+        let mut sig_k256 = Signature::from_scalars(r_k256, s_k256).unwrap();
+        sig_k256.normalize_s().unwrap();
+        sig_k256
     };
-    for sig in all_sigs.vec_ref().iter() {
-        let (sig_r, sig_s) = extract_r_s(sig.as_ref().unwrap());
-        let (sig_r, sig_s) = (sig_r.as_slice(), sig_s.as_slice());
-        let (sig_r, sig_s): (BigInt, BigInt) = (BigInt::from(sig_r), BigInt::from(sig_s));
-        assert_eq!(sig_r, r.to_big_int());
-        assert_eq!(sig_s, s.to_big_int());
+    for participant_sig_k256 in all_sigs_k256.vec_ref().iter() {
+        assert_eq!(
+            Signature::from_der(participant_sig_k256.as_ref().unwrap().as_bytes()).unwrap(),
+            sig_k256
+        );
     }
 
-    let sig = EcdsaSig { r, s };
-    assert!(sig.verify(&ecdsa_public_key, &msg_to_sign));
-}
-
-fn extract_r_s(asn1_sig: &Asn1Signature) -> (FieldBytes, FieldBytes) {
-    let sig = Signature::from_asn1(asn1_sig.as_bytes()).unwrap();
-    let (sig_r, sig_s) = (sig.r(), sig.s());
-    (From::from(sig_r), From::from(sig_s))
+    // k256: TEST: the signature verifies
+    let verifying_key_k256 = y_k256.to_affine();
+    assert!(verifying_key_k256
+        .verify_prehashed(&msg_to_sign_k256, &sig_k256)
+        .is_ok());
 }

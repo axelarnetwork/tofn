@@ -96,8 +96,8 @@ impl Protocol for Sign {
                 }
             },
             R5 => match self.r6() {
-                r6::Output::Success { state, out_bcast } => {
-                    self.update_state_r6(state, out_bcast)?;
+                r6::Output::Success { out_bcast } => {
+                    self.update_state_r6(out_bcast)?;
                 }
                 r6::Output::Fail { out_bcast } => {
                     self.update_state_r6fail(out_bcast)?;
@@ -120,8 +120,8 @@ impl Protocol for Sign {
             R6Fail => self.update_state_fail(self.r7_fail()),
             R6FailType5 => self.update_state_fail(self.r7_fail_type5()),
             R7 => match self.r8() {
-                r8::Output::Success { sig } => {
-                    self.final_output = Some(Ok(sig.as_bytes().to_vec()));
+                r8::Output::Success { sig_k256 } => {
+                    self.final_output = Some(Ok(sig_k256.as_bytes().to_vec()));
                     self.status = Done;
                 }
                 r8::Output::Fail { criminals } => self.update_state_fail(criminals),
@@ -311,7 +311,7 @@ impl Sign {
             }
             MsgType::R1P2p { to } => {
                 let r1_p2ps = &mut self.in_all_r1p2ps[msg_meta.from];
-                if !r1_p2ps.is_none(to) {
+                if !r1_p2ps.is_none(to) && self.my_participant_index != msg_meta.from {
                     debug!(
                         "participant {} overwrite existing R1P2p msg from {} to {}",
                         self.my_participant_index, msg_meta.from, to
@@ -321,7 +321,7 @@ impl Sign {
             }
             MsgType::R2P2p { to } => {
                 let r2_p2ps = &mut self.in_all_r2p2ps[msg_meta.from];
-                if !r2_p2ps.is_none(to) {
+                if !r2_p2ps.is_none(to) && self.my_participant_index != msg_meta.from {
                     debug!(
                         "participant {} overwrite existing R2P2p msg from {} to {}",
                         self.my_participant_index, msg_meta.from, to
@@ -381,7 +381,7 @@ impl Sign {
             }
             MsgType::R5P2p { to } => {
                 let r5_p2ps = &mut self.in_all_r5p2ps[msg_meta.from];
-                if !r5_p2ps.is_none(to) {
+                if !r5_p2ps.is_none(to) && self.my_participant_index != msg_meta.from {
                     debug!(
                         "participant {} overwrite existing R5P2p msg from {} to {}",
                         self.my_participant_index, msg_meta.from, to
@@ -592,17 +592,12 @@ impl Sign {
     }
 
     // TODO refactor copied code from update_state_r2
-    pub(super) fn update_state_r6(
-        &mut self,
-        state: r6::State,
-        out_bcast: r6::Bcast,
-    ) -> ProtocolResult {
+    pub(super) fn update_state_r6(&mut self, out_bcast: r6::Bcast) -> ProtocolResult {
         self.out_r6bcast = Some(bincode::serialize(&MsgMeta {
             msg_type: MsgType::R6Bcast,
             from: self.my_participant_index,
             payload: bincode::serialize(&out_bcast)?,
         })?);
-        self.r6state = Some(state);
         self.status = R6;
         Ok(())
     }

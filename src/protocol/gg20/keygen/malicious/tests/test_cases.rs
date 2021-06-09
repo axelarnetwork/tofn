@@ -88,6 +88,7 @@ impl Behaviour {
             R2BadShare { victim: v } => Crime::R4FailBadVss { victim: *v },
             R2BadEncryption { victim: v } => Crime::R4FailBadEncryption { victim: *v },
             R3FalseAccusation { victim: v } => Crime::R4FailFalseAccusation { victim: *v },
+            R3BadXIWitness => Crime::R4BadDLProof,
         }
     }
 }
@@ -96,7 +97,10 @@ impl Behaviour {
 // #[rustfmt::skip] // skip formatting to make file more readable
 pub(super) fn generate_basic_cases() -> Vec<TestCase> {
     Behaviour::iter()
-        .filter(|b| !b.is_honest() && !b.is_spoofer() && !b.is_staller() && !b.is_disrupter())
+        .filter(|b| {
+            !b.is_honest() && !b.is_spoofer() && !b.is_staller() && !b.is_disrupter()
+            // && matches!(b, R2BadShare { victim: _ })
+        })
         .map(|b| TestCase {
             threshold: 1,
             expect_success: false,
