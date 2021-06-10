@@ -1,6 +1,10 @@
 use super::{Keygen, Status};
 use crate::{hash, k256_serde::to_bytes, paillier_k256, protocol::gg20::vss_k256};
+use hmac::{Hmac, Mac, NewMac};
+use rand::SeedableRng;
+use rand_chacha::ChaCha20Rng;
 use serde::{Deserialize, Serialize};
+use sha2::Sha256;
 
 #[cfg(feature = "malicious")]
 use {super::malicious::Behaviour, tracing::info};
@@ -40,8 +44,15 @@ impl Keygen {
             my_y_i_commit_k256
         };
 
-        let (ek_k256, dk_k256) = paillier_k256::keygen_unsafe(&mut rand::thread_rng());
-        let zkp_k256 = paillier_k256::zk::ZkSetup::new_unsafe(&mut rand::thread_rng());
+        let key: &[u8] = &[7; 64][..];
+        let input: &[u8] = &[1, 2, 3, 4, 5, 6, 7];
+        let mut prf = Hmac::<Sha256>::new(key.into());
+        prf.update(input);
+        let seed = prf.finalize().into_bytes();
+        let mut rng = ChaCha20Rng::from_seed(seed.into());
+
+        let (ek_k256, dk_k256) = paillier_k256::keygen_unsafe(&mut rng);
+        let zkp_k256 = paillier_k256::zk::ZkSetup::new_unsafe(&mut rng);
         // TODO Paillier key proofs
 
         (
