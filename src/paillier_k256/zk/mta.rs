@@ -301,7 +301,7 @@ pub(crate) mod tests {
             x_g,
         };
         let stmt = &stmt_wc.stmt;
-        let wit = &Witness { msg, randomness, x };
+        let wit = &Witness { x, msg, randomness };
         let zkp = ZkSetup::new_unsafe(&mut rand::thread_rng());
 
         // test: valid proof

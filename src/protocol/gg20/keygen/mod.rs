@@ -115,7 +115,7 @@ impl Keygen {
         prf_secret_key: &PrfSecretKey,
         prf_input: &[u8],
     ) -> Result<Self, ParamsError> {
-        if prf_input.len() == 0 {
+        if prf_input.is_empty() {
             return Err(ParamsError::InvalidPrfInput(prf_input.len()));
         }
 
