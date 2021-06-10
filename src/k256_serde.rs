@@ -173,6 +173,7 @@ impl<'de> Deserialize<'de> for ProjectivePoint {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ecdsa::elliptic_curve::group::prime::PrimeCurveAffine;
     use k256::elliptic_curve::Field;
 
     #[test]
@@ -183,7 +184,7 @@ mod tests {
         assert_eq!(s, s_deserialized);
 
         let a = AffinePoint(
-            k256::AffinePoint::generator() * k256::NonZeroScalar::random(rand::thread_rng()),
+            (k256::AffinePoint::generator() * k256::Scalar::random(rand::thread_rng())).to_affine(),
         );
         let a_serialized = bincode::serialize(&a)?;
         let a_deserialized = bincode::deserialize(&a_serialized)?;
