@@ -77,7 +77,7 @@ pub struct Keygen {
     share_count: usize,
     threshold: usize,
     my_index: usize,
-    rng_seed: <ChaCha20Rng as SeedableRng>::Seed,
+    rng_seed: <ChaCha20Rng as SeedableRng>::Seed, // do not use after round 1
     r1state: Option<r1::State>,
     r2state: Option<r2::State>,
     r3state: Option<r3::State>,
@@ -104,15 +104,22 @@ pub struct Keygen {
     behaviour: malicious::Behaviour,
 }
 
+/// type alias instead of struct so as to minimize memory writes
+pub type PrfSecretKey = [u8; 64];
+
 impl Keygen {
     pub fn new(
         share_count: usize,
         threshold: usize,
         my_index: usize,
-        prf_secret_key: &[u8; 64],
+        prf_secret_key: &PrfSecretKey,
         prf_input: &[u8],
     ) -> Result<Self, ParamsError> {
-        // use prf_secret_key immediately to minimize memory writes
+        if prf_input.len() == 0 {
+            return Err(ParamsError::InvalidPrfInput(prf_input.len()));
+        }
+
+        // use prf_secret_key immediately so as to minimize memory writes
         let mut prf = Hmac::<Sha256>::new(prf_secret_key[..].into());
         prf.update(prf_input);
         let rng_seed = prf.finalize().into_bytes().into();
@@ -172,6 +179,7 @@ pub fn validate_params(
 pub enum ParamsError {
     InvalidThreshold(usize, usize), // (share_count, threshold)
     InvalidIndex(usize, usize),     // (share_count, index)
+    InvalidPrfInput(usize),         // (prf_input.len)
 }
 
 impl std::error::Error for ParamsError {}
@@ -185,6 +193,9 @@ impl std::fmt::Display for ParamsError {
             ),
             ParamsError::InvalidIndex(share_count, index) => {
                 write!(f, "invalid index {} for share_count {}", index, share_count)
+            }
+            ParamsError::InvalidPrfInput(prf_input_len) => {
+                write!(f, "invalid prf_input length {}", prf_input_len)
             }
         }
     }

@@ -152,3 +152,38 @@ pub(crate) fn execute_keygen(share_count: usize, threshold: usize) -> Vec<Secret
 
     all_secret_key_shares
 }
+
+#[test]
+#[traced_test]
+fn repeatable_paillier() {
+    let prf_secret_key = [3; 64];
+    let prf_input = b"foo";
+    let (state1, bcast1) = Keygen::new(5, 2, 1, &prf_secret_key, prf_input)
+        .unwrap()
+        .r1();
+    let (state2, bcast2) = Keygen::new(5, 2, 1, &prf_secret_key, prf_input)
+        .unwrap()
+        .r1();
+    assert_eq!(state1.dk_k256, state2.dk_k256);
+    assert_eq!(bcast1.ek_k256, bcast2.ek_k256);
+
+    let prf_input2 = b"bar";
+    let (state1, bcast1) = Keygen::new(5, 2, 1, &prf_secret_key, prf_input)
+        .unwrap()
+        .r1();
+    let (state2, bcast2) = Keygen::new(5, 2, 1, &prf_secret_key, prf_input2)
+        .unwrap()
+        .r1();
+    assert_ne!(state1.dk_k256, state2.dk_k256);
+    assert_ne!(bcast1.ek_k256, bcast2.ek_k256);
+
+    let prf_secret_key2 = [4; 64];
+    let (state1, bcast1) = Keygen::new(5, 2, 1, &prf_secret_key, prf_input)
+        .unwrap()
+        .r1();
+    let (state2, bcast2) = Keygen::new(5, 2, 1, &prf_secret_key2, prf_input)
+        .unwrap()
+        .r1();
+    assert_ne!(state1.dk_k256, state2.dk_k256);
+    assert_ne!(bcast1.ek_k256, bcast2.ek_k256);
+}

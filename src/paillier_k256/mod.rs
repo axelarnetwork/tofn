@@ -16,7 +16,7 @@ pub fn keygen_unsafe(rng: &mut (impl CryptoRng + RngCore)) -> (EncryptionKey, De
     (EncryptionKey(ek), DecryptionKey(dk))
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EncryptionKey(paillier::EncryptionKey);
 
 impl EncryptionKey {
@@ -70,7 +70,7 @@ impl EncryptionKey {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DecryptionKey(paillier::DecryptionKey);
 
 impl DecryptionKey {
