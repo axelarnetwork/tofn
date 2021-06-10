@@ -1,6 +1,10 @@
 use super::SecretKeyShare;
 use crate::{fillvec::FillVec, protocol::MsgBytes};
+use hmac::{Hmac, Mac, NewMac};
+use rand::SeedableRng;
+use rand_chacha::ChaCha20Rng;
 use serde::{Deserialize, Serialize};
+use sha2::Sha256;
 use strum_macros::EnumIter;
 
 pub type KeygenOutput = Result<SecretKeyShare, Vec<Vec<crimes::Crime>>>;
@@ -73,6 +77,7 @@ pub struct Keygen {
     share_count: usize,
     threshold: usize,
     my_index: usize,
+    rng_seed: <ChaCha20Rng as SeedableRng>::Seed,
     r1state: Option<r1::State>,
     r2state: Option<r2::State>,
     r3state: Option<r3::State>,
@@ -100,13 +105,25 @@ pub struct Keygen {
 }
 
 impl Keygen {
-    pub fn new(share_count: usize, threshold: usize, my_index: usize) -> Result<Self, ParamsError> {
+    pub fn new(
+        share_count: usize,
+        threshold: usize,
+        my_index: usize,
+        prf_secret_key: &[u8; 64],
+        prf_input: &[u8],
+    ) -> Result<Self, ParamsError> {
+        // use prf_secret_key immediately to minimize memory writes
+        let mut prf = Hmac::<Sha256>::new(prf_secret_key[..].into());
+        prf.update(prf_input);
+        let rng_seed = prf.finalize().into_bytes().into();
+
         validate_params(share_count, threshold, my_index)?;
         Ok(Self {
             status: Status::New,
             share_count,
             threshold,
             my_index,
+            rng_seed, // do not use after round 1
             r1state: None,
             r2state: None,
             r3state: None,

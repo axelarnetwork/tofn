@@ -7,15 +7,22 @@ pub mod keygen {
         = vec![(5, 0), (5, 1), (5, 3), (5, 4)];
         pub static ref TEST_CASES_INVALID: Vec<(usize,usize)> = vec![(5, 5), (5, 6), (2, 4)];
     }
+    use rand::RngCore;
     use tracing_test::traced_test; // enable logs in tests
 
     #[test]
     #[traced_test]
     fn protocol_basic_correctness() {
         for &(share_count, threshold) in TEST_CASES.iter() {
-            // keep it on the stack: avoid use of Box<dyn Protocol> https://doc.rust-lang.org/book/ch17-02-trait-objects.html
+            let mut prf_secret_key = [0; 64];
+            rand::thread_rng().fill_bytes(&mut prf_secret_key);
+
+            // just for fun: keep it on the stack: avoid use of Box<dyn Protocol> https://doc.rust-lang.org/book/ch17-02-trait-objects.html
             let mut parties: Vec<Keygen> = (0..share_count)
-                .map(|i| Keygen::new(share_count, threshold, i).unwrap())
+                .map(|i| {
+                    Keygen::new(share_count, threshold, i, &prf_secret_key, &i.to_be_bytes())
+                        .unwrap()
+                })
                 .collect();
             let mut protocols: Vec<&mut dyn Protocol> =
                 parties.iter_mut().map(|p| p as &mut dyn Protocol).collect();
@@ -30,7 +37,7 @@ pub mod keygen {
         }
 
         for (i, &(share_count, threshold)) in TEST_CASES_INVALID.iter().enumerate() {
-            assert!(Keygen::new(share_count, threshold, i).is_err());
+            assert!(Keygen::new(share_count, threshold, i, &[7; 64], &i.to_be_bytes()).is_err());
         }
     }
 }

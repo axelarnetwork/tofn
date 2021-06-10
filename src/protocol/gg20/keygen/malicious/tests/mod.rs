@@ -5,6 +5,7 @@ use crate::protocol::{
     tests::{execute_protocol_vec_with_criminals, Criminal},
     IndexRange, Protocol,
 };
+use rand::RngCore;
 use tracing::info;
 use tracing_test::traced_test; // enable logs in tests
 
@@ -185,7 +186,17 @@ fn execute_test_case(t: &test_cases::TestCase) {
         .iter()
         .enumerate()
         .map(|(i, p)| {
-            let mut k = Keygen::new(t.share_count(), t.threshold, i).unwrap();
+            let mut prf_secret_key = [0; 64];
+            rand::thread_rng().fill_bytes(&mut prf_secret_key);
+
+            let mut k = Keygen::new(
+                t.share_count(),
+                t.threshold,
+                i,
+                &prf_secret_key,
+                &i.to_be_bytes(),
+            )
+            .unwrap();
             k.behaviour = p.behaviour.clone();
             k
         })

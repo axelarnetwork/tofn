@@ -3,6 +3,7 @@ use crate::protocol::gg20::{
     tests::keygen::{TEST_CASES, TEST_CASES_INVALID},
     vss_k256,
 };
+use rand::RngCore;
 use tracing_test::traced_test;
 
 #[test]
@@ -21,8 +22,11 @@ fn basic_correctness() {
 }
 
 pub(crate) fn execute_keygen(share_count: usize, threshold: usize) -> Vec<SecretKeyShare> {
+    let mut prf_secret_key = [0; 64];
+    rand::thread_rng().fill_bytes(&mut prf_secret_key);
+
     let mut parties: Vec<Keygen> = (0..share_count)
-        .map(|i| Keygen::new(share_count, threshold, i).unwrap())
+        .map(|i| Keygen::new(share_count, threshold, i, &prf_secret_key, &i.to_be_bytes()).unwrap())
         .collect();
 
     // execute round 1 all parties and store their outputs
