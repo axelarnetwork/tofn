@@ -1,5 +1,7 @@
 use super::{Keygen, Status};
 use crate::{hash, k256_serde::to_bytes, paillier_k256, protocol::gg20::vss_k256};
+use rand::SeedableRng;
+use rand_chacha::ChaCha20Rng;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "malicious")]
@@ -40,8 +42,13 @@ impl Keygen {
             my_y_i_commit_k256
         };
 
-        let (ek_k256, dk_k256) = paillier_k256::keygen_unsafe();
-        let zkp_k256 = paillier_k256::zk::ZkSetup::new_unsafe();
+        // instantiate the rng here instead of in Keygen::new
+        // because we need rng to be mutable
+        // otherwise we'd need `r1(&mut self)`
+        let mut rng = ChaCha20Rng::from_seed(self.rng_seed);
+
+        let (ek_k256, dk_k256) = paillier_k256::keygen_unsafe(&mut rng);
+        let zkp_k256 = paillier_k256::zk::ZkSetup::new_unsafe(&mut rng);
         // TODO Paillier key proofs
 
         (

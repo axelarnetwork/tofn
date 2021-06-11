@@ -111,7 +111,7 @@ impl Criminal for SignDisrupter {
         );
 
         // disrupt the message
-        let disrupted_msg = original_msg.clone()[0..original_msg.len() / 2].to_vec();
+        let disrupted_msg = original_msg[0..original_msg.len() / 2].to_vec();
 
         // send spoofed message to victim and ignore the result
         receiver.set_msg_in(
@@ -252,7 +252,7 @@ fn execute_test_case(t: &test_cases::TestCase) {
             UnauthenticatedSender { victim, status: s } => Some(SignSpoofer {
                 index,
                 victim,
-                status: s.clone(),
+                status: s,
             }),
             _ => None,
         })
@@ -264,10 +264,7 @@ fn execute_test_case(t: &test_cases::TestCase) {
         .iter()
         .enumerate()
         .map(|(index, s)| match s.behaviour.clone() {
-            Staller { msg_type } => Some(SignStaller {
-                index,
-                msg_type: msg_type.clone(),
-            }),
+            Staller { msg_type } => Some(SignStaller { index, msg_type }),
             _ => None,
         })
         .filter(|staller| staller.is_some())
@@ -278,10 +275,7 @@ fn execute_test_case(t: &test_cases::TestCase) {
         .iter()
         .enumerate()
         .map(|(index, s)| match s.behaviour.clone() {
-            DisrupringSender { msg_type } => Some(SignDisrupter {
-                index,
-                msg_type: msg_type.clone(),
-            }),
+            DisrupringSender { msg_type } => Some(SignDisrupter { index, msg_type }),
             _ => None,
         })
         .filter(|disrupter| disrupter.is_some())
@@ -303,9 +297,8 @@ fn execute_test_case(t: &test_cases::TestCase) {
         // if party has finished, check that result was the expected one
         if let Some(output) = signer.clone_output() {
             t.assert_expected_output(&output);
-        }
-        // else check for stalling parties
-        else {
+        } else {
+            // check for stalling parties
             let output = signer.waiting_on();
             t.assert_expected_waiting_on(&output);
         }

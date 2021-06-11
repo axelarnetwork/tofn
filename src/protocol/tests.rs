@@ -67,17 +67,15 @@ pub(crate) fn execute_protocol_vec_with_criminals(
             if let Some(p2ps) = parties[i].get_p2p_out() {
                 let p2ps = p2ps.clone(); // fighting the borrow checker
                 for j in 0..parties.len() {
-                    for opt in &p2ps {
-                        if let Some(p2p) = opt {
-                            // if I am a criminal and I am acting in this round, i will handle the sending
-                            if let Some(criminal) = criminal {
-                                if criminal.is_crime_round(i, &p2p) {
-                                    criminal.do_crime(&p2p, parties[j]);
-                                    continue;
-                                }
+                    for p2p in p2ps.iter().flatten() {
+                        // if I am a criminal and I am acting in this round, i will handle the sending
+                        if let Some(criminal) = criminal {
+                            if criminal.is_crime_round(i, &p2p) {
+                                criminal.do_crime(&p2p, parties[j]);
+                                continue;
                             }
-                            parties[j].set_msg_in(&p2p, &from_index_range);
                         }
+                        parties[j].set_msg_in(&p2p, &from_index_range);
                     }
                 }
             }

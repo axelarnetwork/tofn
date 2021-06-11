@@ -5,6 +5,7 @@ use crate::protocol::{
     tests::{execute_protocol_vec_with_criminals, Criminal},
     IndexRange, Protocol,
 };
+use rand::RngCore;
 use tracing::info;
 use tracing_test::traced_test; // enable logs in tests
 
@@ -111,7 +112,7 @@ impl Criminal for KeygenDisrupter {
         );
 
         // disrupt the message
-        let disrupted_msg = original_msg.clone()[0..original_msg.len() / 2].to_vec();
+        let disrupted_msg = original_msg[0..original_msg.len() / 2].to_vec();
 
         // send spoofed message to victim and ignore the result
         receiver.set_msg_in(
@@ -185,7 +186,17 @@ fn execute_test_case(t: &test_cases::TestCase) {
         .iter()
         .enumerate()
         .map(|(i, p)| {
-            let mut k = Keygen::new(t.share_count(), t.threshold, i).unwrap();
+            let mut prf_secret_key = [0; 64];
+            rand::thread_rng().fill_bytes(&mut prf_secret_key);
+
+            let mut k = Keygen::new(
+                t.share_count(),
+                t.threshold,
+                i,
+                &prf_secret_key,
+                &i.to_be_bytes(),
+            )
+            .unwrap();
             k.behaviour = p.behaviour.clone();
             k
         })
@@ -198,7 +209,7 @@ fn execute_test_case(t: &test_cases::TestCase) {
             Behaviour::UnauthenticatedSender { victim, status: s } => Some(KeygenSpoofer {
                 index,
                 victim,
-                status: s.clone(),
+                status: s,
             }),
             _ => None,
         })
@@ -221,10 +232,7 @@ fn execute_test_case(t: &test_cases::TestCase) {
         .iter_mut()
         .enumerate()
         .map(|(index, s)| match s.behaviour.clone() {
-            Behaviour::DisruptingSender { msg_type } => Some(KeygenDisrupter {
-                index,
-                msg_type: msg_type.clone(),
-            }),
+            Behaviour::DisruptingSender { msg_type } => Some(KeygenDisrupter { index, msg_type }),
             _ => None,
         })
         .filter(|disrupter| disrupter.is_some())
@@ -248,9 +256,8 @@ fn execute_test_case(t: &test_cases::TestCase) {
         // if party has finished, check that result was the expected one
         if let Some(output) = keygen_party.clone_output() {
             t.assert_expected_output(&output);
-        }
-        // else check for stalling parties
-        else {
+        } else {
+            // check for stalling parties
             let output = keygen_party.waiting_on();
             t.assert_expected_waiting_on(&output);
         }

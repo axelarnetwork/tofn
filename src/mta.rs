@@ -129,9 +129,9 @@ pub(crate) mod tests {
         let a = k256::Scalar::random(rand::thread_rng());
         let b = k256::Scalar::random(rand::thread_rng());
         let b_g = k256::ProjectivePoint::generator() * b;
-        let (a_ek, a_dk) = keygen_unsafe();
-        let a_zkp = ZkSetup::new_unsafe();
-        let b_zkp = ZkSetup::new_unsafe();
+        let (a_ek, a_dk) = keygen_unsafe(&mut rand::thread_rng());
+        let a_zkp = ZkSetup::new_unsafe(&mut rand::thread_rng());
+        let b_zkp = ZkSetup::new_unsafe(&mut rand::thread_rng());
 
         // MtA step 1: party a
         let (a_ciphertext, a_randomness) = a_ek.encrypt(&(&a).into());

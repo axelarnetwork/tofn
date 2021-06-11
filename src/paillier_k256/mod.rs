@@ -5,17 +5,18 @@
 use paillier::{
     Add, BigInt, Decrypt, EncryptWithChosenRandomness, KeyGeneration, Mul, Open, Paillier,
 };
+use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 
 pub mod zk;
 
 /// unsafe because key pair does not use safe primes
-pub fn keygen_unsafe() -> (EncryptionKey, DecryptionKey) {
-    let (ek, dk) = Paillier::keypair().keys();
+pub fn keygen_unsafe(rng: &mut (impl CryptoRng + RngCore)) -> (EncryptionKey, DecryptionKey) {
+    let (ek, dk) = Paillier::keypair(rng).keys();
     (EncryptionKey(ek), DecryptionKey(dk))
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EncryptionKey(paillier::EncryptionKey);
 
 impl EncryptionKey {
@@ -69,7 +70,7 @@ impl EncryptionKey {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DecryptionKey(paillier::DecryptionKey);
 
 impl DecryptionKey {
@@ -186,7 +187,7 @@ mod tests {
     fn basic_round_trip() {
         let s = k256::Scalar::random(rand::thread_rng());
         let pt = Plaintext::from_scalar(&s);
-        let (ek, dk) = keygen_unsafe();
+        let (ek, dk) = keygen_unsafe(&mut rand::thread_rng());
         let (ct, r) = ek.encrypt(&pt);
         let (pt2, r2) = dk.decrypt_with_randomness(&ct);
         assert_eq!(pt, pt2);

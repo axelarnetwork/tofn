@@ -10,19 +10,21 @@ crate-type = ["lib"]
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 bincode = "1.2.1"
+rand_chacha = "0"
+hmac = "0"
 
 # k256 baggage
-k256 = "0.8"
-rand = "0.8"
-sha2 = "0.9"
-ecdsa = "0.11" # needed only for FromDigest trait
+k256 = "0"
+rand = "0"
+sha2 = "0"
+ecdsa = "0" # needed only for FromDigest trait
 
 # logging
 log = "0.4"
 tracing = "0.1"
 
 # TODO need a better Paillier library
-paillier = { git = "https://github.com/axelarnetwork/rust-paillier"} 
+paillier = { git = "https://github.com/axelarnetwork/rust-paillier"}
 
 # iterate enums
 strum = "0.20"

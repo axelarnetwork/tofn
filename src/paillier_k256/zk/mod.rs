@@ -1,7 +1,7 @@
 //! Minimize direct use of paillier, zk_paillier crates
 use super::{keygen_unsafe, BigInt, DecryptionKey, EncryptionKey};
 use paillier::zk::{CompositeDLogProof, DLogStatement};
-use rand::RngCore;
+use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 // use zk_paillier::zkproofs::{CompositeDLogProof, DLogStatement};
 
@@ -18,8 +18,8 @@ pub struct ZkSetup {
 }
 
 impl ZkSetup {
-    pub fn new_unsafe() -> Self {
-        Self::from_keypair(keygen_unsafe())
+    pub fn new_unsafe(rng: &mut (impl CryptoRng + RngCore)) -> Self {
+        Self::from_keypair(keygen_unsafe(rng))
     }
 
     fn from_keypair((ek_tilde, dk_tilde): (EncryptionKey, DecryptionKey)) -> Self {

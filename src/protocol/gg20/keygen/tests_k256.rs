@@ -3,6 +3,7 @@ use crate::protocol::gg20::{
     tests::keygen::{TEST_CASES, TEST_CASES_INVALID},
     vss_k256,
 };
+use rand::RngCore;
 use tracing_test::traced_test;
 
 #[test]
@@ -21,8 +22,11 @@ fn basic_correctness() {
 }
 
 pub(crate) fn execute_keygen(share_count: usize, threshold: usize) -> Vec<SecretKeyShare> {
+    let mut prf_secret_key = [0; 64];
+    rand::thread_rng().fill_bytes(&mut prf_secret_key);
+
     let mut parties: Vec<Keygen> = (0..share_count)
-        .map(|i| Keygen::new(share_count, threshold, i).unwrap())
+        .map(|i| Keygen::new(share_count, threshold, i, &prf_secret_key, &i.to_be_bytes()).unwrap())
         .collect();
 
     // execute round 1 all parties and store their outputs
@@ -43,14 +47,7 @@ pub(crate) fn execute_keygen(share_count: usize, threshold: usize) -> Vec<Secret
     // save each u for later tests
     let all_u_secrets: Vec<k256::Scalar> = parties
         .iter()
-        .map(|p| {
-            p.r1state
-                .as_ref()
-                .unwrap()
-                .my_u_i_vss_k256
-                .get_secret()
-                .clone()
-        })
+        .map(|p| *p.r1state.as_ref().unwrap().my_u_i_vss_k256.get_secret())
         .collect();
 
     // execute round 2 all parties and store their outputs
@@ -147,4 +144,39 @@ pub(crate) fn execute_keygen(share_count: usize, threshold: usize) -> Vec<Secret
     }
 
     all_secret_key_shares
+}
+
+#[test]
+#[traced_test]
+fn repeatable_paillier() {
+    let prf_secret_key = [3; 64];
+    let prf_input = b"foo";
+    let (state1, bcast1) = Keygen::new(5, 2, 1, &prf_secret_key, prf_input)
+        .unwrap()
+        .r1();
+    let (state2, bcast2) = Keygen::new(5, 2, 1, &prf_secret_key, prf_input)
+        .unwrap()
+        .r1();
+    assert_eq!(state1.dk_k256, state2.dk_k256);
+    assert_eq!(bcast1.ek_k256, bcast2.ek_k256);
+
+    let prf_input2 = b"bar";
+    let (state1, bcast1) = Keygen::new(5, 2, 1, &prf_secret_key, prf_input)
+        .unwrap()
+        .r1();
+    let (state2, bcast2) = Keygen::new(5, 2, 1, &prf_secret_key, prf_input2)
+        .unwrap()
+        .r1();
+    assert_ne!(state1.dk_k256, state2.dk_k256);
+    assert_ne!(bcast1.ek_k256, bcast2.ek_k256);
+
+    let prf_secret_key2 = [4; 64];
+    let (state1, bcast1) = Keygen::new(5, 2, 1, &prf_secret_key, prf_input)
+        .unwrap()
+        .r1();
+    let (state2, bcast2) = Keygen::new(5, 2, 1, &prf_secret_key2, prf_input)
+        .unwrap()
+        .r1();
+    assert_ne!(state1.dk_k256, state2.dk_k256);
+    assert_ne!(bcast1.ek_k256, bcast2.ek_k256);
 }
