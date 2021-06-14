@@ -23,11 +23,36 @@ impl From<&MessageDigest> for k256::Scalar {
     }
 }
 
-// final output of keygen
+/// final output of keygen
+/// store this struct in tofnd kvstore
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecretKeyShare {
     pub group: GroupPublicInfo,
     pub share: ShareSecretInfo,
+}
+
+impl SecretKeyShare {
+    pub fn recovery_info(&self) -> KeyShareRecoveryInfo {
+        let index = self.share.my_index;
+        let share = self.group.all_shares[index].clone();
+        let x_i_ciphertext = share.ek.encrypt(&self.share.my_x_i_k256.unwrap().into()).0;
+        KeyShareRecoveryInfo {
+            index,
+            share,
+            x_i_ciphertext,
+        }
+    }
+}
+
+/// Subset of `SecretKeyShare` that goes on-chain.
+/// (Secret data is encrypted so it's ok to post publicly.)
+/// When combined with similar data from all parties,
+/// this data + mnemonic can be used to recover a full `SecretKeyShare` struct.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KeyShareRecoveryInfo {
+    index: usize,
+    share: SharePublicInfo,
+    x_i_ciphertext: paillier_k256::Ciphertext,
 }
 
 /// `GroupPublicInfo` is the same for all shares
@@ -62,7 +87,8 @@ struct SharePublicInfo {
     zkp: paillier_k256::zk::ZkSetup,
 }
 
-/// `Share` contains only info that is specific to this keygen share
+/// `ShareSecretInfo` secret info unique to each share
+/// `my_index` is not secret; it's just convenient to put it here
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShareSecretInfo {
     my_index: usize,
