@@ -1,7 +1,7 @@
 use super::{crimes::Crime, Keygen, Status};
 use crate::{
     k256_serde,
-    protocol::gg20::{KeyGroup, KeyShare, SecretKeyShare},
+    protocol::gg20::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo},
     zkp::schnorr_k256,
 };
 use tracing::warn;
@@ -50,6 +50,7 @@ impl Keygen {
         // prepare data for final output
         let r1bcasts = self.in_r1bcasts.vec_ref();
 
+        // old
         let all_eks_k256 = r1bcasts
             .iter()
             .map(|b| b.as_ref().unwrap().ek_k256.clone())
@@ -59,9 +60,23 @@ impl Keygen {
             .map(|b| b.as_ref().unwrap().zkp_k256.clone())
             .collect();
 
+        // new
+        let all_shares = r1bcasts
+            .iter()
+            .enumerate()
+            .map(|(i, r1bcast)| {
+                let r1bcast = r1bcast.as_ref().unwrap();
+                SharePublicInfo {
+                    y_i: r3state.all_y_i_k256[i].into(),
+                    ek: r1bcast.ek_k256.clone(),
+                    zkp: r1bcast.zkp_k256.clone(),
+                }
+            })
+            .collect();
+
         Output::Success {
             key_share: SecretKeyShare {
-                group: KeyGroup {
+                group: GroupPublicInfo {
                     share_count: self.share_count,
                     threshold: self.threshold,
                     y_k256: r3state.y_k256.into(),
@@ -72,8 +87,9 @@ impl Keygen {
                         .collect(),
                     all_eks_k256,
                     all_zkps_k256,
+                    all_shares,
                 },
-                share: KeyShare {
+                share: ShareSecretInfo {
                     my_index: self.my_index,
                     dk_k256: r1state.dk_k256.clone(),
                     my_x_i_k256: r3state.my_x_i_k256.into(),
