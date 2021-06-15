@@ -128,10 +128,7 @@ pub struct ShareCommit {
 
 impl ShareCommit {
     pub fn from_point(point: k256_serde::ProjectivePoint, index: usize) -> Self {
-        Self {
-            point: point.into(),
-            index,
-        }
+        Self { point, index }
     }
 }
 
@@ -233,7 +230,7 @@ mod tests {
         let recovered_secret = recover_secret(&shuffled_shares, t);
         assert_eq!(recovered_secret, *secret);
 
-        let secret_commit = vss.commit().secret_commit().clone();
+        let secret_commit = *vss.commit().secret_commit();
         let shuffled_share_commits: Vec<ShareCommit> = shuffled_shares
             .iter()
             .map(|share| ShareCommit {
