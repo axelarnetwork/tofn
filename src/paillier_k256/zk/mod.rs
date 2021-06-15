@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 pub(crate) mod mta;
 pub(crate) mod range;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ZkSetup {
     composite_dlog_statement: DLogStatement,
     composite_dlog_proof: CompositeDLogProof,

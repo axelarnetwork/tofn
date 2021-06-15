@@ -13,10 +13,11 @@ pub struct Bcast {
     pub x_i_proof: schnorr_k256::Proof,
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
+#[allow(non_snake_case)]
 pub(super) struct State {
     pub(super) y_k256: k256::ProjectivePoint,
     pub(super) my_x_i_k256: k256::Scalar,
-    pub(super) all_y_i_k256: Vec<k256::ProjectivePoint>,
+    pub(super) all_X_i: Vec<k256::ProjectivePoint>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -38,6 +39,7 @@ pub(super) enum Output {
 }
 
 impl Keygen {
+    #[allow(non_snake_case)]
     pub(super) fn r3(&self) -> Output {
         assert!(matches!(self.status, Status::R2));
         let r2state = self.r2state.as_ref().unwrap();
@@ -53,7 +55,7 @@ impl Keygen {
             .u_i_share_commits_k256;
         let mut y_k256 = *my_vss_commit_k256.secret_commit();
         let mut my_x_i_k256 = *r2state.my_share_of_my_u_i_k256.get_scalar();
-        let mut all_y_i_k256: Vec<k256::ProjectivePoint> = (0..self.share_count)
+        let mut all_X_i: Vec<k256::ProjectivePoint> = (0..self.share_count)
             // start each summation with my contribution
             .map(|i| my_vss_commit_k256.share_commit(i))
             .collect();
@@ -126,8 +128,8 @@ impl Keygen {
             y_k256 += y_i_k256;
             my_x_i_k256 += u_i_share_k256.get_scalar();
 
-            for (j, y_i_k256) in all_y_i_k256.iter_mut().enumerate() {
-                *y_i_k256 += r2bcast.u_i_share_commits_k256.share_commit(j);
+            for (j, X_i) in all_X_i.iter_mut().enumerate() {
+                *X_i += r2bcast.u_i_share_commits_k256.share_commit(j);
             }
         }
 
@@ -161,7 +163,7 @@ impl Keygen {
             };
         }
 
-        all_y_i_k256[self.my_index] = k256::ProjectivePoint::generator() * my_x_i_k256;
+        all_X_i[self.my_index] = k256::ProjectivePoint::generator() * my_x_i_k256;
 
         #[cfg(feature = "malicious")]
         if matches!(self.behaviour, Behaviour::R3BadXIWitness) {
@@ -174,7 +176,7 @@ impl Keygen {
                 x_i_proof: schnorr_k256::prove(
                     &schnorr_k256::Statement {
                         base: &k256::ProjectivePoint::generator(),
-                        target: &all_y_i_k256[self.my_index],
+                        target: &all_X_i[self.my_index],
                     },
                     &schnorr_k256::Witness {
                         scalar: &my_x_i_k256,
@@ -184,7 +186,7 @@ impl Keygen {
             state: State {
                 y_k256,
                 my_x_i_k256,
-                all_y_i_k256,
+                all_X_i,
             },
         }
     }

@@ -25,14 +25,14 @@ impl From<&MessageDigest> for k256::Scalar {
 
 /// final output of keygen
 /// store this struct in tofnd kvstore
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SecretKeyShare {
     pub group: GroupPublicInfo,
     pub share: ShareSecretInfo,
 }
 
 /// `GroupPublicInfo` is the same for all shares
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GroupPublicInfo {
     threshold: usize,
     y_k256: k256_serde::ProjectivePoint,
@@ -52,16 +52,17 @@ impl GroupPublicInfo {
 }
 
 /// `SharePublicInfo` public info unique to each share
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[allow(non_snake_case)]
 struct SharePublicInfo {
-    y_i: k256_serde::ProjectivePoint,
+    X_i: k256_serde::ProjectivePoint,
     ek: paillier_k256::EncryptionKey,
     zkp: paillier_k256::zk::ZkSetup,
 }
 
 /// `ShareSecretInfo` secret info unique to each share
 /// `my_index` is not secret; it's just convenient to put it here
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ShareSecretInfo {
     my_index: usize,
     dk_k256: paillier_k256::DecryptionKey,

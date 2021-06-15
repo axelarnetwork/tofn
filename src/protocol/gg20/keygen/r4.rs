@@ -26,7 +26,7 @@ impl Keygen {
                 if schnorr_k256::verify(
                     &schnorr_k256::Statement {
                         base: &k256::ProjectivePoint::generator(),
-                        target: &self.r3state.as_ref().unwrap().all_y_i_k256[i],
+                        target: &self.r3state.as_ref().unwrap().all_X_i[i],
                     },
                     &b.as_ref().unwrap().x_i_proof,
                 )
@@ -54,7 +54,7 @@ impl Keygen {
             .map(|(i, r1bcast)| {
                 let r1bcast = r1bcast.as_ref().unwrap();
                 SharePublicInfo {
-                    y_i: r3state.all_y_i_k256[i].into(),
+                    X_i: r3state.all_X_i[i].into(),
                     ek: r1bcast.ek_k256.clone(),
                     zkp: r1bcast.zkp_k256.clone(),
                 }

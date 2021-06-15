@@ -26,9 +26,9 @@ pub(crate) fn execute_keygen(share_count: usize, threshold: usize) -> Vec<Secret
 }
 
 pub(crate) struct KeySharesWithRecovery {
-    shares: Vec<SecretKeyShare>,
-    secret_recovery_keys: Vec<SecretRecoveryKey>,
-    session_nonce: Vec<u8>,
+    pub shares: Vec<SecretKeyShare>,
+    pub secret_recovery_keys: Vec<SecretRecoveryKey>,
+    pub session_nonce: Vec<u8>,
 }
 
 pub(crate) fn execute_keygen_with_recovery(
@@ -171,7 +171,7 @@ pub(crate) fn execute_keygen_from_recovery(
     for (i, secret_key_share) in all_secret_key_shares.iter().enumerate() {
         for (j, other_secret_key_share) in all_secret_key_shares.iter().enumerate() {
             assert_eq!(
-                *secret_key_share.group.all_shares[j].y_i.unwrap(),
+                *secret_key_share.group.all_shares[j].X_i.unwrap(),
                 k256::ProjectivePoint::generator()
                     * other_secret_key_share.share.my_x_i_k256.unwrap(),
                 "party {} got party {} key wrong",

@@ -85,7 +85,7 @@ impl Sign {
                                 self.participant_indices[accused.participant_index];
                             let prover_y_i_k256 = self.my_secret_key_share.group.all_shares
                                 [prover_party_index]
-                                .y_i
+                                .X_i
                                 .unwrap()
                                 * &vss_k256::lagrange_coefficient(
                                     accused.participant_index,

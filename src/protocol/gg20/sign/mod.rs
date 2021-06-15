@@ -251,7 +251,7 @@ impl Sign {
     #[allow(non_snake_case)]
     fn W_i_k256(&self, participant_index: usize) -> k256::ProjectivePoint {
         self.my_secret_key_share.group.all_shares[self.participant_indices[participant_index]]
-            .y_i
+            .X_i
             .unwrap()
             * &self.lagrange_coefficient_k256(participant_index)
     }

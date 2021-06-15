@@ -197,6 +197,8 @@ impl std::fmt::Display for ParamsError {
 }
 
 #[cfg(test)]
+mod test_recovery;
+#[cfg(test)]
 pub(super) mod tests_k256; // pub(super) so that sign module can see tests::execute_keygen
 
 fn rng_seed(
@@ -293,7 +295,7 @@ impl SecretKeyShare {
         let all_shares: Vec<SharePublicInfo> = recovery_infos_sorted
             .into_iter()
             .map(|info| SharePublicInfo {
-                y_i: info.share.y_i,
+                X_i: info.share.X_i,
                 ek: info.share.ek,
                 zkp: info.share.zkp,
             })
@@ -301,7 +303,7 @@ impl SecretKeyShare {
         let y = all_shares
             .iter()
             .fold(k256::ProjectivePoint::identity(), |acc, share| {
-                acc + share.y_i.unwrap()
+                acc + share.X_i.unwrap()
             })
             .into();
 

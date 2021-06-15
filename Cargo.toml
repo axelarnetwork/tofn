@@ -24,7 +24,8 @@ log = "0.4"
 tracing = "0.1"
 
 # TODO need a better Paillier library
-paillier = { git = "https://github.com/axelarnetwork/rust-paillier"}
+# paillier = { git = "https://github.com/axelarnetwork/rust-paillier"}
+paillier = { path = "../rust-paillier2"}
 
 # iterate enums
 strum = "0.20"
