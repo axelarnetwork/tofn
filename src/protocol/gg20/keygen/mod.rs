@@ -1,4 +1,4 @@
-use super::{SecretKeyShare, SharePublicInfo};
+use super::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo};
 use crate::{fillvec::FillVec, paillier_k256, protocol::MsgBytes};
 use hmac::{Hmac, Mac, NewMac};
 use rand::SeedableRng;
@@ -232,8 +232,9 @@ impl SecretKeyShare {
     }
 
     /// Recover a `SecretKeyShare`
+    /// TODO unit tests
     /// TODO change `SecretRecoveryKey` to `&[u8]`?
-    /// TODO check more conditions? eg. unique eks, etc
+    /// TODO more complete arg checking? eg. unique eks, etc
     pub fn recover(
         secret_recovery_key: &SecretRecoveryKey,
         session_nonce: &[u8],
@@ -270,11 +271,13 @@ impl SecretKeyShare {
             recovery_infos_sorted
         };
 
-        // recover my Paillier keys and find my index
+        // recover my Paillier keys
         let (ek, dk) = paillier_k256::keygen_unsafe(&mut ChaCha20Rng::from_seed(rng_seed(
             secret_recovery_key,
             session_nonce,
         )));
+
+        // find my index by searching for my Paillier key
         let my_index =
             if let Some(index) = recovery_infos_sorted.iter().position(|r| r.share.ek == ek) {
                 index
@@ -282,42 +285,38 @@ impl SecretKeyShare {
                 return Err(From::from("unable to find my ek"));
             };
 
-        todo!()
+        // prepare output
+        let x_i = dk
+            .decrypt(&recovery_infos_sorted[my_index].x_i_ciphertext)
+            .to_scalar()
+            .into();
+        let all_shares: Vec<SharePublicInfo> = recovery_infos_sorted
+            .into_iter()
+            .map(|info| SharePublicInfo {
+                y_i: info.share.y_i,
+                ek: info.share.ek,
+                zkp: info.share.zkp,
+            })
+            .collect();
+        let y = all_shares
+            .iter()
+            .fold(k256::ProjectivePoint::identity(), |acc, share| {
+                acc + share.y_i.unwrap()
+            })
+            .into();
 
-        // let all_shares: Vec<SharePublicInfo> = recovery_infos_sorted
-        //     .iter()
-        //     .map(|info| SharePublicInfo {
-        //         y_i: info.share.y_i,
-        //         ek: info.share.ek,
-        //         zkp: info.share.zkp,
-        //     })
-        //     .collect();
-        // let y = all_shares
-        //     .iter()
-        //     .fold(k256::ProjectivePoint::identity(), |acc, share| {
-        //         acc + share.y_i.unwrap()
-        //     })
-        //     .into();
-        // let x_i = dk
-        //     .decrypt(&recovery_infos_sorted[my_index].x_i_ciphertext)
-        //     .to_scalar()
-        //     .into();
-
-        // Ok(Self {
-        //     group: GroupPublicInfo {
-        //         share_count,
-        //         threshold,
-        //         y_k256: y,
-        //         all_shares,
-        //         all_y_i_k256: (),
-        //         all_eks_k256: (),
-        //         all_zkps_k256: (),
-        //     },
-        //     share: ShareSecretInfo {
-        //         my_index,
-        //         dk_k256: dk,
-        //         my_x_i_k256: x_i,
-        //     },
-        // })
+        Ok(Self {
+            group: GroupPublicInfo {
+                share_count,
+                threshold,
+                y_k256: y,
+                all_shares,
+            },
+            share: ShareSecretInfo {
+                my_index,
+                dk_k256: dk,
+                my_x_i_k256: x_i,
+            },
+        })
     }
 }
