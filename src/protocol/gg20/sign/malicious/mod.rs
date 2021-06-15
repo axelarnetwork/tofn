@@ -2,7 +2,7 @@ use super::{
     crimes::Crime, r2, r3, r4, r5, r6, r7, MsgType, ParamsError, Sign, SignOutput, Status,
 };
 use crate::paillier_k256;
-use crate::protocol::gg20::{KeyGroup, KeyShare, MessageDigest};
+use crate::protocol::gg20::{GroupPublicInfo, MessageDigest, ShareSecretInfo};
 use crate::protocol::{IndexRange, MsgBytes, Protocol, ProtocolResult};
 use crate::zkp::pedersen_k256;
 use strum_macros::EnumIter;
@@ -49,8 +49,8 @@ pub struct BadSign {
 
 impl BadSign {
     pub fn new(
-        key_group: &KeyGroup,
-        key_share: &KeyShare,
+        key_group: &GroupPublicInfo,
+        key_share: &ShareSecretInfo,
         participant_indices: &[usize],
         msg_to_sign: &MessageDigest,
         behaviour: Behaviour,

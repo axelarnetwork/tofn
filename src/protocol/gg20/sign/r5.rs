@@ -114,12 +114,12 @@ impl Sign {
         // compute consistency proofs for R_i
         let mut out_p2ps = FillVec::with_len(self.participant_indices.len());
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
-            if *participant_index == self.my_secret_key_share.share.my_index {
+            if *participant_index == self.my_secret_key_share.share.index {
                 continue;
             }
 
             // k256
-            let other_zkp_k256 = &self.my_secret_key_share.group.all_zkps_k256[*participant_index];
+            let other_zkp_k256 = &self.my_secret_key_share.group.all_shares[*participant_index].zkp;
             let k_i_range_proof_wc_k256 = other_zkp_k256.range_proof_wc(stmt_wc_k256, wit_k256);
 
             out_p2ps

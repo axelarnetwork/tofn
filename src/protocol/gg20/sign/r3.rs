@@ -61,7 +61,7 @@ impl Sign {
         // 1. k_i (me) * gamma_j (other)
         // 2. k_i (me) * w_j (other)
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
-            if *participant_index == self.my_secret_key_share.share.my_index {
+            if *participant_index == self.my_secret_key_share.share.index {
                 continue;
             }
             let in_p2p = self.in_all_r2p2ps[i].vec_ref()[self.my_participant_index]
@@ -86,7 +86,7 @@ impl Sign {
                 .unwrap_or_else(|e| {
                     warn!(
                         "party {} says: mta proof failed to verify for party {} because [{}]",
-                        self.my_secret_key_share.share.my_index, participant_index, e
+                        self.my_secret_key_share.share.index, participant_index, e
                     );
                     culprits.push(Culprit {
                         participant_index: i,
@@ -95,7 +95,8 @@ impl Sign {
                 });
 
             // k256: verify zk proof for step 2 of MtAwc k_i * w_j
-            let other_g_w_i = self.my_secret_key_share.group.all_y_i_k256[*participant_index]
+            let other_g_w_i = self.my_secret_key_share.group.all_shares[*participant_index]
+                .X_i
                 .unwrap()
                 * &vss_k256::lagrange_coefficient(i, &self.participant_indices);
             self.my_zkp_k256()
@@ -113,7 +114,7 @@ impl Sign {
                 .unwrap_or_else(|e| {
                     warn!(
                         "party {} says: mta_wc proof failed to verify for party {} because [{}]",
-                        self.my_secret_key_share.share.my_index, participant_index, e
+                        self.my_secret_key_share.share.index, participant_index, e
                     );
                     culprits.push(Culprit {
                         participant_index: i,
@@ -125,7 +126,7 @@ impl Sign {
             let alpha_k256 = self
                 .my_secret_key_share
                 .share
-                .dk_k256
+                .dk
                 .decrypt(&in_p2p.alpha_ciphertext_k256)
                 .to_scalar();
             alphas_k256.insert(i, alpha_k256).unwrap();
@@ -134,7 +135,7 @@ impl Sign {
             let mu_k256 = self
                 .my_secret_key_share
                 .share
-                .dk_k256
+                .dk
                 .decrypt(&in_p2p.mu_ciphertext_k256)
                 .to_scalar();
             mus_k256.insert(i, mu_k256).unwrap();
@@ -152,7 +153,7 @@ impl Sign {
         let delta_i_k256 = {
             let mut sum = r1state.k_i_k256 * r1state.gamma_i_k256; // k_i * gamma_i
             for i in 0..self.participant_indices.len() {
-                if self.participant_indices[i] == self.my_secret_key_share.share.my_index {
+                if self.participant_indices[i] == self.my_secret_key_share.share.index {
                     continue;
                 }
                 sum = sum
@@ -170,7 +171,7 @@ impl Sign {
         let sigma_i_k256 = {
             let mut sum = r1state.k_i_k256 * r1state.w_i_k256; // k_i * w_i
             for i in 0..self.participant_indices.len() {
-                if self.participant_indices[i] == self.my_secret_key_share.share.my_index {
+                if self.participant_indices[i] == self.my_secret_key_share.share.index {
                     continue;
                 }
                 sum = sum

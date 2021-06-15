@@ -23,47 +23,55 @@ impl From<&MessageDigest> for k256::Scalar {
     }
 }
 
-// final output of keygen
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// final output of keygen
+/// store this struct in tofnd kvstore
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SecretKeyShare {
-    pub group: KeyGroup,
-    pub share: KeyShare,
+    pub group: GroupPublicInfo,
+    pub share: ShareSecretInfo,
 }
 
-/// `Group` contains only info that is identical across all keygen parties
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KeyGroup {
-    share_count: usize,
+/// `GroupPublicInfo` is the same for all shares
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GroupPublicInfo {
     threshold: usize,
-    y_k256: k256_serde::ProjectivePoint,
-    all_y_i_k256: Vec<k256_serde::ProjectivePoint>,
-    all_eks_k256: Vec<paillier_k256::EncryptionKey>,
-    all_zkps_k256: Vec<paillier_k256::zk::ZkSetup>,
+    y: k256_serde::ProjectivePoint,
+    all_shares: Vec<SharePublicInfo>,
 }
 
-impl KeyGroup {
+impl GroupPublicInfo {
     pub fn share_count(&self) -> usize {
-        self.share_count
+        self.all_shares.len()
     }
     pub fn threshold(&self) -> usize {
         self.threshold
     }
     pub fn pubkey_bytes(&self) -> Vec<u8> {
-        self.y_k256.bytes()
+        self.y.bytes()
     }
 }
 
-/// `Share` contains only info that is specific to this keygen share
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KeyShare {
-    my_index: usize,
-    dk_k256: paillier_k256::DecryptionKey,
-    my_x_i_k256: k256_serde::Scalar,
+/// `SharePublicInfo` public info unique to each share
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[allow(non_snake_case)]
+struct SharePublicInfo {
+    X_i: k256_serde::ProjectivePoint,
+    ek: paillier_k256::EncryptionKey,
+    zkp: paillier_k256::zk::ZkSetup,
 }
 
-impl KeyShare {
+/// `ShareSecretInfo` secret info unique to each share
+/// `my_index` is not secret; it's just convenient to put it here
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ShareSecretInfo {
+    index: usize,
+    dk: paillier_k256::DecryptionKey,
+    x_i: k256_serde::Scalar,
+}
+
+impl ShareSecretInfo {
     pub fn index(&self) -> usize {
-        self.my_index
+        self.index
     }
 }
 

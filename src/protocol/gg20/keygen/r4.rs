@@ -1,7 +1,6 @@
 use super::{crimes::Crime, Keygen, Status};
 use crate::{
-    k256_serde,
-    protocol::gg20::{KeyGroup, KeyShare, SecretKeyShare},
+    protocol::gg20::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo},
     zkp::schnorr_k256,
 };
 use tracing::warn;
@@ -27,7 +26,7 @@ impl Keygen {
                 if schnorr_k256::verify(
                     &schnorr_k256::Statement {
                         base: &k256::ProjectivePoint::generator(),
-                        target: &self.r3state.as_ref().unwrap().all_y_i_k256[i],
+                        target: &self.r3state.as_ref().unwrap().all_X_i[i],
                     },
                     &b.as_ref().unwrap().x_i_proof,
                 )
@@ -49,34 +48,30 @@ impl Keygen {
 
         // prepare data for final output
         let r1bcasts = self.in_r1bcasts.vec_ref();
-
-        let all_eks_k256 = r1bcasts
+        let all_shares = r1bcasts
             .iter()
-            .map(|b| b.as_ref().unwrap().ek_k256.clone())
-            .collect();
-        let all_zkps_k256 = r1bcasts
-            .iter()
-            .map(|b| b.as_ref().unwrap().zkp_k256.clone())
+            .enumerate()
+            .map(|(i, r1bcast)| {
+                let r1bcast = r1bcast.as_ref().unwrap();
+                SharePublicInfo {
+                    X_i: r3state.all_X_i[i].into(),
+                    ek: r1bcast.ek_k256.clone(),
+                    zkp: r1bcast.zkp_k256.clone(),
+                }
+            })
             .collect();
 
         Output::Success {
             key_share: SecretKeyShare {
-                group: KeyGroup {
-                    share_count: self.share_count,
+                group: GroupPublicInfo {
                     threshold: self.threshold,
-                    y_k256: r3state.y_k256.into(),
-                    all_y_i_k256: r3state
-                        .all_y_i_k256
-                        .iter()
-                        .map(k256_serde::ProjectivePoint::from)
-                        .collect(),
-                    all_eks_k256,
-                    all_zkps_k256,
+                    y: r3state.y_k256.into(),
+                    all_shares,
                 },
-                share: KeyShare {
-                    my_index: self.my_index,
-                    dk_k256: r1state.dk_k256.clone(),
-                    my_x_i_k256: r3state.my_x_i_k256.into(),
+                share: ShareSecretInfo {
+                    index: self.my_index,
+                    dk: r1state.dk_k256.clone(),
+                    x_i: r3state.my_x_i_k256.into(),
                 },
             },
         }

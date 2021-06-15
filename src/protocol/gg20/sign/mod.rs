@@ -1,4 +1,4 @@
-use super::{vss_k256, KeyGroup, KeyShare, MessageDigest, SecretKeyShare};
+use super::{vss_k256, GroupPublicInfo, MessageDigest, SecretKeyShare, ShareSecretInfo};
 use crate::{fillvec::FillVec, paillier_k256, protocol::MsgBytes};
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
@@ -176,8 +176,8 @@ pub struct Sign {
 
 impl Sign {
     pub fn new(
-        key_group: &KeyGroup,
-        key_share: &KeyShare,
+        key_group: &GroupPublicInfo,
+        key_share: &ShareSecretInfo,
         participant_indices: &[usize],
         msg_to_sign: &MessageDigest,
     ) -> Result<Self, ParamsError> {
@@ -250,15 +250,16 @@ impl Sign {
 
     #[allow(non_snake_case)]
     fn W_i_k256(&self, participant_index: usize) -> k256::ProjectivePoint {
-        self.my_secret_key_share.group.all_y_i_k256[self.participant_indices[participant_index]]
+        self.my_secret_key_share.group.all_shares[self.participant_indices[participant_index]]
+            .X_i
             .unwrap()
             * &self.lagrange_coefficient_k256(participant_index)
     }
     fn my_ek_k256(&self) -> &paillier_k256::EncryptionKey {
-        &self.my_secret_key_share.group.all_eks_k256[self.my_secret_key_share.share.my_index]
+        &self.my_secret_key_share.group.all_shares[self.my_secret_key_share.share.index].ek
     }
     fn my_zkp_k256(&self) -> &paillier_k256::zk::ZkSetup {
-        &self.my_secret_key_share.group.all_zkps_k256[self.my_secret_key_share.share.my_index]
+        &self.my_secret_key_share.group.all_shares[self.my_secret_key_share.share.index].zkp
     }
 }
 
@@ -267,9 +268,10 @@ pub type SignOutput = Result<Vec<u8>, Vec<Vec<crimes::Crime>>>;
 /// validate_params helper with custom error type
 /// Assume `secret_key_share` is valid and check `participant_indices` against it.
 /// Returns my index in participant_indices.
+/// TODO check more conditions? eg. unique eks, etc
 pub fn validate_params(
-    key_group: &KeyGroup,
-    key_share: &KeyShare,
+    key_group: &GroupPublicInfo,
+    key_share: &ShareSecretInfo,
     participant_indices: &[usize],
 ) -> Result<usize, ParamsError> {
     // number of participants must be at least threshold + 1
@@ -284,9 +286,9 @@ pub fn validate_params(
     // check that my index is in the list
     let my_participant_index = participant_indices
         .iter()
-        .position(|&i| i == key_share.my_index);
+        .position(|&i| i == key_share.index);
     if my_participant_index.is_none() {
-        return Err(ParamsError::ImNotAParticipant(key_share.my_index));
+        return Err(ParamsError::ImNotAParticipant(key_share.index));
     }
 
     // check for duplicate party ids
@@ -302,9 +304,9 @@ pub fn validate_params(
     // check that indices are within range
     // participant_indices_dedup is now sorted and has len > 0, so we need only check the final index
     let max_index = *participant_indices_dedup.last().unwrap();
-    if max_index >= key_group.share_count {
+    if max_index >= key_group.share_count() {
         return Err(ParamsError::InvalidParticipantIndex(
-            key_group.share_count - 1,
+            key_group.share_count() - 1,
             max_index,
         ));
     }

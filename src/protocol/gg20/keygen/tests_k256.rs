@@ -22,11 +22,49 @@ fn basic_correctness() {
 }
 
 pub(crate) fn execute_keygen(share_count: usize, threshold: usize) -> Vec<SecretKeyShare> {
-    let mut prf_secret_key = [0; 64];
-    rand::thread_rng().fill_bytes(&mut prf_secret_key);
+    execute_keygen_with_recovery(share_count, threshold).shares
+}
 
+pub(crate) struct KeySharesWithRecovery {
+    pub shares: Vec<SecretKeyShare>,
+    pub secret_recovery_keys: Vec<SecretRecoveryKey>,
+    pub session_nonce: Vec<u8>,
+}
+
+pub(crate) fn execute_keygen_with_recovery(
+    share_count: usize,
+    threshold: usize,
+) -> KeySharesWithRecovery {
+    let mut secret_recovery_keys = vec![[0u8; 64]; share_count];
+    for s in secret_recovery_keys.iter_mut() {
+        rand::thread_rng().fill_bytes(s);
+    }
+    let session_nonce = b"foobar".to_vec();
+
+    KeySharesWithRecovery {
+        shares: execute_keygen_from_recovery(threshold, &secret_recovery_keys, &session_nonce),
+        secret_recovery_keys,
+        session_nonce,
+    }
+}
+
+pub(crate) fn execute_keygen_from_recovery(
+    threshold: usize,
+    secret_recovery_keys: &[SecretRecoveryKey],
+    session_nonce: &[u8],
+) -> Vec<SecretKeyShare> {
+    let share_count = secret_recovery_keys.len();
     let mut parties: Vec<Keygen> = (0..share_count)
-        .map(|i| Keygen::new(share_count, threshold, i, &prf_secret_key, &i.to_be_bytes()).unwrap())
+        .map(|i| {
+            Keygen::new(
+                share_count,
+                threshold,
+                i,
+                &secret_recovery_keys[i],
+                session_nonce,
+            )
+            .unwrap()
+        })
         .collect();
 
     // execute round 1 all parties and store their outputs
@@ -117,7 +155,7 @@ pub(crate) fn execute_keygen(share_count: usize, threshold: usize) -> Vec<Secret
 
     let all_shares: Vec<vss_k256::Share> = all_secret_key_shares
         .iter()
-        .map(|k| vss_k256::Share::from_scalar(*k.share.my_x_i_k256.unwrap(), k.share.my_index))
+        .map(|k| vss_k256::Share::from_scalar(*k.share.x_i.unwrap(), k.share.index))
         .collect();
     let secret_key_recovered = vss_k256::recover_secret(&all_shares, threshold);
 
@@ -126,16 +164,15 @@ pub(crate) fn execute_keygen(share_count: usize, threshold: usize) -> Vec<Secret
     // test: verify that the reconstructed secret key yields the public key everyone deduced
     for secret_key_share in all_secret_key_shares.iter() {
         let test_pubkey = k256::ProjectivePoint::generator() * secret_key_recovered;
-        assert_eq!(&test_pubkey, secret_key_share.group.y_k256.unwrap());
+        assert_eq!(&test_pubkey, secret_key_share.group.y.unwrap());
     }
 
     // test: everyone computed everyone else's public key share correctly
     for (i, secret_key_share) in all_secret_key_shares.iter().enumerate() {
         for (j, other_secret_key_share) in all_secret_key_shares.iter().enumerate() {
             assert_eq!(
-                *secret_key_share.group.all_y_i_k256[j].unwrap(),
-                k256::ProjectivePoint::generator()
-                    * other_secret_key_share.share.my_x_i_k256.unwrap(),
+                *secret_key_share.group.all_shares[j].X_i.unwrap(),
+                k256::ProjectivePoint::generator() * other_secret_key_share.share.x_i.unwrap(),
                 "party {} got party {} key wrong",
                 i,
                 j

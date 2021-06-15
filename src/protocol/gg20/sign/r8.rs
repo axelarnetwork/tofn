@@ -31,7 +31,7 @@ impl Sign {
             sig_k256.normalize_s().expect("fail to normalize signature");
             sig_k256
         };
-        let verifying_key_k256 = &self.my_secret_key_share.group.y_k256.unwrap().to_affine();
+        let verifying_key_k256 = &self.my_secret_key_share.group.y.unwrap().to_affine();
         if verifying_key_k256
             .verify_prehashed(&self.msg_to_sign_k256, &sig_k256)
             .is_ok()

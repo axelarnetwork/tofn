@@ -59,12 +59,12 @@ impl Sign {
         // 1. k_i (other) * gamma_j (me)
         // 2. k_i (other) * w_j (me)
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
-            if *participant_index == self.my_secret_key_share.share.my_index {
+            if *participant_index == self.my_secret_key_share.share.index {
                 continue;
             }
 
             // k256: verify zk proof for first message of MtA
-            let other_ek_k256 = &self.my_secret_key_share.group.all_eks_k256[*participant_index];
+            let other_ek_k256 = &self.my_secret_key_share.group.all_shares[*participant_index].ek;
             let other_k_i_ciphertext_k256 = &self.in_r1bcasts.vec_ref()[i]
                 .as_ref()
                 .unwrap()
@@ -91,7 +91,7 @@ impl Sign {
                 });
 
             // k256: MtA step 2 for k_i * gamma_j
-            let other_zkp_k256 = &self.my_secret_key_share.group.all_zkps_k256[*participant_index];
+            let other_zkp_k256 = &self.my_secret_key_share.group.all_shares[*participant_index].zkp;
             let (alpha_ciphertext_k256, alpha_proof_k256, beta_secret_k256) =
                 crate::mta::mta_response_with_proof(
                     other_zkp_k256,

@@ -62,7 +62,7 @@ impl Sign {
                     &zk::range::StatementWc {
                         stmt: zk::range::Statement {
                             ciphertext: &r1bcast.k_i_ciphertext_k256,
-                            ek: &self.my_secret_key_share.group.all_eks_k256[*participant_index],
+                            ek: &self.my_secret_key_share.group.all_shares[*participant_index].ek,
                         },
                         msg_g: r5bcast.R_i_k256.unwrap(),
                         g: &r5state.R_k256,
@@ -178,7 +178,7 @@ impl Sign {
             let (alpha_plaintext_k256, alpha_randomness_k256) = self
                 .my_secret_key_share
                 .share
-                .dk_k256
+                .dk
                 .decrypt_with_randomness(&in_p2p.alpha_ciphertext_k256);
 
             // sanity check: we should recover the alpha we computed in r3
