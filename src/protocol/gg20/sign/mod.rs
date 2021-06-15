@@ -267,6 +267,7 @@ pub type SignOutput = Result<Vec<u8>, Vec<Vec<crimes::Crime>>>;
 /// validate_params helper with custom error type
 /// Assume `secret_key_share` is valid and check `participant_indices` against it.
 /// Returns my index in participant_indices.
+/// TODO check more conditions? eg. unique eks, etc
 pub fn validate_params(
     key_group: &GroupPublicInfo,
     key_share: &ShareSecretInfo,

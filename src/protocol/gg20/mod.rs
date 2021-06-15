@@ -31,30 +31,6 @@ pub struct SecretKeyShare {
     pub share: ShareSecretInfo,
 }
 
-impl SecretKeyShare {
-    pub fn recovery_info(&self) -> KeyShareRecoveryInfo {
-        let index = self.share.my_index;
-        let share = self.group.all_shares[index].clone();
-        let x_i_ciphertext = share.ek.encrypt(&self.share.my_x_i_k256.unwrap().into()).0;
-        KeyShareRecoveryInfo {
-            index,
-            share,
-            x_i_ciphertext,
-        }
-    }
-}
-
-/// Subset of `SecretKeyShare` that goes on-chain.
-/// (Secret data is encrypted so it's ok to post publicly.)
-/// When combined with similar data from all parties,
-/// this data + mnemonic can be used to recover a full `SecretKeyShare` struct.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KeyShareRecoveryInfo {
-    index: usize,
-    share: SharePublicInfo,
-    x_i_ciphertext: paillier_k256::Ciphertext,
-}
-
 /// `GroupPublicInfo` is the same for all shares
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GroupPublicInfo {

@@ -1,5 +1,5 @@
-use super::SecretKeyShare;
-use crate::{fillvec::FillVec, protocol::MsgBytes};
+use super::{SecretKeyShare, SharePublicInfo};
+use crate::{fillvec::FillVec, paillier_k256, protocol::MsgBytes};
 use hmac::{Hmac, Mac, NewMac};
 use rand::SeedableRng;
 use rand_chacha::ChaCha20Rng;
@@ -105,32 +105,27 @@ pub struct Keygen {
 }
 
 /// type alias instead of struct so as to minimize memory writes
-pub type PrfSecretKey = [u8; 64];
+pub type SecretRecoveryKey = [u8; 64];
 
 impl Keygen {
     pub fn new(
         share_count: usize,
         threshold: usize,
         my_index: usize,
-        prf_secret_key: &PrfSecretKey,
-        prf_input: &[u8],
+        secret_recovery_key: &SecretRecoveryKey,
+        session_nonce: &[u8],
     ) -> Result<Self, ParamsError> {
-        if prf_input.is_empty() {
-            return Err(ParamsError::InvalidPrfInput(prf_input.len()));
+        if session_nonce.is_empty() {
+            return Err(ParamsError::InvalidPrfInput(session_nonce.len()));
         }
-
-        // use prf_secret_key immediately so as to minimize memory writes
-        let mut prf = Hmac::<Sha256>::new(prf_secret_key[..].into());
-        prf.update(prf_input);
-        let rng_seed = prf.finalize().into_bytes().into();
-
         validate_params(share_count, threshold, my_index)?;
+
         Ok(Self {
             status: Status::New,
             share_count,
             threshold,
             my_index,
-            rng_seed, // do not use after round 1
+            rng_seed: rng_seed(secret_recovery_key, session_nonce),
             r1state: None,
             r2state: None,
             r3state: None,
@@ -203,3 +198,126 @@ impl std::fmt::Display for ParamsError {
 
 #[cfg(test)]
 pub(super) mod tests_k256; // pub(super) so that sign module can see tests::execute_keygen
+
+fn rng_seed(
+    secret_recovery_key: &SecretRecoveryKey,
+    session_nonce: &[u8],
+) -> <ChaCha20Rng as SeedableRng>::Seed {
+    let mut prf = Hmac::<Sha256>::new(secret_recovery_key[..].into());
+    prf.update(session_nonce);
+    prf.finalize().into_bytes().into()
+}
+
+/// Subset of `SecretKeyShare` that goes on-chain.
+/// (Secret data is encrypted so it's ok to post publicly.)
+/// When combined with similar data from all parties,
+/// this data + mnemonic can be used to recover a full `SecretKeyShare` struct.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KeyShareRecoveryInfo {
+    index: usize,
+    share: SharePublicInfo,
+    x_i_ciphertext: paillier_k256::Ciphertext,
+}
+
+impl SecretKeyShare {
+    pub fn recovery_info(&self) -> KeyShareRecoveryInfo {
+        let index = self.share.my_index;
+        let share = self.group.all_shares[index].clone();
+        let x_i_ciphertext = share.ek.encrypt(&self.share.my_x_i_k256.unwrap().into()).0;
+        KeyShareRecoveryInfo {
+            index,
+            share,
+            x_i_ciphertext,
+        }
+    }
+
+    /// Recover a `SecretKeyShare`
+    /// TODO change `SecretRecoveryKey` to `&[u8]`?
+    /// TODO check more conditions? eg. unique eks, etc
+    pub fn recover(
+        secret_recovery_key: &SecretRecoveryKey,
+        session_nonce: &[u8],
+        recovery_infos: &[KeyShareRecoveryInfo],
+        threshold: usize,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        // basic argument validation
+        if session_nonce.is_empty() {
+            return Err(From::from(format!(
+                "invalid session_nonce length: {}",
+                session_nonce.len()
+            )));
+        }
+        let share_count = recovery_infos.len();
+        if threshold >= share_count {
+            return Err(From::from(format!(
+                "invalid (share_count,threshold): ({},{})",
+                share_count, threshold
+            )));
+        }
+
+        // sort recovery_info and verify indices are 0..len-1
+        let recovery_infos_sorted = {
+            let mut recovery_infos_sorted = recovery_infos.to_vec();
+            recovery_infos_sorted.sort_unstable_by_key(|r| r.index);
+            for (i, info) in recovery_infos_sorted.iter().enumerate() {
+                if info.index != i {
+                    return Err(From::from(format!(
+                        "invalid party index {} at sorted position {}",
+                        info.index, i
+                    )));
+                }
+            }
+            recovery_infos_sorted
+        };
+
+        // recover my Paillier keys and find my index
+        let (ek, dk) = paillier_k256::keygen_unsafe(&mut ChaCha20Rng::from_seed(rng_seed(
+            secret_recovery_key,
+            session_nonce,
+        )));
+        let my_index =
+            if let Some(index) = recovery_infos_sorted.iter().position(|r| r.share.ek == ek) {
+                index
+            } else {
+                return Err(From::from("unable to find my ek"));
+            };
+
+        todo!()
+
+        // let all_shares: Vec<SharePublicInfo> = recovery_infos_sorted
+        //     .iter()
+        //     .map(|info| SharePublicInfo {
+        //         y_i: info.share.y_i,
+        //         ek: info.share.ek,
+        //         zkp: info.share.zkp,
+        //     })
+        //     .collect();
+        // let y = all_shares
+        //     .iter()
+        //     .fold(k256::ProjectivePoint::identity(), |acc, share| {
+        //         acc + share.y_i.unwrap()
+        //     })
+        //     .into();
+        // let x_i = dk
+        //     .decrypt(&recovery_infos_sorted[my_index].x_i_ciphertext)
+        //     .to_scalar()
+        //     .into();
+
+        // Ok(Self {
+        //     group: GroupPublicInfo {
+        //         share_count,
+        //         threshold,
+        //         y_k256: y,
+        //         all_shares,
+        //         all_y_i_k256: (),
+        //         all_eks_k256: (),
+        //         all_zkps_k256: (),
+        //     },
+        //     share: ShareSecretInfo {
+        //         my_index,
+        //         dk_k256: dk,
+        //         my_x_i_k256: x_i,
+        //     },
+        // })
+    }
+}
