@@ -27,8 +27,9 @@ impl Sign {
                     }
 
                     // k256: check proof
-                    let prover_ek_k256 = &self.my_secret_key_share.group.all_eks_k256
-                        [self.participant_indices[accused.participant_index]];
+                    let prover_ek_k256 = &self.my_secret_key_share.group.all_shares
+                        [self.participant_indices[accused.participant_index]]
+                        .ek;
                     let prover_k_i_ciphertext = &self.in_r1bcasts.vec_ref()
                         [accused.participant_index]
                         .as_ref()
@@ -39,8 +40,9 @@ impl Sign {
                         .unwrap()
                         .R_i_k256;
                     let R = &self.r5state.as_ref().unwrap().R_k256;
-                    let verifier_zkp_k256 = &self.my_secret_key_share.group.all_zkps_k256
-                        [self.participant_indices[accuser]];
+                    let verifier_zkp_k256 = &self.my_secret_key_share.group.all_shares
+                        [self.participant_indices[accuser]]
+                        .zkp;
                     let stmt_k256 = &zk::range::StatementWc {
                         stmt: zk::range::Statement {
                             ciphertext: prover_k_i_ciphertext,

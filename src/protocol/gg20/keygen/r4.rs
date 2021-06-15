@@ -1,6 +1,5 @@
 use super::{crimes::Crime, Keygen, Status};
 use crate::{
-    k256_serde,
     protocol::gg20::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo},
     zkp::schnorr_k256,
 };
@@ -49,18 +48,6 @@ impl Keygen {
 
         // prepare data for final output
         let r1bcasts = self.in_r1bcasts.vec_ref();
-
-        // old
-        let all_eks_k256 = r1bcasts
-            .iter()
-            .map(|b| b.as_ref().unwrap().ek_k256.clone())
-            .collect();
-        let all_zkps_k256 = r1bcasts
-            .iter()
-            .map(|b| b.as_ref().unwrap().zkp_k256.clone())
-            .collect();
-
-        // new
         let all_shares = r1bcasts
             .iter()
             .enumerate()
@@ -80,13 +67,6 @@ impl Keygen {
                     share_count: self.share_count,
                     threshold: self.threshold,
                     y_k256: r3state.y_k256.into(),
-                    all_y_i_k256: r3state
-                        .all_y_i_k256
-                        .iter()
-                        .map(k256_serde::ProjectivePoint::from)
-                        .collect(),
-                    all_eks_k256,
-                    all_zkps_k256,
                     all_shares,
                 },
                 share: ShareSecretInfo {

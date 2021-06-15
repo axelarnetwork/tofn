@@ -38,9 +38,6 @@ pub struct GroupPublicInfo {
     threshold: usize,
     y_k256: k256_serde::ProjectivePoint,
     all_shares: Vec<SharePublicInfo>,
-    all_y_i_k256: Vec<k256_serde::ProjectivePoint>,
-    all_eks_k256: Vec<paillier_k256::EncryptionKey>,
-    all_zkps_k256: Vec<paillier_k256::zk::ZkSetup>,
 }
 
 impl GroupPublicInfo {

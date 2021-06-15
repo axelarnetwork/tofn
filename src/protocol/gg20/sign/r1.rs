@@ -54,7 +54,7 @@ impl Sign {
             if *participant_index == self.my_secret_key_share.share.my_index {
                 continue;
             }
-            let other_zkp_k256 = &self.my_secret_key_share.group.all_zkps_k256[*participant_index];
+            let other_zkp_k256 = &self.my_secret_key_share.group.all_shares[*participant_index].zkp;
             let range_proof_k256 = other_zkp_k256.range_proof(
                 &paillier_k256::zk::range::Statement {
                     ciphertext: &k_i_ciphertext_k256,

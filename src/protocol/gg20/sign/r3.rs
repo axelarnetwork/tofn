@@ -95,7 +95,8 @@ impl Sign {
                 });
 
             // k256: verify zk proof for step 2 of MtAwc k_i * w_j
-            let other_g_w_i = self.my_secret_key_share.group.all_y_i_k256[*participant_index]
+            let other_g_w_i = self.my_secret_key_share.group.all_shares[*participant_index]
+                .y_i
                 .unwrap()
                 * &vss_k256::lagrange_coefficient(i, &self.participant_indices);
             self.my_zkp_k256()

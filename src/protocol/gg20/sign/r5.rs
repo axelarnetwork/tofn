@@ -119,7 +119,7 @@ impl Sign {
             }
 
             // k256
-            let other_zkp_k256 = &self.my_secret_key_share.group.all_zkps_k256[*participant_index];
+            let other_zkp_k256 = &self.my_secret_key_share.group.all_shares[*participant_index].zkp;
             let k_i_range_proof_wc_k256 = other_zkp_k256.range_proof_wc(stmt_wc_k256, wit_k256);
 
             out_p2ps

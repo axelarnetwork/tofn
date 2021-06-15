@@ -250,15 +250,16 @@ impl Sign {
 
     #[allow(non_snake_case)]
     fn W_i_k256(&self, participant_index: usize) -> k256::ProjectivePoint {
-        self.my_secret_key_share.group.all_y_i_k256[self.participant_indices[participant_index]]
+        self.my_secret_key_share.group.all_shares[self.participant_indices[participant_index]]
+            .y_i
             .unwrap()
             * &self.lagrange_coefficient_k256(participant_index)
     }
     fn my_ek_k256(&self) -> &paillier_k256::EncryptionKey {
-        &self.my_secret_key_share.group.all_eks_k256[self.my_secret_key_share.share.my_index]
+        &self.my_secret_key_share.group.all_shares[self.my_secret_key_share.share.my_index].ek
     }
     fn my_zkp_k256(&self) -> &paillier_k256::zk::ZkSetup {
-        &self.my_secret_key_share.group.all_zkps_k256[self.my_secret_key_share.share.my_index]
+        &self.my_secret_key_share.group.all_shares[self.my_secret_key_share.share.my_index].zkp
     }
 }
 

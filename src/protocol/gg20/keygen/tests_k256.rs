@@ -133,7 +133,7 @@ pub(crate) fn execute_keygen(share_count: usize, threshold: usize) -> Vec<Secret
     for (i, secret_key_share) in all_secret_key_shares.iter().enumerate() {
         for (j, other_secret_key_share) in all_secret_key_shares.iter().enumerate() {
             assert_eq!(
-                *secret_key_share.group.all_y_i_k256[j].unwrap(),
+                *secret_key_share.group.all_shares[j].y_i.unwrap(),
                 k256::ProjectivePoint::generator()
                     * other_secret_key_share.share.my_x_i_k256.unwrap(),
                 "party {} got party {} key wrong",
