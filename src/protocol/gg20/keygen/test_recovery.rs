@@ -15,10 +15,10 @@ fn basic_correctness() {
         .map(|r| SecretKeyShare::recover(r, &session_nonce, &recovery_infos, threshold).unwrap())
         .collect();
 
-    // assert_eq!(
-    //     recovered_shares, shares,
-    //     "comment-out this assert and use the following code to narrow down the discrepancy"
-    // );
+    assert_eq!(
+        recovered_shares, shares,
+        "comment-out this assert and use the following code to narrow down the discrepancy"
+    );
 
     for (i, (s, r)) in shares.iter().zip(recovered_shares.iter()).enumerate() {
         assert_eq!(s.share, r.share, "party {}", i);
@@ -34,6 +34,6 @@ fn basic_correctness() {
             assert_eq!(ss.zkp, rr.zkp, "party {} public info on party {}", i, j);
         }
         assert_eq!(s.group.threshold, r.group.threshold, "party {}", i);
-        // assert_eq!(s.group.y_k256, r.group.y_k256, "party {}", i);
+        assert_eq!(s.group.y_k256, r.group.y_k256, "party {}", i);
     }
 }

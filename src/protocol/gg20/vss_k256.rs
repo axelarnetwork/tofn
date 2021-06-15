@@ -126,6 +126,15 @@ pub struct ShareCommit {
     index: usize,
 }
 
+impl ShareCommit {
+    pub fn from_point(point: k256_serde::ProjectivePoint, index: usize) -> Self {
+        Self {
+            point: point.into(),
+            index,
+        }
+    }
+}
+
 pub fn recover_secret_commit(
     share_commits: &[ShareCommit],
     threshold: usize,
