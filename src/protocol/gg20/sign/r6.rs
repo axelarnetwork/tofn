@@ -178,7 +178,7 @@ impl Sign {
             let (alpha_plaintext_k256, alpha_randomness_k256) = self
                 .my_secret_key_share
                 .share
-                .dk_k256
+                .dk
                 .decrypt_with_randomness(&in_p2p.alpha_ciphertext_k256);
 
             // sanity check: we should recover the alpha we computed in r3

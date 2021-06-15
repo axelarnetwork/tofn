@@ -35,7 +35,7 @@ pub struct SecretKeyShare {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GroupPublicInfo {
     threshold: usize,
-    y_k256: k256_serde::ProjectivePoint,
+    y: k256_serde::ProjectivePoint,
     all_shares: Vec<SharePublicInfo>,
 }
 
@@ -47,7 +47,7 @@ impl GroupPublicInfo {
         self.threshold
     }
     pub fn pubkey_bytes(&self) -> Vec<u8> {
-        self.y_k256.bytes()
+        self.y.bytes()
     }
 }
 
@@ -64,14 +64,14 @@ struct SharePublicInfo {
 /// `my_index` is not secret; it's just convenient to put it here
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ShareSecretInfo {
-    my_index: usize,
-    dk_k256: paillier_k256::DecryptionKey,
-    my_x_i_k256: k256_serde::Scalar,
+    index: usize,
+    dk: paillier_k256::DecryptionKey,
+    x_i: k256_serde::Scalar,
 }
 
 impl ShareSecretInfo {
     pub fn index(&self) -> usize {
-        self.my_index
+        self.index
     }
 }
 

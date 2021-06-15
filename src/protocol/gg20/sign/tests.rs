@@ -47,7 +47,7 @@ fn basic_correctness_inner(
     for p in participants.iter() {
         assert_eq!(
             p.participant_indices[p.my_participant_index],
-            p.my_secret_key_share.share.my_index
+            p.my_secret_key_share.share.index
         );
     }
 
@@ -76,7 +76,7 @@ fn basic_correctness_inner(
         .fold(k256::Scalar::zero(), |acc, w_i| acc + w_i);
     let y_k256 = k256::ProjectivePoint::generator() * x_k256;
     for key_share in key_shares.iter() {
-        assert_eq!(y_k256, *key_share.group.y_k256.unwrap());
+        assert_eq!(y_k256, *key_share.group.y.unwrap());
     }
 
     // execute round 2 all participants and store their outputs
@@ -91,7 +91,7 @@ fn basic_correctness_inner(
             r2::Output::Fail { out_bcast } => {
                 panic!(
                     "r2 party {} expect success got failure with culprits: {:?}",
-                    participant.my_secret_key_share.share.my_index, out_bcast
+                    participant.my_secret_key_share.share.index, out_bcast
                 );
             }
         }
@@ -115,7 +115,7 @@ fn basic_correctness_inner(
             r3::Output::Fail { out_bcast } => {
                 panic!(
                     "r3 party {} expect success got failure with culprits: {:?}",
-                    participant.my_secret_key_share.share.my_index, out_bcast
+                    participant.my_secret_key_share.share.index, out_bcast
                 );
             }
         }
@@ -164,7 +164,7 @@ fn basic_correctness_inner(
             r4::Output::Fail { criminals } => {
                 panic!(
                     "r4 party {} expect success got failure with criminals: {:?}",
-                    participant.my_secret_key_share.share.my_index, criminals
+                    participant.my_secret_key_share.share.index, criminals
                 );
             }
         }
@@ -201,7 +201,7 @@ fn basic_correctness_inner(
             r5::Output::Fail { criminals } => {
                 panic!(
                     "r5 party {} expect success got failure with criminals: {:?}",
-                    participant.my_secret_key_share.share.my_index, criminals
+                    participant.my_secret_key_share.share.index, criminals
                 );
             }
         }
@@ -233,7 +233,7 @@ fn basic_correctness_inner(
             r6_output => {
                 panic!(
                     "r6 party {} expect success got failure {:?}",
-                    participant.my_secret_key_share.share.my_index, r6_output
+                    participant.my_secret_key_share.share.index, r6_output
                 );
             }
         }
@@ -256,7 +256,7 @@ fn basic_correctness_inner(
             r7_output => {
                 panic!(
                     "r7 party {} expect success got failure {:?}",
-                    participant.my_secret_key_share.share.my_index, r7_output
+                    participant.my_secret_key_share.share.index, r7_output
                 );
             }
         }
@@ -277,7 +277,7 @@ fn basic_correctness_inner(
             r8::Output::Fail { criminals } => {
                 panic!(
                     "r8 party {} expect success got failure with criminals: {:?}",
-                    participant.my_secret_key_share.share.my_index, criminals
+                    participant.my_secret_key_share.share.index, criminals
                 );
             }
         };

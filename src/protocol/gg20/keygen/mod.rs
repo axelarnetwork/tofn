@@ -223,9 +223,9 @@ pub struct KeyShareRecoveryInfo {
 
 impl SecretKeyShare {
     pub fn recovery_info(&self) -> KeyShareRecoveryInfo {
-        let index = self.share.my_index;
+        let index = self.share.index;
         let share = self.group.all_shares[index].clone();
-        let x_i_ciphertext = share.ek.encrypt(&self.share.my_x_i_k256.unwrap().into()).0;
+        let x_i_ciphertext = share.ek.encrypt(&self.share.x_i.unwrap().into()).0;
         KeyShareRecoveryInfo {
             index,
             share,
@@ -234,8 +234,6 @@ impl SecretKeyShare {
     }
 
     /// Recover a `SecretKeyShare`
-    /// TODO unit tests
-    /// TODO change `SecretRecoveryKey` to `&[u8]`?
     /// TODO more complete arg checking? eg. unique eks, etc
     pub fn recover(
         secret_recovery_key: &SecretRecoveryKey,
@@ -280,16 +278,16 @@ impl SecretKeyShare {
         )));
 
         // find my index by searching for my Paillier key
-        let my_index =
-            if let Some(index) = recovery_infos_sorted.iter().position(|r| r.share.ek == ek) {
-                index
-            } else {
-                return Err(From::from("unable to find my ek"));
-            };
+        let index = if let Some(index) = recovery_infos_sorted.iter().position(|r| r.share.ek == ek)
+        {
+            index
+        } else {
+            return Err(From::from("unable to find my ek"));
+        };
 
         // prepare output
         let x_i = dk
-            .decrypt(&recovery_infos_sorted[my_index].x_i_ciphertext)
+            .decrypt(&recovery_infos_sorted[index].x_i_ciphertext)
             .to_scalar()
             .into();
         let y = vss_k256::recover_secret_commit(
@@ -312,14 +310,10 @@ impl SecretKeyShare {
         Ok(Self {
             group: GroupPublicInfo {
                 threshold,
-                y_k256: y,
+                y,
                 all_shares,
             },
-            share: ShareSecretInfo {
-                my_index,
-                dk_k256: dk,
-                my_x_i_k256: x_i,
-            },
+            share: ShareSecretInfo { index, dk, x_i },
         })
     }
 }

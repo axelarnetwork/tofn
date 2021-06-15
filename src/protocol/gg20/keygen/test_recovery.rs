@@ -1,3 +1,5 @@
+use rand::prelude::SliceRandom;
+
 use super::{tests_k256::*, *};
 
 #[test]
@@ -8,8 +10,11 @@ fn basic_correctness() {
         secret_recovery_keys,
         session_nonce,
     } = execute_keygen_with_recovery(share_count, threshold);
-    let recovery_infos: Vec<KeyShareRecoveryInfo> =
-        shares.iter().map(|s| s.recovery_info()).collect();
+    let recovery_infos = {
+        let mut recovery_infos: Vec<_> = shares.iter().map(|s| s.recovery_info()).collect();
+        recovery_infos.shuffle(&mut rand::thread_rng()); // simulate nondeterministic message receipt
+        recovery_infos
+    };
     let recovered_shares: Vec<SecretKeyShare> = secret_recovery_keys
         .iter()
         .map(|r| SecretKeyShare::recover(r, &session_nonce, &recovery_infos, threshold).unwrap())
@@ -34,6 +39,6 @@ fn basic_correctness() {
             assert_eq!(ss.zkp, rr.zkp, "party {} public info on party {}", i, j);
         }
         assert_eq!(s.group.threshold, r.group.threshold, "party {}", i);
-        assert_eq!(s.group.y_k256, r.group.y_k256, "party {}", i);
+        assert_eq!(s.group.y, r.group.y, "party {}", i);
     }
 }

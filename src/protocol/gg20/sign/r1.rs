@@ -32,7 +32,7 @@ impl Sign {
     pub(super) fn r1(&self) -> (State, Bcast, FillVec<P2p>) {
         assert!(matches!(self.status, Status::New));
 
-        let w_i_k256 = self.my_secret_key_share.share.my_x_i_k256.unwrap()
+        let w_i_k256 = self.my_secret_key_share.share.x_i.unwrap()
             * &vss_k256::lagrange_coefficient(self.my_participant_index, &self.participant_indices);
         let k_i_k256 = k256::Scalar::random(rand::thread_rng());
         let gamma_i_k256 = k256::Scalar::random(rand::thread_rng());
@@ -51,7 +51,7 @@ impl Sign {
 
         let mut out_p2ps = FillVec::with_len(self.participant_indices.len());
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
-            if *participant_index == self.my_secret_key_share.share.my_index {
+            if *participant_index == self.my_secret_key_share.share.index {
                 continue;
             }
             let other_zkp_k256 = &self.my_secret_key_share.group.all_shares[*participant_index].zkp;

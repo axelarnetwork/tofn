@@ -32,7 +32,7 @@ pub mod keygen {
             let key_share = parties[0].clone_output().unwrap().unwrap();
             for p in parties.iter() {
                 let cur_key = p.clone_output().unwrap().unwrap();
-                assert_eq!(cur_key.group.y_k256, key_share.group.y_k256);
+                assert_eq!(cur_key.group.y, key_share.group.y);
             }
         }
 

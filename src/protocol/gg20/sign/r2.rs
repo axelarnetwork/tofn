@@ -59,7 +59,7 @@ impl Sign {
         // 1. k_i (other) * gamma_j (me)
         // 2. k_i (other) * w_j (me)
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
-            if *participant_index == self.my_secret_key_share.share.my_index {
+            if *participant_index == self.my_secret_key_share.share.index {
                 continue;
             }
 

@@ -114,7 +114,7 @@ impl Sign {
         // compute consistency proofs for R_i
         let mut out_p2ps = FillVec::with_len(self.participant_indices.len());
         for (i, participant_index) in self.participant_indices.iter().enumerate() {
-            if *participant_index == self.my_secret_key_share.share.my_index {
+            if *participant_index == self.my_secret_key_share.share.index {
                 continue;
             }
 

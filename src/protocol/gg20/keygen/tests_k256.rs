@@ -155,7 +155,7 @@ pub(crate) fn execute_keygen_from_recovery(
 
     let all_shares: Vec<vss_k256::Share> = all_secret_key_shares
         .iter()
-        .map(|k| vss_k256::Share::from_scalar(*k.share.my_x_i_k256.unwrap(), k.share.my_index))
+        .map(|k| vss_k256::Share::from_scalar(*k.share.x_i.unwrap(), k.share.index))
         .collect();
     let secret_key_recovered = vss_k256::recover_secret(&all_shares, threshold);
 
@@ -164,7 +164,7 @@ pub(crate) fn execute_keygen_from_recovery(
     // test: verify that the reconstructed secret key yields the public key everyone deduced
     for secret_key_share in all_secret_key_shares.iter() {
         let test_pubkey = k256::ProjectivePoint::generator() * secret_key_recovered;
-        assert_eq!(&test_pubkey, secret_key_share.group.y_k256.unwrap());
+        assert_eq!(&test_pubkey, secret_key_share.group.y.unwrap());
     }
 
     // test: everyone computed everyone else's public key share correctly
@@ -172,8 +172,7 @@ pub(crate) fn execute_keygen_from_recovery(
         for (j, other_secret_key_share) in all_secret_key_shares.iter().enumerate() {
             assert_eq!(
                 *secret_key_share.group.all_shares[j].X_i.unwrap(),
-                k256::ProjectivePoint::generator()
-                    * other_secret_key_share.share.my_x_i_k256.unwrap(),
+                k256::ProjectivePoint::generator() * other_secret_key_share.share.x_i.unwrap(),
                 "party {} got party {} key wrong",
                 i,
                 j

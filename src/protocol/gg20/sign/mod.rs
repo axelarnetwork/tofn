@@ -256,10 +256,10 @@ impl Sign {
             * &self.lagrange_coefficient_k256(participant_index)
     }
     fn my_ek_k256(&self) -> &paillier_k256::EncryptionKey {
-        &self.my_secret_key_share.group.all_shares[self.my_secret_key_share.share.my_index].ek
+        &self.my_secret_key_share.group.all_shares[self.my_secret_key_share.share.index].ek
     }
     fn my_zkp_k256(&self) -> &paillier_k256::zk::ZkSetup {
-        &self.my_secret_key_share.group.all_shares[self.my_secret_key_share.share.my_index].zkp
+        &self.my_secret_key_share.group.all_shares[self.my_secret_key_share.share.index].zkp
     }
 }
 
@@ -286,9 +286,9 @@ pub fn validate_params(
     // check that my index is in the list
     let my_participant_index = participant_indices
         .iter()
-        .position(|&i| i == key_share.my_index);
+        .position(|&i| i == key_share.index);
     if my_participant_index.is_none() {
-        return Err(ParamsError::ImNotAParticipant(key_share.my_index));
+        return Err(ParamsError::ImNotAParticipant(key_share.index));
     }
 
     // check for duplicate party ids

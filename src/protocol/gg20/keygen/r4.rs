@@ -65,13 +65,13 @@ impl Keygen {
             key_share: SecretKeyShare {
                 group: GroupPublicInfo {
                     threshold: self.threshold,
-                    y_k256: r3state.y_k256.into(),
+                    y: r3state.y_k256.into(),
                     all_shares,
                 },
                 share: ShareSecretInfo {
-                    my_index: self.my_index,
-                    dk_k256: r1state.dk_k256.clone(),
-                    my_x_i_k256: r3state.my_x_i_k256.into(),
+                    index: self.my_index,
+                    dk: r1state.dk_k256.clone(),
+                    x_i: r3state.my_x_i_k256.into(),
                 },
             },
         }
