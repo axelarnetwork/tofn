@@ -111,35 +111,12 @@ impl Share {
 #[cfg(test)]
 pub fn recover_secret(shares: &[Share], threshold: usize) -> k256::Scalar {
     assert!(shares.len() > threshold);
-    struct Point {
-        x: k256::Scalar,
-        y: k256::Scalar,
-    }
-    let points: Vec<Point> = shares
-        .iter()
-        .take(threshold + 1)
-        .map(|s| Point {
-            x: k256::Scalar::from(s.index as u32 + 1), // vss indices start at 1
-            y: *s.get_scalar(),
-        })
-        .collect();
-    points
+    let indices: Vec<usize> = shares.iter().map(|s| s.index).collect();
+    shares
         .iter()
         .enumerate()
-        .fold(k256::Scalar::zero(), |sum, (i, point_i)| {
-            sum + point_i.y * {
-                let (numerator, denominator) = points.iter().enumerate().fold(
-                    (k256::Scalar::one(), k256::Scalar::one()),
-                    |(num, den), (j, point_j)| {
-                        if j == i {
-                            (num, den)
-                        } else {
-                            (num * point_j.x, den * (point_j.x - point_i.x))
-                        }
-                    },
-                );
-                numerator * denominator.invert().unwrap()
-            }
+        .fold(k256::Scalar::zero(), |sum, (i, share)| {
+            sum + share.scalar.unwrap() * &lagrange_coefficient(i, &indices)
         })
 }
 
