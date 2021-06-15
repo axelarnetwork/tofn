@@ -120,6 +120,27 @@ pub fn recover_secret(shares: &[Share], threshold: usize) -> k256::Scalar {
         })
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ShareCommit {
+    point: k256_serde::ProjectivePoint,
+    index: usize,
+}
+
+pub fn recover_secret_commit(
+    share_commits: &[ShareCommit],
+    threshold: usize,
+) -> k256::ProjectivePoint {
+    // TODO copied code from recover_secret
+    assert!(share_commits.len() > threshold);
+    let indices: Vec<usize> = share_commits.iter().map(|s| s.index).collect();
+    share_commits.iter().enumerate().fold(
+        k256::ProjectivePoint::identity(),
+        |sum, (i, share_commit)| {
+            sum + share_commit.point.unwrap() * &lagrange_coefficient(i, &indices)
+        },
+    )
+}
+
 pub fn lagrange_coefficient(i: usize, indices: &[usize]) -> k256::Scalar {
     let scalars: Vec<k256::Scalar> = indices
         .iter()
@@ -202,6 +223,17 @@ mod tests {
         let shuffled_shares = vss.shuffled_shares(n);
         let recovered_secret = recover_secret(&shuffled_shares, t);
         assert_eq!(recovered_secret, *secret);
+
+        let secret_commit = vss.commit().secret_commit().clone();
+        let shuffled_share_commits: Vec<ShareCommit> = shuffled_shares
+            .iter()
+            .map(|share| ShareCommit {
+                point: (k256::ProjectivePoint::generator() * share.get_scalar()).into(),
+                index: share.get_index(),
+            })
+            .collect();
+        let recovered_secret_commit = recover_secret_commit(&shuffled_share_commits, t);
+        assert_eq!(recovered_secret_commit, secret_commit);
     }
 
     #[test]
