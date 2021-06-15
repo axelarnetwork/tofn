@@ -304,9 +304,9 @@ pub fn validate_params(
     // check that indices are within range
     // participant_indices_dedup is now sorted and has len > 0, so we need only check the final index
     let max_index = *participant_indices_dedup.last().unwrap();
-    if max_index >= key_group.share_count {
+    if max_index >= key_group.share_count() {
         return Err(ParamsError::InvalidParticipantIndex(
-            key_group.share_count - 1,
+            key_group.share_count() - 1,
             max_index,
         ));
     }

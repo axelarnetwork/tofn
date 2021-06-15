@@ -64,7 +64,6 @@ impl Keygen {
         Output::Success {
             key_share: SecretKeyShare {
                 group: GroupPublicInfo {
-                    share_count: self.share_count,
                     threshold: self.threshold,
                     y_k256: r3state.y_k256.into(),
                     all_shares,

@@ -34,7 +34,6 @@ pub struct SecretKeyShare {
 /// `GroupPublicInfo` is the same for all shares
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GroupPublicInfo {
-    share_count: usize,
     threshold: usize,
     y_k256: k256_serde::ProjectivePoint,
     all_shares: Vec<SharePublicInfo>,
@@ -42,7 +41,7 @@ pub struct GroupPublicInfo {
 
 impl GroupPublicInfo {
     pub fn share_count(&self) -> usize {
-        self.share_count
+        self.all_shares.len()
     }
     pub fn threshold(&self) -> usize {
         self.threshold

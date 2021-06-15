@@ -307,7 +307,6 @@ impl SecretKeyShare {
 
         Ok(Self {
             group: GroupPublicInfo {
-                share_count,
                 threshold,
                 y_k256: y,
                 all_shares,
