@@ -244,7 +244,7 @@ pub mod tests {
         };
         let stmt = &stmt_wc.stmt;
         let wit = &Witness { msg, randomness };
-        let zkp = ZkSetup::new_unsafe(&mut rand::thread_rng());
+        let (zkp, _) = ZkSetup::new_unsafe(&mut rand::thread_rng());
 
         // test: valid proof
         let proof = zkp.range_proof(stmt, wit);

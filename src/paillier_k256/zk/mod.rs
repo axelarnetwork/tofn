@@ -11,18 +11,20 @@ pub(crate) mod range;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ZkSetup {
     composite_dlog_statement: DLogStatement,
-    composite_dlog_proof: CompositeDLogProof,
     q_n_tilde: BigInt,
     q3_n_tilde: BigInt,
 }
 
+pub type ZkSetupProof = CompositeDLogProof;
+
 impl ZkSetup {
-    pub fn new_unsafe(rng: &mut (impl CryptoRng + RngCore)) -> Self {
+    pub fn new_unsafe(rng: &mut (impl CryptoRng + RngCore)) -> (ZkSetup, ZkSetupProof) {
         Self::from_keypair(keygen_unsafe(rng))
     }
 
-    fn from_keypair((ek_tilde, dk_tilde): (EncryptionKey, DecryptionKey)) -> Self {
-        // TODO constants
+    fn from_keypair(
+        (ek_tilde, dk_tilde): (EncryptionKey, DecryptionKey),
+    ) -> (ZkSetup, ZkSetupProof) {
         let one = BigInt::one();
         let s = BigInt::from(2).pow(256_u32);
 
@@ -42,12 +44,14 @@ impl ZkSetup {
 
         let q = super::secp256k1_modulus();
         let q3 = secp256k1_modulus_cubed();
-        Self {
-            q_n_tilde: q * &dlog_statement.N,
-            q3_n_tilde: &q3 * &dlog_statement.N,
-            composite_dlog_statement: dlog_statement,
-            composite_dlog_proof: dlog_proof,
-        }
+        (
+            Self {
+                q_n_tilde: q * &dlog_statement.N,
+                q3_n_tilde: &q3 * &dlog_statement.N,
+                composite_dlog_statement: dlog_statement,
+            },
+            dlog_proof,
+        )
     }
 
     fn h1(&self) -> &BigInt {

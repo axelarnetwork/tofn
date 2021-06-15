@@ -304,7 +304,7 @@ pub(crate) mod tests {
         };
         let stmt = &stmt_wc.stmt;
         let wit = &Witness { x, msg, randomness };
-        let zkp = ZkSetup::new_unsafe(&mut rand::thread_rng());
+        let (zkp, _) = ZkSetup::new_unsafe(&mut rand::thread_rng());
 
         // test: valid proof
         let proof = zkp.mta_proof(stmt, wit);
