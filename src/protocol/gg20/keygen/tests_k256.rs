@@ -22,11 +22,37 @@ fn basic_correctness() {
 }
 
 pub(crate) fn execute_keygen(share_count: usize, threshold: usize) -> Vec<SecretKeyShare> {
-    let mut prf_secret_key = [0; 64];
-    rand::thread_rng().fill_bytes(&mut prf_secret_key);
+    execute_keygen_with_recovery_key(share_count, threshold).0
+}
 
+pub(crate) fn execute_keygen_with_recovery_key(
+    share_count: usize,
+    threshold: usize,
+) -> (Vec<SecretKeyShare>, SecretRecoveryKey) {
+    let mut secret_recovery_key = [0; 64];
+    rand::thread_rng().fill_bytes(&mut secret_recovery_key);
+    (
+        execute_keygen_from_recovery_key(share_count, threshold, &secret_recovery_key),
+        secret_recovery_key,
+    )
+}
+
+pub(crate) fn execute_keygen_from_recovery_key(
+    share_count: usize,
+    threshold: usize,
+    secret_recovery_key: &SecretRecoveryKey,
+) -> Vec<SecretKeyShare> {
     let mut parties: Vec<Keygen> = (0..share_count)
-        .map(|i| Keygen::new(share_count, threshold, i, &prf_secret_key, &i.to_be_bytes()).unwrap())
+        .map(|i| {
+            Keygen::new(
+                share_count,
+                threshold,
+                i,
+                &secret_recovery_key,
+                &i.to_be_bytes(),
+            )
+            .unwrap()
+        })
         .collect();
 
     // execute round 1 all parties and store their outputs
