@@ -22,34 +22,46 @@ fn basic_correctness() {
 }
 
 pub(crate) fn execute_keygen(share_count: usize, threshold: usize) -> Vec<SecretKeyShare> {
-    execute_keygen_with_recovery_key(share_count, threshold).0
+    execute_keygen_with_recovery(share_count, threshold).shares
 }
 
-pub(crate) fn execute_keygen_with_recovery_key(
-    share_count: usize,
-    threshold: usize,
-) -> (Vec<SecretKeyShare>, SecretRecoveryKey) {
-    let mut secret_recovery_key = [0; 64];
-    rand::thread_rng().fill_bytes(&mut secret_recovery_key);
-    (
-        execute_keygen_from_recovery_key(share_count, threshold, &secret_recovery_key),
-        secret_recovery_key,
-    )
+pub(crate) struct KeySharesWithRecovery {
+    shares: Vec<SecretKeyShare>,
+    secret_recovery_keys: Vec<SecretRecoveryKey>,
+    session_nonce: Vec<u8>,
 }
 
-pub(crate) fn execute_keygen_from_recovery_key(
+pub(crate) fn execute_keygen_with_recovery(
     share_count: usize,
     threshold: usize,
-    secret_recovery_key: &SecretRecoveryKey,
+) -> KeySharesWithRecovery {
+    let mut secret_recovery_keys = vec![[0u8; 64]; share_count];
+    for s in secret_recovery_keys.iter_mut() {
+        rand::thread_rng().fill_bytes(s);
+    }
+    let session_nonce = b"foobar".to_vec();
+
+    KeySharesWithRecovery {
+        shares: execute_keygen_from_recovery(threshold, &secret_recovery_keys, &session_nonce),
+        secret_recovery_keys,
+        session_nonce,
+    }
+}
+
+pub(crate) fn execute_keygen_from_recovery(
+    threshold: usize,
+    secret_recovery_keys: &[SecretRecoveryKey],
+    session_nonce: &[u8],
 ) -> Vec<SecretKeyShare> {
+    let share_count = secret_recovery_keys.len();
     let mut parties: Vec<Keygen> = (0..share_count)
         .map(|i| {
             Keygen::new(
                 share_count,
                 threshold,
                 i,
-                &secret_recovery_key,
-                &i.to_be_bytes(),
+                &secret_recovery_keys[i],
+                session_nonce,
             )
             .unwrap()
         })
