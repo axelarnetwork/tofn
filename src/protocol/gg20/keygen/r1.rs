@@ -57,7 +57,6 @@ impl Keygen {
             ek_proof
         };
 
-
         #[cfg(feature = "malicious")]
         let zkp_proof = if matches!(self.behaviour, Behaviour::R1BadZkSetupProof) {
             info!("malicious party {} do {:?}", self.my_index, self.behaviour);
