@@ -44,15 +44,24 @@ impl Keygen {
         // because we need rng to be mutable
         // otherwise we'd need `r1(&mut self)`
         let mut rng = ChaCha20Rng::from_seed(self.rng_seed);
-
         let (ek, dk) = paillier_k256::keygen_unsafe(&mut rng);
-        let ek_proof = dk.correctness_proof();
         let (zkp, zkp_proof) = paillier_k256::zk::ZkSetup::new_unsafe(&mut rng);
+
+        let ek_proof = dk.correctness_proof();
+
+        #[cfg(feature = "malicious")]
+        let ek_proof = if matches!(self.behaviour, Behaviour::R1BadEncryptionKeyProof) {
+            info!("malicious party {} do {:?}", self.my_index, self.behaviour);
+            paillier_k256::zk::malicious::corrupt_ek_proof(ek_proof)
+        } else {
+            ek_proof
+        };
+
 
         #[cfg(feature = "malicious")]
         let zkp_proof = if matches!(self.behaviour, Behaviour::R1BadZkSetupProof) {
             info!("malicious party {} do {:?}", self.my_index, self.behaviour);
-            paillier_k256::zk::malicious::corrupt(zkp_proof)
+            paillier_k256::zk::malicious::corrupt_zksetup_proof(zkp_proof)
         } else {
             zkp_proof
         };
