@@ -143,11 +143,11 @@ mod tests {
 pub mod malicious {
     use super::*;
     pub fn corrupt_zksetup_proof(mut proof: ZkSetupProof) -> ZkSetupProof {
-        proof.x = proof.x + BigInt::one();
+        proof.x += BigInt::one();
         proof
     }
     pub fn corrupt_ek_proof(mut proof: EncryptionKeyProof) -> EncryptionKeyProof {
-        proof.sigma_vec[0] = &proof.sigma_vec[0] + BigInt::one();
+        proof.sigma_vec[0] += BigInt::one();
         proof
     }
 }
