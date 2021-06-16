@@ -11,9 +11,9 @@ use {super::malicious::Behaviour, tracing::info};
 pub(super) struct Bcast {
     pub(super) y_i_commit_k256: hash::Output,
     pub(super) ek_k256: paillier_k256::EncryptionKey,
+    pub(super) ek_proof: paillier_k256::zk::EncryptionKeyProof,
     pub(super) zkp_k256: paillier_k256::zk::ZkSetup,
     pub(super) zkp_proof: paillier_k256::zk::ZkSetupProof,
-    // TODO zk proofs for ek_k256
 }
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub(super) struct State {
@@ -46,6 +46,7 @@ impl Keygen {
         let mut rng = ChaCha20Rng::from_seed(self.rng_seed);
 
         let (ek, dk) = paillier_k256::keygen_unsafe(&mut rng);
+        let ek_proof = dk.correctness_proof();
         let (zkp, zkp_proof) = paillier_k256::zk::ZkSetup::new_unsafe(&mut rng);
 
         #[cfg(feature = "malicious")]
@@ -65,6 +66,7 @@ impl Keygen {
             Bcast {
                 y_i_commit_k256: y_i_commit,
                 ek_k256: ek,
+                ek_proof,
                 zkp_k256: zkp,
                 zkp_proof,
             },

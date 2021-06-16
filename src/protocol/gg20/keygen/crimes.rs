@@ -11,6 +11,7 @@ pub enum Crime {
     SpoofedMessage { victim: usize, status: Status },
     DisruptedMessage,
     R2BadZkSetupProof,
+    R2BadEncryptionKeyProof,
     R3BadReveal,
     R4FailBadVss { victim: usize },
     R4FailBadEncryption { victim: usize },

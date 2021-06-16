@@ -46,22 +46,17 @@ impl Keygen {
                 continue;
             }
             let r1bcast = in_r1bcast.as_ref().unwrap();
-            // r1bcast
-            //     .correct_key_proof
-            //     .verify(&r1bcast.ek)
-            //     .unwrap_or_else(|_| {
-            //         panic!(
-            //             "party {} says: key proof failed to verify for party {}",
-            //             self.my_index, i
-            //         )
-            //     });
-            if !r1bcast.zkp_k256.verify_composite_proof(&r1bcast.zkp_proof) {
+            if !r1bcast.ek_k256.verify(&r1bcast.ek_proof) {
+                let crime = Crime::R2BadEncryptionKeyProof;
+                warn!("party {} detect {:?} by {}", self.my_index, crime, i);
+                criminals[i].push(crime);
+            }
+            if !r1bcast.zkp_k256.verify(&r1bcast.zkp_proof) {
                 let crime = Crime::R2BadZkSetupProof;
                 warn!("party {} detect {:?} by {}", self.my_index, crime, i);
                 criminals[i].push(crime);
             }
         }
-
         if !criminals.iter().all(Vec::is_empty) {
             return Output::Fail { criminals };
         }

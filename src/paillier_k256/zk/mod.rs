@@ -1,12 +1,14 @@
 //! Minimize direct use of paillier, zk_paillier crates
 use super::{keygen_unsafe, BigInt, DecryptionKey, EncryptionKey};
-use paillier::zk::{CompositeDLogProof, DLogStatement};
+use paillier::zk::{CompositeDLogProof, DLogStatement, NICorrectKeyProof};
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 // use zk_paillier::zkproofs::{CompositeDLogProof, DLogStatement};
 
 pub(crate) mod mta;
 pub(crate) mod range;
+
+pub type EncryptionKeyProof = NICorrectKeyProof;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ZkSetup {
@@ -69,8 +71,20 @@ impl ZkSetup {
         mulm(&h1_x, &h2_r, self.n_tilde())
     }
 
-    pub fn verify_composite_proof(&self, proof: &ZkSetupProof) -> bool {
+    pub fn verify(&self, proof: &ZkSetupProof) -> bool {
         proof.verify(&self.composite_dlog_statement).is_ok()
+    }
+}
+
+impl DecryptionKey {
+    pub fn correctness_proof(&self) -> EncryptionKeyProof {
+        EncryptionKeyProof::proof(&self.0, None)
+    }
+}
+
+impl EncryptionKey {
+    pub fn verify(&self, proof: &EncryptionKeyProof) -> bool {
+        proof.verify(&self.0, None).is_ok()
     }
 }
 
