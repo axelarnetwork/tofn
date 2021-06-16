@@ -12,7 +12,7 @@ use ecdsa::hazmat::FromDigest;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use super::mulm;
+use super::{mulm, secp256k1_modulus_cubed};
 
 #[derive(Clone, Debug)]
 pub struct Statement<'a> {
@@ -92,7 +92,7 @@ impl ZkSetup {
         msg_g_g: Option<(&k256::ProjectivePoint, &k256::ProjectivePoint)>, // (msg_g, g)
         wit: &Witness,
     ) -> (Proof, Option<k256::ProjectivePoint>) {
-        let alpha_pt = Plaintext(random(&self.q3));
+        let alpha_pt = Plaintext(random(&secp256k1_modulus_cubed()));
         let alpha_bigint = &alpha_pt.0;
         let rho = random(&self.q_n_tilde);
         let gamma = random(&self.q3_n_tilde);
@@ -137,7 +137,7 @@ impl ZkSetup {
             &k256::ProjectivePoint,
         )>, // (msg_g, g, u1)
     ) -> Result<(), &'static str> {
-        if proof.s1.0 > self.q3 || proof.s1.0 < BigInt::zero() {
+        if proof.s1.0 > secp256k1_modulus_cubed() || proof.s1.0 < BigInt::zero() {
             return Err("s1 not in range q^3");
         }
         let e = k256::Scalar::from_digest(
@@ -244,7 +244,7 @@ pub mod tests {
         };
         let stmt = &stmt_wc.stmt;
         let wit = &Witness { msg, randomness };
-        let zkp = ZkSetup::new_unsafe(&mut rand::thread_rng());
+        let (zkp, _) = ZkSetup::new_unsafe(&mut rand::thread_rng());
 
         // test: valid proof
         let proof = zkp.range_proof(stmt, wit);

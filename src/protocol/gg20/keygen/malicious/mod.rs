@@ -14,6 +14,8 @@ pub enum Behaviour {
     UnauthenticatedSender { victim: usize, status: Status },
     DisruptingSender { msg_type: MsgType },
     R1BadCommit,
+    R1BadEncryptionKeyProof,
+    R1BadZkSetupProof,
     R2BadShare { victim: usize },
     R2BadEncryption { victim: usize },
     R3FalseAccusation { victim: usize },

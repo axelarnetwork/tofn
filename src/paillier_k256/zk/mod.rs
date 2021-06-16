@@ -1,6 +1,6 @@
 //! Minimize direct use of paillier, zk_paillier crates
 use super::{keygen_unsafe, BigInt, DecryptionKey, EncryptionKey};
-use paillier::zk::{CompositeDLogProof, DLogStatement};
+use paillier::zk::{CompositeDLogProof, DLogStatement, NICorrectKeyProof};
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 // use zk_paillier::zkproofs::{CompositeDLogProof, DLogStatement};
@@ -8,22 +8,25 @@ use serde::{Deserialize, Serialize};
 pub(crate) mod mta;
 pub(crate) mod range;
 
+pub type EncryptionKeyProof = NICorrectKeyProof;
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ZkSetup {
     composite_dlog_statement: DLogStatement,
-    composite_dlog_proof: CompositeDLogProof,
     q_n_tilde: BigInt,
     q3_n_tilde: BigInt,
-    q3: BigInt, // TODO constant
 }
 
+pub type ZkSetupProof = CompositeDLogProof;
+
 impl ZkSetup {
-    pub fn new_unsafe(rng: &mut (impl CryptoRng + RngCore)) -> Self {
+    pub fn new_unsafe(rng: &mut (impl CryptoRng + RngCore)) -> (ZkSetup, ZkSetupProof) {
         Self::from_keypair(keygen_unsafe(rng))
     }
 
-    fn from_keypair((ek_tilde, dk_tilde): (EncryptionKey, DecryptionKey)) -> Self {
-        // TODO constants
+    fn from_keypair(
+        (ek_tilde, dk_tilde): (EncryptionKey, DecryptionKey),
+    ) -> (ZkSetup, ZkSetupProof) {
         let one = BigInt::one();
         let s = BigInt::from(2).pow(256_u32);
 
@@ -42,14 +45,15 @@ impl ZkSetup {
         let dlog_proof = CompositeDLogProof::prove(&dlog_statement, &xhi);
 
         let q = super::secp256k1_modulus();
-        let q3 = q.pow(3);
-        Self {
-            q_n_tilde: q * &dlog_statement.N,
-            q3_n_tilde: &q3 * &dlog_statement.N,
-            q3,
-            composite_dlog_statement: dlog_statement,
-            composite_dlog_proof: dlog_proof,
-        }
+        let q3 = secp256k1_modulus_cubed();
+        (
+            Self {
+                q_n_tilde: q * &dlog_statement.N,
+                q3_n_tilde: &q3 * &dlog_statement.N,
+                composite_dlog_statement: dlog_statement,
+            },
+            dlog_proof,
+        )
     }
 
     fn h1(&self) -> &BigInt {
@@ -61,19 +65,27 @@ impl ZkSetup {
     fn n_tilde(&self) -> &BigInt {
         &self.composite_dlog_statement.N
     }
-    // tidied version of commitment_unknown_order from multi_party_ecdsa
     fn commit(&self, msg: &BigInt, randomness: &BigInt) -> BigInt {
         let h1_x = self.h1().powm(&msg, self.n_tilde());
         let h2_r = self.h2().powm(&randomness, self.n_tilde());
         mulm(&h1_x, &h2_r, self.n_tilde())
     }
 
-    // TODO Paillier proof cleanup
-    // pub fn verify_composite_dlog_proof(&self) -> bool {
-    //     self.composite_dlog_proof
-    //         .verify(&self.composite_dlog_statement)
-    //         .is_ok()
-    // }
+    pub fn verify(&self, proof: &ZkSetupProof) -> bool {
+        proof.verify(&self.composite_dlog_statement).is_ok()
+    }
+}
+
+impl DecryptionKey {
+    pub fn correctness_proof(&self) -> EncryptionKeyProof {
+        EncryptionKeyProof::proof(&self.0, None)
+    }
+}
+
+impl EncryptionKey {
+    pub fn verify(&self, proof: &EncryptionKeyProof) -> bool {
+        proof.verify(&self.0, None).is_ok()
+    }
 }
 
 // re-implement low-level BigInt functions
@@ -97,4 +109,45 @@ fn random(n: &BigInt) -> BigInt {
 /// return x*y mod n
 fn mulm(x: &BigInt, y: &BigInt, n: &BigInt) -> BigInt {
     (x.modulus(n) * y.modulus(n)).modulus(n)
+}
+
+// The order of the secp256k1 curve raised to exponent 3
+const SECP256K1_CURVE_ORDER_CUBED: [u8; 96] = [
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfc,
+    0x30, 0x0c, 0x96, 0xb4, 0x0d, 0xd9, 0xe0, 0xb3, 0x3f, 0x77, 0x1b, 0xa6, 0x70, 0xa2, 0xc3, 0xc7,
+    0xd8, 0x35, 0x56, 0x80, 0x85, 0x53, 0xd3, 0x51, 0xb3, 0xc7, 0xe1, 0xad, 0x13, 0x67, 0x17, 0x4d,
+    0x7e, 0xf3, 0x6d, 0x11, 0x11, 0xa6, 0x3c, 0x8c, 0xfd, 0x39, 0x30, 0x75, 0x16, 0xea, 0x33, 0xb3,
+    0x46, 0x38, 0x5c, 0x85, 0x02, 0xd9, 0x95, 0x74, 0xd9, 0xef, 0x0f, 0x38, 0x7a, 0x1c, 0xf0, 0x66,
+    0x35, 0x52, 0x09, 0x0f, 0xe1, 0xe1, 0x1b, 0x11, 0xeb, 0x69, 0x26, 0xb7, 0x85, 0x7b, 0x73, 0xc1,
+];
+
+/// secp256k1 curve order cubed as a `BigInt`
+fn secp256k1_modulus_cubed() -> BigInt {
+    BigInt::from(SECP256K1_CURVE_ORDER_CUBED.as_ref())
+}
+#[cfg(test)]
+mod tests {
+    use super::secp256k1_modulus_cubed;
+    use crate::paillier_k256::secp256k1_modulus;
+
+    #[test]
+    fn q_cubed() {
+        let q = secp256k1_modulus();
+        let q3_test = q.pow(3);
+        let q3 = secp256k1_modulus_cubed();
+        assert_eq!(q3_test, q3);
+    }
+}
+
+#[cfg(feature = "malicious")]
+pub mod malicious {
+    use super::*;
+    pub fn corrupt_zksetup_proof(mut proof: ZkSetupProof) -> ZkSetupProof {
+        proof.x += BigInt::one();
+        proof
+    }
+    pub fn corrupt_ek_proof(mut proof: EncryptionKeyProof) -> EncryptionKeyProof {
+        proof.sigma_vec[0] += BigInt::one();
+        proof
+    }
 }

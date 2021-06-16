@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
+use tracing::warn;
 
-use super::{Keygen, Status};
+use super::{crimes::Crime, Keygen, Status};
 use crate::{fillvec::FillVec, hash, paillier_k256, protocol::gg20::vss_k256};
 
 #[cfg(feature = "malicious")]
@@ -22,35 +23,44 @@ pub(super) struct State {
     pub(super) my_share_of_my_u_i_k256: vss_k256::Share,
 }
 
+pub(super) enum Output {
+    Success {
+        state: State,
+        out_bcast: Bcast,
+        out_p2ps: FillVec<P2p>,
+    },
+    Fail {
+        criminals: Vec<Vec<Crime>>,
+    },
+}
+
 impl Keygen {
-    pub(super) fn r2(&self) -> (State, Bcast, FillVec<P2p>) {
+    pub(super) fn r2(&self) -> Output {
         assert!(matches!(self.status, Status::R1));
         let r1state = self.r1state.as_ref().unwrap();
 
-        // TODO check Paillier proofs?
-        // for (i, in_r1bcast) in self.in_r1bcasts.vec_ref().iter().enumerate() {
-        //     if i == self.my_index {
-        //         continue;
-        //     }
-        //     let r1bcast = in_r1bcast.as_ref().unwrap();
-        //     r1bcast
-        //         .correct_key_proof
-        //         .verify(&r1bcast.ek)
-        //         .unwrap_or_else(|_| {
-        //             panic!(
-        //                 "party {} says: key proof failed to verify for party {}",
-        //                 self.my_index, i
-        //             )
-        //         });
-        //     if !r1bcast.zkp.verify_composite_dlog_proof() {
-        //         panic!(
-        //             "party {} says: dlog proof failed to verify for party {}",
-        //             self.my_index, i
-        //         );
-        //     }
-        // }
+        // check Paillier proofs
+        let mut criminals = vec![Vec::new(); self.share_count];
+        for (i, in_r1bcast) in self.in_r1bcasts.vec_ref().iter().enumerate() {
+            if i == self.my_index {
+                continue;
+            }
+            let r1bcast = in_r1bcast.as_ref().unwrap();
+            if !r1bcast.ek_k256.verify(&r1bcast.ek_proof) {
+                let crime = Crime::R2BadEncryptionKeyProof;
+                warn!("party {} detect {:?} by {}", self.my_index, crime, i);
+                criminals[i].push(crime);
+            }
+            if !r1bcast.zkp_k256.verify(&r1bcast.zkp_proof) {
+                let crime = Crime::R2BadZkSetupProof;
+                warn!("party {} detect {:?} by {}", self.my_index, crime, i);
+                criminals[i].push(crime);
+            }
+        }
+        if !criminals.iter().all(Vec::is_empty) {
+            return Output::Fail { criminals };
+        }
 
-        // k256:: share my u_i
         let my_u_i_shares_k256 = r1state.my_u_i_vss_k256.shares(self.share_count);
 
         #[cfg(feature = "malicious")]
@@ -114,12 +124,12 @@ impl Keygen {
             y_i_reveal_k256: r1state.my_y_i_reveal_k256.clone(),
             u_i_share_commits_k256: r1state.my_u_i_vss_k256.commit(),
         };
-        (
-            State {
+        Output::Success {
+            state: State {
                 my_share_of_my_u_i_k256: my_u_i_shares_k256[self.my_index].clone(),
             },
             out_bcast,
             out_p2ps,
-        )
+        }
     }
 }
