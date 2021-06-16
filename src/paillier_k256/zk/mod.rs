@@ -63,19 +63,15 @@ impl ZkSetup {
     fn n_tilde(&self) -> &BigInt {
         &self.composite_dlog_statement.N
     }
-    // tidied version of commitment_unknown_order from multi_party_ecdsa
     fn commit(&self, msg: &BigInt, randomness: &BigInt) -> BigInt {
         let h1_x = self.h1().powm(&msg, self.n_tilde());
         let h2_r = self.h2().powm(&randomness, self.n_tilde());
         mulm(&h1_x, &h2_r, self.n_tilde())
     }
 
-    // TODO Paillier proof cleanup
-    // pub fn verify_composite_dlog_proof(&self) -> bool {
-    //     self.composite_dlog_proof
-    //         .verify(&self.composite_dlog_statement)
-    //         .is_ok()
-    // }
+    pub fn verify_composite_proof(&self, proof: &ZkSetupProof) -> bool {
+        proof.verify(&self.composite_dlog_statement).is_ok()
+    }
 }
 
 // re-implement low-level BigInt functions

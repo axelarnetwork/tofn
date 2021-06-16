@@ -1,4 +1,4 @@
-use super::{crimes::Crime, r3, r4, Keygen, MsgMeta, MsgType, Status::*};
+use super::{crimes::Crime, r2, r3, r4, Keygen, MsgMeta, MsgType, Status::*};
 use crate::{
     fillvec::FillVec,
     protocol::{IndexRange, MsgBytes, Protocol, ProtocolResult},
@@ -65,32 +65,36 @@ impl Protocol for Keygen {
                 self.r1state = Some(state);
                 self.status = R1;
             }
-            R1 => {
-                let (state, bcast, p2ps) = self.r2();
-                self.out_r2bcast = Some(bincode::serialize(&MsgMeta {
-                    msg_type: MsgType::R2Bcast,
-                    from: self.my_index,
-                    payload: bincode::serialize(&bcast)?,
-                })?);
-                let mut out_r2p2ps = Vec::with_capacity(self.share_count);
-                for (to, opt) in p2ps.vec_ref().iter().enumerate() {
-                    if let Some(p2p) = opt {
-                        out_r2p2ps.push(Some(bincode::serialize(&MsgMeta {
-                            msg_type: MsgType::R2P2p { to },
-                            from: self.my_index,
-                            payload: bincode::serialize(&p2p)?,
-                        })?));
-                    } else {
-                        out_r2p2ps.push(None);
+            R1 => match self.r2() {
+                r2::Output::Success {
+                    state,
+                    out_bcast,
+                    out_p2ps,
+                } => {
+                    self.out_r2bcast = Some(bincode::serialize(&MsgMeta {
+                        msg_type: MsgType::R2Bcast,
+                        from: self.my_index,
+                        payload: bincode::serialize(&out_bcast)?,
+                    })?);
+                    let mut out_r2p2ps = Vec::with_capacity(self.share_count);
+                    for (to, opt) in out_p2ps.vec_ref().iter().enumerate() {
+                        if let Some(p2p) = opt {
+                            out_r2p2ps.push(Some(bincode::serialize(&MsgMeta {
+                                msg_type: MsgType::R2P2p { to },
+                                from: self.my_index,
+                                payload: bincode::serialize(&p2p)?,
+                            })?));
+                        } else {
+                            out_r2p2ps.push(None);
+                        }
                     }
+                    self.out_r2p2ps = Some(out_r2p2ps);
+                    self.in_all_r2p2ps[self.my_index] = out_p2ps;
+                    self.r2state = Some(state);
+                    self.status = R2;
                 }
-                self.out_r2p2ps = Some(out_r2p2ps);
-
-                self.in_all_r2p2ps[self.my_index] = p2ps;
-
-                self.r2state = Some(state);
-                self.status = R2;
-            }
+                r2::Output::Fail { criminals } => self.update_state_fail(criminals),
+            },
 
             R2 => match self.r3() {
                 r3::Output::Success { state, out_bcast } => {

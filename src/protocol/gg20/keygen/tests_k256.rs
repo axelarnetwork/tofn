@@ -92,11 +92,21 @@ pub(crate) fn execute_keygen_from_recovery(
     let mut all_r2_bcasts = FillVec::with_len(share_count);
     let mut all_r2_p2ps = Vec::with_capacity(share_count);
     for (i, party) in parties.iter_mut().enumerate() {
-        let (state, bcast, p2ps) = party.r2();
-        party.r2state = Some(state);
-        party.status = Status::R2;
-        all_r2_bcasts.insert(i, bcast).unwrap();
-        all_r2_p2ps.push(p2ps);
+        match party.r2() {
+            r2::Output::Success {
+                state,
+                out_bcast,
+                out_p2ps,
+            } => {
+                party.r2state = Some(state);
+                party.status = Status::R2;
+                all_r2_bcasts.insert(i, out_bcast).unwrap();
+                all_r2_p2ps.push(out_p2ps);
+            }
+            _ => {
+                panic!("r2 party {} expect success got failure", party.my_index);
+            }
+        }
     }
     let all_r2_bcasts = all_r2_bcasts; // make read-only
     let all_r2_p2ps = all_r2_p2ps; // make read-only

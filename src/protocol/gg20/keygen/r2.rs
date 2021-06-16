@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::{Keygen, Status};
+use super::{crimes::Crime, Keygen, Status};
 use crate::{fillvec::FillVec, hash, paillier_k256, protocol::gg20::vss_k256};
 
 #[cfg(feature = "malicious")]
@@ -22,8 +22,19 @@ pub(super) struct State {
     pub(super) my_share_of_my_u_i_k256: vss_k256::Share,
 }
 
+pub(super) enum Output {
+    Success {
+        state: State,
+        out_bcast: Bcast,
+        out_p2ps: FillVec<P2p>,
+    },
+    Fail {
+        criminals: Vec<Vec<Crime>>,
+    },
+}
+
 impl Keygen {
-    pub(super) fn r2(&self) -> (State, Bcast, FillVec<P2p>) {
+    pub(super) fn r2(&self) -> Output {
         assert!(matches!(self.status, Status::R1));
         let r1state = self.r1state.as_ref().unwrap();
 
@@ -114,12 +125,12 @@ impl Keygen {
             y_i_reveal_k256: r1state.my_y_i_reveal_k256.clone(),
             u_i_share_commits_k256: r1state.my_u_i_vss_k256.commit(),
         };
-        (
-            State {
+        Output::Success {
+            state: State {
                 my_share_of_my_u_i_k256: my_u_i_shares_k256[self.my_index].clone(),
             },
             out_bcast,
             out_p2ps,
-        )
+        }
     }
 }
