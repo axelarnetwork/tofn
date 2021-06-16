@@ -84,6 +84,7 @@ impl Behaviour {
                 status: s.clone(),
             },
             DisruptingSender { msg_type: _ } => Crime::DisruptedMessage,
+            R1BadZkSetupProof => Crime::R2BadZkSetupProof,
             R1BadCommit => Crime::R3BadReveal,
             R2BadShare { victim: v } => Crime::R4FailBadVss { victim: *v },
             R2BadEncryption { victim: v } => Crime::R4FailBadEncryption { victim: *v },

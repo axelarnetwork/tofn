@@ -34,10 +34,7 @@ impl Keygen {
 
         #[cfg(feature = "malicious")]
         let y_i_commit = if matches!(self.behaviour, Behaviour::R1BadCommit) {
-            info!(
-                "(k256) malicious party {} do {:?}",
-                self.my_index, self.behaviour
-            );
+            info!("malicious party {} do {:?}", self.my_index, self.behaviour);
             y_i_commit.corrupt()
         } else {
             y_i_commit
@@ -50,7 +47,14 @@ impl Keygen {
 
         let (ek, dk) = paillier_k256::keygen_unsafe(&mut rng);
         let (zkp, zkp_proof) = paillier_k256::zk::ZkSetup::new_unsafe(&mut rng);
-        // TODO Paillier key proofs
+
+        #[cfg(feature = "malicious")]
+        let zkp_proof = if matches!(self.behaviour, Behaviour::R1BadZkSetupProof) {
+            info!("malicious party {} do {:?}", self.my_index, self.behaviour);
+            paillier_k256::zk::malicious::corrupt(zkp_proof)
+        } else {
+            zkp_proof
+        };
 
         (
             State {

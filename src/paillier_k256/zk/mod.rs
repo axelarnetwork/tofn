@@ -124,3 +124,12 @@ mod tests {
         assert_eq!(q3_test, q3);
     }
 }
+
+#[cfg(feature = "malicious")]
+pub mod malicious {
+    use super::*;
+    pub fn corrupt(mut proof: ZkSetupProof) -> ZkSetupProof {
+        proof.x = proof.x + BigInt::one();
+        proof
+    }
+}
