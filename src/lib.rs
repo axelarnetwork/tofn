@@ -6,4 +6,5 @@ pub(crate) mod k256_serde;
 mod mta;
 pub(crate) mod paillier_k256;
 pub mod protocol;
+pub mod protocol2;
 mod zkp;

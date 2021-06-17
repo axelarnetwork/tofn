@@ -77,7 +77,7 @@ impl ShareSecretInfo {
 
 pub mod keygen;
 pub mod sign;
-mod vss_k256;
+pub mod vss_k256;
 
 #[cfg(test)]
 mod tests;

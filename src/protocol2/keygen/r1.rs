@@ -1,0 +1,100 @@
+use crate::{hash, k256_serde, paillier_k256, protocol::gg20::vss_k256::Vss};
+use hmac::{Hmac, Mac, NewMac};
+use rand::SeedableRng;
+use rand_chacha::ChaCha20Rng;
+use serde::{Deserialize, Serialize};
+use sha2::Sha256;
+
+use crate::{fillvec::FillVec, protocol::gg20::keygen::KeygenOutput, protocol2::RoundWaiter};
+
+use super::{r2, SecretRecoveryKey};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(super) struct Bcast {
+    pub(super) y_i_commit: hash::Output,
+    pub(super) ek: paillier_k256::EncryptionKey,
+    pub(super) ek_proof: paillier_k256::zk::EncryptionKeyProof,
+    pub(super) zkp: paillier_k256::zk::ZkSetup,
+    pub(super) zkp_proof: paillier_k256::zk::ZkSetupProof,
+}
+#[derive(Debug)] // do not derive Clone, Serialize, Deserialize
+pub(super) struct State {
+    pub(super) share_count: usize,
+    pub(super) threshold: usize,
+    pub(super) my_index: usize,
+    pub(super) dk: paillier_k256::DecryptionKey,
+    pub(super) u_i_vss: Vss,
+    pub(super) y_i_reveal: hash::Randomness,
+}
+
+pub(super) fn execute(
+    share_count: usize,
+    threshold: usize,
+    my_index: usize,
+    secret_recovery_key: &SecretRecoveryKey,
+    session_nonce: &[u8],
+) -> RoundWaiter<KeygenOutput> {
+    let u_i_vss = Vss::new(threshold);
+    let (y_i_commit, y_i_reveal) = hash::commit(k256_serde::to_bytes(
+        &(k256::ProjectivePoint::generator() * u_i_vss.get_secret()),
+    ));
+
+    // #[cfg(feature = "malicious")]
+    // let y_i_commit = if matches!(self.behaviour, Behaviour::R1BadCommit) {
+    //     info!("malicious party {} do {:?}", self.my_index, self.behaviour);
+    //     y_i_commit.corrupt()
+    // } else {
+    //     y_i_commit
+    // };
+
+    let mut rng = ChaCha20Rng::from_seed(rng_seed(secret_recovery_key, session_nonce));
+    let (ek, dk) = paillier_k256::keygen_unsafe(&mut rng);
+    let (zkp, zkp_proof) = paillier_k256::zk::ZkSetup::new_unsafe(&mut rng);
+    let ek_proof = dk.correctness_proof();
+
+    // #[cfg(feature = "malicious")]
+    // let ek_proof = if matches!(self.behaviour, Behaviour::R1BadEncryptionKeyProof) {
+    //     info!("malicious party {} do {:?}", self.my_index, self.behaviour);
+    //     paillier_k256::zk::malicious::corrupt_ek_proof(ek_proof)
+    // } else {
+    //     ek_proof
+    // };
+
+    // #[cfg(feature = "malicious")]
+    // let zkp_proof = if matches!(self.behaviour, Behaviour::R1BadZkSetupProof) {
+    //     info!("malicious party {} do {:?}", self.my_index, self.behaviour);
+    //     paillier_k256::zk::malicious::corrupt_zksetup_proof(zkp_proof)
+    // } else {
+    //     zkp_proof
+    // };
+    let msg = Bcast {
+        y_i_commit,
+        ek,
+        ek_proof,
+        zkp,
+        zkp_proof,
+    };
+    let state = State {
+        share_count,
+        threshold,
+        my_index,
+        dk,
+        u_i_vss,
+        y_i_reveal,
+    };
+
+    RoundWaiter {
+        out_msg: bincode::serialize(&msg).expect("serialization failure"),
+        round: Box::new(r2::R2::new(state, msg)),
+        all_in_msgs: FillVec::with_len(share_count),
+    }
+}
+
+fn rng_seed(
+    secret_recovery_key: &SecretRecoveryKey,
+    session_nonce: &[u8],
+) -> <ChaCha20Rng as SeedableRng>::Seed {
+    let mut prf = Hmac::<Sha256>::new(secret_recovery_key[..].into());
+    prf.update(session_nonce);
+    prf.finalize().into_bytes().into()
+}
