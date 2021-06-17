@@ -38,3 +38,4 @@ pub fn new_keygen(
 
 mod r1;
 mod r2;
+mod rng;

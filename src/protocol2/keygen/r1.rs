@@ -1,14 +1,10 @@
 use crate::{hash, k256_serde, paillier_k256, protocol::gg20::vss_k256::Vss};
-use hmac::{Hmac, Mac, NewMac};
-use rand::SeedableRng;
-use rand_chacha::ChaCha20Rng;
 use serde::{Deserialize, Serialize};
-use sha2::Sha256;
 use tracing::error;
 
 use crate::{fillvec::FillVec, protocol::gg20::keygen::KeygenOutput, protocol2::RoundWaiter};
 
-use super::{r2, SecretRecoveryKey};
+use super::{r2, rng, SecretRecoveryKey};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) struct Bcast {
@@ -48,7 +44,7 @@ pub(super) fn execute(
     //     y_i_commit
     // };
 
-    let mut rng = ChaCha20Rng::from_seed(rng_seed(secret_recovery_key, session_nonce));
+    let mut rng = rng::rng(secret_recovery_key, session_nonce);
     let (ek, dk) = paillier_k256::keygen_unsafe(&mut rng);
     let (zkp, zkp_proof) = paillier_k256::zk::ZkSetup::new_unsafe(&mut rng);
     let ek_proof = dk.correctness_proof();
@@ -93,13 +89,4 @@ pub(super) fn execute(
         out_msg,
         all_in_msgs: FillVec::with_len(share_count),
     }
-}
-
-fn rng_seed(
-    secret_recovery_key: &SecretRecoveryKey,
-    session_nonce: &[u8],
-) -> <ChaCha20Rng as SeedableRng>::Seed {
-    let mut prf = Hmac::<Sha256>::new(secret_recovery_key[..].into());
-    prf.update(session_nonce);
-    prf.finalize().into_bytes().into()
 }
