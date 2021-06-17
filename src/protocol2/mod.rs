@@ -13,13 +13,13 @@ pub trait RoundExecuter {
 
 pub struct RoundWaiter<F> {
     round: Box<dyn RoundExecuter<FinalOutput = F>>,
-    out_msg: Vec<u8>,
+    out_msg: Option<Vec<u8>>,
     all_in_msgs: FillVec<Vec<u8>>,
 }
 
 impl<F> RoundWaiter<F> {
-    pub fn msg_out(&self) -> &[u8] {
-        &self.out_msg
+    pub fn msg_out(&self) -> Option<&[u8]> {
+        self.out_msg.as_ref().map(Vec::as_slice)
     }
     pub fn msg_in(&mut self, from: usize, msg: &[u8]) {
         // TODO check `from` in bounds, warn of overwrite

@@ -6,14 +6,8 @@ use crate::{
 use super::{r1, KeygenOutput};
 
 pub(super) struct R2 {
-    state: r1::State,
-    msg: r1::Bcast,
-}
-
-impl R2 {
-    pub(super) fn new(state: r1::State, msg: r1::Bcast) -> Self {
-        Self { state, msg }
-    }
+    pub(super) state: r1::State,
+    pub(super) msg: r1::Bcast,
 }
 
 impl RoundExecuter for R2 {

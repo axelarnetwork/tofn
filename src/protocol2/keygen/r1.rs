@@ -4,6 +4,7 @@ use rand::SeedableRng;
 use rand_chacha::ChaCha20Rng;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
+use tracing::error;
 
 use crate::{fillvec::FillVec, protocol::gg20::keygen::KeygenOutput, protocol2::RoundWaiter};
 
@@ -82,10 +83,14 @@ pub(super) fn execute(
         u_i_vss,
         y_i_reveal,
     };
+    let out_msg = bincode::serialize(&msg).ok();
+    if out_msg.is_none() {
+        error!("party {} serialization failure", my_index);
+    }
 
     RoundWaiter {
-        out_msg: bincode::serialize(&msg).expect("serialization failure"),
-        round: Box::new(r2::R2::new(state, msg)),
+        round: Box::new(r2::R2 { state, msg }),
+        out_msg,
         all_in_msgs: FillVec::with_len(share_count),
     }
 }
