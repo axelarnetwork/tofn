@@ -5,7 +5,7 @@ use sha2::Sha256;
 
 use super::SecretRecoveryKey;
 
-type Seed = <ChaCha20Rng as SeedableRng>::Seed;
+pub type Seed = <ChaCha20Rng as SeedableRng>::Seed;
 
 pub fn seed(secret_recovery_key: &SecretRecoveryKey, session_nonce: &[u8]) -> Seed {
     let mut prf = Hmac::<Sha256>::new(secret_recovery_key[..].into());
