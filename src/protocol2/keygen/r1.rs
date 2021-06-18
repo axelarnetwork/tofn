@@ -1,6 +1,6 @@
 use crate::{
     hash, k256_serde, paillier_k256,
-    protocol::gg20::vss_k256::Vss,
+    protocol::gg20::vss_k256,
     protocol2::{serialize_as_option, RoundExecuter, RoundOutput},
 };
 use serde::{Deserialize, Serialize};
@@ -16,6 +16,11 @@ pub(super) struct R1 {
     pub(super) rng_seed: rng::Seed,
 }
 
+pub(super) struct State {
+    pub(super) dk: paillier_k256::DecryptionKey,
+    pub(super) u_i_vss: vss_k256::Vss,
+    pub(super) y_i_reveal: hash::Randomness,
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) struct Bcast {
     pub(super) y_i_commit: hash::Output,
@@ -29,7 +34,7 @@ impl RoundExecuter for R1 {
     type FinalOutput = KeygenOutput;
 
     fn execute(self: Box<Self>, _all_in_msgs: FillVec<Vec<u8>>) -> RoundOutput<Self::FinalOutput> {
-        let u_i_vss = Vss::new(self.threshold);
+        let u_i_vss = vss_k256::Vss::new(self.threshold);
         let (y_i_commit, y_i_reveal) = hash::commit(k256_serde::to_bytes(
             &(k256::ProjectivePoint::generator() * u_i_vss.get_secret()),
         ));
@@ -70,15 +75,18 @@ impl RoundExecuter for R1 {
             zkp_proof,
         };
         let bcast_out = serialize_as_option(&r1bcast);
+        let r1state = State {
+            dk,
+            u_i_vss,
+            y_i_reveal,
+        };
 
         RoundOutput::NotDone(RoundWaiter {
             round: Box::new(r2::R2 {
                 share_count: self.share_count,
                 threshold: self.threshold,
                 index: self.index,
-                dk,
-                u_i_vss,
-                y_i_reveal,
+                r1state,
                 r1bcast,
             }),
             bcast_out,

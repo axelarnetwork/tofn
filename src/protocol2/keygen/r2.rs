@@ -27,13 +27,15 @@ pub(super) struct P2p {
     pub(super) u_i_share_ciphertext: paillier_k256::Ciphertext,
 }
 
+pub(super) struct State {
+    pub(super) u_i_my_share: vss_k256::Share,
+}
+
 pub(super) struct R2 {
     pub(super) share_count: usize,
     pub(super) threshold: usize,
     pub(super) index: usize,
-    pub(super) dk: paillier_k256::DecryptionKey,
-    pub(super) u_i_vss: vss_k256::Vss,
-    pub(super) y_i_reveal: hash::Randomness,
+    pub(super) r1state: r1::State,
     pub(super) r1bcast: r1::Bcast,
 }
 
@@ -69,7 +71,7 @@ impl RoundExecuter for R2 {
             return RoundOutput::Done(Err(criminals));
         }
 
-        let u_i_shares = self.u_i_vss.shares(self.share_count);
+        let u_i_shares = self.r1state.u_i_vss.shares(self.share_count);
 
         // #[cfg(feature = "malicious")]
         // let my_u_i_shares_k256 = if let Behaviour::R2BadShare { victim } = self.behaviour {
@@ -95,6 +97,7 @@ impl RoundExecuter for R2 {
         //     my_u_i_shares_k256
         // };
 
+        // TODO better pattern to get p2ps_out
         let p2ps_out = Some(
             u_i_shares
                 .iter()
@@ -129,18 +132,23 @@ impl RoundExecuter for R2 {
         );
 
         let r2bcast = Bcast {
-            y_i_reveal: self.y_i_reveal.clone(),
-            u_i_share_commits: self.u_i_vss.commit(),
+            y_i_reveal: self.r1state.y_i_reveal.clone(),
+            u_i_share_commits: self.r1state.u_i_vss.commit(),
         };
-        // Output::Success {
-        //     state: State {
-        //         my_share_of_my_u_i_k256: my_u_i_shares_k256[self.my_index].clone(),
-        //     },
-        //     out_bcast,
-        //     out_p2ps,
-        // }
+        let r2state = State {
+            u_i_my_share: u_i_shares[self.index].clone(),
+        };
+
         RoundOutput::NotDone(RoundWaiter {
-            round: Box::new(r3::R3 {}),
+            round: Box::new(r3::R3 {
+                share_count: self.share_count,
+                threshold: self.threshold,
+                index: self.index,
+                r1state: self.r1state,
+                r1bcast: self.r1bcast,
+                r2state,
+                r2bcast,
+            }),
             bcast_out: None,
             p2ps_out,
             all_in_msgs: FillVec::with_len(self.share_count),

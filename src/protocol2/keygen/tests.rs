@@ -103,6 +103,7 @@ pub(crate) fn execute_keygen_from_recovery(
                 .as_any()
                 .downcast_ref::<r2::R2>()
                 .unwrap()
+                .r1state
                 .u_i_vss
                 .get_secret()
                 .clone()
