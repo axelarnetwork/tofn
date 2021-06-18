@@ -103,37 +103,23 @@ pub(crate) fn execute_keygen_from_recovery(
                 .as_any()
                 .downcast_ref::<r2::R2>()
                 .unwrap()
-                .state
                 .u_i_vss
                 .get_secret()
                 .clone()
         })
         .collect();
 
-    // DONE TO HERE
-
     // execute round 2 all parties and store their outputs
     // let mut all_r2_bcasts = FillVec::with_len(share_count);
     // let mut all_r2_p2ps = Vec::with_capacity(share_count);
-    // for (i, party) in r0_parties.iter_mut().enumerate() {
-    //     match party.r2() {
-    //         r2::Output::Success {
-    //             state,
-    //             out_bcast,
-    //             out_p2ps,
-    //         } => {
-    //             party.r2state = Some(state);
-    //             party.status = Status::R2;
-    //             all_r2_bcasts.insert(i, out_bcast).unwrap();
-    //             all_r2_p2ps.push(out_p2ps);
-    //         }
-    //         _ => {
-    //             panic!("r2 party {} expect success got failure", party.my_index);
-    //         }
-    //     }
-    // }
-    // let all_r2_bcasts = all_r2_bcasts; // make read-only
-    // let all_r2_p2ps = all_r2_p2ps; // make read-only
+    let r2_parties: Vec<RoundWaiter<KeygenOutput>> = r1_parties
+        .into_iter()
+        .enumerate()
+        .map(|(i, party)| match party.execute_next_round() {
+            NotDone(next_round) => next_round,
+            Done(_) => panic!("party {} done, expect not done", i),
+        })
+        .collect();
 
     // // deliver round 2 msgs
     // for party in r0_parties.iter_mut() {

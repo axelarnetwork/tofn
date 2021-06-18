@@ -1,6 +1,7 @@
 //! A fillable Vec
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FillVec<T> {
     vec: Vec<Option<T>>,
     some_count: usize,

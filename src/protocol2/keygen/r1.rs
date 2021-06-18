@@ -13,7 +13,7 @@ use super::{r2, rng};
 pub(super) struct R1 {
     pub(super) share_count: usize,
     pub(super) threshold: usize,
-    pub(super) my_index: usize,
+    pub(super) index: usize,
     pub(super) rng_seed: rng::Seed,
 }
 
@@ -24,12 +24,6 @@ pub(super) struct Bcast {
     pub(super) ek_proof: paillier_k256::zk::EncryptionKeyProof,
     pub(super) zkp: paillier_k256::zk::ZkSetup,
     pub(super) zkp_proof: paillier_k256::zk::ZkSetupProof,
-}
-#[derive(Debug)] // do not derive Clone, Serialize, Deserialize
-pub(super) struct State {
-    pub(super) dk: paillier_k256::DecryptionKey,
-    pub(super) u_i_vss: Vss,
-    pub(super) y_i_reveal: hash::Randomness,
 }
 
 impl RoundExecuter for R1 {
@@ -76,18 +70,21 @@ impl RoundExecuter for R1 {
             zkp,
             zkp_proof,
         };
-        let state = State {
-            dk,
-            u_i_vss,
-            y_i_reveal,
-        };
         let out_msg = bincode::serialize(&msg).ok();
         if out_msg.is_none() {
-            error!("party {} serialization failure", self.my_index);
+            error!("party {} serialization failure", self.index);
         }
 
         RoundOutput::NotDone(RoundWaiter {
-            round: Box::new(r2::R2 { state, msg }),
+            round: Box::new(r2::R2 {
+                share_count: self.share_count,
+                threshold: self.threshold,
+                index: self.index,
+                dk,
+                u_i_vss,
+                y_i_reveal,
+                msg,
+            }),
             out_msg,
             all_in_msgs: FillVec::with_len(self.share_count),
         })
