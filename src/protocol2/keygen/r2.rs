@@ -135,6 +135,7 @@ impl RoundExecuter for R2 {
             y_i_reveal: self.r1state.y_i_reveal.clone(),
             u_i_share_commits: self.r1state.u_i_vss.commit(),
         };
+        let bcast_out = serialize_as_option(&r2bcast);
         let r2state = State {
             u_i_my_share: u_i_shares[self.index].clone(),
         };
@@ -149,7 +150,7 @@ impl RoundExecuter for R2 {
                 r2state,
                 r2bcast,
             }),
-            bcast_out: None,
+            bcast_out,
             p2ps_out,
             all_in_msgs: FillVec::with_len(self.share_count),
         })

@@ -10,7 +10,8 @@ pub struct TestCase {
 
 lazy_static::lazy_static! {
     pub static ref TEST_CASES: Vec<TestCase>
-    = vec![t(5, 0), t(5, 1), t(5, 3), t(5, 4)];
+    // = vec![t(5, 0), t(5, 1), t(5, 3), t(5, 4)];
+    = vec![t(5, 3)];
 }
 
 #[test]
@@ -111,9 +112,7 @@ pub(crate) fn execute_keygen_from_recovery(
         .collect();
 
     // execute round 2 all parties and store their outputs
-    // let mut all_r2_bcasts = FillVec::with_len(share_count);
-    // let mut all_r2_p2ps = Vec::with_capacity(share_count);
-    let r2_parties: Vec<RoundWaiter<KeygenOutput>> = r1_parties
+    let mut r2_parties: Vec<RoundWaiter<KeygenOutput>> = r1_parties
         .into_iter()
         .enumerate()
         .map(|(i, party)| match party.execute_next_round() {
@@ -121,6 +120,17 @@ pub(crate) fn execute_keygen_from_recovery(
             Done(_) => panic!("party {} done, expect not done", i),
         })
         .collect();
+
+    // deliver r2 messages
+    let r2_bcasts: Vec<Vec<u8>> = r2_parties
+        .iter()
+        .map(|party| party.bcast_out().unwrap().to_vec())
+        .collect();
+    for party in r2_parties.iter_mut() {
+        for (from, msg) in r2_bcasts.iter().enumerate() {
+            party.msg_in(from, msg);
+        }
+    }
 
     // // deliver round 2 msgs
     // for party in r0_parties.iter_mut() {
