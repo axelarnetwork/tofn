@@ -91,7 +91,8 @@ impl RoundExecuter for R1 {
             }),
             bcast_out,
             p2ps_out: None,
-            all_in_msgs: FillVec::with_len(self.share_count),
+            bcasts_in: FillVec::with_len(self.share_count),
+            p2ps_in: Vec::new(),
         })
     }
 }

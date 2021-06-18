@@ -74,9 +74,11 @@ pub(crate) fn execute_keygen_from_recovery(
         .into_iter()
         .enumerate()
         .map(|(i, party)| {
-            assert!(party.bcast_out().is_none()); // no outgoing message before r1
-            assert!(!party.expecting_more_msgs_this_round()); // expect no incoming messages before r1
-            assert!(party.all_in_msgs.is_empty());
+            assert!(party.bcast_out().is_none());
+            assert!(party.p2ps_out().is_none());
+            assert!(party.bcasts_in.is_empty());
+            assert!(party.p2ps_in.is_empty());
+            assert!(!party.expecting_more_msgs_this_round());
             match party.execute_next_round() {
                 NotDone(next_round) => next_round,
                 Done(_) => panic!("party {} done, expect not done", i),
@@ -91,7 +93,7 @@ pub(crate) fn execute_keygen_from_recovery(
         .collect();
     for party in r1_parties.iter_mut() {
         for (from, msg) in r1_bcasts.iter().enumerate() {
-            party.msg_in(from, msg);
+            party.bcast_in(from, msg);
         }
     }
 
@@ -111,13 +113,20 @@ pub(crate) fn execute_keygen_from_recovery(
         })
         .collect();
 
-    // execute round 2 all parties and store their outputs
+    // execute round 2 all parties
     let mut r2_parties: Vec<RoundWaiter<KeygenOutput>> = r1_parties
         .into_iter()
         .enumerate()
-        .map(|(i, party)| match party.execute_next_round() {
-            NotDone(next_round) => next_round,
-            Done(_) => panic!("party {} done, expect not done", i),
+        .map(|(i, party)| {
+            assert!(party.bcast_out().is_some());
+            assert!(party.p2ps_out().is_none());
+            assert!(party.bcasts_in.is_full());
+            assert!(party.p2ps_in.is_empty());
+            assert!(!party.expecting_more_msgs_this_round());
+            match party.execute_next_round() {
+                NotDone(next_round) => next_round,
+                Done(_) => panic!("party {} done, expect not done", i),
+            }
         })
         .collect();
 
@@ -128,31 +137,41 @@ pub(crate) fn execute_keygen_from_recovery(
         .collect();
     for party in r2_parties.iter_mut() {
         for (from, msg) in r2_bcasts.iter().enumerate() {
-            party.msg_in(from, msg);
+            party.bcast_in(from, msg);
+        }
+    }
+    let r2_p2ps: Vec<Vec<Option<Vec<u8>>>> = r2_parties
+        .iter()
+        .map(|party| party.p2ps_out().unwrap().to_vec())
+        .collect();
+    for party in r2_parties.iter_mut() {
+        for (from, p2ps) in r2_p2ps.iter().enumerate() {
+            for (to, msg) in p2ps.iter().enumerate() {
+                if let Some(msg) = msg {
+                    party.p2p_in(from, to, msg);
+                }
+            }
         }
     }
 
-    // // deliver round 2 msgs
-    // for party in r0_parties.iter_mut() {
-    //     party.in_all_r2p2ps = all_r2_p2ps.clone();
-    //     party.in_r2bcasts = all_r2_bcasts.clone();
-    // }
+    // execute round 3 all parties and store their outputs
+    // let mut r3_parties: Vec<RoundWaiter<KeygenOutput>> = r2_parties
+    //     .into_iter()
+    //     .enumerate()
+    //     .map(|(i, party)| {
+    //         assert!(party.bcast_out().is_some());
+    //         assert!(party.p2ps_out().is_some());
+    //         assert!(party.bcasts_in.is_full());
+    //         // assert!(party.p2ps_in.is_empty());
+    //         assert!(!party.expecting_more_msgs_this_round());
+    //         match party.execute_next_round() {
+    //             NotDone(next_round) => next_round,
+    //             Done(_) => panic!("party {} done, expect not done", i),
+    //         }
+    //     })
+    //     .collect();
 
-    // // execute round 3 all parties and store their outputs
-    // let mut all_r3_bcasts = FillVec::with_len(share_count);
-    // for (i, party) in r0_parties.iter_mut().enumerate() {
-    //     match party.r3() {
-    //         r3::Output::Success { state, out_bcast } => {
-    //             party.r3state = Some(state);
-    //             party.status = Status::R3;
-    //             all_r3_bcasts.insert(i, out_bcast).unwrap();
-    //         }
-    //         _ => {
-    //             panic!("r3 party {} expect success got failure", party.my_index);
-    //         }
-    //     }
-    // }
-    // let all_r3_bcasts = all_r3_bcasts; // make read-only
+    // DONE TO HERE
 
     // // deliver round 3 msgs
     // for party in r0_parties.iter_mut() {

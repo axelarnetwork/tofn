@@ -43,7 +43,8 @@ pub fn new_keygen(
         }),
         bcast_out: None,
         p2ps_out: None,
-        all_in_msgs: FillVec::with_len(0), // expect no incoming messages before r1
+        bcasts_in: FillVec::with_len(0), // expect no incoming messages before r1
+        p2ps_in: Vec::new(),             // expect no incoming messages before r1
     })
 }
 

@@ -22,7 +22,8 @@ pub struct RoundWaiter<F> {
     round: Box<dyn RoundExecuter<FinalOutput = F>>,
     bcast_out: Option<Vec<u8>>,
     p2ps_out: Option<Vec<Option<Vec<u8>>>>,
-    all_in_msgs: FillVec<Vec<u8>>,
+    bcasts_in: FillVec<Vec<u8>>,
+    p2ps_in: Vec<FillVec<Vec<u8>>>,
 }
 
 impl<F> RoundWaiter<F> {
@@ -33,15 +34,19 @@ impl<F> RoundWaiter<F> {
     pub fn p2ps_out(&self) -> Option<&[Option<Vec<u8>>]> {
         self.p2ps_out.as_ref().map(Vec::as_slice)
     }
-    pub fn msg_in(&mut self, from: usize, msg: &[u8]) {
+    pub fn bcast_in(&mut self, from: usize, msg: &[u8]) {
         // TODO check `from` in bounds, warn of overwrite
-        self.all_in_msgs.overwrite(from, msg.to_vec());
+        self.bcasts_in.overwrite(from, msg.to_vec());
+    }
+    pub fn p2p_in(&mut self, from: usize, to: usize, msg: &[u8]) {
+        // TODO check `from`, `to` in bounds, warn of overwrite
+        self.p2ps_in[from].overwrite(to, msg.to_vec());
     }
     pub fn expecting_more_msgs_this_round(&self) -> bool {
-        !self.all_in_msgs.is_full()
+        !self.bcasts_in.is_full()
     }
     pub fn execute_next_round(self) -> RoundOutput<F> {
-        self.round.execute(self.all_in_msgs)
+        self.round.execute(self.bcasts_in)
     }
 }
 
