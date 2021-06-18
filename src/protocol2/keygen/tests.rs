@@ -1,7 +1,6 @@
 use super::*;
-use crate::{protocol::gg20::vss_k256, protocol2::RoundOutput::*};
+use crate::protocol2::RoundOutput::*;
 use rand::RngCore;
-use std::any::Any;
 use tracing_test::traced_test;
 
 pub struct TestCase {
@@ -96,28 +95,22 @@ pub(crate) fn execute_keygen_from_recovery(
     }
 
     // save each u for later tests
-    // let all_u_secrets: Vec<k256::Scalar> = r1_parties
-    //     .iter()
-    //     .map(|party| {
-    //         // (&(&*party.round) as &dyn Any)
-    //         //     .downcast_ref::<r2::R2>()
-    //         // (party.round as Box<dyn Any>)
-    //             // .downcast::<r2::R2>()
-    //             .unwrap()
-    //             .state
-    //             .u_i_vss
-    //             .get_secret()
-    //             .clone()
-    //     })
-    //     .collect();
+    let all_u_secrets: Vec<k256::Scalar> = r1_parties
+        .iter()
+        .map(|party| {
+            party
+                .round
+                .as_any()
+                .downcast_ref::<r2::R2>()
+                .unwrap()
+                .state
+                .u_i_vss
+                .get_secret()
+                .clone()
+        })
+        .collect();
 
     // DONE TO HERE
-
-    // save each u for later tests
-    // let all_u_secrets: Vec<k256::Scalar> = r1_parties
-    //     .iter()
-    //     .map(|party| *party.r1state.as_ref().unwrap().my_u_i_vss_k256.get_secret())
-    //     .collect();
 
     // execute round 2 all parties and store their outputs
     // let mut all_r2_bcasts = FillVec::with_len(share_count);
@@ -222,7 +215,7 @@ pub(crate) fn execute_keygen_from_recovery(
     // }
 
     // all_secret_key_shares
-    todo!()
+    Vec::new()
 }
 
 /// for brevity only

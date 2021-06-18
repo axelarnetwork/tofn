@@ -9,6 +9,11 @@ pub enum RoundOutput<F> {
 pub trait RoundExecuter {
     type FinalOutput;
     fn execute(self: Box<Self>, all_in_msgs: FillVec<Vec<u8>>) -> RoundOutput<Self::FinalOutput>;
+
+    #[cfg(test)]
+    fn as_any(&self) -> &dyn std::any::Any {
+        unimplemented!("return `self` to enable runtime reflection: https://bennetthardwick.com/dont-use-boxed-trait-objects-for-struct-internals")
+    }
 }
 
 pub struct RoundWaiter<F> {
