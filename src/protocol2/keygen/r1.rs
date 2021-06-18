@@ -1,10 +1,9 @@
 use crate::{
     hash, k256_serde, paillier_k256,
     protocol::gg20::vss_k256::Vss,
-    protocol2::{RoundExecuter, RoundOutput},
+    protocol2::{serialize_as_option, RoundExecuter, RoundOutput},
 };
 use serde::{Deserialize, Serialize};
-use tracing::error;
 
 use crate::{fillvec::FillVec, protocol::gg20::keygen::KeygenOutput, protocol2::RoundWaiter};
 
@@ -63,17 +62,14 @@ impl RoundExecuter for R1 {
         // } else {
         //     zkp_proof
         // };
-        let msg = Bcast {
+        let r1bcast = Bcast {
             y_i_commit,
             ek,
             ek_proof,
             zkp,
             zkp_proof,
         };
-        let out_msg = bincode::serialize(&msg).ok();
-        if out_msg.is_none() {
-            error!("party {} serialization failure", self.index);
-        }
+        let bcast_out = serialize_as_option(&r1bcast);
 
         RoundOutput::NotDone(RoundWaiter {
             round: Box::new(r2::R2 {
@@ -83,9 +79,10 @@ impl RoundExecuter for R1 {
                 dk,
                 u_i_vss,
                 y_i_reveal,
-                msg,
+                r1bcast,
             }),
-            out_msg,
+            bcast_out,
+            p2ps_out: None,
             all_in_msgs: FillVec::with_len(self.share_count),
         })
     }

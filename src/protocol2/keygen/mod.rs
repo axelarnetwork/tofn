@@ -41,7 +41,8 @@ pub fn new_keygen(
             index,
             rng_seed,
         }),
-        out_msg: None,                     // no outgoing message before r1
+        bcast_out: None,
+        p2ps_out: None,
         all_in_msgs: FillVec::with_len(0), // expect no incoming messages before r1
     })
 }

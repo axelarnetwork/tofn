@@ -5,7 +5,7 @@ use crate::{
     fillvec::FillVec,
     hash, paillier_k256,
     protocol::gg20::{keygen::crimes::Crime, vss_k256},
-    protocol2::{keygen::r3, RoundExecuter, RoundOutput, RoundWaiter},
+    protocol2::{keygen::r3, serialize_as_option, RoundExecuter, RoundOutput, RoundWaiter},
 };
 
 use super::{r1, KeygenOutput};
@@ -34,7 +34,7 @@ pub(super) struct R2 {
     pub(super) dk: paillier_k256::DecryptionKey,
     pub(super) u_i_vss: vss_k256::Vss,
     pub(super) y_i_reveal: hash::Randomness,
-    pub(super) msg: r1::Bcast,
+    pub(super) r1bcast: r1::Bcast,
 }
 
 impl RoundExecuter for R2 {
@@ -95,39 +95,40 @@ impl RoundExecuter for R2 {
         //     my_u_i_shares_k256
         // };
 
-        let mut out_p2ps = FillVec::with_len(self.share_count);
-        for (i, u_i_share) in u_i_shares.iter().enumerate() {
-            if i == self.index {
-                continue;
-            }
+        let p2ps_out = Some(
+            u_i_shares
+                .iter()
+                .enumerate()
+                .map(|(i, u_i_share)| {
+                    if i == self.index {
+                        None
+                    } else {
+                        // encrypt the share for party i
+                        let (u_i_share_ciphertext, _) =
+                            r1bcasts[i].ek.encrypt(&u_i_share.get_scalar().into());
 
-            // encrypt the share for party i
-            let (u_i_share_ciphertext_k256, _) =
-                r1bcasts[i].ek.encrypt(&u_i_share.get_scalar().into());
+                        // #[cfg(feature = "malicious")]
+                        // let u_i_share_ciphertext_k256 = match self.behaviour {
+                        //     Behaviour::R2BadEncryption { victim } if victim == i => {
+                        //         info!(
+                        //             "(k256) malicious party {} do {:?}",
+                        //             self.my_index, self.behaviour
+                        //         );
+                        //         u_i_share_ciphertext_k256.corrupt()
+                        //     }
+                        //     _ => u_i_share_ciphertext_k256,
+                        // };
 
-            // #[cfg(feature = "malicious")]
-            // let u_i_share_ciphertext_k256 = match self.behaviour {
-            //     Behaviour::R2BadEncryption { victim } if victim == i => {
-            //         info!(
-            //             "(k256) malicious party {} do {:?}",
-            //             self.my_index, self.behaviour
-            //         );
-            //         u_i_share_ciphertext_k256.corrupt()
-            //     }
-            //     _ => u_i_share_ciphertext_k256,
-            // };
+                        let p2p = P2p {
+                            u_i_share_ciphertext,
+                        };
+                        serialize_as_option(&p2p)
+                    }
+                })
+                .collect(),
+        );
 
-            out_p2ps
-                .insert(
-                    i,
-                    P2p {
-                        u_i_share_ciphertext: u_i_share_ciphertext_k256,
-                    },
-                )
-                .unwrap();
-        }
-
-        let out_bcast = Bcast {
+        let r2bcast = Bcast {
             y_i_reveal: self.y_i_reveal.clone(),
             u_i_share_commits: self.u_i_vss.commit(),
         };
@@ -140,7 +141,8 @@ impl RoundExecuter for R2 {
         // }
         RoundOutput::NotDone(RoundWaiter {
             round: Box::new(r3::R3 {}),
-            out_msg: None,
+            bcast_out: None,
+            p2ps_out,
             all_in_msgs: FillVec::with_len(self.share_count),
         })
     }

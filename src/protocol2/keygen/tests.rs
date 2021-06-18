@@ -73,7 +73,7 @@ pub(crate) fn execute_keygen_from_recovery(
         .into_iter()
         .enumerate()
         .map(|(i, party)| {
-            assert!(party.msg_out().is_none()); // no outgoing message before r1
+            assert!(party.bcast_out().is_none()); // no outgoing message before r1
             assert!(!party.expecting_more_msgs_this_round()); // expect no incoming messages before r1
             assert!(party.all_in_msgs.is_empty());
             match party.execute_next_round() {
@@ -86,7 +86,7 @@ pub(crate) fn execute_keygen_from_recovery(
     // deliver r1 messages
     let r1_bcasts: Vec<Vec<u8>> = r1_parties
         .iter()
-        .map(|party| party.msg_out().unwrap().to_vec())
+        .map(|party| party.bcast_out().unwrap().to_vec())
         .collect();
     for party in r1_parties.iter_mut() {
         for (from, msg) in r1_bcasts.iter().enumerate() {
