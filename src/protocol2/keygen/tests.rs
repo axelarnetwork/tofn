@@ -1,0 +1,234 @@
+use super::*;
+use crate::{protocol::gg20::vss_k256, protocol2::RoundOutput::*};
+use rand::RngCore;
+use std::any::Any;
+use tracing_test::traced_test;
+
+pub struct TestCase {
+    share_count: usize,
+    threshold: usize,
+}
+
+lazy_static::lazy_static! {
+    pub static ref TEST_CASES: Vec<TestCase>
+    = vec![t(5, 0), t(5, 1), t(5, 3), t(5, 4)];
+}
+
+#[test]
+#[traced_test]
+fn basic_correctness() {
+    for t in TEST_CASES.iter() {
+        execute_keygen(t.share_count, t.threshold);
+    }
+}
+
+pub(crate) fn execute_keygen(share_count: usize, threshold: usize) -> Vec<SecretKeyShare> {
+    execute_keygen_with_recovery(share_count, threshold).shares
+}
+
+pub(crate) struct KeySharesWithRecovery {
+    pub shares: Vec<SecretKeyShare>,
+    pub secret_recovery_keys: Vec<SecretRecoveryKey>,
+    pub session_nonce: Vec<u8>,
+}
+
+pub(crate) fn execute_keygen_with_recovery(
+    share_count: usize,
+    threshold: usize,
+) -> KeySharesWithRecovery {
+    let mut secret_recovery_keys = vec![[0u8; 64]; share_count];
+    for s in secret_recovery_keys.iter_mut() {
+        rand::thread_rng().fill_bytes(s);
+    }
+    let session_nonce = b"foobar".to_vec();
+
+    KeySharesWithRecovery {
+        shares: execute_keygen_from_recovery(threshold, &secret_recovery_keys, &session_nonce),
+        secret_recovery_keys,
+        session_nonce,
+    }
+}
+
+pub(crate) fn execute_keygen_from_recovery(
+    threshold: usize,
+    secret_recovery_keys: &[SecretRecoveryKey],
+    session_nonce: &[u8],
+) -> Vec<SecretKeyShare> {
+    let share_count = secret_recovery_keys.len();
+
+    let r0_parties: Vec<RoundWaiter<KeygenOutput>> = (0..share_count)
+        .map(|i| {
+            new_keygen(
+                share_count,
+                threshold,
+                i,
+                &secret_recovery_keys[i],
+                session_nonce,
+            )
+            .unwrap()
+        })
+        .collect();
+
+    // execute round 1 all parties
+    let mut r1_parties: Vec<RoundWaiter<KeygenOutput>> = r0_parties
+        .into_iter()
+        .enumerate()
+        .map(|(i, party)| {
+            assert!(party.msg_out().is_none()); // no outgoing message before r1
+            assert!(!party.expecting_more_msgs_this_round()); // expect no incoming messages before r1
+            assert!(party.all_in_msgs.is_empty());
+            match party.execute_next_round() {
+                NotDone(next_round) => next_round,
+                Done(_) => panic!("party {} done, expect not done", i),
+            }
+        })
+        .collect();
+
+    // deliver r1 messages
+    let r1_bcasts: Vec<Vec<u8>> = r1_parties
+        .iter()
+        .map(|party| party.msg_out().unwrap().to_vec())
+        .collect();
+    for party in r1_parties.iter_mut() {
+        for (from, msg) in r1_bcasts.iter().enumerate() {
+            party.msg_in(from, msg);
+        }
+    }
+
+    // save each u for later tests
+    // let all_u_secrets: Vec<k256::Scalar> = r1_parties
+    //     .iter()
+    //     .map(|party| {
+    //         // (&(&*party.round) as &dyn Any)
+    //         //     .downcast_ref::<r2::R2>()
+    //         // (party.round as Box<dyn Any>)
+    //             // .downcast::<r2::R2>()
+    //             .unwrap()
+    //             .state
+    //             .u_i_vss
+    //             .get_secret()
+    //             .clone()
+    //     })
+    //     .collect();
+
+    // DONE TO HERE
+
+    // save each u for later tests
+    // let all_u_secrets: Vec<k256::Scalar> = r1_parties
+    //     .iter()
+    //     .map(|party| *party.r1state.as_ref().unwrap().my_u_i_vss_k256.get_secret())
+    //     .collect();
+
+    // execute round 2 all parties and store their outputs
+    // let mut all_r2_bcasts = FillVec::with_len(share_count);
+    // let mut all_r2_p2ps = Vec::with_capacity(share_count);
+    // for (i, party) in r0_parties.iter_mut().enumerate() {
+    //     match party.r2() {
+    //         r2::Output::Success {
+    //             state,
+    //             out_bcast,
+    //             out_p2ps,
+    //         } => {
+    //             party.r2state = Some(state);
+    //             party.status = Status::R2;
+    //             all_r2_bcasts.insert(i, out_bcast).unwrap();
+    //             all_r2_p2ps.push(out_p2ps);
+    //         }
+    //         _ => {
+    //             panic!("r2 party {} expect success got failure", party.my_index);
+    //         }
+    //     }
+    // }
+    // let all_r2_bcasts = all_r2_bcasts; // make read-only
+    // let all_r2_p2ps = all_r2_p2ps; // make read-only
+
+    // // deliver round 2 msgs
+    // for party in r0_parties.iter_mut() {
+    //     party.in_all_r2p2ps = all_r2_p2ps.clone();
+    //     party.in_r2bcasts = all_r2_bcasts.clone();
+    // }
+
+    // // execute round 3 all parties and store their outputs
+    // let mut all_r3_bcasts = FillVec::with_len(share_count);
+    // for (i, party) in r0_parties.iter_mut().enumerate() {
+    //     match party.r3() {
+    //         r3::Output::Success { state, out_bcast } => {
+    //             party.r3state = Some(state);
+    //             party.status = Status::R3;
+    //             all_r3_bcasts.insert(i, out_bcast).unwrap();
+    //         }
+    //         _ => {
+    //             panic!("r3 party {} expect success got failure", party.my_index);
+    //         }
+    //     }
+    // }
+    // let all_r3_bcasts = all_r3_bcasts; // make read-only
+
+    // // deliver round 3 msgs
+    // for party in r0_parties.iter_mut() {
+    //     party.in_r3bcasts = all_r3_bcasts.clone();
+    // }
+
+    // // execute round 4 all parties and store their outputs
+    // let mut all_secret_key_shares = Vec::with_capacity(share_count);
+    // for party in r0_parties.iter_mut() {
+    //     match party.r4() {
+    //         r4::Output::Success { key_share } => {
+    //             all_secret_key_shares.push(key_share);
+    //         }
+    //         r4::Output::Fail { criminals } => {
+    //             panic!(
+    //                 "r4 party {} expect success got failure with criminals: {:?}",
+    //                 party.my_index, criminals
+    //             );
+    //         }
+    //     }
+    //     party.status = Status::Done;
+    // }
+    // let all_secret_key_shares = all_secret_key_shares; // make read-only
+
+    // // test: reconstruct the secret key in two ways:
+    // // 1. from all the u secrets of round 1
+    // // 2. from the first t+1 shares
+    // let secret_key_sum_u = all_u_secrets
+    //     .iter()
+    //     .fold(k256::Scalar::zero(), |acc, &x| acc + x);
+
+    // let all_shares: Vec<vss_k256::Share> = all_secret_key_shares
+    //     .iter()
+    //     .map(|k| vss_k256::Share::from_scalar(*k.share.x_i.unwrap(), k.share.index))
+    //     .collect();
+    // let secret_key_recovered = vss_k256::recover_secret(&all_shares, threshold);
+
+    // assert_eq!(secret_key_recovered, secret_key_sum_u);
+
+    // // test: verify that the reconstructed secret key yields the public key everyone deduced
+    // for secret_key_share in all_secret_key_shares.iter() {
+    //     let test_pubkey = k256::ProjectivePoint::generator() * secret_key_recovered;
+    //     assert_eq!(&test_pubkey, secret_key_share.group.y.unwrap());
+    // }
+
+    // // test: everyone computed everyone else's public key share correctly
+    // for (i, secret_key_share) in all_secret_key_shares.iter().enumerate() {
+    //     for (j, other_secret_key_share) in all_secret_key_shares.iter().enumerate() {
+    //         assert_eq!(
+    //             *secret_key_share.group.all_shares[j].X_i.unwrap(),
+    //             k256::ProjectivePoint::generator() * other_secret_key_share.share.x_i.unwrap(),
+    //             "party {} got party {} key wrong",
+    //             i,
+    //             j
+    //         );
+    //     }
+    // }
+
+    // all_secret_key_shares
+    todo!()
+}
+
+/// for brevity only
+fn t(n: usize, t: usize) -> TestCase {
+    TestCase {
+        share_count: n,
+        threshold: t,
+    }
+}

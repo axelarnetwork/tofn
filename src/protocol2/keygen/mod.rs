@@ -49,3 +49,6 @@ pub fn new_keygen(
 mod r1;
 mod r2;
 mod rng;
+
+#[cfg(test)]
+pub(super) mod tests; // pub(super) so that sign module can see tests::execute_keygen
