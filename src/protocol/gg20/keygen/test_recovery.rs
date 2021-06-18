@@ -17,7 +17,10 @@ fn basic_correctness() {
     };
     let recovered_shares: Vec<SecretKeyShare> = secret_recovery_keys
         .iter()
-        .map(|r| SecretKeyShare::recover(r, &session_nonce, &recovery_infos, threshold).unwrap())
+        .enumerate()
+        .map(|(i, r)| {
+            SecretKeyShare::recover(r, &session_nonce, &recovery_infos, i, threshold).unwrap()
+        })
         .collect();
 
     assert_eq!(

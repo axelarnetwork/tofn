@@ -239,6 +239,7 @@ impl SecretKeyShare {
         secret_recovery_key: &SecretRecoveryKey,
         session_nonce: &[u8],
         recovery_infos: &[KeyShareRecoveryInfo],
+        index: usize,
         threshold: usize,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         // basic argument validation
@@ -249,10 +250,10 @@ impl SecretKeyShare {
             )));
         }
         let share_count = recovery_infos.len();
-        if threshold >= share_count {
+        if threshold >= share_count || index >= share_count {
             return Err(From::from(format!(
-                "invalid (share_count,threshold): ({},{})",
-                share_count, threshold
+                "invalid (share_count,threshold,index): ({},{},{})",
+                share_count, threshold, index
             )));
         }
 
@@ -277,13 +278,13 @@ impl SecretKeyShare {
             session_nonce,
         )));
 
-        // find my index by searching for my Paillier key
-        let index = if let Some(index) = recovery_infos_sorted.iter().position(|r| r.share.ek == ek)
-        {
-            index
-        } else {
-            return Err(From::from("unable to find my ek"));
-        };
+        // verify recovery of the correct Paillier keys
+        if ek != recovery_infos_sorted[index].share.ek {
+            return Err(From::from(format!(
+                "recovered ek mismatch for index {}",
+                index
+            )));
+        }
 
         // prepare output
         let x_i = dk
