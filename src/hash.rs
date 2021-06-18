@@ -22,7 +22,6 @@ pub fn commit_with_randomness(msg: impl AsRef<[u8]>, randomness: &Randomness) ->
             .chain(msg)
             .chain(randomness.0)
             .finalize()
-            .clone()
             .into(),
     )
 }
