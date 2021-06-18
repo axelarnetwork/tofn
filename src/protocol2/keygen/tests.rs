@@ -154,6 +154,13 @@ pub(crate) fn execute_keygen_from_recovery(
         }
     }
 
+    // TEMPORARY test until r3 is done
+    for party in r2_parties.iter() {
+        assert!(party.bcast_out().is_some());
+        assert!(party.p2ps_out().is_some());
+        assert!(!party.expecting_more_msgs_this_round());
+    }
+
     // execute round 3 all parties and store their outputs
     // let mut r3_parties: Vec<RoundWaiter<KeygenOutput>> = r2_parties
     //     .into_iter()

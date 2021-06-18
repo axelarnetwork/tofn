@@ -43,7 +43,12 @@ impl<F> RoundWaiter<F> {
         self.p2ps_in[from].overwrite(to, msg.to_vec());
     }
     pub fn expecting_more_msgs_this_round(&self) -> bool {
-        !self.bcasts_in.is_full()
+        !self
+            .p2ps_in
+            .iter()
+            .enumerate()
+            .all(|(i, p2ps)| p2ps.is_full_except(i))
+            && !self.bcasts_in.is_full()
     }
     pub fn execute_next_round(self) -> RoundOutput<F> {
         self.round.execute(self.bcasts_in)
