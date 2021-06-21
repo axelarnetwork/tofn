@@ -3,7 +3,7 @@ use crate::{
     protocol::gg20::{keygen::crimes, SecretKeyShare},
 };
 
-use super::RoundWaiter;
+use super::{RoundWaiter, SerializedMsgs};
 
 pub type KeygenOutput = Result<SecretKeyShare, Vec<Vec<crimes::Crime>>>;
 pub type SecretRecoveryKey = [u8; 64];
@@ -41,8 +41,10 @@ pub fn new_keygen(
             index,
             rng_seed,
         }),
-        bcast_out: None,
-        p2ps_out: None,
+        msgs_out: SerializedMsgs {
+            bcast: None,
+            p2ps: None,
+        },
         bcasts_in: FillVec::with_len(0), // expect no incoming messages before r1
         p2ps_in: Vec::new(),             // expect no incoming messages before r1
     })

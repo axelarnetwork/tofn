@@ -5,7 +5,9 @@ use crate::{
     fillvec::FillVec,
     hash, paillier_k256,
     protocol::gg20::{keygen::crimes::Crime, vss_k256},
-    protocol2::{keygen::r3, serialize_as_option, RoundExecuter, RoundOutput, RoundWaiter},
+    protocol2::{
+        keygen::r3, serialize_as_option, RoundExecuter, RoundOutput, RoundWaiter, SerializedMsgs,
+    },
 };
 
 use super::{r1, KeygenOutput};
@@ -98,7 +100,7 @@ impl RoundExecuter for R2 {
         // };
 
         // TODO better pattern to get p2ps_out
-        let p2ps_out = Some(
+        let p2ps_out = FillVec::from_vec(
             u_i_shares
                 .iter()
                 .enumerate()
@@ -150,8 +152,10 @@ impl RoundExecuter for R2 {
                 r2state,
                 r2bcast,
             }),
-            bcast_out,
-            p2ps_out,
+            msgs_out: SerializedMsgs {
+                bcast: bcast_out,
+                p2ps: Some(p2ps_out),
+            },
             bcasts_in: FillVec::with_len(self.share_count),
             p2ps_in: vec![FillVec::with_len(self.share_count); self.share_count],
         })

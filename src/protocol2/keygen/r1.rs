@@ -1,7 +1,7 @@
 use crate::{
     hash, k256_serde, paillier_k256,
     protocol::gg20::vss_k256,
-    protocol2::{serialize_as_option, RoundExecuter, RoundOutput},
+    protocol2::{serialize_as_option, RoundExecuter, RoundOutput, SerializedMsgs},
 };
 use serde::{Deserialize, Serialize};
 
@@ -89,8 +89,10 @@ impl RoundExecuter for R1 {
                 r1state,
                 r1bcast,
             }),
-            bcast_out,
-            p2ps_out: None,
+            msgs_out: SerializedMsgs {
+                bcast: bcast_out,
+                p2ps: None,
+            },
             bcasts_in: FillVec::with_len(self.share_count),
             p2ps_in: Vec::new(),
         })

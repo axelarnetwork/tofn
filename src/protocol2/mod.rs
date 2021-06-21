@@ -18,21 +18,21 @@ pub trait RoundExecuter {
     }
 }
 
+pub struct SerializedMsgs {
+    bcast: Option<Vec<u8>>,
+    p2ps: Option<FillVec<Vec<u8>>>, // TODO HoleVec instead of FillVec?
+}
+
 pub struct RoundWaiter<F> {
     round: Box<dyn RoundExecuter<FinalOutput = F>>,
-    bcast_out: Option<Vec<u8>>,
-    p2ps_out: Option<Vec<Option<Vec<u8>>>>,
+    msgs_out: SerializedMsgs,
     bcasts_in: FillVec<Vec<u8>>,
     p2ps_in: Vec<FillVec<Vec<u8>>>,
 }
 
 impl<F> RoundWaiter<F> {
-    // TODO ugly API: bcast_out, p2ps_out
-    pub fn bcast_out(&self) -> Option<&[u8]> {
-        self.bcast_out.as_ref().map(Vec::as_slice)
-    }
-    pub fn p2ps_out(&self) -> Option<&[Option<Vec<u8>>]> {
-        self.p2ps_out.as_ref().map(Vec::as_slice)
+    pub fn msgs_out(&self) -> &SerializedMsgs {
+        &self.msgs_out
     }
     pub fn bcast_in(&mut self, from: usize, msg: &[u8]) {
         // TODO check `from` in bounds, warn of overwrite

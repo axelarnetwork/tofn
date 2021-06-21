@@ -64,6 +64,13 @@ impl<T> FillVec<T> {
     pub fn is_empty(&self) -> bool {
         self.some_count == 0
     }
+
+    pub fn from_vec(vec: Vec<Option<T>>) -> Self {
+        Self {
+            some_count: vec.iter().filter(|x| x.is_some()).count(),
+            vec,
+        }
+    }
 }
 
 pub fn new_vec_none<T>(len: usize) -> Vec<Option<T>> {
