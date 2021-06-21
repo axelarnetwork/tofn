@@ -1,13 +1,28 @@
+use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 use crate::{
+    fillvec::FillVec,
     hash,
     k256_serde::to_bytes,
-    protocol::gg20::keygen::crimes::Crime,
+    paillier_k256,
+    protocol::gg20::{keygen::crimes::Crime, vss_k256},
     protocol2::{keygen::r4, RoundExecuter, RoundOutput, RoundWaiter, SerializedMsgs},
 };
 
 use super::{r1, r2, KeygenOutput};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BcastFail {
+    pub vss_complaints: Vec<VssComplaint>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VssComplaint {
+    pub criminal_index: usize,
+    pub share: vss_k256::Share,
+    pub share_randomness: paillier_k256::Randomness,
+}
 
 pub(super) struct R3 {
     pub(super) share_count: usize,
@@ -29,6 +44,23 @@ impl RoundExecuter for R3 {
             .iter()
             .map(|msg| bincode::deserialize(&msg.bcast.as_ref().unwrap()).unwrap())
             .collect();
+        let all_r2_p2ps: Vec<FillVec<r2::P2p>> = msgs_in
+            .iter()
+            .map(|msg| {
+                FillVec::from_vec(
+                    msg.p2ps
+                        .as_ref()
+                        .unwrap()
+                        .vec_ref()
+                        .iter()
+                        .map(|p2p| {
+                            p2p.as_ref()
+                                .map(|bytes| bincode::deserialize(&bytes).unwrap())
+                        })
+                        .collect(),
+                )
+            })
+            .collect();
 
         // check y_i commits
         let criminals: Vec<Vec<Crime>> = r2bcasts
@@ -47,13 +79,81 @@ impl RoundExecuter for R3 {
                 }
             })
             .collect();
-
-        // prioritize commit faiure path over vss failure path
         if !criminals.iter().all(Vec::is_empty) {
             return RoundOutput::Done(Err(criminals));
         }
 
-        // k256: check y_i_commit
+        // decrypt shares
+        let share_infos: FillVec<(vss_k256::Share, paillier_k256::Randomness)> = FillVec::from_vec(
+            all_r2_p2ps
+                .iter()
+                .map(|r2_p2ps| {
+                    // return None if my_p2p is None
+                    r2_p2ps.vec_ref()[self.index].as_ref().map(|my_p2p| {
+                        let (u_i_share_plaintext, u_i_share_randomness) = self
+                            .r1state
+                            .dk
+                            .decrypt_with_randomness(&my_p2p.u_i_share_ciphertext);
+                        let u_i_share = vss_k256::Share::from_scalar(
+                            u_i_share_plaintext.to_scalar(),
+                            self.index,
+                        );
+                        (u_i_share, u_i_share_randomness)
+                    })
+                })
+                .collect(),
+        );
+
+        // validate shares
+        let vss_failures: Vec<VssComplaint> = share_infos
+            .vec_ref()
+            .iter()
+            .zip(r2bcasts.iter())
+            .enumerate()
+            .filter_map(|(from, (share_info, r2bcast))| {
+                if let Some((u_i_share, u_i_share_randomness)) = share_info {
+                    if !r2bcast.u_i_share_commits.validate_share(&u_i_share) {
+                        warn!(
+                            "party {} accuse {} of {:?}",
+                            self.index,
+                            from,
+                            Crime::R4FailBadVss { victim: self.index },
+                        );
+                        Some(VssComplaint {
+                            criminal_index: from,
+                            share: u_i_share.clone(),
+                            share_randomness: u_i_share_randomness.clone(),
+                        })
+                    } else {
+                        None
+                    }
+                } else {
+                    None // if share_info is none then I must be talking to myself
+                }
+            })
+            .collect();
+        // if !vss_failures.is_empty() {
+        //     return RoundOutput::NotDone(RoundWaiter {
+        //         round: Box::new(r4::R4 {
+        //             share_count: self.share_count,
+        //             threshold: self.threshold,
+        //             index: self.index,
+        //         }),
+        //         msgs_out: SerializedMsgs {
+        //             bcast: None,
+        //             p2ps: None,
+        //         },
+        //         msgs_in: vec![
+        //             SerializedMsgs {
+        //                 bcast: None,
+        //                 p2ps: None,
+        //             };
+        //             self.share_count
+        //         ],
+        //     })
+        // }
+
+        // DONE TO HERE
 
         // let mut criminals = vec![Vec::new(); self.share_count];
         // let mut vss_failures = Vec::new();
