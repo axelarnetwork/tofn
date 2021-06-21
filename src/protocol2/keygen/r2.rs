@@ -44,12 +44,11 @@ pub(super) struct R2 {
 impl RoundExecuter for R2 {
     type FinalOutput = KeygenOutput;
 
-    fn execute(self: Box<Self>, all_in_msgs: FillVec<Vec<u8>>) -> RoundOutput<Self::FinalOutput> {
+    fn execute(self: Box<Self>, msgs_in: Vec<SerializedMsgs>) -> RoundOutput<Self::FinalOutput> {
         // deserialize incoming messages
-        let r1bcasts: Vec<r1::Bcast> = all_in_msgs
-            .vec_ref()
+        let r1bcasts: Vec<r1::Bcast> = msgs_in
             .iter()
-            .map(|msg| bincode::deserialize(&msg.as_ref().unwrap()).unwrap())
+            .map(|msg| bincode::deserialize(&msg.bcast.as_ref().unwrap()).unwrap())
             .collect();
 
         // check Paillier proofs
@@ -156,8 +155,13 @@ impl RoundExecuter for R2 {
                 bcast: bcast_out,
                 p2ps: Some(p2ps_out),
             },
-            bcasts_in: FillVec::with_len(self.share_count),
-            p2ps_in: vec![FillVec::with_len(self.share_count); self.share_count],
+            msgs_in: vec![
+                SerializedMsgs {
+                    bcast: None,
+                    p2ps: Some(FillVec::with_len(self.share_count)),
+                };
+                self.share_count
+            ],
         })
     }
 

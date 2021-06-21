@@ -10,7 +10,7 @@ pub enum RoundOutput<F> {
 
 pub trait RoundExecuter {
     type FinalOutput;
-    fn execute(self: Box<Self>, all_in_msgs: FillVec<Vec<u8>>) -> RoundOutput<Self::FinalOutput>;
+    fn execute(self: Box<Self>, msgs_in: Vec<SerializedMsgs>) -> RoundOutput<Self::FinalOutput>;
 
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
@@ -18,16 +18,18 @@ pub trait RoundExecuter {
     }
 }
 
+#[derive(Clone, Default)]
 pub struct SerializedMsgs {
     bcast: Option<Vec<u8>>,
-    p2ps: Option<FillVec<Vec<u8>>>, // TODO HoleVec instead of FillVec?
+    // TODO HoleVec instead of FillVec?
+    // TODO why Option<FillVec<_>>?
+    p2ps: Option<FillVec<Vec<u8>>>,
 }
 
 pub struct RoundWaiter<F> {
     round: Box<dyn RoundExecuter<FinalOutput = F>>,
     msgs_out: SerializedMsgs,
-    bcasts_in: FillVec<Vec<u8>>,
-    p2ps_in: Vec<FillVec<Vec<u8>>>,
+    msgs_in: Vec<SerializedMsgs>,
 }
 
 impl<F> RoundWaiter<F> {
@@ -36,22 +38,28 @@ impl<F> RoundWaiter<F> {
     }
     pub fn bcast_in(&mut self, from: usize, msg: &[u8]) {
         // TODO check `from` in bounds, warn of overwrite
-        self.bcasts_in.overwrite(from, msg.to_vec());
+        self.msgs_in[from].bcast = Some(msg.to_vec());
     }
     pub fn p2p_in(&mut self, from: usize, to: usize, msg: &[u8]) {
         // TODO check `from`, `to` in bounds, warn of overwrite
-        self.p2ps_in[from].overwrite(to, msg.to_vec());
+        self.msgs_in[from]
+            .p2ps
+            .as_mut()
+            .unwrap()
+            .overwrite(to, msg.to_vec());
     }
     pub fn expecting_more_msgs_this_round(&self) -> bool {
-        !self
-            .p2ps_in
-            .iter()
-            .enumerate()
-            .all(|(i, p2ps)| p2ps.is_full_except(i))
-            && !self.bcasts_in.is_full()
+        // TODO
+        false
+        // !self
+        //     .msgs_in
+        //     .iter()
+        //     .enumerate()
+        //     .all(|(i, party_msgs_in)| party_msgs_in.p2ps.is_full_except(i))
+        //     && !self.msgs_in.bcasts_in.is_full()
     }
     pub fn execute_next_round(self) -> RoundOutput<F> {
-        self.round.execute(self.bcasts_in)
+        self.round.execute(self.msgs_in)
     }
 }
 

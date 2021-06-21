@@ -1,7 +1,4 @@
-use crate::{
-    fillvec::FillVec,
-    protocol2::{RoundExecuter, RoundOutput},
-};
+use crate::protocol2::{RoundExecuter, RoundOutput, SerializedMsgs};
 
 use super::{r1, r2, KeygenOutput};
 
@@ -18,7 +15,7 @@ pub(super) struct R3 {
 impl RoundExecuter for R3 {
     type FinalOutput = KeygenOutput;
 
-    fn execute(self: Box<Self>, all_in_msgs: FillVec<Vec<u8>>) -> RoundOutput<Self::FinalOutput> {
+    fn execute(self: Box<Self>, msgs_in: Vec<SerializedMsgs>) -> RoundOutput<Self::FinalOutput> {
         todo!()
     }
 

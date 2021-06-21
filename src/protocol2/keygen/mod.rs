@@ -1,7 +1,4 @@
-use crate::{
-    fillvec::FillVec,
-    protocol::gg20::{keygen::crimes, SecretKeyShare},
-};
+use crate::protocol::gg20::{keygen::crimes, SecretKeyShare};
 
 use super::{RoundWaiter, SerializedMsgs};
 
@@ -45,8 +42,7 @@ pub fn new_keygen(
             bcast: None,
             p2ps: None,
         },
-        bcasts_in: FillVec::with_len(0), // expect no incoming messages before r1
-        p2ps_in: Vec::new(),             // expect no incoming messages before r1
+        msgs_in: Vec::new(),
     })
 }
 

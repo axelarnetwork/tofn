@@ -1,5 +1,5 @@
 use super::*;
-use crate::protocol2::RoundOutput::*;
+use crate::{fillvec::FillVec, protocol2::RoundOutput::*};
 use rand::RngCore;
 use tracing_test::traced_test;
 
@@ -76,8 +76,6 @@ pub(crate) fn execute_keygen_from_recovery(
         .map(|(i, party)| {
             assert!(party.msgs_out().bcast.is_none());
             assert!(party.msgs_out().p2ps.is_none());
-            assert!(party.bcasts_in.is_empty());
-            assert!(party.p2ps_in.is_empty());
             assert!(!party.expecting_more_msgs_this_round());
             match party.execute_next_round() {
                 NotDone(next_round) => next_round,
@@ -120,8 +118,6 @@ pub(crate) fn execute_keygen_from_recovery(
         .map(|(i, party)| {
             assert!(party.msgs_out().bcast.is_some());
             assert!(party.msgs_out().p2ps.is_none());
-            assert!(party.bcasts_in.is_full());
-            assert!(party.p2ps_in.is_empty());
             assert!(!party.expecting_more_msgs_this_round());
             match party.execute_next_round() {
                 NotDone(next_round) => next_round,
