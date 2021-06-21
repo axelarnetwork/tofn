@@ -147,9 +147,10 @@ impl RoundExecuter for R2 {
                 threshold: self.threshold,
                 index: self.index,
                 r1state: self.r1state,
-                r1bcast: self.r1bcast,
+                my_r1bcast: self.r1bcast,
+                r1bcasts,
                 r2state,
-                r2bcast,
+                my_r2bcast: r2bcast,
             }),
             msgs_out: SerializedMsgs {
                 bcast: bcast_out,
