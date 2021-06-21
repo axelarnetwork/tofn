@@ -4,7 +4,7 @@ use crate::{
     hash,
     k256_serde::to_bytes,
     protocol::gg20::keygen::crimes::Crime,
-    protocol2::{RoundExecuter, RoundOutput, SerializedMsgs},
+    protocol2::{keygen::r4, RoundExecuter, RoundOutput, RoundWaiter, SerializedMsgs},
 };
 
 use super::{r1, r2, KeygenOutput};
@@ -200,7 +200,24 @@ impl RoundExecuter for R3 {
         // //         all_X_i,
         // //     },
         // // }
-        todo!()
+        RoundOutput::NotDone(RoundWaiter {
+            round: Box::new(r4::R4 {
+                share_count: self.share_count,
+                threshold: self.threshold,
+                index: self.index,
+            }),
+            msgs_out: SerializedMsgs {
+                bcast: None,
+                p2ps: None,
+            },
+            msgs_in: vec![
+                SerializedMsgs {
+                    bcast: None,
+                    p2ps: None,
+                };
+                self.share_count
+            ],
+        })
     }
 
     #[cfg(test)]

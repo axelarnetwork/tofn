@@ -150,29 +150,20 @@ pub(crate) fn execute_keygen_from_recovery(
         }
     }
 
-    // TEMPORARY test until r3 is done
-    for party in r2_parties.iter() {
-        assert!(party.msgs_out().bcast.is_some());
-        assert!(party.msgs_out().p2ps.is_some());
-        assert!(!party.expecting_more_msgs_this_round());
-    }
-
-    // execute round 3 all parties and store their outputs
-    // let mut r3_parties: Vec<RoundWaiter<KeygenOutput>> = r2_parties
-    //     .into_iter()
-    //     .enumerate()
-    //     .map(|(i, party)| {
-    //         assert!(party.bcast_out().is_some());
-    //         assert!(party.p2ps_out().is_some());
-    //         assert!(party.bcasts_in.is_full());
-    //         // assert!(party.p2ps_in.is_empty());
-    //         assert!(!party.expecting_more_msgs_this_round());
-    //         match party.execute_next_round() {
-    //             NotDone(next_round) => next_round,
-    //             Done(_) => panic!("party {} done, expect not done", i),
-    //         }
-    //     })
-    //     .collect();
+    // execute round 3 all parties
+    let mut r3_parties: Vec<RoundWaiter<KeygenOutput>> = r2_parties
+        .into_iter()
+        .enumerate()
+        .map(|(i, party)| {
+            assert!(party.msgs_out().bcast.is_some());
+            assert!(party.msgs_out().p2ps.is_some());
+            assert!(!party.expecting_more_msgs_this_round());
+            match party.execute_next_round() {
+                NotDone(next_round) => next_round,
+                Done(_) => panic!("party {} done, expect not done", i),
+            }
+        })
+        .collect();
 
     // DONE TO HERE
 

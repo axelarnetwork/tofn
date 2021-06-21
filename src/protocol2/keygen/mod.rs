@@ -49,6 +49,7 @@ pub fn new_keygen(
 mod r1;
 mod r2;
 mod r3;
+mod r4;
 mod rng;
 
 #[cfg(test)]
