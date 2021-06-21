@@ -165,12 +165,18 @@ pub(crate) fn execute_keygen_from_recovery(
         })
         .collect();
 
-    // DONE TO HERE
+    // deliver r3 messages
+    let r3_bcasts: Vec<Vec<u8>> = r3_parties
+        .iter()
+        .map(|party| party.msgs_out().bcast.as_ref().unwrap().clone())
+        .collect();
+    for party in r3_parties.iter_mut() {
+        for (from, msg) in r3_bcasts.iter().enumerate() {
+            party.bcast_in(from, msg);
+        }
+    }
 
-    // // deliver round 3 msgs
-    // for party in r0_parties.iter_mut() {
-    //     party.in_r3bcasts = all_r3_bcasts.clone();
-    // }
+    // DONE TO HERE
 
     // // execute round 4 all parties and store their outputs
     // let mut all_secret_key_shares = Vec::with_capacity(share_count);
