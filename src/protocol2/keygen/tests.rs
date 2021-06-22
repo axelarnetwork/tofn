@@ -1,5 +1,5 @@
 use super::*;
-use crate::{fillvec::FillVec, protocol2::RoundOutput::*};
+use crate::{fillvec::FillVec, protocol::gg20::vss_k256, protocol2::RoundOutput::*};
 use rand::RngCore;
 use tracing_test::traced_test;
 
@@ -202,32 +202,32 @@ pub(crate) fn execute_keygen_from_recovery(
         .iter()
         .fold(k256::Scalar::zero(), |acc, &x| acc + x);
 
-    // let all_shares: Vec<vss_k256::Share> = all_secret_key_shares
-    //     .iter()
-    //     .map(|k| vss_k256::Share::from_scalar(*k.share.x_i.unwrap(), k.share.index))
-    //     .collect();
-    // let secret_key_recovered = vss_k256::recover_secret(&all_shares, threshold);
+    let all_shares: Vec<vss_k256::Share> = all_secret_key_shares
+        .iter()
+        .map(|k| vss_k256::Share::from_scalar(*k.share.x_i.unwrap(), k.share.index))
+        .collect();
+    let secret_key_recovered = vss_k256::recover_secret(&all_shares, threshold);
 
-    // assert_eq!(secret_key_recovered, secret_key_sum_u);
+    assert_eq!(secret_key_recovered, secret_key_sum_u);
 
-    // // test: verify that the reconstructed secret key yields the public key everyone deduced
-    // for secret_key_share in all_secret_key_shares.iter() {
-    //     let test_pubkey = k256::ProjectivePoint::generator() * secret_key_recovered;
-    //     assert_eq!(&test_pubkey, secret_key_share.group.y.unwrap());
-    // }
+    // test: verify that the reconstructed secret key yields the public key everyone deduced
+    for secret_key_share in all_secret_key_shares.iter() {
+        let test_pubkey = k256::ProjectivePoint::generator() * secret_key_recovered;
+        assert_eq!(&test_pubkey, secret_key_share.group.y.unwrap());
+    }
 
-    // // test: everyone computed everyone else's public key share correctly
-    // for (i, secret_key_share) in all_secret_key_shares.iter().enumerate() {
-    //     for (j, other_secret_key_share) in all_secret_key_shares.iter().enumerate() {
-    //         assert_eq!(
-    //             *secret_key_share.group.all_shares[j].X_i.unwrap(),
-    //             k256::ProjectivePoint::generator() * other_secret_key_share.share.x_i.unwrap(),
-    //             "party {} got party {} key wrong",
-    //             i,
-    //             j
-    //         );
-    //     }
-    // }
+    // test: everyone computed everyone else's public key share correctly
+    for (i, secret_key_share) in all_secret_key_shares.iter().enumerate() {
+        for (j, other_secret_key_share) in all_secret_key_shares.iter().enumerate() {
+            assert_eq!(
+                *secret_key_share.group.all_shares[j].X_i.unwrap(),
+                k256::ProjectivePoint::generator() * other_secret_key_share.share.x_i.unwrap(),
+                "party {} got party {} key wrong",
+                i,
+                j
+            );
+        }
+    }
 
     all_secret_key_shares
 }
