@@ -256,8 +256,7 @@ fn execute_test_case(t: &test_cases::TestCase) {
             }),
             _ => None,
         })
-        .filter(|spoofer| spoofer.is_some())
-        .map(|spoofer| spoofer.unwrap())
+        .flatten()
         .collect();
 
     let stallers: Vec<SignStaller> = signers
@@ -267,8 +266,7 @@ fn execute_test_case(t: &test_cases::TestCase) {
             Staller { msg_type } => Some(SignStaller { index, msg_type }),
             _ => None,
         })
-        .filter(|staller| staller.is_some())
-        .map(|staller| staller.unwrap())
+        .flatten()
         .collect();
 
     let disrupters: Vec<SignDisrupter> = signers
@@ -278,8 +276,7 @@ fn execute_test_case(t: &test_cases::TestCase) {
             DisrupringSender { msg_type } => Some(SignDisrupter { index, msg_type }),
             _ => None,
         })
-        .filter(|disrupter| disrupter.is_some())
-        .map(|disrupter| disrupter.unwrap())
+        .flatten()
         .collect();
 
     // need to do an extra iteration because we can't return reference to temp objects
