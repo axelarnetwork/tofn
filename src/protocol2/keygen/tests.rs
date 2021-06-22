@@ -195,12 +195,12 @@ pub(crate) fn execute_keygen_from_recovery(
         })
         .collect();
 
-    // // test: reconstruct the secret key in two ways:
-    // // 1. from all the u secrets of round 1
-    // // 2. from the first t+1 shares
-    // let secret_key_sum_u = all_u_secrets
-    //     .iter()
-    //     .fold(k256::Scalar::zero(), |acc, &x| acc + x);
+    // test: reconstruct the secret key in two ways:
+    // 1. from all the u secrets of round 1
+    // 2. from the first t+1 shares
+    let secret_key_sum_u = all_u_secrets
+        .iter()
+        .fold(k256::Scalar::zero(), |acc, &x| acc + x);
 
     // let all_shares: Vec<vss_k256::Share> = all_secret_key_shares
     //     .iter()
