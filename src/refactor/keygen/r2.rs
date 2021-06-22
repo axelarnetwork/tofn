@@ -5,8 +5,9 @@ use crate::{
     fillvec::FillVec,
     hash, paillier_k256,
     protocol::gg20::{keygen::crimes::Crime, vss_k256},
-    protocol2::{
-        keygen::r3, serialize_as_option, RoundExecuter, RoundOutput, RoundWaiter, SerializedMsgs,
+    refactor::{
+        keygen::r3,
+        protocol2::{serialize_as_option, RoundExecuter, RoundOutput, RoundWaiter, SerializedMsgs},
     },
 };
 

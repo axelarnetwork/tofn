@@ -7,8 +7,9 @@ use crate::{
     k256_serde::to_bytes,
     paillier_k256,
     protocol::gg20::{keygen::crimes::Crime, vss_k256},
-    protocol2::{
-        keygen::r4, serialize_as_option, RoundExecuter, RoundOutput, RoundWaiter, SerializedMsgs,
+    refactor::{
+        keygen::r4,
+        protocol2::{serialize_as_option, RoundExecuter, RoundOutput, RoundWaiter, SerializedMsgs},
     },
     zkp::schnorr_k256,
 };

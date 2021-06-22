@@ -4,7 +4,7 @@ use crate::{
     protocol::gg20::{
         keygen::crimes::Crime, GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo,
     },
-    protocol2::{RoundExecuter, RoundOutput, SerializedMsgs},
+    refactor::protocol2::{RoundExecuter, RoundOutput, SerializedMsgs},
     zkp::schnorr_k256,
 };
 

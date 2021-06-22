@@ -20,16 +20,16 @@ pub trait RoundExecuter {
 
 #[derive(Clone, Default)]
 pub struct SerializedMsgs {
-    bcast: Option<Vec<u8>>,
+    pub bcast: Option<Vec<u8>>,
     // TODO HoleVec instead of FillVec?
     // TODO why Option<FillVec<_>>?
-    p2ps: Option<FillVec<Vec<u8>>>,
+    pub p2ps: Option<FillVec<Vec<u8>>>,
 }
 
 pub struct RoundWaiter<F> {
-    round: Box<dyn RoundExecuter<FinalOutput = F>>,
-    msgs_out: SerializedMsgs,
-    msgs_in: Vec<SerializedMsgs>,
+    pub(crate) round: Box<dyn RoundExecuter<FinalOutput = F>>,
+    pub(crate) msgs_out: SerializedMsgs,
+    pub(crate) msgs_in: Vec<SerializedMsgs>,
 }
 
 impl<F> RoundWaiter<F> {
@@ -73,5 +73,3 @@ where
     }
     bytes
 }
-
-pub mod keygen;

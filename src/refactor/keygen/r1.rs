@@ -1,11 +1,13 @@
 use crate::{
     hash, k256_serde, paillier_k256,
     protocol::gg20::vss_k256,
-    protocol2::{serialize_as_option, RoundExecuter, RoundOutput, SerializedMsgs},
+    refactor::protocol2::{
+        serialize_as_option, RoundExecuter, RoundOutput, RoundWaiter, SerializedMsgs,
+    },
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{protocol::gg20::keygen::KeygenOutput, protocol2::RoundWaiter};
+use crate::protocol::gg20::keygen::KeygenOutput;
 
 use super::{r2, rng};
 
@@ -33,7 +35,7 @@ pub(super) struct Bcast {
 impl RoundExecuter for R1 {
     type FinalOutput = KeygenOutput;
 
-    fn execute(self: Box<Self>, msgs_in: Vec<SerializedMsgs>) -> RoundOutput<Self::FinalOutput> {
+    fn execute(self: Box<Self>, _msgs_in: Vec<SerializedMsgs>) -> RoundOutput<Self::FinalOutput> {
         let u_i_vss = vss_k256::Vss::new(self.threshold);
         let (y_i_commit, y_i_reveal) = hash::commit(k256_serde::to_bytes(
             &(k256::ProjectivePoint::generator() * u_i_vss.get_secret()),
