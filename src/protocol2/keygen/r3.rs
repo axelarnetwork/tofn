@@ -211,6 +211,8 @@ impl RoundExecuter for R3 {
                 share_count: self.share_count,
                 threshold: self.threshold,
                 index: self.index,
+                r1state: self.r1state,
+                r1bcasts: self.r1bcasts,
                 y,
                 x_i,
                 all_X_i,

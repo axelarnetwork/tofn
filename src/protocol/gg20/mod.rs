@@ -34,9 +34,9 @@ pub struct SecretKeyShare {
 /// `GroupPublicInfo` is the same for all shares
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GroupPublicInfo {
-    threshold: usize,
-    y: k256_serde::ProjectivePoint,
-    all_shares: Vec<SharePublicInfo>,
+    pub(crate) threshold: usize,
+    pub(crate) y: k256_serde::ProjectivePoint,
+    pub(crate) all_shares: Vec<SharePublicInfo>,
 }
 
 impl GroupPublicInfo {
@@ -54,19 +54,19 @@ impl GroupPublicInfo {
 /// `SharePublicInfo` public info unique to each share
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[allow(non_snake_case)]
-struct SharePublicInfo {
-    X_i: k256_serde::ProjectivePoint,
-    ek: paillier_k256::EncryptionKey,
-    zkp: paillier_k256::zk::ZkSetup,
+pub struct SharePublicInfo {
+    pub(crate) X_i: k256_serde::ProjectivePoint,
+    pub(crate) ek: paillier_k256::EncryptionKey,
+    pub(crate) zkp: paillier_k256::zk::ZkSetup,
 }
 
 /// `ShareSecretInfo` secret info unique to each share
 /// `my_index` is not secret; it's just convenient to put it here
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ShareSecretInfo {
-    index: usize,
-    dk: paillier_k256::DecryptionKey,
-    x_i: k256_serde::Scalar,
+    pub(crate) index: usize,
+    pub(crate) dk: paillier_k256::DecryptionKey,
+    pub(crate) x_i: k256_serde::Scalar,
 }
 
 impl ShareSecretInfo {
