@@ -176,25 +176,24 @@ pub(crate) fn execute_keygen_from_recovery(
         }
     }
 
-    // DONE TO HERE
-
-    // // execute round 4 all parties and store their outputs
-    // let mut all_secret_key_shares = Vec::with_capacity(share_count);
-    // for party in r0_parties.iter_mut() {
-    //     match party.r4() {
-    //         r4::Output::Success { key_share } => {
-    //             all_secret_key_shares.push(key_share);
-    //         }
-    //         r4::Output::Fail { criminals } => {
-    //             panic!(
-    //                 "r4 party {} expect success got failure with criminals: {:?}",
-    //                 party.my_index, criminals
-    //             );
-    //         }
-    //     }
-    //     party.status = Status::Done;
-    // }
-    // let all_secret_key_shares = all_secret_key_shares; // make read-only
+    // execute round 3 all parties
+    let all_secret_key_shares: Vec<SecretKeyShare> = r3_parties
+        .into_iter()
+        .enumerate()
+        .map(|(i, party)| {
+            assert!(party.msgs_out().bcast.is_some());
+            assert!(party.msgs_out().p2ps.is_none());
+            assert!(!party.expecting_more_msgs_this_round());
+            match party.execute_next_round() {
+                NotDone(_) => panic!("party {} not done, expect done", i),
+                Done(Ok(secret_key_share)) => secret_key_share,
+                Done(Err(criminals)) => panic!(
+                    "party {} expect success got failure with criminals: {:?}",
+                    i, criminals
+                ),
+            }
+        })
+        .collect();
 
     // // test: reconstruct the secret key in two ways:
     // // 1. from all the u secrets of round 1
@@ -230,8 +229,7 @@ pub(crate) fn execute_keygen_from_recovery(
     //     }
     // }
 
-    // all_secret_key_shares
-    Vec::new()
+    all_secret_key_shares
 }
 
 /// for brevity only
