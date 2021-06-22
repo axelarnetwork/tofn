@@ -125,14 +125,19 @@ impl<F> RoundWaiter<F> {
         self.p2ps_in[from].overwrite_warn(to, msg.to_vec());
     }
     pub fn expecting_more_msgs_this_round(&self) -> bool {
-        // TODO
-        false
-        // !self
-        //     .msgs_in
-        //     .iter()
-        //     .enumerate()
-        //     .all(|(i, party_msgs_in)| party_msgs_in.p2ps.is_full_except(i))
-        //     && !self.msgs_in.bcasts_in.is_full()
+        use ConfigInternal::*;
+        let bcasts_full = self.bcasts_in.is_full();
+        let p2ps_full = self
+            .p2ps_in
+            .iter()
+            .enumerate()
+            .all(|(i, p)| p.is_full_except(i));
+        match self.config {
+            NoMessages => false,
+            BcastOnly => !bcasts_full,
+            P2pOnly => !p2ps_full,
+            BcastAndP2p => !bcasts_full || !p2ps_full,
+        }
     }
     pub fn execute_next_round(self) -> RoundOutput<F> {
         self.round.execute(self.bcasts_in, self.p2ps_in)
