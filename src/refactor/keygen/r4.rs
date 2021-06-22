@@ -14,7 +14,6 @@ use super::{r1, r3, KeygenOutput};
 
 #[allow(non_snake_case)]
 pub(super) struct R4 {
-    pub(super) share_count: usize,
     pub(super) threshold: usize,
     pub(super) index: usize,
     pub(super) dk: paillier_k256::DecryptionKey,
@@ -30,7 +29,7 @@ impl RoundExecuter for R4 {
     fn execute(
         self: Box<Self>,
         bcasts_in: FillVec<Vec<u8>>,
-        p2ps_in: Vec<FillVec<Vec<u8>>>,
+        _p2ps_in: Vec<FillVec<Vec<u8>>>,
     ) -> RoundOutput<Self::FinalOutput> {
         // deserialize incoming messages
         let r3bcasts: Vec<r3::Bcast> = bcasts_in

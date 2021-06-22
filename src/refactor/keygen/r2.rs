@@ -45,7 +45,7 @@ impl RoundExecuter for R2 {
     fn execute(
         self: Box<Self>,
         bcasts_in: FillVec<Vec<u8>>,
-        p2ps_in: Vec<FillVec<Vec<u8>>>,
+        _p2ps_in: Vec<FillVec<Vec<u8>>>,
     ) -> RoundOutput<Self::FinalOutput> {
         // deserialize incoming messages
         let r1bcasts: Vec<r1::Bcast> = bcasts_in

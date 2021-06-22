@@ -214,7 +214,6 @@ impl RoundExecuter for R3 {
                 party_count: self.share_count,
             },
             Box::new(r4::R4 {
-                share_count: self.share_count,
                 threshold: self.threshold,
                 index: self.index,
                 dk: self.dk,
