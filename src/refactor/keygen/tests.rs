@@ -74,8 +74,8 @@ pub(crate) fn execute_keygen_from_recovery(
         .into_iter()
         .enumerate()
         .map(|(i, party)| {
-            assert!(party.msgs_out().bcast.is_none());
-            assert!(party.msgs_out().p2ps.is_none());
+            assert!(party.bcast_out().is_none());
+            assert!(party.p2ps_out().len() == 0);
             assert!(!party.expecting_more_msgs_this_round());
             match party.execute_next_round() {
                 NotDone(next_round) => next_round,
@@ -87,7 +87,7 @@ pub(crate) fn execute_keygen_from_recovery(
     // deliver r1 messages
     let r1_bcasts: Vec<Vec<u8>> = r1_parties
         .iter()
-        .map(|party| party.msgs_out().bcast.as_ref().unwrap().clone())
+        .map(|party| party.bcast_out().unwrap().clone())
         .collect();
     for party in r1_parties.iter_mut() {
         for (from, msg) in r1_bcasts.iter().enumerate() {
@@ -100,11 +100,10 @@ pub(crate) fn execute_keygen_from_recovery(
         .iter()
         .map(|party| {
             party
-                .round
+                .round()
                 .as_any()
                 .downcast_ref::<r2::R2>()
                 .unwrap()
-                .r1state
                 .u_i_vss
                 .get_secret()
                 .clone()
@@ -116,8 +115,8 @@ pub(crate) fn execute_keygen_from_recovery(
         .into_iter()
         .enumerate()
         .map(|(i, party)| {
-            assert!(party.msgs_out().bcast.is_some());
-            assert!(party.msgs_out().p2ps.is_none());
+            assert!(party.bcast_out().is_some());
+            assert!(party.p2ps_out().len() == 0);
             assert!(!party.expecting_more_msgs_this_round());
             match party.execute_next_round() {
                 NotDone(next_round) => next_round,
@@ -129,7 +128,7 @@ pub(crate) fn execute_keygen_from_recovery(
     // deliver r2 messages
     let r2_bcasts: Vec<Vec<u8>> = r2_parties
         .iter()
-        .map(|party| party.msgs_out().bcast.as_ref().unwrap().clone())
+        .map(|party| party.bcast_out().unwrap().clone())
         .collect();
     for party in r2_parties.iter_mut() {
         for (from, msg) in r2_bcasts.iter().enumerate() {
@@ -138,7 +137,7 @@ pub(crate) fn execute_keygen_from_recovery(
     }
     let r2_p2ps: Vec<FillVec<Vec<u8>>> = r2_parties
         .iter()
-        .map(|party| party.msgs_out().p2ps.as_ref().unwrap().clone())
+        .map(|party| party.p2ps_out().clone())
         .collect();
     for party in r2_parties.iter_mut() {
         for (from, p2ps) in r2_p2ps.iter().enumerate() {
@@ -155,8 +154,8 @@ pub(crate) fn execute_keygen_from_recovery(
         .into_iter()
         .enumerate()
         .map(|(i, party)| {
-            assert!(party.msgs_out().bcast.is_some());
-            assert!(party.msgs_out().p2ps.is_some());
+            assert!(party.bcast_out().is_some());
+            assert!(party.p2ps_out().len() == share_count);
             assert!(!party.expecting_more_msgs_this_round());
             match party.execute_next_round() {
                 NotDone(next_round) => next_round,
@@ -168,7 +167,7 @@ pub(crate) fn execute_keygen_from_recovery(
     // deliver r3 messages
     let r3_bcasts: Vec<Vec<u8>> = r3_parties
         .iter()
-        .map(|party| party.msgs_out().bcast.as_ref().unwrap().clone())
+        .map(|party| party.bcast_out().unwrap().clone())
         .collect();
     for party in r3_parties.iter_mut() {
         for (from, msg) in r3_bcasts.iter().enumerate() {
@@ -181,8 +180,8 @@ pub(crate) fn execute_keygen_from_recovery(
         .into_iter()
         .enumerate()
         .map(|(i, party)| {
-            assert!(party.msgs_out().bcast.is_some());
-            assert!(party.msgs_out().p2ps.is_none());
+            assert!(party.bcast_out().is_some());
+            assert!(party.p2ps_out().len() == 0);
             assert!(!party.expecting_more_msgs_this_round());
             match party.execute_next_round() {
                 NotDone(_) => panic!("party {} not done, expect done", i),

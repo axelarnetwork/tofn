@@ -1,5 +1,7 @@
 use crate::protocol::gg20::{keygen::crimes, SecretKeyShare};
-use crate::refactor::protocol2::{RoundWaiter, SerializedMsgs};
+use crate::refactor::protocol2::RoundWaiter;
+
+use super::protocol2::Config;
 
 pub type KeygenOutput = Result<SecretKeyShare, Vec<Vec<crimes::Crime>>>;
 pub type SecretRecoveryKey = [u8; 64];
@@ -30,19 +32,15 @@ pub fn new_keygen(
     // compute the RNG seed now so as to minimize copying of `secret_recovery_key`
     let rng_seed = rng::seed(secret_recovery_key, session_nonce);
 
-    Ok(RoundWaiter {
-        round: Box::new(r1::R1 {
+    Ok(RoundWaiter::new(
+        Config::NoMessages,
+        Box::new(r1::R1 {
             share_count,
             threshold,
             index,
             rng_seed,
         }),
-        msgs_out: SerializedMsgs {
-            bcast: None,
-            p2ps: None,
-        },
-        msgs_in: Vec::new(),
-    })
+    ))
 }
 
 mod r1;

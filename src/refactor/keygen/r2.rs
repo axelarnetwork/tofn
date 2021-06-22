@@ -7,7 +7,7 @@ use crate::{
     protocol::gg20::{keygen::crimes::Crime, vss_k256},
     refactor::{
         keygen::r3,
-        protocol2::{serialize_as_option, RoundExecuter, RoundOutput, RoundWaiter, SerializedMsgs},
+        protocol2::{serialize_as_option, Config, RoundExecuter, RoundOutput, RoundWaiter},
     },
 };
 
@@ -30,26 +30,28 @@ pub(super) struct P2p {
     pub(super) u_i_share_ciphertext: paillier_k256::Ciphertext,
 }
 
-pub(super) struct State {
-    pub(super) u_i_my_share: vss_k256::Share,
-}
-
 pub(super) struct R2 {
     pub(super) share_count: usize,
     pub(super) threshold: usize,
     pub(super) index: usize,
-    pub(super) r1state: r1::State,
-    pub(super) r1bcast: r1::Bcast,
+    pub(super) dk: paillier_k256::DecryptionKey,
+    pub(super) u_i_vss: vss_k256::Vss,
+    pub(super) y_i_reveal: hash::Randomness,
 }
 
 impl RoundExecuter for R2 {
     type FinalOutput = KeygenOutput;
 
-    fn execute(self: Box<Self>, msgs_in: Vec<SerializedMsgs>) -> RoundOutput<Self::FinalOutput> {
+    fn execute(
+        self: Box<Self>,
+        bcasts_in: FillVec<Vec<u8>>,
+        p2ps_in: Vec<FillVec<Vec<u8>>>,
+    ) -> RoundOutput<Self::FinalOutput> {
         // deserialize incoming messages
-        let r1bcasts: Vec<r1::Bcast> = msgs_in
+        let r1bcasts: Vec<r1::Bcast> = bcasts_in
+            .vec_ref()
             .iter()
-            .map(|msg| bincode::deserialize(&msg.bcast.as_ref().unwrap()).unwrap())
+            .map(|bytes| bincode::deserialize(&bytes.as_ref().unwrap()).unwrap())
             .collect();
 
         // check Paillier proofs
@@ -73,7 +75,7 @@ impl RoundExecuter for R2 {
             return RoundOutput::Done(Err(criminals));
         }
 
-        let u_i_shares = self.r1state.u_i_vss.shares(self.share_count);
+        let u_i_shares = self.u_i_vss.shares(self.share_count);
 
         // #[cfg(feature = "malicious")]
         // let my_u_i_shares_k256 = if let Behaviour::R2BadShare { victim } = self.behaviour {
@@ -100,7 +102,7 @@ impl RoundExecuter for R2 {
         // };
 
         // TODO better pattern to get p2ps_out
-        let p2ps_out = FillVec::from_vec(
+        let p2ps_out_bytes = FillVec::from_vec(
             u_i_shares
                 .iter()
                 .enumerate()
@@ -133,38 +135,26 @@ impl RoundExecuter for R2 {
                 .collect(),
         );
 
-        let r2bcast = Bcast {
-            y_i_reveal: self.r1state.y_i_reveal.clone(),
-            u_i_share_commits: self.r1state.u_i_vss.commit(),
+        let bcast_out = Bcast {
+            y_i_reveal: self.y_i_reveal.clone(),
+            u_i_share_commits: self.u_i_vss.commit(),
         };
-        let bcast_out = serialize_as_option(&r2bcast);
-        let r2state = State {
-            u_i_my_share: u_i_shares[self.index].clone(),
-        };
+        let bcast_out_bytes = serialize_as_option(&bcast_out);
 
-        RoundOutput::NotDone(RoundWaiter {
-            round: Box::new(r3::R3 {
+        RoundOutput::NotDone(RoundWaiter::new(
+            Config::BcastAndP2p {
+                bcast_out_bytes,
+                p2ps_out_bytes,
+            },
+            Box::new(r3::R3 {
                 share_count: self.share_count,
                 threshold: self.threshold,
                 index: self.index,
-                r1state: self.r1state,
-                my_r1bcast: self.r1bcast,
+                dk: self.dk,
+                u_i_my_share: u_i_shares[self.index].clone(),
                 r1bcasts,
-                r2state,
-                my_r2bcast: r2bcast,
             }),
-            msgs_out: SerializedMsgs {
-                bcast: bcast_out,
-                p2ps: Some(p2ps_out),
-            },
-            msgs_in: vec![
-                SerializedMsgs {
-                    bcast: None,
-                    p2ps: Some(FillVec::with_len(self.share_count)),
-                };
-                self.share_count
-            ],
-        })
+        ))
     }
 
     #[cfg(test)]

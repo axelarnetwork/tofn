@@ -1,10 +1,12 @@
 use tracing::warn;
 
 use crate::{
+    fillvec::FillVec,
+    paillier_k256,
     protocol::gg20::{
         keygen::crimes::Crime, GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo,
     },
-    refactor::protocol2::{RoundExecuter, RoundOutput, SerializedMsgs},
+    refactor::protocol2::{RoundExecuter, RoundOutput},
     zkp::schnorr_k256,
 };
 
@@ -15,7 +17,7 @@ pub(super) struct R4 {
     pub(super) share_count: usize,
     pub(super) threshold: usize,
     pub(super) index: usize,
-    pub(super) r1state: r1::State,
+    pub(super) dk: paillier_k256::DecryptionKey,
     pub(super) r1bcasts: Vec<r1::Bcast>,
     pub(super) y: k256::ProjectivePoint,
     pub(super) x_i: k256::Scalar,
@@ -25,11 +27,16 @@ pub(super) struct R4 {
 impl RoundExecuter for R4 {
     type FinalOutput = KeygenOutput;
 
-    fn execute(self: Box<Self>, msgs_in: Vec<SerializedMsgs>) -> RoundOutput<Self::FinalOutput> {
+    fn execute(
+        self: Box<Self>,
+        bcasts_in: FillVec<Vec<u8>>,
+        p2ps_in: Vec<FillVec<Vec<u8>>>,
+    ) -> RoundOutput<Self::FinalOutput> {
         // deserialize incoming messages
-        let r3bcasts: Vec<r3::Bcast> = msgs_in
+        let r3bcasts: Vec<r3::Bcast> = bcasts_in
+            .vec_ref()
             .iter()
-            .map(|msg| bincode::deserialize(&msg.bcast.as_ref().unwrap()).unwrap())
+            .map(|bytes| bincode::deserialize(&bytes.as_ref().unwrap()).unwrap())
             .collect();
 
         // verify proofs
@@ -78,7 +85,7 @@ impl RoundExecuter for R4 {
             },
             share: ShareSecretInfo {
                 index: self.index,
-                dk: self.r1state.dk,
+                dk: self.dk,
                 x_i: self.x_i.into(),
             },
         }))

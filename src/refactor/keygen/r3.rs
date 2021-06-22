@@ -9,7 +9,7 @@ use crate::{
     protocol::gg20::{keygen::crimes::Crime, vss_k256},
     refactor::{
         keygen::r4,
-        protocol2::{serialize_as_option, RoundExecuter, RoundOutput, RoundWaiter, SerializedMsgs},
+        protocol2::{serialize_as_option, Config, RoundExecuter, RoundOutput, RoundWaiter},
     },
     zkp::schnorr_k256,
 };
@@ -37,34 +37,36 @@ pub(super) struct R3 {
     pub(super) share_count: usize,
     pub(super) threshold: usize,
     pub(super) index: usize,
-    pub(super) r1state: r1::State,
-    pub(super) my_r1bcast: r1::Bcast,
+    pub(super) dk: paillier_k256::DecryptionKey,
+    pub(super) u_i_my_share: vss_k256::Share,
     pub(super) r1bcasts: Vec<r1::Bcast>, // TODO Vec<everything>
-    pub(super) r2state: r2::State,
-    pub(super) my_r2bcast: r2::Bcast,
 }
 
 impl RoundExecuter for R3 {
     type FinalOutput = KeygenOutput;
 
     #[allow(non_snake_case)]
-    fn execute(self: Box<Self>, msgs_in: Vec<SerializedMsgs>) -> RoundOutput<Self::FinalOutput> {
+    fn execute(
+        self: Box<Self>,
+        bcasts_in: FillVec<Vec<u8>>,
+        p2ps_in: Vec<FillVec<Vec<u8>>>,
+    ) -> RoundOutput<Self::FinalOutput> {
         // deserialize incoming messages
-        let r2bcasts: Vec<r2::Bcast> = msgs_in
+        let r2bcasts: Vec<r2::Bcast> = bcasts_in
+            .vec_ref()
             .iter()
-            .map(|msg| bincode::deserialize(&msg.bcast.as_ref().unwrap()).unwrap())
+            .map(|bytes| bincode::deserialize(&bytes.as_ref().unwrap()).unwrap())
             .collect();
-        let all_r2_p2ps: Vec<FillVec<r2::P2p>> = msgs_in
+        let all_r2_p2ps: Vec<FillVec<r2::P2p>> = p2ps_in
             .iter()
-            .map(|msg| {
+            .map(|party_p2ps| {
                 FillVec::from_vec(
-                    msg.p2ps
-                        .as_ref()
-                        .unwrap()
+                    party_p2ps
                         .vec_ref()
                         .iter()
-                        .map(|p2p| {
-                            p2p.as_ref()
+                        .map(|bytes| {
+                            bytes
+                                .as_ref()
                                 .map(|bytes| bincode::deserialize(&bytes).unwrap())
                         })
                         .collect(),
@@ -103,7 +105,6 @@ impl RoundExecuter for R3 {
                     // return None if my_p2p is None
                     r2_p2ps.vec_ref()[self.index].as_ref().map(|my_p2p| {
                         let (u_i_share_plaintext, u_i_share_randomness) = self
-                            .r1state
                             .dk
                             .decrypt_with_randomness(&my_p2p.u_i_share_ciphertext);
                         let u_i_share = vss_k256::Share::from_scalar(
@@ -179,7 +180,7 @@ impl RoundExecuter for R3 {
                     None
                 }
             })
-            .fold(*self.r2state.u_i_my_share.get_scalar(), |acc, x| acc + x);
+            .fold(*self.u_i_my_share.get_scalar(), |acc, x| acc + x);
 
         // compute y
         let y = r2bcasts
@@ -207,29 +208,22 @@ impl RoundExecuter for R3 {
             &schnorr_k256::Witness { scalar: &x_i },
         );
 
-        RoundOutput::NotDone(RoundWaiter {
-            round: Box::new(r4::R4 {
+        RoundOutput::NotDone(RoundWaiter::new(
+            Config::BcastOnly {
+                bcast_out_bytes: serialize_as_option(&Bcast { x_i_proof }),
+                party_count: self.share_count,
+            },
+            Box::new(r4::R4 {
                 share_count: self.share_count,
                 threshold: self.threshold,
                 index: self.index,
-                r1state: self.r1state,
+                dk: self.dk,
                 r1bcasts: self.r1bcasts,
                 y,
                 x_i,
                 all_X_i,
             }),
-            msgs_out: SerializedMsgs {
-                bcast: serialize_as_option(&Bcast { x_i_proof }),
-                p2ps: None,
-            },
-            msgs_in: vec![
-                SerializedMsgs {
-                    bcast: None,
-                    p2ps: None,
-                };
-                self.share_count
-            ],
-        })
+        ))
     }
 
     #[cfg(test)]
