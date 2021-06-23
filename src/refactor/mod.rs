@@ -1,2 +1,2 @@
 pub mod keygen;
-pub mod protocol2;
+pub mod protocol;

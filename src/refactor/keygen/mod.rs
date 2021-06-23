@@ -1,7 +1,5 @@
 use crate::protocol::gg20::{keygen::crimes, SecretKeyShare};
-use crate::refactor::protocol2::RoundWaiter;
-
-use super::protocol2::Config;
+use crate::refactor::protocol::protocol::{Config, RoundWaiter};
 
 pub type KeygenOutput = Result<SecretKeyShare, Vec<Vec<crimes::Crime>>>;
 pub type SecretRecoveryKey = [u8; 64];

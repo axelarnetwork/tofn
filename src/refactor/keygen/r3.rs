@@ -9,7 +9,9 @@ use crate::{
     protocol::gg20::{keygen::crimes::Crime, vss_k256},
     refactor::{
         keygen::r4,
-        protocol2::{serialize_as_option, Config, RoundExecuter, RoundOutput, RoundWaiter},
+        protocol::protocol::{
+            serialize_as_option, Config, RoundExecuter, RoundOutput, RoundWaiter,
+        },
     },
     zkp::schnorr_k256,
 };
