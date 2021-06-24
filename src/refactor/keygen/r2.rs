@@ -4,9 +4,9 @@ use tracing::warn;
 use crate::{
     fillvec::FillVec,
     hash, paillier_k256,
-    protocol::gg20::{keygen::crimes::Crime, vss_k256},
+    protocol::gg20::vss_k256,
     refactor::{
-        keygen::r3,
+        keygen::{r3, Crime},
         protocol::protocol::{serialize_as_option, Protocol, ProtocolRound, RoundExecuter},
     },
 };

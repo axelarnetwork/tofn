@@ -3,14 +3,12 @@ use tracing::warn;
 use crate::{
     fillvec::FillVec,
     paillier_k256,
-    protocol::gg20::{
-        keygen::crimes::Crime, GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo,
-    },
+    protocol::gg20::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo},
     refactor::protocol::protocol::{Protocol, RoundExecuter},
     zkp::schnorr_k256,
 };
 
-use super::{r1, r3, KeygenOutput};
+use super::{r1, r3, Crime, KeygenOutput};
 
 #[allow(non_snake_case)]
 pub(super) struct R4 {

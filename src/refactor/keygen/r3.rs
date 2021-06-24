@@ -6,7 +6,7 @@ use crate::{
     hash,
     k256_serde::to_bytes,
     paillier_k256,
-    protocol::gg20::{keygen::crimes::Crime, vss_k256},
+    protocol::gg20::vss_k256,
     refactor::{
         keygen::r4,
         protocol::protocol::{serialize_as_option, Protocol, ProtocolRound, RoundExecuter},
@@ -14,7 +14,7 @@ use crate::{
     zkp::schnorr_k256,
 };
 
-use super::{r1, r2, KeygenOutput};
+use super::{r1, r2, Crime, KeygenOutput};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(super) struct Bcast {

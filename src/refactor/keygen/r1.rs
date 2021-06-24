@@ -6,9 +6,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::protocol::gg20::keygen::KeygenOutput;
-
-use super::{r2, rng};
+use super::{r2, rng, KeygenOutput};
 
 pub(super) struct R1 {
     pub(super) threshold: usize,
