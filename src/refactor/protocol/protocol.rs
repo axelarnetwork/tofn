@@ -3,7 +3,7 @@ use std::vec;
 use tracing::{error, warn};
 
 use crate::fillvec::FillVec;
-// use serde::{de::DeserializeOwned, Serialize};
+use serde::de::DeserializeOwned;
 
 pub enum Protocol<F> {
     NotDone(ProtocolRound<F>),
@@ -23,6 +23,51 @@ pub trait RoundExecuter: Send + Sync {
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
         unimplemented!("return `self` to enable runtime reflection: https://bennetthardwick.com/dont-use-boxed-trait-objects-for-struct-internals")
+    }
+}
+
+pub trait RoundExecuterTyped: Send + Sync {
+    type FinalOutput;
+    type Bcast: DeserializeOwned;
+    type P2p: DeserializeOwned;
+    fn execute_typed(
+        self: Box<Self>,
+        party_count: usize,
+        index: usize,
+        bcasts_in: Vec<Self::Bcast>,
+        p2ps_in: Vec<FillVec<Self::P2p>>, // TODO use HoleVec instead
+    ) -> Protocol<Self::FinalOutput>;
+}
+
+impl<T: RoundExecuterTyped> RoundExecuter for T {
+    type FinalOutput = T::FinalOutput;
+
+    fn execute(
+        self: Box<Self>,
+        party_count: usize,
+        index: usize,
+        bcasts_in: FillVec<Vec<u8>>,
+        p2ps_in: Vec<FillVec<Vec<u8>>>,
+    ) -> Protocol<Self::FinalOutput> {
+        // TODO handle None and deserialization failure
+        let bcasts_in: Vec<T::Bcast> = bcasts_in
+            .into_vec()
+            .into_iter()
+            .map(|bytes| bincode::deserialize(&bytes.as_ref().unwrap()).unwrap())
+            .collect();
+        let p2ps_in: Vec<FillVec<T::P2p>> = p2ps_in
+            .into_iter()
+            .map(|party_p2ps| {
+                FillVec::from_vec(
+                    party_p2ps
+                        .into_vec()
+                        .into_iter()
+                        .map(|bytes| bytes.map(|bytes| bincode::deserialize(&bytes).unwrap()))
+                        .collect(),
+                )
+            })
+            .collect();
+        self.execute_typed(party_count, index, bcasts_in, p2ps_in)
     }
 }
 
