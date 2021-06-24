@@ -35,9 +35,7 @@ pub fn new_keygen(
 
     Ok(Protocol::NotDone(ProtocolRound::new(
         Box::new(r1::R1 {
-            share_count,
             threshold,
-            index,
             rng_seed,
         }),
         share_count,

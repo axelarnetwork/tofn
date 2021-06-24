@@ -31,9 +31,7 @@ pub(super) struct P2p {
 }
 
 pub(super) struct R2 {
-    pub(super) share_count: usize,
     pub(super) threshold: usize,
-    pub(super) index: usize,
     pub(super) dk: paillier_k256::DecryptionKey,
     pub(super) u_i_vss: vss_k256::Vss,
     pub(super) y_i_reveal: hash::Randomness,
@@ -44,6 +42,8 @@ impl RoundExecuter for R2 {
 
     fn execute(
         self: Box<Self>,
+        party_count: usize,
+        index: usize,
         bcasts_in: FillVec<Vec<u8>>,
         _p2ps_in: Vec<FillVec<Vec<u8>>>,
     ) -> Protocol<Self::FinalOutput> {
@@ -55,19 +55,19 @@ impl RoundExecuter for R2 {
             .collect();
 
         // check Paillier proofs
-        let mut criminals = vec![Vec::new(); self.share_count];
+        let mut criminals = vec![Vec::new(); party_count];
         for (i, r1bcast) in r1bcasts.iter().enumerate() {
-            // if i == self.index {
+            // if i == index {
             //     continue;
             // }
             if !r1bcast.ek.verify(&r1bcast.ek_proof) {
                 let crime = Crime::R2BadEncryptionKeyProof;
-                warn!("party {} detect {:?} by {}", self.index, crime, i);
+                warn!("party {} detect {:?} by {}", index, crime, i);
                 criminals[i].push(crime);
             }
             if !r1bcast.zkp.verify(&r1bcast.zkp_proof) {
                 let crime = Crime::R2BadZkSetupProof;
-                warn!("party {} detect {:?} by {}", self.index, crime, i);
+                warn!("party {} detect {:?} by {}", index, crime, i);
                 criminals[i].push(crime);
             }
         }
@@ -75,7 +75,7 @@ impl RoundExecuter for R2 {
             return Protocol::Done(Err(criminals));
         }
 
-        let u_i_shares = self.u_i_vss.shares(self.share_count);
+        let u_i_shares = self.u_i_vss.shares(party_count);
 
         // #[cfg(feature = "malicious")]
         // let my_u_i_shares_k256 = if let Behaviour::R2BadShare { victim } = self.behaviour {
@@ -107,7 +107,7 @@ impl RoundExecuter for R2 {
                 .iter()
                 .enumerate()
                 .map(|(i, u_i_share)| {
-                    if i == self.index {
+                    if i == index {
                         None
                     } else {
                         // encrypt the share for party i
@@ -143,15 +143,13 @@ impl RoundExecuter for R2 {
 
         Protocol::NotDone(ProtocolRound::new(
             Box::new(r3::R3 {
-                share_count: self.share_count,
                 threshold: self.threshold,
-                index: self.index,
                 dk: self.dk,
-                u_i_my_share: u_i_shares[self.index].clone(),
+                u_i_my_share: u_i_shares[index].clone(),
                 r1bcasts,
             }),
-            self.share_count,
-            self.index,
+            party_count,
+            index,
             bcast_out_bytes,
             p2ps_out_bytes,
         ))

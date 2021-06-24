@@ -15,7 +15,6 @@ use super::{r1, r3, KeygenOutput};
 #[allow(non_snake_case)]
 pub(super) struct R4 {
     pub(super) threshold: usize,
-    pub(super) index: usize,
     pub(super) dk: paillier_k256::DecryptionKey,
     pub(super) r1bcasts: Vec<r1::Bcast>,
     pub(super) y: k256::ProjectivePoint,
@@ -28,6 +27,8 @@ impl RoundExecuter for R4 {
 
     fn execute(
         self: Box<Self>,
+        _party_count: usize,
+        index: usize,
         bcasts_in: FillVec<Vec<u8>>,
         _p2ps_in: Vec<FillVec<Vec<u8>>>,
     ) -> Protocol<Self::FinalOutput> {
@@ -53,7 +54,7 @@ impl RoundExecuter for R4 {
                 .is_err()
                 {
                     let crime = Crime::R4BadDLProof;
-                    warn!("party {} detect {:?} by {}", self.index, crime, i);
+                    warn!("party {} detect {:?} by {}", index, crime, i);
                     vec![crime]
                 } else {
                     vec![]
@@ -83,7 +84,7 @@ impl RoundExecuter for R4 {
                 all_shares,
             },
             share: ShareSecretInfo {
-                index: self.index,
+                index,
                 dk: self.dk,
                 x_i: self.x_i.into(),
             },

@@ -34,9 +34,7 @@ pub struct VssComplaint {
 }
 
 pub(super) struct R3 {
-    pub(super) share_count: usize,
     pub(super) threshold: usize,
-    pub(super) index: usize,
     pub(super) dk: paillier_k256::DecryptionKey,
     pub(super) u_i_my_share: vss_k256::Share,
     pub(super) r1bcasts: Vec<r1::Bcast>, // TODO Vec<everything>
@@ -48,6 +46,8 @@ impl RoundExecuter for R3 {
     #[allow(non_snake_case)]
     fn execute(
         self: Box<Self>,
+        party_count: usize,
+        index: usize,
         bcasts_in: FillVec<Vec<u8>>,
         p2ps_in: Vec<FillVec<Vec<u8>>>,
     ) -> Protocol<Self::FinalOutput> {
@@ -84,7 +84,7 @@ impl RoundExecuter for R3 {
                 let y_i_commit = hash::commit_with_randomness(to_bytes(y_i), &r2bcast.y_i_reveal);
                 if y_i_commit != r1bcast.y_i_commit {
                     let crime = Crime::R3BadReveal;
-                    warn!("party {} detect {:?} by {}", self.index, crime, i);
+                    warn!("party {} detect {:?} by {}", index, crime, i);
                     vec![crime]
                 } else {
                     vec![]
@@ -103,14 +103,12 @@ impl RoundExecuter for R3 {
                 .iter()
                 .map(|r2_p2ps| {
                     // return None if my_p2p is None
-                    r2_p2ps.vec_ref()[self.index].as_ref().map(|my_p2p| {
+                    r2_p2ps.vec_ref()[index].as_ref().map(|my_p2p| {
                         let (u_i_share_plaintext, u_i_share_randomness) = self
                             .dk
                             .decrypt_with_randomness(&my_p2p.u_i_share_ciphertext);
-                        let u_i_share = vss_k256::Share::from_scalar(
-                            u_i_share_plaintext.to_scalar(),
-                            self.index,
-                        );
+                        let u_i_share =
+                            vss_k256::Share::from_scalar(u_i_share_plaintext.to_scalar(), index);
                         (u_i_share, u_i_share_randomness)
                     })
                 })
@@ -131,9 +129,9 @@ impl RoundExecuter for R3 {
                     if !r2bcast.u_i_share_commits.validate_share(&u_i_share) {
                         warn!(
                             "party {} accuse {} of {:?}",
-                            self.index,
+                            index,
                             from,
-                            Crime::R4FailBadVss { victim: self.index },
+                            Crime::R4FailBadVss { victim: index },
                         );
                         Some(VssComplaint {
                             criminal_index: from,
@@ -151,9 +149,9 @@ impl RoundExecuter for R3 {
         // if !vss_failures.is_empty() {
         //     return RoundOutput::NotDone(RoundWaiter {
         //         round: Box::new(r4::R4 {
-        //             share_count: self.share_count,
+        //             share_count: party_count,
         //             threshold: self.threshold,
-        //             index: self.index,
+        //             index: index,
         //         }),
         //         msgs_out: SerializedMsgs {
         //             bcast: None,
@@ -164,7 +162,7 @@ impl RoundExecuter for R3 {
         //                 bcast: None,
         //                 p2ps: None,
         //             };
-        //             self.share_count
+        //             party_count
         //         ],
         //     })
         // }
@@ -190,7 +188,7 @@ impl RoundExecuter for R3 {
             });
 
         // compute all_X_i
-        let all_X_i: Vec<k256::ProjectivePoint> = (0..self.share_count)
+        let all_X_i: Vec<k256::ProjectivePoint> = (0..party_count)
             .map(|i| {
                 r2bcasts
                     .iter()
@@ -203,7 +201,7 @@ impl RoundExecuter for R3 {
         let x_i_proof = schnorr_k256::prove(
             &schnorr_k256::Statement {
                 base: &k256::ProjectivePoint::generator(),
-                target: &all_X_i[self.index],
+                target: &all_X_i[index],
             },
             &schnorr_k256::Witness { scalar: &x_i },
         );
@@ -211,15 +209,14 @@ impl RoundExecuter for R3 {
         Protocol::NotDone(ProtocolRound::new(
             Box::new(r4::R4 {
                 threshold: self.threshold,
-                index: self.index,
                 dk: self.dk,
                 r1bcasts: self.r1bcasts,
                 y,
                 x_i,
                 all_X_i,
             }),
-            self.share_count,
-            self.index,
+            party_count,
+            index,
             serialize_as_option(&Bcast { x_i_proof }),
             None,
         ))

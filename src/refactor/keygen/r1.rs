@@ -11,9 +11,7 @@ use crate::protocol::gg20::keygen::KeygenOutput;
 use super::{r2, rng};
 
 pub(super) struct R1 {
-    pub(super) share_count: usize,
     pub(super) threshold: usize,
-    pub(super) index: usize,
     pub(super) rng_seed: rng::Seed,
 }
 
@@ -31,6 +29,8 @@ impl RoundExecuter for R1 {
 
     fn execute(
         self: Box<Self>,
+        party_count: usize,
+        index: usize,
         _bcasts_in: FillVec<Vec<u8>>,
         _p2ps_in: Vec<FillVec<Vec<u8>>>,
     ) -> Protocol<Self::FinalOutput> {
@@ -78,15 +78,13 @@ impl RoundExecuter for R1 {
 
         Protocol::NotDone(ProtocolRound::new(
             Box::new(r2::R2 {
-                share_count: self.share_count,
                 threshold: self.threshold,
-                index: self.index,
                 dk,
                 u_i_vss,
                 y_i_reveal,
             }),
-            self.share_count,
-            self.index,
+            party_count,
+            index,
             bcast_out_bytes,
             None,
         ))

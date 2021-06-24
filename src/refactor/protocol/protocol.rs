@@ -14,7 +14,8 @@ pub trait RoundExecuter: Send + Sync {
     type FinalOutput;
     fn execute(
         self: Box<Self>,
-        // TODO add party_count, index
+        party_count: usize,
+        index: usize,
         bcasts_in: FillVec<Vec<u8>>,
         p2ps_in: Vec<FillVec<Vec<u8>>>,
     ) -> Protocol<Self::FinalOutput>;
@@ -128,7 +129,8 @@ impl<F> ProtocolRound<F> {
         !bcasts_full && self.expecting_bcasts_in() || !p2ps_full && self.expecting_p2ps_in()
     }
     pub fn execute_next_round(self) -> Protocol<F> {
-        self.round.execute(self.bcasts_in, self.p2ps_in)
+        self.round
+            .execute(self.party_count, self.index, self.bcasts_in, self.p2ps_in)
     }
     pub fn party_count(&self) -> usize {
         self.party_count
