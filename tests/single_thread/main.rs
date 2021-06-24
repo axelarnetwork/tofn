@@ -11,9 +11,11 @@ use tofn::{
     },
 };
 
+/// TODO rename parent dir to `example`
 /// TODO clean up
 // TODO generic over final output F
 
+#[test]
 fn main() {
     let (share_count, threshold) = (5, 2);
     let session_nonce = b"foobar";
