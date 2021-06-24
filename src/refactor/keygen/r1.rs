@@ -83,6 +83,8 @@ impl RoundExecuter for R1 {
                 bcast_out_bytes,
                 party_count: self.share_count,
             },
+            self.share_count,
+            self.index,
             Box::new(r2::R2 {
                 share_count: self.share_count,
                 threshold: self.threshold,

@@ -32,6 +32,8 @@ pub fn new_keygen(
 
     Ok(RoundWaiter::new(
         Config::NoMessages,
+        share_count,
+        index,
         Box::new(r1::R1 {
             share_count,
             threshold,

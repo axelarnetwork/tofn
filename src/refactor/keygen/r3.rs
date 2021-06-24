@@ -215,6 +215,8 @@ impl RoundExecuter for R3 {
                 bcast_out_bytes: serialize_as_option(&Bcast { x_i_proof }),
                 party_count: self.share_count,
             },
+            self.share_count,
+            self.index,
             Box::new(r4::R4 {
                 threshold: self.threshold,
                 index: self.index,

@@ -10,10 +10,11 @@ pub enum RoundOutput<F> {
     Done(F),
 }
 
-pub trait RoundExecuter {
+pub trait RoundExecuter: Send + Sync {
     type FinalOutput;
     fn execute(
         self: Box<Self>,
+        // TODO add party_count, index
         bcasts_in: FillVec<Vec<u8>>,
         p2ps_in: Vec<FillVec<Vec<u8>>>,
     ) -> RoundOutput<Self::FinalOutput>;
@@ -25,8 +26,10 @@ pub trait RoundExecuter {
 }
 
 pub struct RoundWaiter<F> {
-    config: ConfigInternal,
+    config: ConfigInternal, // TODO no need for ConfigInternal after I add party_count, index args to `execute`
     round: Box<dyn RoundExecuter<FinalOutput = F>>,
+    party_count: usize,
+    index: usize,
     bcast_out: Option<Vec<u8>>,
     p2ps_out: FillVec<Vec<u8>>, // TODO FillVec with hole?
     bcasts_in: FillVec<Vec<u8>>,
@@ -34,7 +37,12 @@ pub struct RoundWaiter<F> {
 }
 
 impl<F> RoundWaiter<F> {
-    pub fn new(config: Config, round: Box<dyn RoundExecuter<FinalOutput = F>>) -> Self {
+    pub fn new(
+        config: Config,
+        party_count: usize,
+        index: usize,
+        round: Box<dyn RoundExecuter<FinalOutput = F>>,
+    ) -> Self {
         use Config::*;
         let (party_count, bcast_out, p2ps_out, config_internal) = match config {
             NoMessages => (0, None, FillVec::with_len(0), ConfigInternal::NoMessages),
@@ -66,6 +74,8 @@ impl<F> RoundWaiter<F> {
         Self {
             config: config_internal,
             round,
+            party_count,
+            index,
             bcast_out,
             p2ps_out,
             bcasts_in: FillVec::with_len(party_count),
@@ -141,6 +151,12 @@ impl<F> RoundWaiter<F> {
     }
     pub fn execute_next_round(self) -> RoundOutput<F> {
         self.round.execute(self.bcasts_in, self.p2ps_in)
+    }
+    pub fn party_count(&self) -> usize {
+        self.party_count
+    }
+    pub fn index(&self) -> usize {
+        self.index
     }
 
     #[cfg(test)]
