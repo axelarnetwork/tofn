@@ -1,5 +1,5 @@
 use crate::protocol::gg20::{keygen::crimes, SecretKeyShare};
-use crate::refactor::protocol::protocol::{Config, Protocol, ProtocolRound};
+use crate::refactor::protocol::protocol::{Protocol, ProtocolRound};
 
 use super::TofnResult;
 
@@ -34,15 +34,16 @@ pub fn new_keygen(
     let rng_seed = rng::seed(secret_recovery_key, session_nonce);
 
     Ok(Protocol::NotDone(ProtocolRound::new(
-        Config::NoMessages,
-        share_count,
-        index,
         Box::new(r1::R1 {
             share_count,
             threshold,
             index,
             rng_seed,
         }),
+        share_count,
+        index,
+        None,
+        None,
     )))
 }
 

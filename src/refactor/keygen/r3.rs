@@ -9,7 +9,7 @@ use crate::{
     protocol::gg20::{keygen::crimes::Crime, vss_k256},
     refactor::{
         keygen::r4,
-        protocol::protocol::{serialize_as_option, Config, Protocol, ProtocolRound, RoundExecuter},
+        protocol::protocol::{serialize_as_option, Protocol, ProtocolRound, RoundExecuter},
     },
     zkp::schnorr_k256,
 };
@@ -209,12 +209,6 @@ impl RoundExecuter for R3 {
         );
 
         Protocol::NotDone(ProtocolRound::new(
-            Config::BcastOnly {
-                bcast_out_bytes: serialize_as_option(&Bcast { x_i_proof }),
-                party_count: self.share_count,
-            },
-            self.share_count,
-            self.index,
             Box::new(r4::R4 {
                 threshold: self.threshold,
                 index: self.index,
@@ -224,6 +218,10 @@ impl RoundExecuter for R3 {
                 x_i,
                 all_X_i,
             }),
+            self.share_count,
+            self.index,
+            serialize_as_option(&Bcast { x_i_proof }),
+            None,
         ))
     }
 

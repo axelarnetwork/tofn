@@ -2,9 +2,7 @@ use crate::{
     fillvec::FillVec,
     hash, k256_serde, paillier_k256,
     protocol::gg20::vss_k256,
-    refactor::protocol::protocol::{
-        serialize_as_option, Config, Protocol, ProtocolRound, RoundExecuter,
-    },
+    refactor::protocol::protocol::{serialize_as_option, Protocol, ProtocolRound, RoundExecuter},
 };
 use serde::{Deserialize, Serialize};
 
@@ -79,12 +77,6 @@ impl RoundExecuter for R1 {
         let bcast_out_bytes = serialize_as_option(&bcast_out);
 
         Protocol::NotDone(ProtocolRound::new(
-            Config::BcastOnly {
-                bcast_out_bytes,
-                party_count: self.share_count,
-            },
-            self.share_count,
-            self.index,
             Box::new(r2::R2 {
                 share_count: self.share_count,
                 threshold: self.threshold,
@@ -93,6 +85,10 @@ impl RoundExecuter for R1 {
                 u_i_vss,
                 y_i_reveal,
             }),
+            self.share_count,
+            self.index,
+            bcast_out_bytes,
+            None,
         ))
     }
 }

@@ -7,7 +7,7 @@ use crate::{
     protocol::gg20::{keygen::crimes::Crime, vss_k256},
     refactor::{
         keygen::r3,
-        protocol::protocol::{serialize_as_option, Config, Protocol, ProtocolRound, RoundExecuter},
+        protocol::protocol::{serialize_as_option, Protocol, ProtocolRound, RoundExecuter},
     },
 };
 
@@ -102,7 +102,7 @@ impl RoundExecuter for R2 {
         // };
 
         // TODO better pattern to get p2ps_out
-        let p2ps_out_bytes = FillVec::from_vec(
+        let p2ps_out_bytes = Some(FillVec::from_vec(
             u_i_shares
                 .iter()
                 .enumerate()
@@ -133,7 +133,7 @@ impl RoundExecuter for R2 {
                     }
                 })
                 .collect(),
-        );
+        ));
 
         let bcast_out = Bcast {
             y_i_reveal: self.y_i_reveal.clone(),
@@ -142,12 +142,6 @@ impl RoundExecuter for R2 {
         let bcast_out_bytes = serialize_as_option(&bcast_out);
 
         Protocol::NotDone(ProtocolRound::new(
-            Config::BcastAndP2p {
-                bcast_out_bytes,
-                p2ps_out_bytes,
-            },
-            self.share_count,
-            self.index,
             Box::new(r3::R3 {
                 share_count: self.share_count,
                 threshold: self.threshold,
@@ -156,6 +150,10 @@ impl RoundExecuter for R2 {
                 u_i_my_share: u_i_shares[self.index].clone(),
                 r1bcasts,
             }),
+            self.share_count,
+            self.index,
+            bcast_out_bytes,
+            p2ps_out_bytes,
         ))
     }
 

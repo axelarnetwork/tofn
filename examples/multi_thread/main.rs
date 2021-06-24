@@ -10,6 +10,7 @@ use tofn::{
 };
 
 /// TODO clean up
+// TODO generic over final output F
 
 fn main() {
     let (share_count, threshold) = (5, 2);
