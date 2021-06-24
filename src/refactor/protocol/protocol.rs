@@ -26,8 +26,15 @@ pub trait RoundExecuter: Send + Sync {
     }
 }
 
+/// FinalOutput should impl DeTimeout
+/// allow us to create a new FinalOutput that indicates timeout or deserialization error
+pub trait DeTimeout {
+    fn new_timeout() -> Self;
+    fn new_deserialization_failure() -> Self;
+}
+
 pub trait RoundExecuterTyped: Send + Sync {
-    type FinalOutput;
+    type FinalOutputTyped: DeTimeout;
     type Bcast: DeserializeOwned;
     type P2p: DeserializeOwned;
     fn execute_typed(
@@ -36,11 +43,11 @@ pub trait RoundExecuterTyped: Send + Sync {
         index: usize,
         bcasts_in: Vec<Self::Bcast>,
         p2ps_in: Vec<FillVec<Self::P2p>>, // TODO use HoleVec instead
-    ) -> Protocol<Self::FinalOutput>;
+    ) -> Protocol<Self::FinalOutputTyped>;
 }
 
 impl<T: RoundExecuterTyped> RoundExecuter for T {
-    type FinalOutput = T::FinalOutput;
+    type FinalOutput = T::FinalOutputTyped;
 
     fn execute(
         self: Box<Self>,
@@ -49,25 +56,57 @@ impl<T: RoundExecuterTyped> RoundExecuter for T {
         bcasts_in: FillVec<Vec<u8>>,
         p2ps_in: Vec<FillVec<Vec<u8>>>,
     ) -> Protocol<Self::FinalOutput> {
-        // TODO handle None and deserialization failure
-        let bcasts_in: Vec<T::Bcast> = bcasts_in
+        // TODO this is only a PoC for timeout, deserialization errors
+        // DeTimeout needs a fuller API to return detailed fault info
+
+        // check for timeouts
+        let bcast_timeout = bcasts_in.vec_ref().iter().any(Option::is_none);
+        let p2p_timeout = p2ps_in.iter().enumerate().any(|(i, party)| {
+            party
+                .vec_ref()
+                .iter()
+                .enumerate()
+                .any(|(j, b)| j != i && b.is_none())
+        });
+        if bcast_timeout || p2p_timeout {
+            return Protocol::Done(Self::FinalOutput::new_timeout());
+        }
+
+        // attempt to deserialize bcasts
+        let bcasts_deserialize: Result<Vec<_>, _> = bcasts_in
             .into_vec()
             .into_iter()
-            .map(|bytes| bincode::deserialize(&bytes.as_ref().unwrap()).unwrap())
+            .map(|bytes| bincode::deserialize(&bytes.as_ref().unwrap()))
             .collect();
-        let p2ps_in: Vec<FillVec<T::P2p>> = p2ps_in
-            .into_iter()
-            .map(|party_p2ps| {
-                FillVec::from_vec(
-                    party_p2ps
-                        .into_vec()
-                        .into_iter()
-                        .map(|bytes| bytes.map(|bytes| bincode::deserialize(&bytes).unwrap()))
-                        .collect(),
-                )
-            })
-            .collect();
-        self.execute_typed(party_count, index, bcasts_in, p2ps_in)
+        let bcasts_in = match bcasts_deserialize {
+            Ok(vec) => vec,
+            Err(_) => return Protocol::Done(Self::FinalOutput::new_deserialization_failure()),
+        };
+
+        // attempt to deserialize p2ps
+        // TODO this sucks with FillVec
+        let mut p2ps_in_deserialized: Vec<FillVec<T::P2p>> = Vec::with_capacity(party_count);
+        for (i, party_p2ps) in p2ps_in.iter().enumerate() {
+            let mut party_p2ps_deserialized: Vec<Option<T::P2p>> = Vec::with_capacity(party_count);
+            for (j, bytes) in party_p2ps.vec_ref().iter().enumerate() {
+                if j == i {
+                    party_p2ps_deserialized.push(None);
+                } else {
+                    let res = bincode::deserialize(&bytes.as_ref().unwrap());
+                    match res {
+                        Ok(p2p) => party_p2ps_deserialized.push(Some(p2p)),
+                        Err(_) => {
+                            return Protocol::Done(Self::FinalOutput::new_deserialization_failure())
+                        }
+                    }
+                }
+            }
+            assert!(party_p2ps_deserialized.len() == party_count);
+            p2ps_in_deserialized.push(FillVec::from_vec(party_p2ps_deserialized));
+        }
+        assert!(p2ps_in_deserialized.len() == party_count);
+
+        self.execute_typed(party_count, index, bcasts_in, p2ps_in_deserialized)
     }
 }
 
