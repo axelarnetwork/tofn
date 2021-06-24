@@ -1,7 +1,7 @@
 use super::Broadcaster;
 use std::sync::mpsc::Receiver;
 
-use tofn::refactor::protocol::protocol::RoundOutput::{self, *};
+use tofn::refactor::protocol::protocol::Protocol::{self, *};
 
 #[derive(Clone)]
 pub enum Message {
@@ -17,7 +17,7 @@ pub enum Message {
 }
 
 pub fn execute_protocol<F>(
-    mut party: RoundOutput<F>,
+    mut party: Protocol<F>,
     input: Receiver<Message>,
     broadcaster: Broadcaster<Message>,
 ) -> F {

@@ -6,7 +6,7 @@ use crate::{
     protocol::gg20::{
         keygen::crimes::Crime, GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo,
     },
-    refactor::protocol::protocol::{RoundExecuter, RoundOutput},
+    refactor::protocol::protocol::{Protocol, RoundExecuter},
     zkp::schnorr_k256,
 };
 
@@ -30,7 +30,7 @@ impl RoundExecuter for R4 {
         self: Box<Self>,
         bcasts_in: FillVec<Vec<u8>>,
         _p2ps_in: Vec<FillVec<Vec<u8>>>,
-    ) -> RoundOutput<Self::FinalOutput> {
+    ) -> Protocol<Self::FinalOutput> {
         // deserialize incoming messages
         let r3bcasts: Vec<r3::Bcast> = bcasts_in
             .vec_ref()
@@ -61,7 +61,7 @@ impl RoundExecuter for R4 {
             })
             .collect();
         if !criminals.iter().all(Vec::is_empty) {
-            return RoundOutput::Done(Err(criminals));
+            return Protocol::Done(Err(criminals));
         }
 
         // prepare data for final output
@@ -76,7 +76,7 @@ impl RoundExecuter for R4 {
             })
             .collect();
 
-        RoundOutput::Done(Ok(SecretKeyShare {
+        Protocol::Done(Ok(SecretKeyShare {
             group: GroupPublicInfo {
                 threshold: self.threshold,
                 y: self.y.into(),

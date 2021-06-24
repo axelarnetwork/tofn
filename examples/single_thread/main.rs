@@ -5,8 +5,8 @@ use tofn::{
     refactor::{
         keygen::{new_keygen, KeygenOutput},
         protocol::protocol::{
-            RoundOutput::{self, *},
-            RoundWaiter,
+            Protocol::{self, *},
+            ProtocolRound,
         },
     },
 };
@@ -17,20 +17,18 @@ fn main() {
     let (share_count, threshold) = (5, 2);
     let session_nonce = b"foobar";
 
-    let mut parties: Vec<RoundOutput<KeygenOutput>> = (0..share_count)
+    let mut parties: Vec<Protocol<KeygenOutput>> = (0..share_count)
         .map(|index| {
             let mut secret_recovery_key = [0; 64];
             rand::thread_rng().fill_bytes(&mut secret_recovery_key);
-            NotDone(
-                new_keygen(
-                    share_count,
-                    threshold,
-                    index,
-                    &secret_recovery_key,
-                    session_nonce,
-                )
-                .expect("`new_keygen` failure"),
+            new_keygen(
+                share_count,
+                threshold,
+                index,
+                &secret_recovery_key,
+                session_nonce,
             )
+            .expect("`new_keygen` failure")
         })
         .collect();
 
@@ -54,14 +52,14 @@ fn main() {
 }
 
 // TODO generic over final output F
-fn nobody_done(parties: &[RoundOutput<KeygenOutput>]) -> bool {
+fn nobody_done(parties: &[Protocol<KeygenOutput>]) -> bool {
     parties.iter().all(|party| matches!(party, NotDone(_)))
 }
 
 // TODO generic over final output F
-fn next_round(parties: Vec<RoundOutput<KeygenOutput>>) -> Vec<RoundOutput<KeygenOutput>> {
+fn next_round(parties: Vec<Protocol<KeygenOutput>>) -> Vec<Protocol<KeygenOutput>> {
     // extract current round from parties
-    let mut rounds: Vec<RoundWaiter<KeygenOutput>> = parties
+    let mut rounds: Vec<ProtocolRound<KeygenOutput>> = parties
         .into_iter()
         .enumerate()
         .map(|(i, party)| match party {

@@ -1,6 +1,9 @@
 use crate::protocol::gg20::{keygen::crimes, SecretKeyShare};
-use crate::refactor::protocol::protocol::{Config, RoundWaiter};
+use crate::refactor::protocol::protocol::{Config, Protocol, ProtocolRound};
 
+use super::TofnResult;
+
+pub type KeygenProtocol = Protocol<KeygenOutput>;
 pub type KeygenOutput = Result<SecretKeyShare, Vec<Vec<crimes::Crime>>>;
 pub type SecretRecoveryKey = [u8; 64];
 
@@ -12,7 +15,7 @@ pub fn new_keygen(
     index: usize,
     secret_recovery_key: &SecretRecoveryKey,
     session_nonce: &[u8],
-) -> Result<RoundWaiter<KeygenOutput>, String> {
+) -> TofnResult<KeygenProtocol> {
     // validate args
     if share_count <= threshold || share_count <= index || share_count > MAX_SHARE_COUNT {
         return Err(format!(
@@ -30,7 +33,7 @@ pub fn new_keygen(
     // compute the RNG seed now so as to minimize copying of `secret_recovery_key`
     let rng_seed = rng::seed(secret_recovery_key, session_nonce);
 
-    Ok(RoundWaiter::new(
+    Ok(Protocol::NotDone(ProtocolRound::new(
         Config::NoMessages,
         share_count,
         index,
@@ -40,7 +43,7 @@ pub fn new_keygen(
             index,
             rng_seed,
         }),
-    ))
+    )))
 }
 
 mod r1;

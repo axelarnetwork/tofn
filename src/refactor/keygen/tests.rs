@@ -1,6 +1,6 @@
 use super::*;
 use crate::{
-    fillvec::FillVec, protocol::gg20::vss_k256, refactor::protocol::protocol::RoundOutput::*,
+    fillvec::FillVec, protocol::gg20::vss_k256, refactor::protocol::protocol::Protocol::*,
 };
 use rand::RngCore;
 use tracing_test::traced_test;
@@ -58,9 +58,9 @@ pub(crate) fn execute_keygen_from_recovery(
 ) -> Vec<SecretKeyShare> {
     let share_count = secret_recovery_keys.len();
 
-    let r0_parties: Vec<RoundWaiter<KeygenOutput>> = (0..share_count)
+    let r0_parties: Vec<ProtocolRound<KeygenOutput>> = (0..share_count)
         .map(|i| {
-            new_keygen(
+            match new_keygen(
                 share_count,
                 threshold,
                 i,
@@ -68,11 +68,15 @@ pub(crate) fn execute_keygen_from_recovery(
                 session_nonce,
             )
             .unwrap()
+            {
+                NotDone(round) => round,
+                Done(_) => panic!("`new_keygen` returned a `Done` protocol"),
+            }
         })
         .collect();
 
     // execute round 1 all parties
-    let mut r1_parties: Vec<RoundWaiter<KeygenOutput>> = r0_parties
+    let mut r1_parties: Vec<ProtocolRound<KeygenOutput>> = r0_parties
         .into_iter()
         .enumerate()
         .map(|(i, party)| {
@@ -113,7 +117,7 @@ pub(crate) fn execute_keygen_from_recovery(
         .collect();
 
     // execute round 2 all parties
-    let mut r2_parties: Vec<RoundWaiter<KeygenOutput>> = r1_parties
+    let mut r2_parties: Vec<ProtocolRound<KeygenOutput>> = r1_parties
         .into_iter()
         .enumerate()
         .map(|(i, party)| {
@@ -152,7 +156,7 @@ pub(crate) fn execute_keygen_from_recovery(
     }
 
     // execute round 3 all parties
-    let mut r3_parties: Vec<RoundWaiter<KeygenOutput>> = r2_parties
+    let mut r3_parties: Vec<ProtocolRound<KeygenOutput>> = r2_parties
         .into_iter()
         .enumerate()
         .map(|(i, party)| {

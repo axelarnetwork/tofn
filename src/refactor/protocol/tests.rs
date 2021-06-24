@@ -1,6 +1,6 @@
 use super::protocol::*;
 
-pub fn execute_protocol_vec<F>(parties: &[RoundWaiter<F>]) -> Vec<F> {
+pub fn execute_protocol_vec<F>(parties: &[ProtocolRound<F>]) -> Vec<F> {
     // while nobody_done(parties) {
     //     let parties: Vec<RoundWaiter<F>> = parties.iter().map(|p| p.execute_next_round()).collect();
     // }
@@ -8,6 +8,6 @@ pub fn execute_protocol_vec<F>(parties: &[RoundWaiter<F>]) -> Vec<F> {
     todo!()
 }
 
-fn nobody_done<F>(parties: &[RoundWaiter<F>]) -> bool {
+fn nobody_done<F>(parties: &[ProtocolRound<F>]) -> bool {
     parties.iter().all(|p| p.expecting_more_msgs_this_round())
 }

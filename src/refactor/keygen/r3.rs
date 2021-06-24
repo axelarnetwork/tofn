@@ -9,9 +9,7 @@ use crate::{
     protocol::gg20::{keygen::crimes::Crime, vss_k256},
     refactor::{
         keygen::r4,
-        protocol::protocol::{
-            serialize_as_option, Config, RoundExecuter, RoundOutput, RoundWaiter,
-        },
+        protocol::protocol::{serialize_as_option, Config, Protocol, ProtocolRound, RoundExecuter},
     },
     zkp::schnorr_k256,
 };
@@ -52,7 +50,7 @@ impl RoundExecuter for R3 {
         self: Box<Self>,
         bcasts_in: FillVec<Vec<u8>>,
         p2ps_in: Vec<FillVec<Vec<u8>>>,
-    ) -> RoundOutput<Self::FinalOutput> {
+    ) -> Protocol<Self::FinalOutput> {
         // deserialize incoming messages
         let r2bcasts: Vec<r2::Bcast> = bcasts_in
             .vec_ref()
@@ -94,7 +92,7 @@ impl RoundExecuter for R3 {
             })
             .collect();
         if !criminals.iter().all(Vec::is_empty) {
-            return RoundOutput::Done(Err(criminals));
+            return Protocol::Done(Err(criminals));
         }
 
         // decrypt shares
@@ -210,7 +208,7 @@ impl RoundExecuter for R3 {
             &schnorr_k256::Witness { scalar: &x_i },
         );
 
-        RoundOutput::NotDone(RoundWaiter::new(
+        Protocol::NotDone(ProtocolRound::new(
             Config::BcastOnly {
                 bcast_out_bytes: serialize_as_option(&Bcast { x_i_proof }),
                 party_count: self.share_count,

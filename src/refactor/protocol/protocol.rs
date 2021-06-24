@@ -5,8 +5,8 @@ use tracing::{error, warn};
 use crate::fillvec::FillVec;
 // use serde::{de::DeserializeOwned, Serialize};
 
-pub enum RoundOutput<F> {
-    NotDone(RoundWaiter<F>),
+pub enum Protocol<F> {
+    NotDone(ProtocolRound<F>),
     Done(F),
 }
 
@@ -17,7 +17,7 @@ pub trait RoundExecuter: Send + Sync {
         // TODO add party_count, index
         bcasts_in: FillVec<Vec<u8>>,
         p2ps_in: Vec<FillVec<Vec<u8>>>,
-    ) -> RoundOutput<Self::FinalOutput>;
+    ) -> Protocol<Self::FinalOutput>;
 
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
@@ -25,7 +25,7 @@ pub trait RoundExecuter: Send + Sync {
     }
 }
 
-pub struct RoundWaiter<F> {
+pub struct ProtocolRound<F> {
     config: ConfigInternal, // TODO no need for ConfigInternal after I add party_count, index args to `execute`
     round: Box<dyn RoundExecuter<FinalOutput = F>>,
     party_count: usize,
@@ -36,7 +36,7 @@ pub struct RoundWaiter<F> {
     p2ps_in: Vec<FillVec<Vec<u8>>>, // TODO FillVec with hole?
 }
 
-impl<F> RoundWaiter<F> {
+impl<F> ProtocolRound<F> {
     pub fn new(
         config: Config,
         party_count: usize,
@@ -149,7 +149,7 @@ impl<F> RoundWaiter<F> {
             BcastAndP2p => !bcasts_full || !p2ps_full,
         }
     }
-    pub fn execute_next_round(self) -> RoundOutput<F> {
+    pub fn execute_next_round(self) -> Protocol<F> {
         self.round.execute(self.bcasts_in, self.p2ps_in)
     }
     pub fn party_count(&self) -> usize {

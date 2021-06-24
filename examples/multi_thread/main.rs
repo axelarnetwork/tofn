@@ -5,7 +5,7 @@ use tofn::{
     protocol::gg20::SecretKeyShare,
     refactor::{
         keygen::{new_keygen, KeygenOutput},
-        protocol::protocol::RoundOutput::{self, *},
+        protocol::protocol::Protocol,
     },
 };
 
@@ -15,20 +15,18 @@ fn main() {
     let (share_count, threshold) = (5, 2);
     let session_nonce = b"foobar";
 
-    let parties: Vec<RoundOutput<KeygenOutput>> = (0..share_count)
+    let parties: Vec<Protocol<KeygenOutput>> = (0..share_count)
         .map(|index| {
             let mut secret_recovery_key = [0; 64];
             rand::thread_rng().fill_bytes(&mut secret_recovery_key);
-            NotDone(
-                new_keygen(
-                    share_count,
-                    threshold,
-                    index,
-                    &secret_recovery_key,
-                    session_nonce,
-                )
-                .expect("`new_keygen` failure"),
+            new_keygen(
+                share_count,
+                threshold,
+                index,
+                &secret_recovery_key,
+                session_nonce,
             )
+            .expect("`new_keygen` failure")
         })
         .collect();
 

@@ -3,7 +3,7 @@ use crate::{
     hash, k256_serde, paillier_k256,
     protocol::gg20::vss_k256,
     refactor::protocol::protocol::{
-        serialize_as_option, Config, RoundExecuter, RoundOutput, RoundWaiter,
+        serialize_as_option, Config, Protocol, ProtocolRound, RoundExecuter,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -35,7 +35,7 @@ impl RoundExecuter for R1 {
         self: Box<Self>,
         _bcasts_in: FillVec<Vec<u8>>,
         _p2ps_in: Vec<FillVec<Vec<u8>>>,
-    ) -> RoundOutput<Self::FinalOutput> {
+    ) -> Protocol<Self::FinalOutput> {
         let u_i_vss = vss_k256::Vss::new(self.threshold);
         let (y_i_commit, y_i_reveal) = hash::commit(k256_serde::to_bytes(
             &(k256::ProjectivePoint::generator() * u_i_vss.get_secret()),
@@ -78,7 +78,7 @@ impl RoundExecuter for R1 {
         };
         let bcast_out_bytes = serialize_as_option(&bcast_out);
 
-        RoundOutput::NotDone(RoundWaiter::new(
+        Protocol::NotDone(ProtocolRound::new(
             Config::BcastOnly {
                 bcast_out_bytes,
                 party_count: self.share_count,

@@ -7,9 +7,7 @@ use crate::{
     protocol::gg20::{keygen::crimes::Crime, vss_k256},
     refactor::{
         keygen::r3,
-        protocol::protocol::{
-            serialize_as_option, Config, RoundExecuter, RoundOutput, RoundWaiter,
-        },
+        protocol::protocol::{serialize_as_option, Config, Protocol, ProtocolRound, RoundExecuter},
     },
 };
 
@@ -48,7 +46,7 @@ impl RoundExecuter for R2 {
         self: Box<Self>,
         bcasts_in: FillVec<Vec<u8>>,
         _p2ps_in: Vec<FillVec<Vec<u8>>>,
-    ) -> RoundOutput<Self::FinalOutput> {
+    ) -> Protocol<Self::FinalOutput> {
         // deserialize incoming messages
         let r1bcasts: Vec<r1::Bcast> = bcasts_in
             .vec_ref()
@@ -74,7 +72,7 @@ impl RoundExecuter for R2 {
             }
         }
         if !criminals.iter().all(Vec::is_empty) {
-            return RoundOutput::Done(Err(criminals));
+            return Protocol::Done(Err(criminals));
         }
 
         let u_i_shares = self.u_i_vss.shares(self.share_count);
@@ -143,7 +141,7 @@ impl RoundExecuter for R2 {
         };
         let bcast_out_bytes = serialize_as_option(&bcast_out);
 
-        RoundOutput::NotDone(RoundWaiter::new(
+        Protocol::NotDone(ProtocolRound::new(
             Config::BcastAndP2p {
                 bcast_out_bytes,
                 p2ps_out_bytes,
