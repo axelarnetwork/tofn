@@ -1,7 +1,7 @@
 use serde::de::DeserializeOwned;
 
 use crate::protocol::gg20::SecretKeyShare;
-use crate::refactor::protocol::protocol::{Protocol, ProtocolRound};
+use crate::refactor::protocol::protocol::{Protocol, ProtocolRound, RoundData};
 
 use super::protocol::protocol::{DeTimeout, ProtocolBuilder, RoundExecuterTyped};
 use super::TofnResult;
@@ -21,10 +21,7 @@ pub trait KeygenRoundExecuterTyped: Send + Sync {
 
     fn execute_typed(
         self: Box<Self>,
-        party_count: usize,
-        index: usize,
-        bcasts_in: Vec<Self::Bcast>,
-        p2ps_in: Vec<crate::fillvec::FillVec<Self::P2p>>, // TODO use HoleVec instead
+        data: RoundData<Self::Bcast, Self::P2p>,
     ) -> KeygenProtocolBuilder;
 
     #[cfg(test)]
@@ -40,12 +37,9 @@ impl<T: KeygenRoundExecuterTyped> RoundExecuterTyped for T {
     #[inline]
     fn execute_typed(
         self: Box<Self>,
-        party_count: usize,
-        index: usize,
-        bcasts_in: Vec<Self::Bcast>,
-        p2ps_in: Vec<crate::fillvec::FillVec<Self::P2p>>, // TODO use HoleVec instead
+        data: RoundData<Self::Bcast, Self::P2p>,
     ) -> ProtocolBuilder<Self::FinalOutputTyped> {
-        self.execute_typed(party_count, index, bcasts_in, p2ps_in)
+        self.execute_typed(data)
     }
 
     #[cfg(test)]

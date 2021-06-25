@@ -5,13 +5,15 @@ use tracing::{error, warn};
 use crate::fillvec::FillVec;
 use serde::de::DeserializeOwned;
 
+// TODO is it really worth the trouble to make this enum generic?
+// Maybe it's best just to duplicate it
 pub type Protocol<F> = GenericProtocol<ProtocolRound<F>, F>;
 pub type ProtocolBuilder<F> = GenericProtocol<ProtocolRoundBuilder<F>, F>;
 
 /// Why trait bound `G: HasTypeParameter<TypeParameter = F>`?
 /// We want to write `G<F>` as in:
 /// ```compile_fail
-/// pub enum ProtocolGeneric<G, F> {
+/// pub enum GenericProtocol<G, F> {
 ///     NotDone(G<F>), // ERROR
 ///     Done(F),
 /// }
@@ -67,16 +69,21 @@ pub trait DeTimeout {
     fn new_deserialization_failure() -> Self;
 }
 
+// TODO is RoundData worth the trouble?
+pub struct RoundData<B, P> {
+    pub party_count: usize,
+    pub index: usize,
+    pub bcasts_in: Vec<B>,
+    pub p2ps_in: Vec<FillVec<P>>, // TODO use HoleVec instead
+}
+
 pub trait RoundExecuterTyped: Send + Sync {
     type FinalOutputTyped: DeTimeout;
     type Bcast: DeserializeOwned;
     type P2p: DeserializeOwned;
     fn execute_typed(
         self: Box<Self>,
-        party_count: usize,
-        index: usize,
-        bcasts_in: Vec<Self::Bcast>,
-        p2ps_in: Vec<FillVec<Self::P2p>>, // TODO use HoleVec instead
+        data: RoundData<Self::Bcast, Self::P2p>,
     ) -> ProtocolBuilder<Self::FinalOutputTyped>;
 
     #[cfg(test)]
@@ -148,7 +155,13 @@ impl<T: RoundExecuterTyped> RoundExecuter for T {
 
         // TODO temporary
         // self.execute_typed(party_count, index, bcasts_in, p2ps_in_deserialized)
-        let p = self.execute_typed(party_count, index, bcasts_in, p2ps_in_deserialized);
+        let data = RoundData {
+            party_count,
+            index,
+            bcasts_in,
+            p2ps_in: p2ps_in_deserialized,
+        };
+        let p = self.execute_typed(data);
         match p {
             ProtocolBuilder::NotDone(q) => Protocol::NotDone(ProtocolRound::new(
                 q.round,
