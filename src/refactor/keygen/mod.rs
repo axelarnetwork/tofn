@@ -3,16 +3,18 @@ use serde::de::DeserializeOwned;
 use crate::protocol::gg20::SecretKeyShare;
 use crate::refactor::protocol::protocol::{Protocol, ProtocolRound};
 
-use super::protocol::protocol::{DeTimeout, RoundExecuterTyped};
+use super::protocol::protocol::{DeTimeout, ProtocolBuilder, RoundExecuterTyped};
 use super::TofnResult;
 
 pub type KeygenProtocol = Protocol<KeygenOutput>;
+pub type KeygenProtocolBuilder = ProtocolBuilder<KeygenOutput>;
 pub type KeygenOutput = Result<SecretKeyShare, Vec<Vec<Crime>>>;
 pub type SecretRecoveryKey = [u8; 64];
 
 pub const MAX_SHARE_COUNT: usize = 1000;
 
 /// Alias `RoundExecuter` so that every round does not need `type FinalOutputTyped = KeygenOutput;`
+/// TODO Is all this cruft worth it to save one line in each round? Trait aliasing is not supported, even if we switch the associated type `FinalOutput` to a generic type parameter `F`: https://github.com/rust-lang/rust/issues/41517
 pub trait KeygenRoundExecuterTyped: Send + Sync {
     type Bcast: DeserializeOwned;
     type P2p: DeserializeOwned;
@@ -23,7 +25,7 @@ pub trait KeygenRoundExecuterTyped: Send + Sync {
         index: usize,
         bcasts_in: Vec<Self::Bcast>,
         p2ps_in: Vec<crate::fillvec::FillVec<Self::P2p>>, // TODO use HoleVec instead
-    ) -> KeygenProtocol;
+    ) -> KeygenProtocolBuilder;
 
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
@@ -42,7 +44,7 @@ impl<T: KeygenRoundExecuterTyped> RoundExecuterTyped for T {
         index: usize,
         bcasts_in: Vec<Self::Bcast>,
         p2ps_in: Vec<crate::fillvec::FillVec<Self::P2p>>, // TODO use HoleVec instead
-    ) -> Protocol<Self::FinalOutputTyped> {
+    ) -> ProtocolBuilder<Self::FinalOutputTyped> {
         self.execute_typed(party_count, index, bcasts_in, p2ps_in)
     }
 

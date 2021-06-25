@@ -7,11 +7,11 @@ use crate::{
     protocol::gg20::vss_k256,
     refactor::{
         keygen::{r3, Crime},
-        protocol::protocol::{serialize_as_option, Protocol, ProtocolRound},
+        protocol::protocol::{serialize_as_option, ProtocolBuilder, ProtocolRoundBuilder},
     },
 };
 
-use super::{r1, KeygenProtocol, KeygenRoundExecuterTyped};
+use super::{r1, KeygenProtocolBuilder, KeygenRoundExecuterTyped};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(super) struct OutMsg {
@@ -47,7 +47,7 @@ impl KeygenRoundExecuterTyped for R2 {
         index: usize,
         bcasts_in: Vec<Self::Bcast>,
         _p2ps_in: Vec<FillVec<Self::P2p>>,
-    ) -> KeygenProtocol {
+    ) -> KeygenProtocolBuilder {
         // check Paillier proofs
         let mut criminals = vec![Vec::new(); party_count];
         for (i, r1bcast) in bcasts_in.iter().enumerate() {
@@ -63,7 +63,7 @@ impl KeygenRoundExecuterTyped for R2 {
             }
         }
         if !criminals.iter().all(Vec::is_empty) {
-            return Protocol::Done(Err(criminals));
+            return ProtocolBuilder::Done(Err(criminals));
         }
 
         let u_i_shares = self.u_i_vss.shares(party_count);
@@ -132,18 +132,16 @@ impl KeygenRoundExecuterTyped for R2 {
         };
         let bcast_out_bytes = serialize_as_option(&bcast_out);
 
-        Protocol::NotDone(ProtocolRound::new(
-            Box::new(r3::R3 {
+        ProtocolBuilder::NotDone(ProtocolRoundBuilder {
+            round: Box::new(r3::R3 {
                 threshold: self.threshold,
                 dk: self.dk,
                 u_i_my_share: u_i_shares[index].clone(),
                 r1bcasts: bcasts_in,
             }),
-            party_count,
-            index,
-            bcast_out_bytes,
-            p2ps_out_bytes,
-        ))
+            bcast_out: bcast_out_bytes,
+            p2ps_out: p2ps_out_bytes,
+        })
     }
 
     #[cfg(test)]

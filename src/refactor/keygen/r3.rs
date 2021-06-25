@@ -9,7 +9,9 @@ use crate::{
     protocol::gg20::vss_k256,
     refactor::{
         keygen::r4,
-        protocol::protocol::{serialize_as_option, Protocol, ProtocolRound, RoundExecuterTyped},
+        protocol::protocol::{
+            serialize_as_option, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuterTyped,
+        },
     },
     zkp::schnorr_k256,
 };
@@ -52,7 +54,7 @@ impl RoundExecuterTyped for R3 {
         index: usize,
         bcasts_in: Vec<Self::Bcast>,
         p2ps_in: Vec<FillVec<Self::P2p>>,
-    ) -> Protocol<Self::FinalOutputTyped> {
+    ) -> ProtocolBuilder<Self::FinalOutputTyped> {
         // check y_i commits
         let criminals: Vec<Vec<Crime>> = bcasts_in
             .iter()
@@ -71,7 +73,7 @@ impl RoundExecuterTyped for R3 {
             })
             .collect();
         if !criminals.iter().all(Vec::is_empty) {
-            return Protocol::Done(Err(criminals));
+            return ProtocolBuilder::Done(Err(criminals));
         }
 
         // decrypt shares
@@ -185,8 +187,8 @@ impl RoundExecuterTyped for R3 {
             &schnorr_k256::Witness { scalar: &x_i },
         );
 
-        Protocol::NotDone(ProtocolRound::new(
-            Box::new(r4::R4 {
+        ProtocolBuilder::NotDone(ProtocolRoundBuilder {
+            round: Box::new(r4::R4 {
                 threshold: self.threshold,
                 dk: self.dk,
                 r1bcasts: self.r1bcasts,
@@ -194,11 +196,9 @@ impl RoundExecuterTyped for R3 {
                 x_i,
                 all_X_i,
             }),
-            party_count,
-            index,
-            serialize_as_option(&Bcast { x_i_proof }),
-            None,
-        ))
+            bcast_out: serialize_as_option(&Bcast { x_i_proof }),
+            p2ps_out: None,
+        })
     }
 
     #[cfg(test)]

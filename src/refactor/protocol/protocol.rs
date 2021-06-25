@@ -77,7 +77,7 @@ pub trait RoundExecuterTyped: Send + Sync {
         index: usize,
         bcasts_in: Vec<Self::Bcast>,
         p2ps_in: Vec<FillVec<Self::P2p>>, // TODO use HoleVec instead
-    ) -> Protocol<Self::FinalOutputTyped>;
+    ) -> ProtocolBuilder<Self::FinalOutputTyped>;
 
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
@@ -146,7 +146,19 @@ impl<T: RoundExecuterTyped> RoundExecuter for T {
         }
         assert_eq!(p2ps_in_deserialized.len(), p2ps_in.len());
 
-        self.execute_typed(party_count, index, bcasts_in, p2ps_in_deserialized)
+        // TODO temporary
+        // self.execute_typed(party_count, index, bcasts_in, p2ps_in_deserialized)
+        let p = self.execute_typed(party_count, index, bcasts_in, p2ps_in_deserialized);
+        match p {
+            ProtocolBuilder::NotDone(q) => Protocol::NotDone(ProtocolRound::new(
+                q.round,
+                party_count,
+                index,
+                q.bcast_out,
+                q.p2ps_out,
+            )),
+            ProtocolBuilder::Done(f) => Protocol::Done(f),
+        }
     }
 
     #[cfg(test)]
@@ -159,7 +171,7 @@ impl<T: RoundExecuterTyped> RoundExecuter for T {
 pub struct ProtocolRoundBuilder<F> {
     pub round: Box<dyn RoundExecuter<FinalOutput = F>>,
     pub bcast_out: Option<Vec<u8>>,
-    pub p2ps_out: FillVec<Vec<u8>>, // TODO FillVec with hole?
+    pub p2ps_out: Option<FillVec<Vec<u8>>>, // TODO FillVec with hole?
 }
 
 pub struct ProtocolRound<F> {
