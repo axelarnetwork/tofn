@@ -1,7 +1,10 @@
 use super::Broadcaster;
 use std::sync::mpsc::Receiver;
 
-use tofn::refactor::protocol::protocol::Protocol::{self, *};
+// can't use `Protocol::*` because Rust does not support
+// `use` statements for type aliased enums :(
+// https://github.com/rust-lang/rust/issues/83248
+use tofn::refactor::protocol::protocol::Protocol;
 
 #[derive(Clone)]
 pub enum Message {
@@ -21,7 +24,7 @@ pub fn execute_protocol<F>(
     input: Receiver<Message>,
     broadcaster: Broadcaster<Message>,
 ) -> F {
-    while let NotDone(mut round) = party {
+    while let Protocol::NotDone(mut round) = party {
         // send outgoing messages
         if let Some(bytes) = round.bcast_out() {
             broadcaster.send(Message::Bcast {
@@ -49,7 +52,7 @@ pub fn execute_protocol<F>(
         party = round.execute_next_round();
     }
     match party {
-        NotDone(_) => unreachable!(),
-        Done(result) => result,
+        Protocol::NotDone(_) => unreachable!(),
+        Protocol::Done(result) => result,
     }
 }

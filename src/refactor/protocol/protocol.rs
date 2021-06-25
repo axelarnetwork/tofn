@@ -5,9 +5,42 @@ use tracing::{error, warn};
 use crate::fillvec::FillVec;
 use serde::de::DeserializeOwned;
 
-pub enum Protocol<F> {
-    NotDone(ProtocolRound<F>),
+pub type Protocol<F> = ProtocolBuilder<ProtocolRound<F>, F>;
+
+/// Why trait bound `B: HasTypeParameter<TypeParameter = F>`?
+/// We want to write `B<F>` as in:
+/// ```compile_fail
+/// pub enum ProtocolBuilder<B, F> {
+///     NotDone(B<F>),
+///     Done(F),
+/// }
+/// ```
+/// but this is not supported by Rust
+
+pub enum ProtocolBuilder<B, F>
+where
+    B: HasTypeParameter<TypeParameter = F>,
+{
+    NotDone(B),
     Done(F),
+}
+
+/// work-around for higher kinded types (HKT):
+/// * https://stackoverflow.com/a/41509242
+/// * https://github.com/rust-lang/rfcs/blob/master/text/1598-generic_associated_types.md
+/// * https://github.com/rust-lang/rust/issues/44265
+pub trait HasTypeParameter {
+    type TypeParameter;
+}
+
+impl<F> HasTypeParameter for ProtocolRound<F> {
+    type TypeParameter = F;
+}
+impl<F> HasTypeParameter for ProtocolRoundBuilder<F> {
+    type TypeParameter = F;
+}
+impl<T: RoundExecuter> HasTypeParameter for T {
+    type TypeParameter = T::FinalOutput;
 }
 
 pub trait RoundExecuter: Send + Sync {
@@ -119,6 +152,12 @@ impl<T: RoundExecuterTyped> RoundExecuter for T {
     fn as_any(&self) -> &dyn std::any::Any {
         self.as_any()
     }
+}
+
+pub struct ProtocolRoundBuilder<F> {
+    pub round: Box<dyn RoundExecuter<FinalOutput = F>>,
+    pub bcast_out: Option<Vec<u8>>,
+    pub p2ps_out: FillVec<Vec<u8>>, // TODO FillVec with hole?
 }
 
 pub struct ProtocolRound<F> {

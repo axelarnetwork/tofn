@@ -4,10 +4,7 @@ use tofn::{
     protocol::gg20::SecretKeyShare,
     refactor::{
         keygen::{new_keygen, KeygenOutput},
-        protocol::protocol::{
-            Protocol::{self, *},
-            ProtocolRound,
-        },
+        protocol::protocol::{Protocol, ProtocolRound},
     },
 };
 
@@ -43,8 +40,8 @@ fn main() {
         .into_iter()
         .enumerate()
         .map(|(i, party)| match party {
-            NotDone(_) => panic!("party {} not done yet", i),
-            Done(result) => result.expect("party finished with error"),
+            Protocol::NotDone(_) => panic!("party {} not done yet", i),
+            Protocol::Done(result) => result.expect("party finished with error"),
         })
         .collect();
 
@@ -56,7 +53,9 @@ fn main() {
 
 // TODO generic over final output F
 fn nobody_done(parties: &[Protocol<KeygenOutput>]) -> bool {
-    parties.iter().all(|party| matches!(party, NotDone(_)))
+    parties
+        .iter()
+        .all(|party| matches!(party, Protocol::NotDone(_)))
 }
 
 // TODO generic over final output F
@@ -66,8 +65,8 @@ fn next_round(parties: Vec<Protocol<KeygenOutput>>) -> Vec<Protocol<KeygenOutput
         .into_iter()
         .enumerate()
         .map(|(i, party)| match party {
-            NotDone(round) => round,
-            Done(_) => panic!("party {} done too early", i),
+            Protocol::NotDone(round) => round,
+            Protocol::Done(_) => panic!("party {} done too early", i),
         })
         .collect();
 

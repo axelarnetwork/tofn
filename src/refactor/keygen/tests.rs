@@ -1,7 +1,5 @@
 use super::*;
-use crate::{
-    fillvec::FillVec, protocol::gg20::vss_k256, refactor::protocol::protocol::Protocol::*,
-};
+use crate::{fillvec::FillVec, protocol::gg20::vss_k256, refactor::protocol::protocol::Protocol};
 use rand::RngCore;
 use tracing_test::traced_test;
 
@@ -69,8 +67,8 @@ pub(crate) fn execute_keygen_from_recovery(
             )
             .unwrap()
             {
-                NotDone(round) => round,
-                Done(_) => panic!("`new_keygen` returned a `Done` protocol"),
+                Protocol::NotDone(round) => round,
+                Protocol::Done(_) => panic!("`new_keygen` returned a `Done` protocol"),
             }
         })
         .collect();
@@ -84,8 +82,8 @@ pub(crate) fn execute_keygen_from_recovery(
             assert!(party.p2ps_out().len() == 0);
             assert!(!party.expecting_more_msgs_this_round());
             match party.execute_next_round() {
-                NotDone(next_round) => next_round,
-                Done(_) => panic!("party {} done, expect not done", i),
+                Protocol::NotDone(next_round) => next_round,
+                Protocol::Done(_) => panic!("party {} done, expect not done", i),
             }
         })
         .collect();
@@ -125,8 +123,8 @@ pub(crate) fn execute_keygen_from_recovery(
             assert!(party.p2ps_out().len() == 0);
             assert!(!party.expecting_more_msgs_this_round());
             match party.execute_next_round() {
-                NotDone(next_round) => next_round,
-                Done(_) => panic!("party {} done, expect not done", i),
+                Protocol::NotDone(next_round) => next_round,
+                Protocol::Done(_) => panic!("party {} done, expect not done", i),
             }
         })
         .collect();
@@ -164,8 +162,8 @@ pub(crate) fn execute_keygen_from_recovery(
             assert!(party.p2ps_out().len() == share_count);
             assert!(!party.expecting_more_msgs_this_round());
             match party.execute_next_round() {
-                NotDone(next_round) => next_round,
-                Done(_) => panic!("party {} done, expect not done", i),
+                Protocol::NotDone(next_round) => next_round,
+                Protocol::Done(_) => panic!("party {} done, expect not done", i),
             }
         })
         .collect();
@@ -190,9 +188,9 @@ pub(crate) fn execute_keygen_from_recovery(
             assert!(party.p2ps_out().len() == 0);
             assert!(!party.expecting_more_msgs_this_round());
             match party.execute_next_round() {
-                NotDone(_) => panic!("party {} not done, expect done", i),
-                Done(Ok(secret_key_share)) => secret_key_share,
-                Done(Err(criminals)) => panic!(
+                Protocol::NotDone(_) => panic!("party {} not done, expect done", i),
+                Protocol::Done(Ok(secret_key_share)) => secret_key_share,
+                Protocol::Done(Err(criminals)) => panic!(
                     "party {} expect success got failure with criminals: {:?}",
                     i, criminals
                 ),
