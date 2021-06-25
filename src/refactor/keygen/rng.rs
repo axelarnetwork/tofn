@@ -17,9 +17,9 @@ pub fn rng_from_seed(seed: Seed) -> impl CryptoRng + RngCore {
     ChaCha20Rng::from_seed(seed)
 }
 
-pub fn rng(
-    secret_recovery_key: &SecretRecoveryKey,
-    session_nonce: &[u8],
-) -> impl CryptoRng + RngCore {
-    rng_from_seed(seed(secret_recovery_key, session_nonce))
-}
+// pub fn rng(
+//     secret_recovery_key: &SecretRecoveryKey,
+//     session_nonce: &[u8],
+// ) -> impl CryptoRng + RngCore {
+//     rng_from_seed(seed(secret_recovery_key, session_nonce))
+// }

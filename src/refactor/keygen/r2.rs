@@ -7,11 +7,11 @@ use crate::{
     protocol::gg20::vss_k256,
     refactor::{
         keygen::{r3, Crime},
-        protocol::protocol::{serialize_as_option, Protocol, ProtocolRound, RoundExecuterTyped},
+        protocol::protocol::{serialize_as_option, Protocol, ProtocolRound},
     },
 };
 
-use super::{r1, KeygenOutput};
+use super::{r1, KeygenProtocol, KeygenRoundExecuterTyped};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(super) struct OutMsg {
@@ -37,8 +37,7 @@ pub(super) struct R2 {
     pub(super) y_i_reveal: hash::Randomness,
 }
 
-impl RoundExecuterTyped for R2 {
-    type FinalOutputTyped = KeygenOutput;
+impl KeygenRoundExecuterTyped for R2 {
     type Bcast = r1::Bcast;
     type P2p = ();
 
@@ -48,7 +47,7 @@ impl RoundExecuterTyped for R2 {
         index: usize,
         bcasts_in: Vec<Self::Bcast>,
         _p2ps_in: Vec<FillVec<Self::P2p>>,
-    ) -> Protocol<Self::FinalOutputTyped> {
+    ) -> KeygenProtocol {
         // check Paillier proofs
         let mut criminals = vec![Vec::new(); party_count];
         for (i, r1bcast) in bcasts_in.iter().enumerate() {

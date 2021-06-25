@@ -150,6 +150,7 @@ impl<T: RoundExecuterTyped> RoundExecuter for T {
     }
 
     #[cfg(test)]
+    #[inline]
     fn as_any(&self) -> &dyn std::any::Any {
         self.as_any()
     }
