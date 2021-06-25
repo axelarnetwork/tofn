@@ -7,7 +7,7 @@ use crate::{
     protocol::gg20::vss_k256,
     refactor::{
         keygen::{r3, Crime},
-        protocol::protocol::{serialize_as_option, Protocol, ProtocolRound, RoundExecuter},
+        protocol::protocol::{serialize_as_option, Protocol, ProtocolRound, RoundExecuterTyped},
     },
 };
 
@@ -37,29 +37,21 @@ pub(super) struct R2 {
     pub(super) y_i_reveal: hash::Randomness,
 }
 
-impl RoundExecuter for R2 {
-    type FinalOutput = KeygenOutput;
+impl RoundExecuterTyped for R2 {
+    type FinalOutputTyped = KeygenOutput;
+    type Bcast = r1::Bcast;
+    type P2p = ();
 
-    fn execute(
+    fn execute_typed(
         self: Box<Self>,
         party_count: usize,
         index: usize,
-        bcasts_in: FillVec<Vec<u8>>,
-        _p2ps_in: Vec<FillVec<Vec<u8>>>,
-    ) -> Protocol<Self::FinalOutput> {
-        // deserialize incoming messages
-        let r1bcasts: Vec<r1::Bcast> = bcasts_in
-            .vec_ref()
-            .iter()
-            .map(|bytes| bincode::deserialize(&bytes.as_ref().unwrap()).unwrap())
-            .collect();
-
+        bcasts_in: Vec<Self::Bcast>,
+        _p2ps_in: Vec<FillVec<Self::P2p>>,
+    ) -> Protocol<Self::FinalOutputTyped> {
         // check Paillier proofs
         let mut criminals = vec![Vec::new(); party_count];
-        for (i, r1bcast) in r1bcasts.iter().enumerate() {
-            // if i == index {
-            //     continue;
-            // }
+        for (i, r1bcast) in bcasts_in.iter().enumerate() {
             if !r1bcast.ek.verify(&r1bcast.ek_proof) {
                 let crime = Crime::R2BadEncryptionKeyProof;
                 warn!("party {} detect {:?} by {}", index, crime, i);
@@ -112,7 +104,7 @@ impl RoundExecuter for R2 {
                     } else {
                         // encrypt the share for party i
                         let (u_i_share_ciphertext, _) =
-                            r1bcasts[i].ek.encrypt(&u_i_share.get_scalar().into());
+                            bcasts_in[i].ek.encrypt(&u_i_share.get_scalar().into());
 
                         // #[cfg(feature = "malicious")]
                         // let u_i_share_ciphertext_k256 = match self.behaviour {
@@ -146,7 +138,7 @@ impl RoundExecuter for R2 {
                 threshold: self.threshold,
                 dk: self.dk,
                 u_i_my_share: u_i_shares[index].clone(),
-                r1bcasts,
+                r1bcasts: bcasts_in,
             }),
             party_count,
             index,

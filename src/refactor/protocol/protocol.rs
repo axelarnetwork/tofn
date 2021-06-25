@@ -22,7 +22,7 @@ pub trait RoundExecuter: Send + Sync {
 
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
-        unimplemented!("return `self` to enable runtime reflection: https://bennetthardwick.com/dont-use-boxed-trait-objects-for-struct-internals")
+        unimplemented!("(RoundExecuter) return `self` to enable runtime reflection: https://bennetthardwick.com/dont-use-boxed-trait-objects-for-struct-internals")
     }
 }
 
@@ -44,6 +44,11 @@ pub trait RoundExecuterTyped: Send + Sync {
         bcasts_in: Vec<Self::Bcast>,
         p2ps_in: Vec<FillVec<Self::P2p>>, // TODO use HoleVec instead
     ) -> Protocol<Self::FinalOutputTyped>;
+
+    #[cfg(test)]
+    fn as_any(&self) -> &dyn std::any::Any {
+        unimplemented!("(RoundExecuterTyped) return `self` to enable runtime reflection: https://bennetthardwick.com/dont-use-boxed-trait-objects-for-struct-internals")
+    }
 }
 
 impl<T: RoundExecuterTyped> RoundExecuter for T {
@@ -85,9 +90,10 @@ impl<T: RoundExecuterTyped> RoundExecuter for T {
 
         // attempt to deserialize p2ps
         // TODO this sucks with FillVec
-        let mut p2ps_in_deserialized: Vec<FillVec<T::P2p>> = Vec::with_capacity(party_count);
+        let mut p2ps_in_deserialized: Vec<FillVec<T::P2p>> = Vec::with_capacity(p2ps_in.len());
         for (i, party_p2ps) in p2ps_in.iter().enumerate() {
-            let mut party_p2ps_deserialized: Vec<Option<T::P2p>> = Vec::with_capacity(party_count);
+            let mut party_p2ps_deserialized: Vec<Option<T::P2p>> =
+                Vec::with_capacity(party_p2ps.len());
             for (j, bytes) in party_p2ps.vec_ref().iter().enumerate() {
                 if j == i {
                     party_p2ps_deserialized.push(None);
@@ -101,12 +107,17 @@ impl<T: RoundExecuterTyped> RoundExecuter for T {
                     }
                 }
             }
-            assert!(party_p2ps_deserialized.len() == party_count);
+            assert_eq!(party_p2ps_deserialized.len(), party_p2ps.len());
             p2ps_in_deserialized.push(FillVec::from_vec(party_p2ps_deserialized));
         }
-        assert!(p2ps_in_deserialized.len() == party_count);
+        assert_eq!(p2ps_in_deserialized.len(), p2ps_in.len());
 
         self.execute_typed(party_count, index, bcasts_in, p2ps_in_deserialized)
+    }
+
+    #[cfg(test)]
+    fn as_any(&self) -> &dyn std::any::Any {
+        self.as_any()
     }
 }
 
