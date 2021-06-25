@@ -5,23 +5,24 @@ use tracing::{error, warn};
 use crate::fillvec::FillVec;
 use serde::de::DeserializeOwned;
 
-pub type Protocol<F> = ProtocolBuilder<ProtocolRound<F>, F>;
+pub type Protocol<F> = GenericProtocol<ProtocolRound<F>, F>;
+pub type ProtocolBuilder<F> = GenericProtocol<ProtocolRoundBuilder<F>, F>;
 
-/// Why trait bound `B: HasTypeParameter<TypeParameter = F>`?
-/// We want to write `B<F>` as in:
+/// Why trait bound `G: HasTypeParameter<TypeParameter = F>`?
+/// We want to write `G<F>` as in:
 /// ```compile_fail
-/// pub enum ProtocolBuilder<B, F> {
-///     NotDone(B<F>),
+/// pub enum ProtocolGeneric<G, F> {
+///     NotDone(G<F>), // ERROR
 ///     Done(F),
 /// }
 /// ```
 /// but this is not supported by Rust
 
-pub enum ProtocolBuilder<B, F>
+pub enum GenericProtocol<G, F>
 where
-    B: HasTypeParameter<TypeParameter = F>,
+    G: HasTypeParameter<TypeParameter = F>,
 {
-    NotDone(B),
+    NotDone(G),
     Done(F),
 }
 
