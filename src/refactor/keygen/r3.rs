@@ -9,7 +9,7 @@ use crate::{
     protocol::gg20::vss_k256,
     refactor::{
         keygen::r4,
-        protocol::protocol::{serialize_as_option, Protocol, ProtocolRound, RoundExecuter},
+        protocol::protocol::{serialize_as_option, Protocol, ProtocolRound, RoundExecuterTyped},
     },
     zkp::schnorr_k256,
 };
@@ -40,42 +40,21 @@ pub(super) struct R3 {
     pub(super) r1bcasts: Vec<r1::Bcast>, // TODO Vec<everything>
 }
 
-impl RoundExecuter for R3 {
-    type FinalOutput = KeygenOutput;
+impl RoundExecuterTyped for R3 {
+    type FinalOutputTyped = KeygenOutput;
+    type Bcast = r2::Bcast;
+    type P2p = r2::P2p;
 
     #[allow(non_snake_case)]
-    fn execute(
+    fn execute_typed(
         self: Box<Self>,
         party_count: usize,
         index: usize,
-        bcasts_in: FillVec<Vec<u8>>,
-        p2ps_in: Vec<FillVec<Vec<u8>>>,
-    ) -> Protocol<Self::FinalOutput> {
-        // deserialize incoming messages
-        let r2bcasts: Vec<r2::Bcast> = bcasts_in
-            .vec_ref()
-            .iter()
-            .map(|bytes| bincode::deserialize(&bytes.as_ref().unwrap()).unwrap())
-            .collect();
-        let all_r2_p2ps: Vec<FillVec<r2::P2p>> = p2ps_in
-            .iter()
-            .map(|party_p2ps| {
-                FillVec::from_vec(
-                    party_p2ps
-                        .vec_ref()
-                        .iter()
-                        .map(|bytes| {
-                            bytes
-                                .as_ref()
-                                .map(|bytes| bincode::deserialize(&bytes).unwrap())
-                        })
-                        .collect(),
-                )
-            })
-            .collect();
-
+        bcasts_in: Vec<Self::Bcast>,
+        p2ps_in: Vec<FillVec<Self::P2p>>,
+    ) -> Protocol<Self::FinalOutputTyped> {
         // check y_i commits
-        let criminals: Vec<Vec<Crime>> = r2bcasts
+        let criminals: Vec<Vec<Crime>> = bcasts_in
             .iter()
             .enumerate() // TODO unnecessary with Vec<everything>
             .map(|(i, r2bcast)| {
@@ -99,7 +78,7 @@ impl RoundExecuter for R3 {
         // TODO share_infos iterates only over _other_ parties
         // ie. iterate over p2p msgs from others to me
         let share_infos: FillVec<(vss_k256::Share, paillier_k256::Randomness)> = FillVec::from_vec(
-            all_r2_p2ps
+            p2ps_in
                 .iter()
                 .map(|r2_p2ps| {
                     // return None if my_p2p is None
@@ -122,7 +101,7 @@ impl RoundExecuter for R3 {
         let vss_failures: Vec<VssComplaint> = share_infos
             .vec_ref()
             .iter()
-            .zip(r2bcasts.iter())
+            .zip(bcasts_in.iter())
             .enumerate()
             .filter_map(|(from, (share_info, r2bcast))| {
                 if let Some((u_i_share, u_i_share_randomness)) = share_info {
@@ -181,7 +160,7 @@ impl RoundExecuter for R3 {
             .fold(*self.u_i_my_share.get_scalar(), |acc, x| acc + x);
 
         // compute y
-        let y = r2bcasts
+        let y = bcasts_in
             .iter()
             .fold(k256::ProjectivePoint::identity(), |acc, r2bcast| {
                 acc + r2bcast.u_i_share_commits.secret_commit()
@@ -190,7 +169,7 @@ impl RoundExecuter for R3 {
         // compute all_X_i
         let all_X_i: Vec<k256::ProjectivePoint> = (0..party_count)
             .map(|i| {
-                r2bcasts
+                bcasts_in
                     .iter()
                     .fold(k256::ProjectivePoint::identity(), |acc, x| {
                         acc + x.u_i_share_commits.share_commit(i)
