@@ -1,9 +1,11 @@
 use serde::de::DeserializeOwned;
 
 use crate::protocol::gg20::SecretKeyShare;
-use crate::refactor::protocol::protocol::{Protocol, ProtocolRound, RoundData};
+use crate::refactor::protocol::{
+    executer::{DeTimeout, ProtocolBuilder, RoundData, RoundExecuterTyped},
+    Protocol, ProtocolRound,
+};
 
-use super::protocol::protocol::{DeTimeout, ProtocolBuilder, RoundExecuterTyped};
 use super::TofnResult;
 
 pub type KeygenProtocol = Protocol<KeygenOutput>;

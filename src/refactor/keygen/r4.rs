@@ -4,7 +4,7 @@ use crate::{
     fillvec::FillVec,
     paillier_k256,
     protocol::gg20::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo},
-    refactor::protocol::protocol::{Protocol, RoundExecuter},
+    refactor::protocol::{executer::RoundExecuter, Protocol},
     zkp::schnorr_k256,
 };
 

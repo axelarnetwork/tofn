@@ -4,7 +4,7 @@ use tofn::{
     protocol::gg20::SecretKeyShare,
     refactor::{
         keygen::{new_keygen, KeygenOutput},
-        protocol::protocol::{Protocol, ProtocolRound},
+        protocol::{Protocol, ProtocolRound},
     },
 };
 

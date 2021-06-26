@@ -1,5 +1,5 @@
 use super::*;
-use crate::{fillvec::FillVec, protocol::gg20::vss_k256, refactor::protocol::protocol::Protocol};
+use crate::{fillvec::FillVec, protocol::gg20::vss_k256, refactor::protocol::Protocol};
 use rand::RngCore;
 use tracing_test::traced_test;
 

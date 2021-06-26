@@ -7,7 +7,7 @@ use crate::{
     protocol::gg20::vss_k256,
     refactor::{
         keygen::{r3, Crime},
-        protocol::protocol::{
+        protocol::executer::{
             serialize_as_option, ProtocolBuilder, ProtocolRoundBuilder, RoundData,
         },
     },

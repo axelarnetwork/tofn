@@ -2,7 +2,10 @@ use crate::{
     fillvec::FillVec,
     hash, k256_serde, paillier_k256,
     protocol::gg20::vss_k256,
-    refactor::protocol::protocol::{serialize_as_option, Protocol, ProtocolRound, RoundExecuter},
+    refactor::protocol::{
+        executer::{serialize_as_option, RoundExecuter},
+        Protocol, ProtocolRound,
+    },
 };
 use serde::{Deserialize, Serialize};
 

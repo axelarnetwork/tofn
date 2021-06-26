@@ -4,7 +4,7 @@ use std::sync::mpsc::Receiver;
 // can't use `Protocol::*` because Rust does not support
 // `use` statements for type aliased enums :(
 // https://github.com/rust-lang/rust/issues/83248
-use tofn::refactor::protocol::protocol::Protocol;
+use tofn::refactor::protocol::Protocol;
 
 #[derive(Clone)]
 pub enum Message {
