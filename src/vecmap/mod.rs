@@ -13,6 +13,9 @@ impl<T, I> VecMap<T, I> {
         // TODO range check?
         &mut self.0[index.0]
     }
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
 }
 
 impl<T, I> IntoIterator for VecMap<T, I> {
@@ -39,6 +42,12 @@ impl<I> Index<I> {
     }
 }
 
+impl<I> std::fmt::Display for Index<I> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 /// Manually impl `Clone`, `Copy` because https://stackoverflow.com/a/31371094
 impl<I> Clone for Index<I> {
     fn clone(&self) -> Self {
@@ -51,3 +60,5 @@ mod vecmap_iter;
 use std::iter::FromIterator;
 
 use vecmap_iter::VecMapIter;
+
+mod fillvecmap;
