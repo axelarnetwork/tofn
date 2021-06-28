@@ -17,7 +17,7 @@ use crate::{
     zkp::schnorr_k256,
 };
 
-use super::{r1, r2, Crime, KeygenOutput};
+use super::{r1, r2, Crime, KeygenOutput, KeygenPartyIndex};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(super) struct Bcast {
@@ -45,6 +45,7 @@ pub(super) struct R3 {
 
 impl RoundExecuterTyped for R3 {
     type FinalOutputTyped = KeygenOutput;
+    type Index = KeygenPartyIndex;
     type Bcast = r2::Bcast;
     type P2p = r2::P2p;
 
@@ -52,7 +53,7 @@ impl RoundExecuterTyped for R3 {
     fn execute_typed(
         self: Box<Self>,
         data: RoundData<Self::Bcast, Self::P2p>,
-    ) -> ProtocolBuilder<Self::FinalOutputTyped> {
+    ) -> ProtocolBuilder<Self::FinalOutputTyped, Self::Index> {
         // check y_i commits
         let criminals: Vec<Vec<Crime>> = data
             .bcasts_in

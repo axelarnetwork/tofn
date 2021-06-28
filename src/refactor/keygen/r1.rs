@@ -9,7 +9,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::{r2, rng, KeygenOutput};
+use super::{r2, rng, KeygenOutput, KeygenPartyIndex};
 
 pub(super) struct R1 {
     pub(super) threshold: usize,
@@ -27,6 +27,7 @@ pub(super) struct Bcast {
 
 impl RoundExecuter for R1 {
     type FinalOutput = KeygenOutput;
+    type Index = KeygenPartyIndex;
 
     fn execute(
         self: Box<Self>,
@@ -34,7 +35,7 @@ impl RoundExecuter for R1 {
         index: usize,
         _bcasts_in: FillVec<Vec<u8>>,
         _p2ps_in: Vec<FillVec<Vec<u8>>>,
-    ) -> Protocol<Self::FinalOutput> {
+    ) -> Protocol<Self::FinalOutput, Self::Index> {
         let u_i_vss = vss_k256::Vss::new(self.threshold);
         let (y_i_commit, y_i_reveal) = hash::commit(k256_serde::to_bytes(
             &(k256::ProjectivePoint::generator() * u_i_vss.get_secret()),

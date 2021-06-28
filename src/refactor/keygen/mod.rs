@@ -8,8 +8,10 @@ use crate::refactor::protocol::{
 
 use super::TofnResult;
 
-pub type KeygenProtocol = Protocol<KeygenOutput>;
-pub type KeygenProtocolBuilder = ProtocolBuilder<KeygenOutput>;
+pub struct KeygenPartyIndex;
+
+pub type KeygenProtocol = Protocol<KeygenOutput, KeygenPartyIndex>;
+pub type KeygenProtocolBuilder = ProtocolBuilder<KeygenOutput, KeygenPartyIndex>;
 pub type KeygenOutput = Result<SecretKeyShare, Vec<Vec<Crime>>>;
 pub type SecretRecoveryKey = [u8; 64];
 
@@ -33,6 +35,7 @@ pub trait KeygenRoundExecuterTyped: Send + Sync {
 }
 impl<T: KeygenRoundExecuterTyped> RoundExecuterTyped for T {
     type FinalOutputTyped = KeygenOutput;
+    type Index = KeygenPartyIndex;
     type Bcast = T::Bcast;
     type P2p = T::P2p;
 
@@ -40,7 +43,7 @@ impl<T: KeygenRoundExecuterTyped> RoundExecuterTyped for T {
     fn execute_typed(
         self: Box<Self>,
         data: RoundData<Self::Bcast, Self::P2p>,
-    ) -> ProtocolBuilder<Self::FinalOutputTyped> {
+    ) -> ProtocolBuilder<Self::FinalOutputTyped, Self::Index> {
         self.execute_typed(data)
     }
 

@@ -8,7 +8,7 @@ use crate::{
     zkp::schnorr_k256,
 };
 
-use super::{r1, r3, Crime, KeygenOutput};
+use super::{r1, r3, Crime, KeygenOutput, KeygenPartyIndex};
 
 #[allow(non_snake_case)]
 pub(super) struct R4 {
@@ -22,6 +22,7 @@ pub(super) struct R4 {
 
 impl RoundExecuter for R4 {
     type FinalOutput = KeygenOutput;
+    type Index = KeygenPartyIndex;
 
     fn execute(
         self: Box<Self>,
@@ -29,7 +30,7 @@ impl RoundExecuter for R4 {
         index: usize,
         bcasts_in: FillVec<Vec<u8>>,
         _p2ps_in: Vec<FillVec<Vec<u8>>>,
-    ) -> Protocol<Self::FinalOutput> {
+    ) -> Protocol<Self::FinalOutput, Self::Index> {
         // deserialize incoming messages
         let r3bcasts: Vec<r3::Bcast> = bcasts_in
             .vec_ref()

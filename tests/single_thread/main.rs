@@ -3,7 +3,7 @@ use tofn::{
     fillvec::FillVec,
     protocol::gg20::SecretKeyShare,
     refactor::{
-        keygen::{new_keygen, KeygenOutput},
+        keygen::{new_keygen, KeygenOutput, KeygenPartyIndex},
         protocol::{Protocol, ProtocolRound},
     },
 };
@@ -17,7 +17,7 @@ fn main() {
     let (share_count, threshold) = (5, 2);
     let session_nonce = b"foobar";
 
-    let mut parties: Vec<Protocol<KeygenOutput>> = (0..share_count)
+    let mut parties: Vec<Protocol<KeygenOutput, KeygenPartyIndex>> = (0..share_count)
         .map(|index| {
             let mut secret_recovery_key = [0; 64];
             rand::thread_rng().fill_bytes(&mut secret_recovery_key);
@@ -52,16 +52,18 @@ fn main() {
 }
 
 // TODO generic over final output F
-fn nobody_done(parties: &[Protocol<KeygenOutput>]) -> bool {
+fn nobody_done(parties: &[Protocol<KeygenOutput, KeygenPartyIndex>]) -> bool {
     parties
         .iter()
         .all(|party| matches!(party, Protocol::NotDone(_)))
 }
 
 // TODO generic over final output F
-fn next_round(parties: Vec<Protocol<KeygenOutput>>) -> Vec<Protocol<KeygenOutput>> {
+fn next_round(
+    parties: Vec<Protocol<KeygenOutput, KeygenPartyIndex>>,
+) -> Vec<Protocol<KeygenOutput, KeygenPartyIndex>> {
     // extract current round from parties
-    let mut rounds: Vec<ProtocolRound<KeygenOutput>> = parties
+    let mut rounds: Vec<ProtocolRound<KeygenOutput, KeygenPartyIndex>> = parties
         .into_iter()
         .enumerate()
         .map(|(i, party)| match party {

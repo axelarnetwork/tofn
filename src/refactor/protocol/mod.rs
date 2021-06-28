@@ -1,11 +1,13 @@
-use crate::fillvec::FillVec;
+use crate::{fillvec::FillVec, vecmap::VecMap};
 use tracing::warn;
 
 use self::executer::RoundExecuter;
 
+use super::Bytes;
+
 // TODO is it really worth the trouble to make this enum generic?
 // Maybe it's best just to duplicate it
-pub type Protocol<F> = GenericProtocol<ProtocolRound<F>, F>;
+pub type Protocol<F, I> = GenericProtocol<ProtocolRound<F, I>, F>;
 
 /// Why trait bound `G: HasTypeParameter<TypeParameter = F>`?
 /// We want to write `G<F>` as in:
@@ -33,12 +35,12 @@ pub trait HasTypeParameter {
     type TypeParameter;
 }
 
-impl<F> HasTypeParameter for ProtocolRound<F> {
+impl<F, I> HasTypeParameter for ProtocolRound<F, I> {
     type TypeParameter = F;
 }
 
-pub struct ProtocolRound<F> {
-    round: Box<dyn RoundExecuter<FinalOutput = F>>,
+pub struct ProtocolRound<F, I> {
+    round: Box<dyn RoundExecuter<FinalOutput = F, Index = I>>,
     party_count: usize,
     index: usize,
     bcast_out: Option<Vec<u8>>,
@@ -47,9 +49,9 @@ pub struct ProtocolRound<F> {
     p2ps_in: Vec<FillVec<Vec<u8>>>, // TODO FillVec with hole?
 }
 
-impl<F> ProtocolRound<F> {
+impl<F, I> ProtocolRound<F, I> {
     pub fn new(
-        round: Box<dyn RoundExecuter<FinalOutput = F>>,
+        round: Box<dyn RoundExecuter<FinalOutput = F, Index = I>>,
         party_count: usize,
         index: usize,
         bcast_out: Option<Vec<u8>>,
@@ -139,7 +141,7 @@ impl<F> ProtocolRound<F> {
             .all(|(i, p)| p.is_full_except(i));
         !bcasts_full && self.expecting_bcasts_in() || !p2ps_full && self.expecting_p2ps_in()
     }
-    pub fn execute_next_round(self) -> Protocol<F> {
+    pub fn execute_next_round(self) -> Protocol<F, I> {
         self.round
             .execute(self.party_count, self.index, self.bcasts_in, self.p2ps_in)
     }
@@ -158,7 +160,7 @@ impl<F> ProtocolRound<F> {
     }
 
     #[cfg(test)]
-    pub fn round(&self) -> &Box<dyn RoundExecuter<FinalOutput = F>> {
+    pub fn round(&self) -> &Box<dyn RoundExecuter<FinalOutput = F, Index = I>> {
         &self.round
     }
 }

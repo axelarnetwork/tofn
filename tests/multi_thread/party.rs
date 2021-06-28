@@ -19,8 +19,8 @@ pub enum Message {
     },
 }
 
-pub fn execute_protocol<F>(
-    mut party: Protocol<F>,
+pub fn execute_protocol<F, I>(
+    mut party: Protocol<F, I>,
     input: Receiver<Message>,
     broadcaster: Broadcaster<Message>,
 ) -> F {

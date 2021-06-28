@@ -4,7 +4,7 @@ use crate::{fillvec::FillVec, refactor::protocol::ProtocolRound};
 
 use super::{GenericProtocol, HasTypeParameter, Protocol};
 
-pub type ProtocolBuilder<F> = GenericProtocol<ProtocolRoundBuilder<F>, F>;
+pub type ProtocolBuilder<F, I> = GenericProtocol<ProtocolRoundBuilder<F, I>, F>;
 
 /// FinalOutput should impl DeTimeout
 /// allow us to create a new FinalOutput that indicates timeout or deserialization error
@@ -21,20 +21,21 @@ pub struct RoundData<B, P> {
     pub p2ps_in: Vec<FillVec<P>>, // TODO use HoleVec instead
 }
 
-pub struct ProtocolRoundBuilder<F> {
-    pub round: Box<dyn RoundExecuter<FinalOutput = F>>,
+pub struct ProtocolRoundBuilder<F, I> {
+    pub round: Box<dyn RoundExecuter<FinalOutput = F, Index = I>>,
     pub bcast_out: Option<Vec<u8>>,
     pub p2ps_out: Option<FillVec<Vec<u8>>>, // TODO FillVec with hole?
 }
 
 pub trait RoundExecuterTyped: Send + Sync {
     type FinalOutputTyped: DeTimeout;
+    type Index;
     type Bcast: DeserializeOwned;
     type P2p: DeserializeOwned;
     fn execute_typed(
         self: Box<Self>,
         data: RoundData<Self::Bcast, Self::P2p>,
-    ) -> ProtocolBuilder<Self::FinalOutputTyped>;
+    ) -> ProtocolBuilder<Self::FinalOutputTyped, Self::Index>;
 
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
@@ -44,13 +45,14 @@ pub trait RoundExecuterTyped: Send + Sync {
 
 pub trait RoundExecuter: Send + Sync {
     type FinalOutput;
+    type Index;
     fn execute(
         self: Box<Self>,
         party_count: usize,
         index: usize,
         bcasts_in: FillVec<Vec<u8>>,
         p2ps_in: Vec<FillVec<Vec<u8>>>,
-    ) -> Protocol<Self::FinalOutput>;
+    ) -> Protocol<Self::FinalOutput, Self::Index>;
 
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
@@ -60,6 +62,7 @@ pub trait RoundExecuter: Send + Sync {
 
 impl<T: RoundExecuterTyped> RoundExecuter for T {
     type FinalOutput = T::FinalOutputTyped;
+    type Index = T::Index;
 
     fn execute(
         self: Box<Self>,
@@ -67,7 +70,7 @@ impl<T: RoundExecuterTyped> RoundExecuter for T {
         index: usize,
         bcasts_in: FillVec<Vec<u8>>,
         p2ps_in: Vec<FillVec<Vec<u8>>>,
-    ) -> Protocol<Self::FinalOutput> {
+    ) -> Protocol<Self::FinalOutput, Self::Index> {
         // TODO this is only a PoC for timeout, deserialization errors
         // DeTimeout needs a fuller API to return detailed fault info
 
@@ -147,7 +150,7 @@ impl<T: RoundExecuterTyped> RoundExecuter for T {
     }
 }
 
-impl<F> HasTypeParameter for ProtocolRoundBuilder<F> {
+impl<F, I> HasTypeParameter for ProtocolRoundBuilder<F, I> {
     type TypeParameter = F;
 }
 impl<T: RoundExecuter> HasTypeParameter for T {
