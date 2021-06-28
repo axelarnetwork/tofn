@@ -469,9 +469,6 @@ impl Sign {
             }
         }
         self.out_r1p2ps = Some(out_r1p2ps);
-
-        self.in_all_r1p2ps[self.my_participant_index] = p2ps;
-
         self.r1state = Some(state);
         self.status = R1;
         Ok(())
@@ -582,9 +579,6 @@ impl Sign {
             }
         }
         self.out_r5p2ps = Some(out_r5p2ps);
-
-        self.in_all_r5p2ps[self.my_participant_index] = p2ps;
-
         self.r5state = Some(state);
         self.status = R5;
         Ok(())

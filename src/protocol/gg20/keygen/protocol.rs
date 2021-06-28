@@ -89,7 +89,6 @@ impl Protocol for Keygen {
                         }
                     }
                     self.out_r2p2ps = Some(out_r2p2ps);
-                    self.in_all_r2p2ps[self.my_index] = out_p2ps;
                     self.r2state = Some(state);
                     self.status = R2;
                 }
