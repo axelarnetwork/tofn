@@ -8,7 +8,8 @@ use crate::{
     refactor::{
         keygen::{r3, Crime},
         protocol::executer::{
-            serialize_as_option, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuterTyped,
+            serialize, serialize_as_option, ProtocolBuilder, ProtocolRoundBuilder,
+            RoundExecuterTyped,
         },
     },
     vecmap::{Index, VecMap},
@@ -134,11 +135,10 @@ impl RoundExecuterTyped for R2 {
                 .collect(),
         ));
 
-        let bcast_out = Bcast {
+        let bcast_out = Some(serialize(&Bcast {
             y_i_reveal: self.y_i_reveal.clone(),
             u_i_share_commits: self.u_i_vss.commit(),
-        };
-        let bcast_out_bytes = serialize_as_option(&bcast_out);
+        }));
 
         ProtocolBuilder::NotDone(ProtocolRoundBuilder {
             round: Box::new(r3::R3 {
@@ -147,7 +147,7 @@ impl RoundExecuterTyped for R2 {
                 u_i_my_share: u_i_shares[index].clone(),
                 r1bcasts: bcasts_in.into_iter().map(|(_, x)| x).collect(), // TODO r1bcasts should be a VecMap
             }),
-            bcast_out: bcast_out_bytes,
+            bcast_out,
             p2ps_out: p2ps_out_bytes,
         })
     }

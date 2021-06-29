@@ -4,7 +4,7 @@ use crate::{
     protocol::gg20::vss_k256,
     refactor::{
         protocol::executer::{
-            serialize_as_option,
+            serialize,
             ProtocolBuilder::{self, *},
             ProtocolRoundBuilder, RoundExecuter,
         },
@@ -74,14 +74,13 @@ impl RoundExecuter for R1 {
         // } else {
         //     zkp_proof
         // };
-        let bcast_out = Bcast {
+        let bcast_out = Some(serialize(&Bcast {
             y_i_commit,
             ek,
             ek_proof,
             zkp,
             zkp_proof,
-        };
-        let bcast_out_bytes = serialize_as_option(&bcast_out);
+        }));
 
         NotDone(ProtocolRoundBuilder {
             round: Box::new(r2::R2 {
@@ -90,7 +89,7 @@ impl RoundExecuter for R1 {
                 u_i_vss,
                 y_i_reveal,
             }),
-            bcast_out: bcast_out_bytes,
+            bcast_out,
             p2ps_out: None,
         })
     }

@@ -4,7 +4,7 @@ use crate::{
 };
 use tracing::warn;
 
-use self::executer::RoundExecuter;
+use self::executer::{ProtocolBuilder, RoundExecuter};
 
 use super::BytesVec;
 
@@ -17,7 +17,7 @@ pub struct ProtocolRound<F, K> {
     round: Box<dyn RoundExecuter<FinalOutput = F, Index = K>>,
     party_count: usize,
     index: usize,
-    bcast_out: Option<Vec<u8>>,
+    bcast_out: Option<BytesVec>,
     p2ps_out: Option<FillVec<Vec<u8>>>, // TODO FillVec with hole?
     bcasts_in: Option<FillVecMap<K, BytesVec>>,
     p2ps_in: Option<Vec<FillVec<Vec<u8>>>>, // TODO FillVec with hole?
@@ -28,7 +28,7 @@ impl<F, K> ProtocolRound<F, K> {
         round: Box<dyn RoundExecuter<FinalOutput = F, Index = K>>,
         party_count: usize,
         index: usize,
-        bcast_out: Option<Vec<u8>>,
+        bcast_out: Option<BytesVec>,
         p2ps_out: Option<FillVec<Vec<u8>>>,
     ) -> Self {
         // validate args
@@ -44,6 +44,7 @@ impl<F, K> ProtocolRound<F, K> {
         let p2ps_in = p2ps_out
             .as_ref()
             .map(|_| vec![FillVec::with_len(party_count); party_count]);
+
         Self {
             round,
             party_count,
@@ -91,21 +92,27 @@ impl<F, K> ProtocolRound<F, K> {
         expecting_more_p2ps
     }
     pub fn execute_next_round(self) -> Protocol<F, K> {
-        use executer::ProtocolBuilder::*;
         match self.round.execute(
             self.party_count,
             self.index,
             self.bcasts_in.unwrap_or_else(|| FillVecMap::with_size(0)),
             self.p2ps_in.unwrap_or_else(|| Vec::new()),
         ) {
-            NotDone(builder) => Protocol::NotDone(ProtocolRound::new(
-                builder.round,
-                self.party_count,
-                self.index,
-                builder.bcast_out,
-                builder.p2ps_out,
-            )),
-            Done(output) => Protocol::Done(output),
+            ProtocolBuilder::NotDone(builder) => {
+                let bcast_out = if let Some(Ok(bytes)) = builder.bcast_out {
+                    Some(bytes)
+                } else {
+                    None
+                };
+                Protocol::NotDone(ProtocolRound::new(
+                    builder.round,
+                    self.party_count,
+                    self.index,
+                    bcast_out,
+                    builder.p2ps_out,
+                ))
+            }
+            ProtocolBuilder::Done(output) => Protocol::Done(output),
         }
     }
     pub fn party_count(&self) -> usize {

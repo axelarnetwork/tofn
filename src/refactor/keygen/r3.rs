@@ -10,7 +10,7 @@ use crate::{
     refactor::{
         keygen::r4,
         protocol::executer::{
-            serialize_as_option, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuterTyped,
+            serialize, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuterTyped,
         },
     },
     vecmap::VecMap,
@@ -196,7 +196,7 @@ impl RoundExecuterTyped for R3 {
                 x_i,
                 all_X_i,
             }),
-            bcast_out: serialize_as_option(&Bcast { x_i_proof }),
+            bcast_out: Some(serialize(&Bcast { x_i_proof })),
             p2ps_out: None,
         })
     }

@@ -2,7 +2,7 @@ use serde::de::DeserializeOwned;
 
 use crate::{
     fillvec::FillVec,
-    refactor::BytesVec,
+    refactor::{BytesVec, TofnResult},
     vecmap::{fillvecmap::FillVecMap, VecMap},
 };
 
@@ -20,7 +20,7 @@ pub trait DeTimeout {
 
 pub struct ProtocolRoundBuilder<F, K> {
     pub round: Box<dyn RoundExecuter<FinalOutput = F, Index = K>>,
-    pub bcast_out: Option<Vec<u8>>,
+    pub bcast_out: Option<TofnResult<BytesVec>>,
     pub p2ps_out: Option<FillVec<Vec<u8>>>, // TODO FillVec with hole?
 }
 
@@ -146,4 +146,15 @@ where
         error!("serialization failure");
     }
     bytes
+}
+
+pub(crate) fn serialize<T: ?Sized>(value: &T) -> TofnResult<BytesVec>
+where
+    T: serde::Serialize,
+{
+    let result = bincode::serialize(value).map_err(|err| err.to_string());
+    if let Err(ref err_msg) = result {
+        error!("serialization failure: {}", err_msg);
+    }
+    result
 }
