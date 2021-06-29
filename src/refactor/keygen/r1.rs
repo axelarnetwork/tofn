@@ -10,7 +10,7 @@ use crate::{
         },
         BytesVec,
     },
-    vecmap::fillvecmap::FillVecMap,
+    vecmap::FillVecMap,
 };
 use serde::{Deserialize, Serialize};
 

@@ -14,7 +14,7 @@ pub struct FillVecMap<K, V> {
 impl<K, V> FillVecMap<K, V> {
     pub fn with_size(len: usize) -> Self {
         Self {
-            vec: VecMap::from_vec(new_vec_none(len)),
+            vec: (0..len).map(|_| None).collect(),
             some_count: 0,
         }
     }

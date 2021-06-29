@@ -37,16 +37,16 @@ where
     }
 }
 
+#[cfg(test)]
 mod tests {
+    use crate::vecmap::vecmap::VecMap;
 
-    #[allow(dead_code)] // ignore erronous warning
     struct TestIndex;
 
     #[test]
     #[should_panic]
     fn override_enumerate() {
-        let _ = super::super::VecMap::<TestIndex, _>::from_vec(vec![1, 2, 3, 4])
-            .into_iter()
-            .enumerate();
+        let vecmap: VecMap<TestIndex, _> = (0..4).collect();
+        let _ = vecmap.into_iter().enumerate();
     }
 }

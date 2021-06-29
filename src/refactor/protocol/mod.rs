@@ -1,6 +1,6 @@
 use crate::{
     fillvec::FillVec,
-    vecmap::{fillvecmap::FillVecMap, Index},
+    vecmap::{FillVecMap, Index},
 };
 use tracing::warn;
 
@@ -38,6 +38,7 @@ impl<F, K> ProtocolRound<F, K> {
             assert_eq!(p2ps.len(), party_count);
         }
 
+        // we expect to receive (bcast,p2p) messages if and only if (bcasts_in,p2ps_in) is Some
         let bcasts_in = bcast_out
             .as_ref()
             .map(|_| FillVecMap::with_size(party_count));

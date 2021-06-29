@@ -3,7 +3,7 @@ use serde::de::DeserializeOwned;
 use crate::{
     fillvec::FillVec,
     refactor::{BytesVec, TofnResult},
-    vecmap::{fillvecmap::FillVecMap, VecMap},
+    vecmap::{FillVecMap, VecMap},
 };
 
 pub enum ProtocolBuilder<F, K> {
