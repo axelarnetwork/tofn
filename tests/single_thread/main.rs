@@ -88,19 +88,21 @@ fn next_round(
     }
 
     // deliver p2ps
-    let all_p2ps: Vec<FillVec<Vec<u8>>> = rounds
+    let all_p2ps: Vec<Option<FillVec<Vec<u8>>>> = rounds
         .iter()
         .map(|round| round.p2ps_out().clone())
         .collect();
     for (from, p2ps) in all_p2ps.into_iter().enumerate() {
-        for (to, p2p) in p2ps
-            .into_vec()
-            .into_iter()
-            .enumerate()
-            .filter_map(|(i, p2p)| p2p.map(|p| (i, p)))
-        {
-            for round in rounds.iter_mut() {
-                round.p2p_in(from, to, &p2p);
+        if let Some(p2ps) = p2ps {
+            for (to, p2p) in p2ps
+                .into_vec()
+                .into_iter()
+                .enumerate()
+                .filter_map(|(i, p2p)| p2p.map(|p| (i, p)))
+            {
+                for round in rounds.iter_mut() {
+                    round.p2p_in(from, to, &p2p);
+                }
             }
         }
     }

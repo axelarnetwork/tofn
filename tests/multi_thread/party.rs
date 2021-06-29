@@ -53,13 +53,15 @@ pub fn execute_protocol<F, I>(
                 bytes: bytes.clone(),
             });
         }
-        for (to, p2p) in round.p2ps_out().vec_ref().iter().enumerate() {
-            if let Some(bytes) = p2p {
-                broadcaster.send(Message::P2p {
-                    from: round.index(),
-                    to,
-                    bytes: bytes.clone(),
-                });
+        if let Some(p2ps_out) = round.p2ps_out() {
+            for (to, p2p) in p2ps_out.vec_ref().iter().enumerate() {
+                if let Some(bytes) = p2p {
+                    broadcaster.send(Message::P2p {
+                        from: round.index(),
+                        to,
+                        bytes: bytes.clone(),
+                    });
+                }
             }
         }
         // collect incoming messages

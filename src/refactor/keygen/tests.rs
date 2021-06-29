@@ -84,7 +84,7 @@ pub(crate) fn execute_keygen_from_recovery(
         .enumerate()
         .map(|(i, party)| {
             assert!(party.bcast_out().is_none());
-            assert!(party.p2ps_out().len() == 0);
+            assert!(party.p2ps_out().is_none());
             assert!(!party.expecting_more_msgs_this_round());
             match party.execute_next_round() {
                 Protocol::NotDone(next_round) => next_round,
@@ -125,7 +125,7 @@ pub(crate) fn execute_keygen_from_recovery(
         .enumerate()
         .map(|(i, party)| {
             assert!(party.bcast_out().is_some());
-            assert!(party.p2ps_out().len() == 0);
+            assert!(party.p2ps_out().is_none());
             assert!(!party.expecting_more_msgs_this_round());
             match party.execute_next_round() {
                 Protocol::NotDone(next_round) => next_round,
@@ -146,7 +146,7 @@ pub(crate) fn execute_keygen_from_recovery(
     }
     let r2_p2ps: Vec<FillVec<Vec<u8>>> = r2_parties
         .iter()
-        .map(|party| party.p2ps_out().clone())
+        .map(|party| party.p2ps_out().as_ref().unwrap().clone())
         .collect();
     for party in r2_parties.iter_mut() {
         for (from, p2ps) in r2_p2ps.iter().enumerate() {
@@ -164,7 +164,7 @@ pub(crate) fn execute_keygen_from_recovery(
         .enumerate()
         .map(|(i, party)| {
             assert!(party.bcast_out().is_some());
-            assert!(party.p2ps_out().len() == share_count);
+            assert!(party.p2ps_out().as_ref().unwrap().len() == share_count);
             assert!(!party.expecting_more_msgs_this_round());
             match party.execute_next_round() {
                 Protocol::NotDone(next_round) => next_round,
@@ -190,7 +190,7 @@ pub(crate) fn execute_keygen_from_recovery(
         .enumerate()
         .map(|(i, party)| {
             assert!(party.bcast_out().is_some());
-            assert!(party.p2ps_out().len() == 0);
+            assert!(party.p2ps_out().is_none());
             assert!(!party.expecting_more_msgs_this_round());
             match party.execute_next_round() {
                 Protocol::NotDone(_) => panic!("party {} not done, expect done", i),
