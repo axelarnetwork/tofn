@@ -37,7 +37,7 @@ impl RoundExecuter for R1 {
         self: Box<Self>,
         party_count: usize,
         index: usize,
-        _bcasts_in: FillVecMap<Bytes, Self::Index>,
+        _bcasts_in: FillVecMap<Self::Index, Bytes>,
         _p2ps_in: Vec<FillVec<Vec<u8>>>,
     ) -> Protocol<Self::FinalOutput, Self::Index> {
         let u_i_vss = vss_k256::Vss::new(self.threshold);

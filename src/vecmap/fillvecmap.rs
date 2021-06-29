@@ -6,25 +6,25 @@ use super::{vecmap_iter::VecMapIter, Index, VecMap};
 
 // #[derive(Debug, Clone, Serialize, Deserialize)]
 #[derive(Debug, Clone)]
-pub struct FillVecMap<T, I> {
-    vec: VecMap<Option<T>, I>,
+pub struct FillVecMap<K, V> {
+    vec: VecMap<K, Option<V>>,
     some_count: usize,
 }
 
-impl<T, I> FillVecMap<T, I> {
+impl<K, V> FillVecMap<K, V> {
     pub fn with_size(len: usize) -> Self {
         Self {
             vec: VecMap::from_vec(new_vec_none(len)),
             some_count: 0,
         }
     }
-    pub fn set(&mut self, index: Index<I>, value: T) {
+    pub fn set(&mut self, index: Index<K>, value: V) {
         self.set_impl(index, value, false)
     }
-    pub fn set_warn(&mut self, index: Index<I>, value: T) {
+    pub fn set_warn(&mut self, index: Index<K>, value: V) {
         self.set_impl(index, value, true)
     }
-    fn set_impl(&mut self, index: Index<I>, value: T, warn: bool) {
+    fn set_impl(&mut self, index: Index<K>, value: V, warn: bool) {
         let stored = self.vec.get_mut(index);
         if stored.is_none() {
             self.some_count += 1;
@@ -66,9 +66,9 @@ impl<T, I> FillVecMap<T, I> {
     // }
 }
 
-impl<T, I> IntoIterator for FillVecMap<T, I> {
-    type Item = <VecMapIter<I, std::vec::IntoIter<Option<T>>> as Iterator>::Item;
-    type IntoIter = VecMapIter<I, std::vec::IntoIter<Option<T>>>;
+impl<K, V> IntoIterator for FillVecMap<K, V> {
+    type Item = <VecMapIter<K, std::vec::IntoIter<Option<V>>> as Iterator>::Item;
+    type IntoIter = VecMapIter<K, std::vec::IntoIter<Option<V>>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.vec.into_iter()

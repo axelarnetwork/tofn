@@ -48,7 +48,7 @@ pub struct ProtocolRound<F, I> {
     index: usize,
     bcast_out: Option<Vec<u8>>,
     p2ps_out: FillVec<Vec<u8>>, // TODO FillVec with hole?
-    bcasts_in: FillVecMap<Bytes, I>,
+    bcasts_in: FillVecMap<I, Bytes>,
     p2ps_in: Vec<FillVec<Vec<u8>>>, // TODO FillVec with hole?
 }
 

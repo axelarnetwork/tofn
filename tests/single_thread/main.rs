@@ -75,7 +75,7 @@ fn next_round(
         .collect();
 
     // deliver bcasts
-    let bcasts: VecMap<Option<Bytes>, KeygenPartyIndex> = rounds
+    let bcasts: VecMap<KeygenPartyIndex, Option<Bytes>> = rounds
         .iter()
         .map(|round| round.bcast_out().clone())
         .collect();

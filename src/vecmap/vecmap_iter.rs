@@ -44,7 +44,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn override_enumerate() {
-        let _ = super::super::VecMap::<_, TestIndex>::from_vec(vec![1, 2, 3, 4])
+        let _ = super::super::VecMap::<TestIndex, _>::from_vec(vec![1, 2, 3, 4])
             .into_iter()
             .enumerate();
     }

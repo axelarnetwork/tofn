@@ -54,7 +54,7 @@ pub trait RoundExecuter: Send + Sync {
         self: Box<Self>,
         party_count: usize,
         index: usize,
-        bcasts_in: FillVecMap<Bytes, Self::Index>,
+        bcasts_in: FillVecMap<Self::Index, Bytes>,
         p2ps_in: Vec<FillVec<Vec<u8>>>,
     ) -> Protocol<Self::FinalOutput, Self::Index>;
 
@@ -72,7 +72,7 @@ impl<T: RoundExecuterTyped> RoundExecuter for T {
         self: Box<Self>,
         party_count: usize,
         index: usize,
-        bcasts_in: FillVecMap<Bytes, Self::Index>,
+        bcasts_in: FillVecMap<Self::Index, Bytes>,
         p2ps_in: Vec<FillVec<Vec<u8>>>,
     ) -> Protocol<Self::FinalOutput, Self::Index> {
         // TODO this is only a PoC for timeout, deserialization errors

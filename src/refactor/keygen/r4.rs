@@ -32,7 +32,7 @@ impl RoundExecuter for R4 {
         self: Box<Self>,
         _party_count: usize,
         index: usize,
-        bcasts_in: FillVecMap<Bytes, Self::Index>,
+        bcasts_in: FillVecMap<Self::Index, Bytes>,
         _p2ps_in: Vec<FillVec<Vec<u8>>>,
     ) -> Protocol<Self::FinalOutput, Self::Index> {
         // deserialize incoming messages
