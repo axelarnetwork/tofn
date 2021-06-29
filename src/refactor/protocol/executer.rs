@@ -3,7 +3,7 @@ use serde::de::DeserializeOwned;
 use crate::{
     fillvec::FillVec,
     refactor::{protocol::ProtocolRound, BytesVec},
-    vecmap::fillvecmap::FillVecMap,
+    vecmap::{fillvecmap::FillVecMap, VecMap},
 };
 
 use super::Protocol;
@@ -20,14 +20,6 @@ pub trait DeTimeout {
     fn new_deserialization_failure() -> Self;
 }
 
-// TODO is RoundData worth the trouble?
-pub struct RoundData<B, P> {
-    pub party_count: usize,
-    pub index: usize,
-    pub bcasts_in: Vec<B>,
-    pub p2ps_in: Vec<FillVec<P>>, // TODO use HoleVec instead
-}
-
 pub struct ProtocolRoundBuilder<F, K> {
     pub round: Box<dyn RoundExecuter<FinalOutput = F, Index = K>>,
     pub bcast_out: Option<Vec<u8>>,
@@ -41,7 +33,10 @@ pub trait RoundExecuterTyped: Send + Sync {
     type P2p: DeserializeOwned;
     fn execute_typed(
         self: Box<Self>,
-        data: RoundData<Self::Bcast, Self::P2p>,
+        party_count: usize,
+        index: usize,
+        bcasts_in: VecMap<Self::Index, Self::Bcast>,
+        p2ps_in: Vec<FillVec<Self::P2p>>,
     ) -> ProtocolBuilder<Self::FinalOutputTyped, Self::Index>;
 
     #[cfg(test)]
@@ -95,7 +90,7 @@ impl<T: RoundExecuterTyped> RoundExecuter for T {
         }
 
         // attempt to deserialize bcasts
-        let bcasts_deserialize: Result<Vec<_>, _> = bcasts_in
+        let bcasts_deserialize: Result<VecMap<_, _>, _> = bcasts_in
             .into_iter()
             .map(|(_, bytes)| bincode::deserialize(&bytes.as_ref().unwrap()))
             .collect();
@@ -130,13 +125,7 @@ impl<T: RoundExecuterTyped> RoundExecuter for T {
 
         // TODO temporary
         // self.execute_typed(party_count, index, bcasts_in, p2ps_in_deserialized)
-        let data = RoundData {
-            party_count,
-            index,
-            bcasts_in,
-            p2ps_in: p2ps_in_deserialized,
-        };
-        let p = self.execute_typed(data);
+        let p = self.execute_typed(party_count, index, bcasts_in, p2ps_in_deserialized);
         match p {
             ProtocolBuilder::NotDone(q) => Protocol::NotDone(ProtocolRound::new(
                 q.round,

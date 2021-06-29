@@ -8,10 +8,10 @@ use crate::{
     refactor::{
         keygen::{r3, Crime},
         protocol::executer::{
-            serialize_as_option, ProtocolBuilder, ProtocolRoundBuilder, RoundData,
-            RoundExecuterTyped,
+            serialize_as_option, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuterTyped,
         },
     },
+    vecmap::{Index, VecMap},
 };
 
 use super::{r1, KeygenOutput, KeygenPartyIndex, KeygenProtocolBuilder};
@@ -48,27 +48,31 @@ impl RoundExecuterTyped for R2 {
 
     fn execute_typed(
         self: Box<Self>,
-        data: RoundData<Self::Bcast, Self::P2p>,
+        party_count: usize,
+        index: usize,
+        bcasts_in: VecMap<Self::Index, Self::Bcast>,
+        p2ps_in: Vec<FillVec<Self::P2p>>,
     ) -> KeygenProtocolBuilder {
         // check Paillier proofs
-        let mut criminals = vec![Vec::new(); data.party_count];
-        for (i, r1bcast) in data.bcasts_in.iter().enumerate() {
+        // TODO `criminals` should have its own struct, something like VecMap<Vec<Crime>>
+        let mut criminals = vec![Vec::new(); party_count];
+        for (i, r1bcast) in bcasts_in.iter() {
             if !r1bcast.ek.verify(&r1bcast.ek_proof) {
                 let crime = Crime::R2BadEncryptionKeyProof;
-                warn!("party {} detect {:?} by {}", data.index, crime, i);
-                criminals[i].push(crime);
+                warn!("party {} detect {:?} by {}", index, crime, i);
+                criminals[i.as_usize()].push(crime);
             }
             if !r1bcast.zkp.verify(&r1bcast.zkp_proof) {
                 let crime = Crime::R2BadZkSetupProof;
-                warn!("party {} detect {:?} by {}", data.index, crime, i);
-                criminals[i].push(crime);
+                warn!("party {} detect {:?} by {}", index, crime, i);
+                criminals[i.as_usize()].push(crime);
             }
         }
         if !criminals.iter().all(Vec::is_empty) {
             return ProtocolBuilder::Done(Err(criminals));
         }
 
-        let u_i_shares = self.u_i_vss.shares(data.party_count);
+        let u_i_shares = self.u_i_vss.shares(party_count);
 
         // #[cfg(feature = "malicious")]
         // let my_u_i_shares_k256 = if let Behaviour::R2BadShare { victim } = self.behaviour {
@@ -100,12 +104,14 @@ impl RoundExecuterTyped for R2 {
                 .iter()
                 .enumerate()
                 .map(|(i, u_i_share)| {
-                    if i == data.index {
+                    if i == index {
                         None
                     } else {
                         // encrypt the share for party i
-                        let (u_i_share_ciphertext, _) =
-                            data.bcasts_in[i].ek.encrypt(&u_i_share.get_scalar().into());
+                        let (u_i_share_ciphertext, _) = bcasts_in
+                            .get(Index::from_usize(i))
+                            .ek
+                            .encrypt(&u_i_share.get_scalar().into());
 
                         // #[cfg(feature = "malicious")]
                         // let u_i_share_ciphertext_k256 = match self.behaviour {
@@ -138,8 +144,8 @@ impl RoundExecuterTyped for R2 {
             round: Box::new(r3::R3 {
                 threshold: self.threshold,
                 dk: self.dk,
-                u_i_my_share: u_i_shares[data.index].clone(),
-                r1bcasts: data.bcasts_in,
+                u_i_my_share: u_i_shares[index].clone(),
+                r1bcasts: bcasts_in.into_iter().map(|(_, x)| x).collect(), // TODO r1bcasts should be a VecMap
             }),
             bcast_out: bcast_out_bytes,
             p2ps_out: p2ps_out_bytes,

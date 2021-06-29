@@ -40,9 +40,12 @@ impl<K, V> FromIterator<V> for VecMap<K, V> {
 pub struct Index<K>(usize, std::marker::PhantomData<K>);
 
 impl<K> Index<K> {
-    // TODO remove `pub`
+    // TODO do not expose from_usize, as_usize
     pub fn from_usize(index: usize) -> Self {
         Index(index, std::marker::PhantomData)
+    }
+    pub fn as_usize(&self) -> usize {
+        self.0
     }
 }
 

@@ -10,10 +10,10 @@ use crate::{
     refactor::{
         keygen::r4,
         protocol::executer::{
-            serialize_as_option, ProtocolBuilder, ProtocolRoundBuilder, RoundData,
-            RoundExecuterTyped,
+            serialize_as_option, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuterTyped,
         },
     },
+    vecmap::VecMap,
     zkp::schnorr_k256,
 };
 
@@ -52,20 +52,21 @@ impl RoundExecuterTyped for R3 {
     #[allow(non_snake_case)]
     fn execute_typed(
         self: Box<Self>,
-        data: RoundData<Self::Bcast, Self::P2p>,
+        party_count: usize,
+        index: usize,
+        bcasts_in: VecMap<Self::Index, Self::Bcast>,
+        p2ps_in: Vec<FillVec<Self::P2p>>,
     ) -> ProtocolBuilder<Self::FinalOutputTyped, Self::Index> {
         // check y_i commits
-        let criminals: Vec<Vec<Crime>> = data
-            .bcasts_in
+        let criminals: Vec<Vec<Crime>> = bcasts_in
             .iter()
-            .enumerate() // TODO unnecessary with Vec<everything>
             .map(|(i, r2bcast)| {
-                let r1bcast = &self.r1bcasts[i];
+                let r1bcast = &self.r1bcasts[i.as_usize()];
                 let y_i = r2bcast.u_i_share_commits.secret_commit();
                 let y_i_commit = hash::commit_with_randomness(to_bytes(y_i), &r2bcast.y_i_reveal);
                 if y_i_commit != r1bcast.y_i_commit {
                     let crime = Crime::R3BadReveal;
-                    warn!("party {} detect {:?} by {}", data.index, crime, i);
+                    warn!("party {} detect {:?} by {}", index, crime, i);
                     vec![crime]
                 } else {
                     vec![]
@@ -80,18 +81,16 @@ impl RoundExecuterTyped for R3 {
         // TODO share_infos iterates only over _other_ parties
         // ie. iterate over p2p msgs from others to me
         let share_infos: FillVec<(vss_k256::Share, paillier_k256::Randomness)> = FillVec::from_vec(
-            data.p2ps_in
+            p2ps_in
                 .iter()
                 .map(|r2_p2ps| {
                     // return None if my_p2p is None
-                    r2_p2ps.vec_ref()[data.index].as_ref().map(|my_p2p| {
+                    r2_p2ps.vec_ref()[index].as_ref().map(|my_p2p| {
                         let (u_i_share_plaintext, u_i_share_randomness) = self
                             .dk
                             .decrypt_with_randomness(&my_p2p.u_i_share_ciphertext);
-                        let u_i_share = vss_k256::Share::from_scalar(
-                            u_i_share_plaintext.to_scalar(),
-                            data.index,
-                        );
+                        let u_i_share =
+                            vss_k256::Share::from_scalar(u_i_share_plaintext.to_scalar(), index);
                         (u_i_share, u_i_share_randomness)
                     })
                 })
@@ -105,19 +104,18 @@ impl RoundExecuterTyped for R3 {
         let vss_failures: Vec<VssComplaint> = share_infos
             .vec_ref()
             .iter()
-            .zip(data.bcasts_in.iter())
-            .enumerate()
-            .filter_map(|(from, (share_info, r2bcast))| {
+            .zip(bcasts_in.iter())
+            .filter_map(|(share_info, (from, r2bcast))| {
                 if let Some((u_i_share, u_i_share_randomness)) = share_info {
                     if !r2bcast.u_i_share_commits.validate_share(&u_i_share) {
                         warn!(
                             "party {} accuse {} of {:?}",
-                            data.index,
+                            index,
                             from,
-                            Crime::R4FailBadVss { victim: data.index },
+                            Crime::R4FailBadVss { victim: index },
                         );
                         Some(VssComplaint {
-                            criminal_index: from,
+                            criminal_index: from.as_usize(),
                             share: u_i_share.clone(),
                             share_randomness: u_i_share_randomness.clone(),
                         })
@@ -164,19 +162,18 @@ impl RoundExecuterTyped for R3 {
             .fold(*self.u_i_my_share.get_scalar(), |acc, x| acc + x);
 
         // compute y
-        let y = data
-            .bcasts_in
+        let y = bcasts_in
             .iter()
-            .fold(k256::ProjectivePoint::identity(), |acc, r2bcast| {
+            .fold(k256::ProjectivePoint::identity(), |acc, (_, r2bcast)| {
                 acc + r2bcast.u_i_share_commits.secret_commit()
             });
 
         // compute all_X_i
-        let all_X_i: Vec<k256::ProjectivePoint> = (0..data.party_count)
+        let all_X_i: Vec<k256::ProjectivePoint> = (0..party_count)
             .map(|i| {
-                data.bcasts_in
+                bcasts_in
                     .iter()
-                    .fold(k256::ProjectivePoint::identity(), |acc, x| {
+                    .fold(k256::ProjectivePoint::identity(), |acc, (_, x)| {
                         acc + x.u_i_share_commits.share_commit(i)
                     })
             })
@@ -185,7 +182,7 @@ impl RoundExecuterTyped for R3 {
         let x_i_proof = schnorr_k256::prove(
             &schnorr_k256::Statement {
                 base: &k256::ProjectivePoint::generator(),
-                target: &all_X_i[data.index],
+                target: &all_X_i[index],
             },
             &schnorr_k256::Witness { scalar: &x_i },
         );
