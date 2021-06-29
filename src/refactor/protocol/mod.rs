@@ -8,38 +8,9 @@ use self::executer::RoundExecuter;
 
 use super::BytesVec;
 
-// TODO is it really worth the trouble to make this enum generic?
-// Maybe it's best just to duplicate it
-pub type Protocol<F, I> = GenericProtocol<ProtocolRound<F, I>, F>;
-
-/// Why trait bound `G: HasTypeParameter<TypeParameter = F>`?
-/// We want to write `G<F>` as in:
-/// ```compile_fail
-/// pub enum GenericProtocol<G, F> {
-///     NotDone(G<F>), // ERROR
-///     Done(F),
-/// }
-/// ```
-/// but this is not supported by Rust
-
-pub enum GenericProtocol<G, F>
-where
-    G: HasTypeParameter<TypeParameter = F>,
-{
-    NotDone(G),
+pub enum Protocol<F, I> {
+    NotDone(ProtocolRound<F, I>),
     Done(F),
-}
-
-/// work-around for higher kinded types (HKT):
-/// * https://stackoverflow.com/a/41509242
-/// * https://github.com/rust-lang/rfcs/blob/master/text/1598-generic_associated_types.md
-/// * https://github.com/rust-lang/rust/issues/44265
-pub trait HasTypeParameter {
-    type TypeParameter;
-}
-
-impl<F, I> HasTypeParameter for ProtocolRound<F, I> {
-    type TypeParameter = F;
 }
 
 pub struct ProtocolRound<F, I> {

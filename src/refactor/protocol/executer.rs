@@ -6,9 +6,12 @@ use crate::{
     vecmap::fillvecmap::FillVecMap,
 };
 
-use super::{GenericProtocol, HasTypeParameter, Protocol};
+use super::Protocol;
 
-pub type ProtocolBuilder<F, I> = GenericProtocol<ProtocolRoundBuilder<F, I>, F>;
+pub enum ProtocolBuilder<F, I> {
+    NotDone(ProtocolRoundBuilder<F, I>),
+    Done(F),
+}
 
 /// FinalOutput should impl DeTimeout
 /// allow us to create a new FinalOutput that indicates timeout or deserialization error
@@ -151,13 +154,6 @@ impl<T: RoundExecuterTyped> RoundExecuter for T {
     fn as_any(&self) -> &dyn std::any::Any {
         self.as_any()
     }
-}
-
-impl<F, I> HasTypeParameter for ProtocolRoundBuilder<F, I> {
-    type TypeParameter = F;
-}
-impl<T: RoundExecuter> HasTypeParameter for T {
-    type TypeParameter = T::FinalOutput;
 }
 
 use tracing::error;
