@@ -1,8 +1,6 @@
-use serde::de::DeserializeOwned;
-
 use crate::protocol::gg20::SecretKeyShare;
 use crate::refactor::protocol::{
-    executer::{DeTimeout, ProtocolBuilder, RoundData, RoundExecuterTyped},
+    executer::{DeTimeout, ProtocolBuilder},
     Protocol, ProtocolRound,
 };
 
@@ -15,44 +13,11 @@ pub type KeygenProtocolBuilder = ProtocolBuilder<KeygenOutput, KeygenPartyIndex>
 pub type KeygenOutput = Result<SecretKeyShare, Vec<Vec<Crime>>>;
 pub type SecretRecoveryKey = [u8; 64];
 
+// Can't define a keygen-specific alias for `RoundExecuter` that sets
+// `FinalOutputTyped = KeygenOutput` and `Index = KeygenPartyIndex`
+// because https://github.com/rust-lang/rust/issues/41517
+
 pub const MAX_SHARE_COUNT: usize = 1000;
-
-/// Alias `RoundExecuter` so that every round does not need `type FinalOutputTyped = KeygenOutput;`
-/// TODO Is all this cruft worth it to save one line in each round? Trait aliasing is not supported, even if we switch the associated type `FinalOutput` to a generic type parameter `F`: https://github.com/rust-lang/rust/issues/41517
-pub trait KeygenRoundExecuterTyped: Send + Sync {
-    type Bcast: DeserializeOwned;
-    type P2p: DeserializeOwned;
-
-    fn execute_typed(
-        self: Box<Self>,
-        data: RoundData<Self::Bcast, Self::P2p>,
-    ) -> KeygenProtocolBuilder;
-
-    #[cfg(test)]
-    fn as_any(&self) -> &dyn std::any::Any {
-        unimplemented!("(KeygenRoundExecuterTyped) return `self` to enable runtime reflection: https://bennetthardwick.com/dont-use-boxed-trait-objects-for-struct-internals")
-    }
-}
-impl<T: KeygenRoundExecuterTyped> RoundExecuterTyped for T {
-    type FinalOutputTyped = KeygenOutput;
-    type Index = KeygenPartyIndex;
-    type Bcast = T::Bcast;
-    type P2p = T::P2p;
-
-    #[inline]
-    fn execute_typed(
-        self: Box<Self>,
-        data: RoundData<Self::Bcast, Self::P2p>,
-    ) -> ProtocolBuilder<Self::FinalOutputTyped, Self::Index> {
-        self.execute_typed(data)
-    }
-
-    #[cfg(test)]
-    #[inline]
-    fn as_any(&self) -> &dyn std::any::Any {
-        self.as_any()
-    }
-}
 
 pub fn new_keygen(
     share_count: usize,

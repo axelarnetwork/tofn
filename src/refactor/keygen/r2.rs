@@ -9,11 +9,12 @@ use crate::{
         keygen::{r3, Crime},
         protocol::executer::{
             serialize_as_option, ProtocolBuilder, ProtocolRoundBuilder, RoundData,
+            RoundExecuterTyped,
         },
     },
 };
 
-use super::{r1, KeygenProtocolBuilder, KeygenRoundExecuterTyped};
+use super::{r1, KeygenOutput, KeygenPartyIndex, KeygenProtocolBuilder};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(super) struct OutMsg {
@@ -39,7 +40,9 @@ pub(super) struct R2 {
     pub(super) y_i_reveal: hash::Randomness,
 }
 
-impl KeygenRoundExecuterTyped for R2 {
+impl RoundExecuterTyped for R2 {
+    type FinalOutputTyped = KeygenOutput;
+    type Index = KeygenPartyIndex;
     type Bcast = r1::Bcast;
     type P2p = ();
 
