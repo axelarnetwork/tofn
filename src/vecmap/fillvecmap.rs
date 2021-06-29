@@ -2,7 +2,7 @@
 // use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::{Index, VecMap};
+use super::{vecmap_iter::VecMapIter, Index, VecMap};
 
 // #[derive(Debug, Clone, Serialize, Deserialize)]
 #[derive(Debug, Clone)]
@@ -38,6 +38,9 @@ impl<T, I> FillVecMap<T, I> {
     pub fn some_count(&self) -> usize {
         self.some_count
     }
+    pub fn size(&self) -> usize {
+        self.vec.len()
+    }
     // pub fn is_none(&self, index: usize) -> bool {
     //     matches!(self.vec[index], None)
     // }
@@ -52,16 +55,24 @@ impl<T, I> FillVecMap<T, I> {
     }
 
     // Replicate std::vec interface https://doc.rust-lang.org/src/alloc/vec/mod.rs.html#1800
-    pub fn is_empty(&self) -> bool {
-        self.some_count == 0
-    }
-
+    // pub fn is_empty(&self) -> bool {
+    //     self.some_count == 0
+    // }
     // pub fn from_vec(vec: Vec<Option<T>>) -> Self {
     //     Self {
     //         some_count: vec.iter().filter(|x| x.is_some()).count(),
     //         vec,
     //     }
     // }
+}
+
+impl<T, I> IntoIterator for FillVecMap<T, I> {
+    type Item = <VecMapIter<I, std::vec::IntoIter<Option<T>>> as Iterator>::Item;
+    type IntoIter = VecMapIter<I, std::vec::IntoIter<Option<T>>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.vec.into_iter()
+    }
 }
 
 pub fn new_vec_none<T>(len: usize) -> Vec<Option<T>> {

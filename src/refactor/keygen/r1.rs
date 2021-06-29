@@ -2,10 +2,14 @@ use crate::{
     fillvec::FillVec,
     hash, k256_serde, paillier_k256,
     protocol::gg20::vss_k256,
-    refactor::protocol::{
-        executer::{serialize_as_option, RoundExecuter},
-        Protocol, ProtocolRound,
+    refactor::{
+        protocol::{
+            executer::{serialize_as_option, RoundExecuter},
+            Protocol, ProtocolRound,
+        },
+        Bytes,
     },
+    vecmap::fillvecmap::FillVecMap,
 };
 use serde::{Deserialize, Serialize};
 
@@ -33,7 +37,7 @@ impl RoundExecuter for R1 {
         self: Box<Self>,
         party_count: usize,
         index: usize,
-        _bcasts_in: FillVec<Vec<u8>>,
+        _bcasts_in: FillVecMap<Bytes, Self::Index>,
         _p2ps_in: Vec<FillVec<Vec<u8>>>,
     ) -> Protocol<Self::FinalOutput, Self::Index> {
         let u_i_vss = vss_k256::Vss::new(self.threshold);

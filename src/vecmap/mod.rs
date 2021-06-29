@@ -16,11 +16,14 @@ impl<T, I> VecMap<T, I> {
     pub fn len(&self) -> usize {
         self.0.len()
     }
+    pub fn iter(&self) -> VecMapIter<I, std::slice::Iter<T>> {
+        VecMapIter::new(self.0.iter())
+    }
 }
 
 impl<T, I> IntoIterator for VecMap<T, I> {
     type Item = (Index<I>, <std::vec::IntoIter<T> as Iterator>::Item);
-    type IntoIter = VecMapIter<T, I>;
+    type IntoIter = VecMapIter<I, std::vec::IntoIter<T>>;
 
     fn into_iter(self) -> Self::IntoIter {
         VecMapIter::new(self.0.into_iter())
@@ -37,7 +40,8 @@ impl<T, I> FromIterator<T> for VecMap<T, I> {
 pub struct Index<I>(usize, std::marker::PhantomData<I>);
 
 impl<I> Index<I> {
-    fn from_usize(index: usize) -> Self {
+    // TODO remove `pub`
+    pub fn from_usize(index: usize) -> Self {
         Index(index, std::marker::PhantomData)
     }
 }
@@ -61,4 +65,4 @@ use std::iter::FromIterator;
 
 use vecmap_iter::VecMapIter;
 
-mod fillvecmap;
+pub mod fillvecmap;

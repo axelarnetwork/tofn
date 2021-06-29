@@ -4,7 +4,11 @@ use crate::{
     fillvec::FillVec,
     paillier_k256,
     protocol::gg20::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo},
-    refactor::protocol::{executer::RoundExecuter, Protocol},
+    refactor::{
+        protocol::{executer::RoundExecuter, Protocol},
+        Bytes,
+    },
+    vecmap::fillvecmap::FillVecMap,
     zkp::schnorr_k256,
 };
 
@@ -28,14 +32,13 @@ impl RoundExecuter for R4 {
         self: Box<Self>,
         _party_count: usize,
         index: usize,
-        bcasts_in: FillVec<Vec<u8>>,
+        bcasts_in: FillVecMap<Bytes, Self::Index>,
         _p2ps_in: Vec<FillVec<Vec<u8>>>,
     ) -> Protocol<Self::FinalOutput, Self::Index> {
         // deserialize incoming messages
         let r3bcasts: Vec<r3::Bcast> = bcasts_in
-            .vec_ref()
-            .iter()
-            .map(|bytes| bincode::deserialize(&bytes.as_ref().unwrap()).unwrap())
+            .into_iter()
+            .map(|(_, bytes)| bincode::deserialize(&bytes.as_ref().unwrap()).unwrap())
             .collect();
 
         // verify proofs

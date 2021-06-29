@@ -1,5 +1,10 @@
 use super::*;
-use crate::{fillvec::FillVec, protocol::gg20::vss_k256, refactor::protocol::Protocol};
+use crate::{
+    fillvec::FillVec,
+    protocol::gg20::vss_k256,
+    refactor::{protocol::Protocol, Bytes},
+    vecmap::VecMap,
+};
 use rand::RngCore;
 use tracing_test::traced_test;
 
@@ -89,13 +94,13 @@ pub(crate) fn execute_keygen_from_recovery(
         .collect();
 
     // deliver r1 messages
-    let r1_bcasts: Vec<Vec<u8>> = r1_parties
+    let r1_bcasts: VecMap<Bytes, KeygenPartyIndex> = r1_parties
         .iter()
-        .map(|party| party.bcast_out().unwrap().clone())
+        .map(|party| party.bcast_out().clone().unwrap())
         .collect();
     for party in r1_parties.iter_mut() {
-        for (from, msg) in r1_bcasts.iter().enumerate() {
-            party.bcast_in(from, msg);
+        for (from, bytes) in r1_bcasts.iter() {
+            party.bcast_in(from, bytes);
         }
     }
 
@@ -130,13 +135,13 @@ pub(crate) fn execute_keygen_from_recovery(
         .collect();
 
     // deliver r2 messages
-    let r2_bcasts: Vec<Vec<u8>> = r2_parties
+    let r2_bcasts: VecMap<Bytes, KeygenPartyIndex> = r2_parties
         .iter()
-        .map(|party| party.bcast_out().unwrap().clone())
+        .map(|party| party.bcast_out().clone().unwrap())
         .collect();
     for party in r2_parties.iter_mut() {
-        for (from, msg) in r2_bcasts.iter().enumerate() {
-            party.bcast_in(from, msg);
+        for (from, bytes) in r2_bcasts.iter() {
+            party.bcast_in(from, bytes);
         }
     }
     let r2_p2ps: Vec<FillVec<Vec<u8>>> = r2_parties
@@ -169,13 +174,13 @@ pub(crate) fn execute_keygen_from_recovery(
         .collect();
 
     // deliver r3 messages
-    let r3_bcasts: Vec<Vec<u8>> = r3_parties
+    let r3_bcasts: VecMap<Bytes, KeygenPartyIndex> = r3_parties
         .iter()
-        .map(|party| party.bcast_out().unwrap().clone())
+        .map(|party| party.bcast_out().clone().unwrap())
         .collect();
     for party in r3_parties.iter_mut() {
-        for (from, msg) in r3_bcasts.iter().enumerate() {
-            party.bcast_in(from, msg);
+        for (from, bytes) in r3_bcasts.iter() {
+            party.bcast_in(from, bytes);
         }
     }
 

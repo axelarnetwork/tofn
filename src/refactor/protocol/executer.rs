@@ -1,6 +1,10 @@
 use serde::de::DeserializeOwned;
 
-use crate::{fillvec::FillVec, refactor::protocol::ProtocolRound};
+use crate::{
+    fillvec::FillVec,
+    refactor::{protocol::ProtocolRound, Bytes},
+    vecmap::fillvecmap::FillVecMap,
+};
 
 use super::{GenericProtocol, HasTypeParameter, Protocol};
 
@@ -50,7 +54,7 @@ pub trait RoundExecuter: Send + Sync {
         self: Box<Self>,
         party_count: usize,
         index: usize,
-        bcasts_in: FillVec<Vec<u8>>,
+        bcasts_in: FillVecMap<Bytes, Self::Index>,
         p2ps_in: Vec<FillVec<Vec<u8>>>,
     ) -> Protocol<Self::FinalOutput, Self::Index>;
 
@@ -68,14 +72,14 @@ impl<T: RoundExecuterTyped> RoundExecuter for T {
         self: Box<Self>,
         party_count: usize,
         index: usize,
-        bcasts_in: FillVec<Vec<u8>>,
+        bcasts_in: FillVecMap<Bytes, Self::Index>,
         p2ps_in: Vec<FillVec<Vec<u8>>>,
     ) -> Protocol<Self::FinalOutput, Self::Index> {
         // TODO this is only a PoC for timeout, deserialization errors
         // DeTimeout needs a fuller API to return detailed fault info
 
         // check for timeouts
-        let bcast_timeout = bcasts_in.vec_ref().iter().any(Option::is_none);
+        let bcast_timeout = !bcasts_in.is_full();
         let p2p_timeout = p2ps_in.iter().enumerate().any(|(i, party)| {
             party
                 .vec_ref()
@@ -89,9 +93,8 @@ impl<T: RoundExecuterTyped> RoundExecuter for T {
 
         // attempt to deserialize bcasts
         let bcasts_deserialize: Result<Vec<_>, _> = bcasts_in
-            .into_vec()
             .into_iter()
-            .map(|bytes| bincode::deserialize(&bytes.as_ref().unwrap()))
+            .map(|(_, bytes)| bincode::deserialize(&bytes.as_ref().unwrap()))
             .collect();
         let bcasts_in = match bcasts_deserialize {
             Ok(vec) => vec,

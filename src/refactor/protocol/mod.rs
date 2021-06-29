@@ -1,4 +1,7 @@
-use crate::{fillvec::FillVec, vecmap::VecMap};
+use crate::{
+    fillvec::FillVec,
+    vecmap::{fillvecmap::FillVecMap, Index},
+};
 use tracing::warn;
 
 use self::executer::RoundExecuter;
@@ -45,7 +48,7 @@ pub struct ProtocolRound<F, I> {
     index: usize,
     bcast_out: Option<Vec<u8>>,
     p2ps_out: FillVec<Vec<u8>>, // TODO FillVec with hole?
-    bcasts_in: FillVec<Vec<u8>>,
+    bcasts_in: FillVecMap<Bytes, I>,
     p2ps_in: Vec<FillVec<Vec<u8>>>, // TODO FillVec with hole?
 }
 
@@ -82,31 +85,23 @@ impl<F, I> ProtocolRound<F, I> {
             index,
             bcast_out,
             p2ps_out: p2ps_out_bytes,
-            bcasts_in: FillVec::with_len(bcasts_in_len),
+            bcasts_in: FillVecMap::with_size(bcasts_in_len),
             p2ps_in: vec![FillVec::with_len(p2ps_in_len); p2ps_in_len],
         }
     }
-    pub fn bcast_out(&self) -> Option<&Vec<u8>> {
-        self.bcast_out.as_ref()
+    pub fn bcast_out(&self) -> &Option<Vec<u8>> {
+        &self.bcast_out
     }
     pub fn p2ps_out(&self) -> &FillVec<Vec<u8>> {
         &self.p2ps_out
     }
-    pub fn bcast_in(&mut self, from: usize, bytes: &[u8]) {
+    pub fn bcast_in(&mut self, from: Index<I>, bytes: &[u8]) {
         if !self.expecting_bcasts_in() {
             warn!("`bcast_in` called but no bcasts expected; discarding `bytes`");
             return;
         }
-        // TODO range check should occur at a lower level
-        if from >= self.bcasts_in.len() {
-            warn!(
-                "`from` index {} out of range {}, discarding `msg`",
-                from,
-                self.bcasts_in.len()
-            );
-            return;
-        }
-        self.bcasts_in.overwrite_warn(from, bytes.to_vec());
+        // TODO range check
+        self.bcasts_in.set_warn(from, bytes.to_vec());
     }
     pub fn p2p_in(&mut self, from: usize, to: usize, bytes: &[u8]) {
         if !self.expecting_p2ps_in() {
@@ -153,7 +148,7 @@ impl<F, I> ProtocolRound<F, I> {
     }
 
     fn expecting_bcasts_in(&self) -> bool {
-        self.bcasts_in.len() != 0
+        self.bcasts_in.size() != 0
     }
     fn expecting_p2ps_in(&self) -> bool {
         !self.p2ps_in.len() != 0

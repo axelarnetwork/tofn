@@ -5,7 +5,9 @@ use tofn::{
     refactor::{
         keygen::{new_keygen, KeygenOutput, KeygenPartyIndex},
         protocol::{Protocol, ProtocolRound},
+        Bytes,
     },
+    vecmap::VecMap,
 };
 
 /// TODO rename parent dir to `example`
@@ -73,14 +75,15 @@ fn next_round(
         .collect();
 
     // deliver bcasts
-    let bcasts: Vec<(usize, Vec<u8>)> = rounds
+    let bcasts: VecMap<Option<Bytes>, KeygenPartyIndex> = rounds
         .iter()
-        .enumerate()
-        .filter_map(|(i, round)| round.bcast_out().map(|bcast| (i, bcast.clone())))
+        .map(|round| round.bcast_out().clone())
         .collect();
     for (from, bcast) in bcasts.into_iter() {
-        for round in rounds.iter_mut() {
-            round.bcast_in(from, &bcast);
+        if let Some(bytes) = bcast {
+            for round in rounds.iter_mut() {
+                round.bcast_in(from, &bytes);
+            }
         }
     }
 

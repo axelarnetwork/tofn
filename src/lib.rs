@@ -7,5 +7,5 @@ mod mta;
 pub(crate) mod paillier_k256;
 pub mod protocol;
 pub mod refactor;
-mod vecmap;
+pub mod vecmap;
 mod zkp;

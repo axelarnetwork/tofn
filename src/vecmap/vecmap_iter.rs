@@ -1,13 +1,13 @@
 use super::Index;
 
 /// Follows the implementation of std::iter::Enumerate https://doc.rust-lang.org/std/iter/struct.Enumerate.html
-pub struct VecMapIter<T, I> {
-    iter: std::vec::IntoIter<T>,
-    count: Index<I>,
+pub struct VecMapIter<K, I> {
+    iter: I,
+    count: Index<K>,
 }
 
-impl<T, I> VecMapIter<T, I> {
-    pub fn new(iter: std::vec::IntoIter<T>) -> Self {
+impl<K, I> VecMapIter<K, I> {
+    pub fn new(iter: I) -> Self {
         Self {
             iter,
             count: Index::from_usize(0),
@@ -15,8 +15,11 @@ impl<T, I> VecMapIter<T, I> {
     }
 }
 
-impl<T, I> Iterator for VecMapIter<T, I> {
-    type Item = (Index<I>, <std::vec::IntoIter<T> as Iterator>::Item);
+impl<K, I> Iterator for VecMapIter<K, I>
+where
+    I: Iterator,
+{
+    type Item = (Index<K>, <I as Iterator>::Item);
 
     fn next(&mut self) -> Option<Self::Item> {
         let a = self.iter.next()?;
