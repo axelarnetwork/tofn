@@ -2,7 +2,7 @@ use super::*;
 use crate::{
     fillvec::FillVec,
     protocol::gg20::vss_k256,
-    refactor::{protocol::Protocol, Bytes},
+    refactor::{protocol::Protocol, BytesVec},
     vecmap::VecMap,
 };
 use rand::RngCore;
@@ -94,7 +94,7 @@ pub(crate) fn execute_keygen_from_recovery(
         .collect();
 
     // deliver r1 messages
-    let r1_bcasts: VecMap<KeygenPartyIndex, Bytes> = r1_parties
+    let r1_bcasts: VecMap<KeygenPartyIndex, BytesVec> = r1_parties
         .iter()
         .map(|party| party.bcast_out().clone().unwrap())
         .collect();
@@ -135,7 +135,7 @@ pub(crate) fn execute_keygen_from_recovery(
         .collect();
 
     // deliver r2 messages
-    let r2_bcasts: VecMap<KeygenPartyIndex, Bytes> = r2_parties
+    let r2_bcasts: VecMap<KeygenPartyIndex, BytesVec> = r2_parties
         .iter()
         .map(|party| party.bcast_out().clone().unwrap())
         .collect();
@@ -174,7 +174,7 @@ pub(crate) fn execute_keygen_from_recovery(
         .collect();
 
     // deliver r3 messages
-    let r3_bcasts: VecMap<KeygenPartyIndex, Bytes> = r3_parties
+    let r3_bcasts: VecMap<KeygenPartyIndex, BytesVec> = r3_parties
         .iter()
         .map(|party| party.bcast_out().clone().unwrap())
         .collect();

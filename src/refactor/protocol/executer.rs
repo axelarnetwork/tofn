@@ -2,7 +2,7 @@ use serde::de::DeserializeOwned;
 
 use crate::{
     fillvec::FillVec,
-    refactor::{protocol::ProtocolRound, Bytes},
+    refactor::{protocol::ProtocolRound, BytesVec},
     vecmap::fillvecmap::FillVecMap,
 };
 
@@ -54,7 +54,7 @@ pub trait RoundExecuter: Send + Sync {
         self: Box<Self>,
         party_count: usize,
         index: usize,
-        bcasts_in: FillVecMap<Self::Index, Bytes>,
+        bcasts_in: FillVecMap<Self::Index, BytesVec>,
         p2ps_in: Vec<FillVec<Vec<u8>>>,
     ) -> Protocol<Self::FinalOutput, Self::Index>;
 
@@ -72,7 +72,7 @@ impl<T: RoundExecuterTyped> RoundExecuter for T {
         self: Box<Self>,
         party_count: usize,
         index: usize,
-        bcasts_in: FillVecMap<Self::Index, Bytes>,
+        bcasts_in: FillVecMap<Self::Index, BytesVec>,
         p2ps_in: Vec<FillVec<Vec<u8>>>,
     ) -> Protocol<Self::FinalOutput, Self::Index> {
         // TODO this is only a PoC for timeout, deserialization errors

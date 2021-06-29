@@ -5,7 +5,7 @@ use tofn::{
     refactor::{
         keygen::{new_keygen, KeygenOutput, KeygenPartyIndex},
         protocol::{Protocol, ProtocolRound},
-        Bytes,
+        BytesVec,
     },
     vecmap::VecMap,
 };
@@ -75,7 +75,7 @@ fn next_round(
         .collect();
 
     // deliver bcasts
-    let bcasts: VecMap<KeygenPartyIndex, Option<Bytes>> = rounds
+    let bcasts: VecMap<KeygenPartyIndex, Option<BytesVec>> = rounds
         .iter()
         .map(|round| round.bcast_out().clone())
         .collect();

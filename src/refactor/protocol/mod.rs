@@ -6,7 +6,7 @@ use tracing::warn;
 
 use self::executer::RoundExecuter;
 
-use super::Bytes;
+use super::BytesVec;
 
 // TODO is it really worth the trouble to make this enum generic?
 // Maybe it's best just to duplicate it
@@ -48,7 +48,7 @@ pub struct ProtocolRound<F, I> {
     index: usize,
     bcast_out: Option<Vec<u8>>,
     p2ps_out: FillVec<Vec<u8>>, // TODO FillVec with hole?
-    bcasts_in: FillVecMap<I, Bytes>,
+    bcasts_in: FillVecMap<I, BytesVec>,
     p2ps_in: Vec<FillVec<Vec<u8>>>, // TODO FillVec with hole?
 }
 

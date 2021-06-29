@@ -6,7 +6,7 @@ use crate::{
     protocol::gg20::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo},
     refactor::{
         protocol::{executer::RoundExecuter, Protocol},
-        Bytes,
+        BytesVec,
     },
     vecmap::fillvecmap::FillVecMap,
     zkp::schnorr_k256,
@@ -32,7 +32,7 @@ impl RoundExecuter for R4 {
         self: Box<Self>,
         _party_count: usize,
         index: usize,
-        bcasts_in: FillVecMap<Self::Index, Bytes>,
+        bcasts_in: FillVecMap<Self::Index, BytesVec>,
         _p2ps_in: Vec<FillVec<Vec<u8>>>,
     ) -> Protocol<Self::FinalOutput, Self::Index> {
         // deserialize incoming messages
