@@ -96,7 +96,7 @@ pub(crate) fn execute_keygen_from_recovery(
     // deliver r1 messages
     let r1_bcasts: VecMap<KeygenPartyIndex, BytesVec> = r1_parties
         .iter()
-        .map(|party| party.bcast_out().clone().unwrap())
+        .map(|party| party.bcast_out().clone().unwrap().unwrap())
         .collect();
     for party in r1_parties.iter_mut() {
         for (from, bytes) in r1_bcasts.iter() {
@@ -137,7 +137,7 @@ pub(crate) fn execute_keygen_from_recovery(
     // deliver r2 messages
     let r2_bcasts: VecMap<KeygenPartyIndex, BytesVec> = r2_parties
         .iter()
-        .map(|party| party.bcast_out().clone().unwrap())
+        .map(|party| party.bcast_out().clone().unwrap().unwrap())
         .collect();
     for party in r2_parties.iter_mut() {
         for (from, bytes) in r2_bcasts.iter() {
@@ -176,7 +176,7 @@ pub(crate) fn execute_keygen_from_recovery(
     // deliver r3 messages
     let r3_bcasts: VecMap<KeygenPartyIndex, BytesVec> = r3_parties
         .iter()
-        .map(|party| party.bcast_out().clone().unwrap())
+        .map(|party| party.bcast_out().clone().unwrap().unwrap())
         .collect();
     for party in r3_parties.iter_mut() {
         for (from, bytes) in r3_bcasts.iter() {

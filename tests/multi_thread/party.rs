@@ -8,6 +8,7 @@ use tofn::{
     refactor::{protocol::Protocol, BytesVec},
     vecmap::Index,
 };
+use tracing::error;
 
 // #[derive(Clone)]
 pub enum Message<K> {
@@ -47,11 +48,15 @@ pub fn execute_protocol<F, I>(
 ) -> F {
     while let Protocol::NotDone(mut round) = party {
         // send outgoing messages
-        if let Some(bytes) = round.bcast_out() {
-            broadcaster.send(Message::Bcast {
-                from: Index::from_usize(round.index()),
-                bytes: bytes.clone(),
-            });
+        if let Some(bcast_out) = round.bcast_out() {
+            if let Ok(bytes) = bcast_out {
+                broadcaster.send(Message::Bcast {
+                    from: Index::from_usize(round.index()),
+                    bytes: bytes.clone(),
+                });
+            } else {
+                error!("missing bcast from party {}", round.index());
+            }
         }
         if let Some(p2ps_out) = round.p2ps_out() {
             for (to, p2p) in p2ps_out.vec_ref().iter().enumerate() {

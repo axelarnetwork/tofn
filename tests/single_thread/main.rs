@@ -5,10 +5,11 @@ use tofn::{
     refactor::{
         keygen::{new_keygen, KeygenOutput, KeygenPartyIndex},
         protocol::{Protocol, ProtocolRound},
-        BytesVec,
+        BytesVec, TofnResult,
     },
     vecmap::VecMap,
 };
+use tracing::error;
 
 /// TODO rename parent dir to `example`
 /// TODO clean up
@@ -75,14 +76,18 @@ fn next_round(
         .collect();
 
     // deliver bcasts
-    let bcasts: VecMap<KeygenPartyIndex, Option<BytesVec>> = rounds
+    let bcasts: VecMap<KeygenPartyIndex, Option<TofnResult<BytesVec>>> = rounds
         .iter()
         .map(|round| round.bcast_out().clone())
         .collect();
     for (from, bcast) in bcasts.into_iter() {
-        if let Some(bytes) = bcast {
-            for round in rounds.iter_mut() {
-                round.bcast_in(from, &bytes);
+        if let Some(bcast) = bcast {
+            if let Ok(bytes) = bcast {
+                for round in rounds.iter_mut() {
+                    round.bcast_in(from, &bytes);
+                }
+            } else {
+                error!("missing bcast from party {}", from);
             }
         }
     }
