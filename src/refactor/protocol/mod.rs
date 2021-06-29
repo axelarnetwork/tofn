@@ -91,12 +91,22 @@ impl<F, K> ProtocolRound<F, K> {
         expecting_more_p2ps
     }
     pub fn execute_next_round(self) -> Protocol<F, K> {
-        self.round.execute(
+        use executer::ProtocolBuilder::*;
+        match self.round.execute(
             self.party_count,
             self.index,
             self.bcasts_in.unwrap_or_else(|| FillVecMap::with_size(0)),
             self.p2ps_in.unwrap_or_else(|| Vec::new()),
-        )
+        ) {
+            NotDone(builder) => Protocol::NotDone(ProtocolRound::new(
+                builder.round,
+                self.party_count,
+                self.index,
+                builder.bcast_out,
+                builder.p2ps_out,
+            )),
+            Done(output) => Protocol::Done(output),
+        }
     }
     pub fn party_count(&self) -> usize {
         self.party_count

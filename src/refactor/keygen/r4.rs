@@ -5,7 +5,10 @@ use crate::{
     paillier_k256,
     protocol::gg20::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo},
     refactor::{
-        protocol::{executer::RoundExecuter, Protocol},
+        protocol::executer::{
+            ProtocolBuilder::{self, *},
+            RoundExecuter,
+        },
         BytesVec,
     },
     vecmap::fillvecmap::FillVecMap,
@@ -34,7 +37,7 @@ impl RoundExecuter for R4 {
         index: usize,
         bcasts_in: FillVecMap<Self::Index, BytesVec>,
         _p2ps_in: Vec<FillVec<Vec<u8>>>,
-    ) -> Protocol<Self::FinalOutput, Self::Index> {
+    ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
         // deserialize incoming messages
         let r3bcasts: Vec<r3::Bcast> = bcasts_in
             .into_iter()
@@ -64,7 +67,7 @@ impl RoundExecuter for R4 {
             })
             .collect();
         if !criminals.iter().all(Vec::is_empty) {
-            return Protocol::Done(Err(criminals));
+            return Done(Err(criminals));
         }
 
         // prepare data for final output
@@ -79,7 +82,7 @@ impl RoundExecuter for R4 {
             })
             .collect();
 
-        Protocol::Done(Ok(SecretKeyShare {
+        Done(Ok(SecretKeyShare {
             group: GroupPublicInfo {
                 threshold: self.threshold,
                 y: self.y.into(),

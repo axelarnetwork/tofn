@@ -39,6 +39,7 @@ where
 
 mod tests {
 
+    #[allow(dead_code)] // ignore erronous warning
     struct TestIndex;
 
     #[test]

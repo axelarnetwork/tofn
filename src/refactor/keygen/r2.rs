@@ -51,7 +51,7 @@ impl RoundExecuterTyped for R2 {
         party_count: usize,
         index: usize,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
-        p2ps_in: Vec<FillVec<Self::P2p>>,
+        _p2ps_in: Vec<FillVec<Self::P2p>>,
     ) -> KeygenProtocolBuilder {
         // check Paillier proofs
         // TODO `criminals` should have its own struct, something like VecMap<Vec<Crime>>

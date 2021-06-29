@@ -3,9 +3,10 @@ use crate::{
     hash, k256_serde, paillier_k256,
     protocol::gg20::vss_k256,
     refactor::{
-        protocol::{
-            executer::{serialize_as_option, RoundExecuter},
-            Protocol, ProtocolRound,
+        protocol::executer::{
+            serialize_as_option,
+            ProtocolBuilder::{self, *},
+            ProtocolRoundBuilder, RoundExecuter,
         },
         BytesVec,
     },
@@ -35,11 +36,11 @@ impl RoundExecuter for R1 {
 
     fn execute(
         self: Box<Self>,
-        party_count: usize,
-        index: usize,
+        _party_count: usize,
+        _index: usize,
         _bcasts_in: FillVecMap<Self::Index, BytesVec>,
         _p2ps_in: Vec<FillVec<Vec<u8>>>,
-    ) -> Protocol<Self::FinalOutput, Self::Index> {
+    ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
         let u_i_vss = vss_k256::Vss::new(self.threshold);
         let (y_i_commit, y_i_reveal) = hash::commit(k256_serde::to_bytes(
             &(k256::ProjectivePoint::generator() * u_i_vss.get_secret()),
@@ -82,17 +83,15 @@ impl RoundExecuter for R1 {
         };
         let bcast_out_bytes = serialize_as_option(&bcast_out);
 
-        Protocol::NotDone(ProtocolRound::new(
-            Box::new(r2::R2 {
+        NotDone(ProtocolRoundBuilder {
+            round: Box::new(r2::R2 {
                 threshold: self.threshold,
                 dk,
                 u_i_vss,
                 y_i_reveal,
             }),
-            party_count,
-            index,
-            bcast_out_bytes,
-            None,
-        ))
+            bcast_out: bcast_out_bytes,
+            p2ps_out: None,
+        })
     }
 }

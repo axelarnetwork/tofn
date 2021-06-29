@@ -2,11 +2,9 @@ use serde::de::DeserializeOwned;
 
 use crate::{
     fillvec::FillVec,
-    refactor::{protocol::ProtocolRound, BytesVec},
+    refactor::BytesVec,
     vecmap::{fillvecmap::FillVecMap, VecMap},
 };
-
-use super::Protocol;
 
 pub enum ProtocolBuilder<F, K> {
     NotDone(ProtocolRoundBuilder<F, K>),
@@ -52,9 +50,9 @@ pub trait RoundExecuter: Send + Sync {
         self: Box<Self>,
         party_count: usize,
         index: usize,
-        bcasts_in: FillVecMap<Self::Index, BytesVec>,
-        p2ps_in: Vec<FillVec<Vec<u8>>>,
-    ) -> Protocol<Self::FinalOutput, Self::Index>;
+        bcasts_in: FillVecMap<Self::Index, BytesVec>, // TODO Option
+        p2ps_in: Vec<FillVec<Vec<u8>>>,               // TODO Option
+    ) -> ProtocolBuilder<Self::FinalOutput, Self::Index>;
 
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
@@ -72,7 +70,7 @@ impl<T: RoundExecuterTyped> RoundExecuter for T {
         index: usize,
         bcasts_in: FillVecMap<Self::Index, BytesVec>,
         p2ps_in: Vec<FillVec<Vec<u8>>>,
-    ) -> Protocol<Self::FinalOutput, Self::Index> {
+    ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
         // TODO this is only a PoC for timeout, deserialization errors
         // DeTimeout needs a fuller API to return detailed fault info
 
@@ -86,7 +84,7 @@ impl<T: RoundExecuterTyped> RoundExecuter for T {
                 .any(|(j, b)| j != i && b.is_none())
         });
         if bcast_timeout || p2p_timeout {
-            return Protocol::Done(Self::FinalOutput::new_timeout());
+            return ProtocolBuilder::Done(Self::FinalOutput::new_timeout());
         }
 
         // attempt to deserialize bcasts
@@ -96,7 +94,9 @@ impl<T: RoundExecuterTyped> RoundExecuter for T {
             .collect();
         let bcasts_in = match bcasts_deserialize {
             Ok(vec) => vec,
-            Err(_) => return Protocol::Done(Self::FinalOutput::new_deserialization_failure()),
+            Err(_) => {
+                return ProtocolBuilder::Done(Self::FinalOutput::new_deserialization_failure())
+            }
         };
 
         // attempt to deserialize p2ps
@@ -113,7 +113,9 @@ impl<T: RoundExecuterTyped> RoundExecuter for T {
                     match res {
                         Ok(p2p) => party_p2ps_deserialized.push(Some(p2p)),
                         Err(_) => {
-                            return Protocol::Done(Self::FinalOutput::new_deserialization_failure())
+                            return ProtocolBuilder::Done(
+                                Self::FinalOutput::new_deserialization_failure(),
+                            )
                         }
                     }
                 }
@@ -123,19 +125,7 @@ impl<T: RoundExecuterTyped> RoundExecuter for T {
         }
         assert_eq!(p2ps_in_deserialized.len(), p2ps_in.len());
 
-        // TODO temporary
-        // self.execute_typed(party_count, index, bcasts_in, p2ps_in_deserialized)
-        let p = self.execute_typed(party_count, index, bcasts_in, p2ps_in_deserialized);
-        match p {
-            ProtocolBuilder::NotDone(q) => Protocol::NotDone(ProtocolRound::new(
-                q.round,
-                party_count,
-                index,
-                q.bcast_out,
-                q.p2ps_out,
-            )),
-            ProtocolBuilder::Done(f) => Protocol::Done(f),
-        }
+        self.execute_typed(party_count, index, bcasts_in, p2ps_in_deserialized)
     }
 
     #[cfg(test)]
