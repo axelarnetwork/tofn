@@ -8,8 +8,8 @@ use crate::{
 
 use super::Protocol;
 
-pub enum ProtocolBuilder<F, I> {
-    NotDone(ProtocolRoundBuilder<F, I>),
+pub enum ProtocolBuilder<F, K> {
+    NotDone(ProtocolRoundBuilder<F, K>),
     Done(F),
 }
 
@@ -28,8 +28,8 @@ pub struct RoundData<B, P> {
     pub p2ps_in: Vec<FillVec<P>>, // TODO use HoleVec instead
 }
 
-pub struct ProtocolRoundBuilder<F, I> {
-    pub round: Box<dyn RoundExecuter<FinalOutput = F, Index = I>>,
+pub struct ProtocolRoundBuilder<F, K> {
+    pub round: Box<dyn RoundExecuter<FinalOutput = F, Index = K>>,
     pub bcast_out: Option<Vec<u8>>,
     pub p2ps_out: Option<FillVec<Vec<u8>>>, // TODO FillVec with hole?
 }

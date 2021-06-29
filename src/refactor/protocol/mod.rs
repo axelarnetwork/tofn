@@ -8,24 +8,24 @@ use self::executer::RoundExecuter;
 
 use super::BytesVec;
 
-pub enum Protocol<F, I> {
-    NotDone(ProtocolRound<F, I>),
+pub enum Protocol<F, K> {
+    NotDone(ProtocolRound<F, K>),
     Done(F),
 }
 
-pub struct ProtocolRound<F, I> {
-    round: Box<dyn RoundExecuter<FinalOutput = F, Index = I>>,
+pub struct ProtocolRound<F, K> {
+    round: Box<dyn RoundExecuter<FinalOutput = F, Index = K>>,
     party_count: usize,
     index: usize,
     bcast_out: Option<Vec<u8>>,
     p2ps_out: Option<FillVec<Vec<u8>>>, // TODO FillVec with hole?
-    bcasts_in: Option<FillVecMap<I, BytesVec>>,
+    bcasts_in: Option<FillVecMap<K, BytesVec>>,
     p2ps_in: Option<Vec<FillVec<Vec<u8>>>>, // TODO FillVec with hole?
 }
 
-impl<F, I> ProtocolRound<F, I> {
+impl<F, K> ProtocolRound<F, K> {
     pub fn new(
-        round: Box<dyn RoundExecuter<FinalOutput = F, Index = I>>,
+        round: Box<dyn RoundExecuter<FinalOutput = F, Index = K>>,
         party_count: usize,
         index: usize,
         bcast_out: Option<Vec<u8>>,
@@ -60,7 +60,7 @@ impl<F, I> ProtocolRound<F, I> {
     pub fn p2ps_out(&self) -> &Option<FillVec<Vec<u8>>> {
         &self.p2ps_out
     }
-    pub fn bcast_in(&mut self, from: Index<I>, bytes: &[u8]) {
+    pub fn bcast_in(&mut self, from: Index<K>, bytes: &[u8]) {
         if let Some(ref mut bcasts_in) = self.bcasts_in {
             // TODO range check
             bcasts_in.set_warn(from, bytes.to_vec());
@@ -90,7 +90,7 @@ impl<F, I> ProtocolRound<F, I> {
         };
         expecting_more_p2ps
     }
-    pub fn execute_next_round(self) -> Protocol<F, I> {
+    pub fn execute_next_round(self) -> Protocol<F, K> {
         self.round.execute(
             self.party_count,
             self.index,
@@ -106,7 +106,7 @@ impl<F, I> ProtocolRound<F, I> {
     }
 
     #[cfg(test)]
-    pub fn round(&self) -> &Box<dyn RoundExecuter<FinalOutput = F, Index = I>> {
+    pub fn round(&self) -> &Box<dyn RoundExecuter<FinalOutput = F, Index = K>> {
         &self.round
     }
 }
