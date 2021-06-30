@@ -28,6 +28,7 @@ impl<K> Copy for Index<K> {}
 
 mod vecmap;
 mod vecmap_iter;
+mod vecmap_zip;
 pub use vecmap::VecMap;
 
 mod fillvecmap;
