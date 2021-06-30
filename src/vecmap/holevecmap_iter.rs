@@ -34,17 +34,3 @@ where
         unimplemented!("iterator already returns a type-safe (index,value) pair");
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use crate::vecmap::vecmap::VecMap;
-
-    struct TestIndex;
-
-    #[test]
-    #[should_panic]
-    fn override_enumerate() {
-        let vecmap: VecMap<TestIndex, _> = (0..4).collect();
-        let _ = vecmap.into_iter().enumerate();
-    }
-}
