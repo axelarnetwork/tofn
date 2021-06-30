@@ -35,12 +35,9 @@ impl<K, V> FillVecMap<K, V> {
         }
         *stored = Some(value);
     }
-    pub fn some_count(&self) -> usize {
-        self.some_count
-    }
-    pub fn size(&self) -> usize {
-        self.vec.len()
-    }
+    // pub fn size(&self) -> usize {
+    //     self.vec.len()
+    // }
     // pub fn is_none(&self, index: usize) -> bool {
     //     matches!(self.vec[index], None)
     // }
@@ -51,7 +48,7 @@ impl<K, V> FillVecMap<K, V> {
     // }
 
     pub fn is_full(&self) -> bool {
-        self.some_count() == self.vec.len()
+        self.some_count == self.vec.len()
     }
 
     // Replicate std::vec interface https://doc.rust-lang.org/src/alloc/vec/mod.rs.html#1800
@@ -73,8 +70,4 @@ impl<K, V> IntoIterator for FillVecMap<K, V> {
     fn into_iter(self) -> Self::IntoIter {
         self.vec.into_iter()
     }
-}
-
-pub fn new_vec_none<T>(len: usize) -> Vec<Option<T>> {
-    (0..len).map(|_| None).collect() // can't use vec![None; capacity] https://users.rust-lang.org/t/how-to-initialize-vec-option-t-with-none/30580/2
 }

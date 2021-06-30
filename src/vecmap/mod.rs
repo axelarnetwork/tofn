@@ -2,7 +2,8 @@
 pub struct Index<K>(usize, std::marker::PhantomData<K>);
 
 impl<K> Index<K> {
-    // TODO do not expose from_usize, as_usize
+    // TODO provide a range iterator (0..n)?
+    // TODO from_usize, as_usize should be private
     pub fn from_usize(index: usize) -> Self {
         Index(index, std::marker::PhantomData)
     }
@@ -25,12 +26,15 @@ impl<K> Clone for Index<K> {
 }
 impl<K> Copy for Index<K> {}
 
-mod fillvecmap;
-pub use fillvecmap::FillVecMap;
-
 mod vecmap;
 mod vecmap_iter;
 pub use vecmap::VecMap;
 
+mod fillvecmap;
+pub use fillvecmap::FillVecMap;
+
 mod holevecmap;
 mod holevecmap_iter;
+pub use holevecmap::HoleVecMap;
+
+mod fillholevecmap;

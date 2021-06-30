@@ -21,9 +21,9 @@ impl<K, V> HoleVecMap<K, V> {
     pub fn len(&self) -> usize {
         self.vec.len() + 1
     }
-    // pub fn iter(&self) -> VecMapIter<K, std::slice::Iter<V>> {
-    //     VecMapIter::new(self.0.iter())
-    // }
+    pub fn iter(&self) -> HoleVecMapIter<K, std::slice::Iter<V>> {
+        HoleVecMapIter::new(self.vec.iter(), self.hole)
+    }
 
     fn map_index(&self, index: Index<K>) -> Result<Index<K>, &'static str> {
         match index.0 {
