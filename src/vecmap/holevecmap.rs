@@ -44,14 +44,26 @@ impl<K, V> IntoIterator for HoleVecMap<K, V> {
     }
 }
 
-// need our own KVPair struct because
-// can't use tuple `(Index<K>,V)` because the compiler complains:
-// "this is not defined in the current crate because tuples are always foreign"
-pub struct KVPair<K, V>(Index<K>, V);
+/// Need our own Pair struct because can't do
+/// TODO get this doctest to behave properly
+/// ```compile_fail
+/// # use std::iter::FromIterator;
+/// # use tofn::refactor::TofnResult;
+/// # use tofn::vecmap::{holevecmap_iter::HoleVecMapIter, Index, VecMap};
+/// impl<K, V> FromIterator<(Index<K>,V)> for TofnResult<HoleVecMap<K, V>> {
+///     fn from_iter<Iter: IntoIterator<Item = (Index<K>,V)>>(iter: Iter) -> Self {
+///         todo!()
+///     }
+/// }
+/// # fn main() {}
+/// ```
+/// because the compiler complains:
+/// "this is not defined in the current crate because tuples are always foreign"
+pub struct Pair<K, V>(pub Index<K>, pub V);
 
-impl<K, V> FromIterator<KVPair<K, V>> for TofnResult<HoleVecMap<K, V>> {
-    fn from_iter<Iter: IntoIterator<Item = KVPair<K, V>>>(iter: Iter) -> Self {
-        let kv_pairs: Vec<KVPair<K, V>> = iter.into_iter().collect();
+impl<K, V> FromIterator<Pair<K, V>> for TofnResult<HoleVecMap<K, V>> {
+    fn from_iter<Iter: IntoIterator<Item = Pair<K, V>>>(iter: Iter) -> Self {
+        let kv_pairs: Vec<Pair<K, V>> = iter.into_iter().collect();
 
         // indices must be in ascending order with at most one hole
         // (if there is no hole then the hole is the final index)
@@ -78,7 +90,7 @@ impl<K, V> FromIterator<KVPair<K, V>> for TofnResult<HoleVecMap<K, V>> {
 
         let hole = match hole {
             Some(index) => index,
-            None => Index::from_usize(kv_pairs.len() - 1),
+            None => Index::from_usize(kv_pairs.len()), // hole is the final index
         };
 
         Ok(HoleVecMap {
@@ -96,19 +108,19 @@ mod tests {
         vecmap::{holevecmap::HoleVecMap, Index},
     };
 
-    use super::KVPair;
+    use super::Pair;
 
     struct TestIndex;
 
     #[test]
     fn basic_correctness() {
         let hole = 2;
-        let vec: Vec<KVPair<TestIndex, _>> = (0..5)
+        let vec: Vec<Pair<TestIndex, _>> = (0..5)
             .map(|i| {
                 if i >= hole {
-                    KVPair(Index::from_usize(i + 1), 100 + i)
+                    Pair(Index::from_usize(i + 1), 100 + i)
                 } else {
-                    KVPair(Index::from_usize(i), 10 + i)
+                    Pair(Index::from_usize(i), 10 + i)
                 }
             })
             .collect();
@@ -121,5 +133,28 @@ mod tests {
         assert_eq!(*holevecmap.get(Index::from_usize(3)), 102);
         assert_eq!(*holevecmap.get(Index::from_usize(4)), 103);
         assert_eq!(*holevecmap.get(Index::from_usize(5)), 104);
+    }
+
+    #[test]
+    fn hole_at_the_end() {
+        let hole = 5;
+        let vec: Vec<Pair<TestIndex, _>> = (0..5)
+            .map(|i| {
+                if i >= hole {
+                    Pair(Index::from_usize(i + 1), 100 + i)
+                } else {
+                    Pair(Index::from_usize(i), 10 + i)
+                }
+            })
+            .collect();
+        let res: TofnResult<HoleVecMap<TestIndex, _>> = vec.into_iter().collect();
+        let holevecmap = res.expect("test fail");
+        assert_eq!(holevecmap.len(), 6);
+        assert_eq!(holevecmap.hole.0, hole);
+        assert_eq!(*holevecmap.get(Index::from_usize(0)), 10);
+        assert_eq!(*holevecmap.get(Index::from_usize(1)), 11);
+        assert_eq!(*holevecmap.get(Index::from_usize(2)), 12);
+        assert_eq!(*holevecmap.get(Index::from_usize(3)), 13);
+        assert_eq!(*holevecmap.get(Index::from_usize(4)), 14);
     }
 }
