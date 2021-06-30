@@ -6,6 +6,9 @@ use crate::refactor::protocol::{
 
 use super::TofnResult;
 
+// need to derive all this crap for each new marker struct
+// in order to avoid this problem: https://stackoverflow.com/a/31371094
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct KeygenPartyIndex;
 
 pub type KeygenProtocol = Protocol<KeygenOutput, KeygenPartyIndex>;
@@ -91,3 +94,31 @@ mod rng;
 
 #[cfg(test)]
 pub(super) mod tests; // pub(super) so that sign module can see tests::execute_keygen
+
+// TODO TEMPORARY: translate HoleVecMap into FillVec
+pub mod temp {
+    use crate::{
+        fillvec::FillVec,
+        refactor::{BytesVec, TofnResult},
+        vecmap::HoleVecMap,
+    };
+
+    use super::KeygenPartyIndex;
+
+    pub fn to_fillvec(
+        hole_vecmap: HoleVecMap<KeygenPartyIndex, TofnResult<BytesVec>>,
+        hole: usize,
+    ) -> FillVec<BytesVec> {
+        let mut res = FillVec::from_vec(
+            hole_vecmap
+                .into_iter()
+                .map(|(_, r)| match r {
+                    Ok(bytes) => Some(bytes),
+                    Err(_) => None,
+                })
+                .collect(),
+        );
+        res.vec_ref_mut().insert(hole, None);
+        res
+    }
+}

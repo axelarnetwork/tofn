@@ -2,8 +2,8 @@ use super::*;
 use crate::{
     fillvec::FillVec,
     protocol::gg20::vss_k256,
-    refactor::{protocol::Protocol, BytesVec},
-    vecmap::VecMap,
+    refactor::{keygen::temp::to_fillvec, protocol::Protocol, BytesVec},
+    vecmap::{HoleVecMap, VecMap},
 };
 use rand::RngCore;
 use tracing_test::traced_test;
@@ -144,9 +144,15 @@ pub(crate) fn execute_keygen_from_recovery(
             party.bcast_in(from, bytes);
         }
     }
+    // TODO TEMPORARY: translate HoleVecMap into FillVec
     let r2_p2ps: Vec<FillVec<Vec<u8>>> = r2_parties
         .iter()
-        .map(|party| party.p2ps_out().as_ref().unwrap().clone())
+        .map(|party| {
+            to_fillvec(
+                party.p2ps_out().as_ref().unwrap().as_ref().unwrap().clone(),
+                party.index(),
+            )
+        })
         .collect();
     for party in r2_parties.iter_mut() {
         for (from, p2ps) in r2_p2ps.iter().enumerate() {
@@ -164,7 +170,7 @@ pub(crate) fn execute_keygen_from_recovery(
         .enumerate()
         .map(|(i, party)| {
             assert!(party.bcast_out().is_some());
-            assert!(party.p2ps_out().as_ref().unwrap().len() == share_count);
+            assert!(party.p2ps_out().as_ref().unwrap().as_ref().unwrap().len() == share_count);
             assert!(!party.expecting_more_msgs_this_round());
             match party.execute_next_round() {
                 Protocol::NotDone(next_round) => next_round,

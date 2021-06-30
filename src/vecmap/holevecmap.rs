@@ -61,6 +61,8 @@ impl<K, V> IntoIterator for HoleVecMap<K, V> {
 /// "this is not defined in the current crate because tuples are always foreign"
 pub struct Pair<K, V>(pub Index<K>, pub V);
 
+// TODO if V is a Result then need a way to bubble up the result
+// example: https://doc.rust-lang.org/std/result/enum.Result.html#method.from_iter
 impl<K, V> FromIterator<Pair<K, V>> for TofnResult<HoleVecMap<K, V>> {
     fn from_iter<Iter: IntoIterator<Item = Pair<K, V>>>(iter: Iter) -> Self {
         let kv_pairs: Vec<Pair<K, V>> = iter.into_iter().collect();

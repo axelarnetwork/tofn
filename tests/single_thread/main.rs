@@ -3,7 +3,7 @@ use tofn::{
     fillvec::FillVec,
     protocol::gg20::SecretKeyShare,
     refactor::{
-        keygen::{new_keygen, KeygenOutput, KeygenPartyIndex},
+        keygen::{new_keygen, temp::to_fillvec, KeygenOutput, KeygenPartyIndex},
         protocol::{Protocol, ProtocolRound},
         BytesVec, TofnResult,
     },
@@ -95,7 +95,12 @@ fn next_round(
     // deliver p2ps
     let all_p2ps: Vec<Option<FillVec<Vec<u8>>>> = rounds
         .iter()
-        .map(|round| round.p2ps_out().clone())
+        .map(|round| {
+            round
+                .p2ps_out()
+                .clone()
+                .map(|r| to_fillvec(r.unwrap(), round.index()))
+        })
         .collect();
     for (from, p2ps) in all_p2ps.into_iter().enumerate() {
         if let Some(p2ps) = p2ps {

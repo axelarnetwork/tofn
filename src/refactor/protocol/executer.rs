@@ -3,7 +3,7 @@ use serde::de::DeserializeOwned;
 use crate::{
     fillvec::FillVec,
     refactor::{BytesVec, TofnResult},
-    vecmap::{FillVecMap, VecMap},
+    vecmap::{FillVecMap, HoleVecMap, VecMap},
 };
 
 pub enum ProtocolBuilder<F, K> {
@@ -21,7 +21,7 @@ pub trait DeTimeout {
 pub struct ProtocolRoundBuilder<F, K> {
     pub round: Box<dyn RoundExecuter<FinalOutput = F, Index = K>>,
     pub bcast_out: Option<TofnResult<BytesVec>>,
-    pub p2ps_out: Option<FillVec<Vec<u8>>>, // TODO FillVec with hole?
+    pub p2ps_out: Option<TofnResult<HoleVecMap<K, TofnResult<BytesVec>>>>,
 }
 
 pub trait RoundExecuterTyped: Send + Sync {

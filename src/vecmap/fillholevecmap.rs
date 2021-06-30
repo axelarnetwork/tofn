@@ -10,11 +10,11 @@ use super::{holevecmap::Pair, holevecmap_iter::HoleVecMapIter, HoleVecMap, Index
 #[derive(Debug, Clone)]
 pub struct FillHoleVecMap<K, V> {
     hole_vec: HoleVecMap<K, Option<V>>,
-    some_count: usize,
+    some_count: usize, // TODO eliminate `some_count`?
 }
 
 impl<K, V> FillHoleVecMap<K, V> {
-    /// if hole >= len then use hole = len
+    /// if hole >= len-1 then use hole = len-1
     pub fn with_size(len: usize, hole: Index<K>) -> Self {
         Self {
             hole_vec: (0..len - 1)

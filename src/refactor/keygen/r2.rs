@@ -8,11 +8,11 @@ use crate::{
     refactor::{
         keygen::{r3, Crime},
         protocol::executer::{
-            serialize, serialize_as_option, ProtocolBuilder, ProtocolRoundBuilder,
-            RoundExecuterTyped,
+            serialize, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuterTyped,
         },
+        BytesVec, TofnResult,
     },
-    vecmap::{Index, VecMap},
+    vecmap::{HoleVecMap, Pair, VecMap},
 };
 
 use super::{r1, KeygenOutput, KeygenPartyIndex, KeygenProtocolBuilder};
@@ -75,6 +75,11 @@ impl RoundExecuterTyped for R2 {
 
         let u_i_shares = self.u_i_vss.shares(party_count);
 
+        // TODO Vss::shares() should return a VecMap
+        // for now we manually convert Vec to VecMap
+        let u_i_my_share = u_i_shares[index].clone();
+        let u_i_shares: VecMap<KeygenPartyIndex, _> = u_i_shares.into_iter().collect();
+
         // #[cfg(feature = "malicious")]
         // let my_u_i_shares_k256 = if let Behaviour::R2BadShare { victim } = self.behaviour {
         //     info!(
@@ -99,20 +104,17 @@ impl RoundExecuterTyped for R2 {
         //     my_u_i_shares_k256
         // };
 
-        // TODO better pattern to get p2ps_out
-        let p2ps_out_bytes = Some(FillVec::from_vec(
+        // TODO nested results
+        let p2ps_out: Option<TofnResult<HoleVecMap<_, TofnResult<BytesVec>>>> = Some(
             u_i_shares
-                .iter()
-                .enumerate()
-                .map(|(i, u_i_share)| {
-                    if i == index {
+                .into_iter()
+                .filter_map(|(i, share)| {
+                    if i.as_usize() == index {
                         None
                     } else {
                         // encrypt the share for party i
-                        let (u_i_share_ciphertext, _) = bcasts_in
-                            .get(Index::from_usize(i))
-                            .ek
-                            .encrypt(&u_i_share.get_scalar().into());
+                        let (u_i_share_ciphertext, _) =
+                            bcasts_in.get(i).ek.encrypt(&share.get_scalar().into());
 
                         // #[cfg(feature = "malicious")]
                         // let u_i_share_ciphertext_k256 = match self.behaviour {
@@ -129,11 +131,11 @@ impl RoundExecuterTyped for R2 {
                         let p2p = P2p {
                             u_i_share_ciphertext,
                         };
-                        serialize_as_option(&p2p)
+                        Some(Pair(i, serialize(&p2p)))
                     }
                 })
                 .collect(),
-        ));
+        );
 
         let bcast_out = Some(serialize(&Bcast {
             y_i_reveal: self.y_i_reveal.clone(),
@@ -144,11 +146,11 @@ impl RoundExecuterTyped for R2 {
             round: Box::new(r3::R3 {
                 threshold: self.threshold,
                 dk: self.dk,
-                u_i_my_share: u_i_shares[index].clone(),
+                u_i_my_share,
                 r1bcasts: bcasts_in.into_iter().map(|(_, x)| x).collect(), // TODO r1bcasts should be a VecMap
             }),
             bcast_out,
-            p2ps_out: p2ps_out_bytes,
+            p2ps_out,
         })
     }
 

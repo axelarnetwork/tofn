@@ -8,7 +8,7 @@ use super::{vecmap_iter::VecMapIter, Index, VecMap};
 #[derive(Debug, Clone)]
 pub struct FillVecMap<K, V> {
     vec: VecMap<K, Option<V>>,
-    some_count: usize,
+    some_count: usize, // TODO eliminate `some_count`?
 }
 
 impl<K, V> FillVecMap<K, V> {

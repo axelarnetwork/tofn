@@ -36,6 +36,7 @@ pub use fillvecmap::FillVecMap;
 
 mod holevecmap;
 mod holevecmap_iter;
-pub use holevecmap::HoleVecMap;
+pub use holevecmap::{HoleVecMap, Pair};
 
 mod fillholevecmap;
+pub use fillholevecmap::FillHoleVecMap;

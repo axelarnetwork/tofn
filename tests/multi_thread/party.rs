@@ -59,14 +59,20 @@ pub fn execute_protocol<F, I>(
             }
         }
         if let Some(p2ps_out) = round.p2ps_out() {
-            for (to, p2p) in p2ps_out.vec_ref().iter().enumerate() {
-                if let Some(bytes) = p2p {
-                    broadcaster.send(Message::P2p {
-                        from: round.index(),
-                        to,
-                        bytes: bytes.clone(),
-                    });
+            if let Ok(p2ps_out) = p2ps_out {
+                for (to, p2p) in p2ps_out.iter() {
+                    if let Ok(bytes) = p2p {
+                        broadcaster.send(Message::P2p {
+                            from: round.index(),
+                            to: to.as_usize(),
+                            bytes: bytes.clone(),
+                        });
+                    } else {
+                        error!("missing p2p {} from party {}", to, round.index());
+                    }
                 }
+            } else {
+                error!("missing all p2ps from party {}", round.index());
             }
         }
         // collect incoming messages

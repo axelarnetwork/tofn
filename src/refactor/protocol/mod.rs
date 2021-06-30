@@ -1,6 +1,6 @@
 use crate::{
     fillvec::FillVec,
-    vecmap::{FillVecMap, Index},
+    vecmap::{FillVecMap, HoleVecMap, Index},
 };
 use tracing::warn;
 
@@ -18,7 +18,7 @@ pub struct ProtocolRound<F, K> {
     party_count: usize,
     index: usize,
     bcast_out: Option<TofnResult<BytesVec>>,
-    p2ps_out: Option<FillVec<Vec<u8>>>, // TODO FillVec with hole?
+    p2ps_out: Option<TofnResult<HoleVecMap<K, TofnResult<BytesVec>>>>, // TODO nested results
     bcasts_in: Option<FillVecMap<K, BytesVec>>,
     p2ps_in: Option<Vec<FillVec<Vec<u8>>>>, // TODO FillVec with hole?
 }
@@ -29,12 +29,12 @@ impl<F, K> ProtocolRound<F, K> {
         party_count: usize,
         index: usize,
         bcast_out: Option<TofnResult<BytesVec>>,
-        p2ps_out: Option<FillVec<Vec<u8>>>,
+        p2ps_out: Option<TofnResult<HoleVecMap<K, TofnResult<BytesVec>>>>,
     ) -> Self {
         // validate args
         // TODO return error instead of panic?
         assert!(index < party_count);
-        if let Some(ref p2ps) = p2ps_out {
+        if let Some(Ok(ref p2ps)) = p2ps_out {
             assert_eq!(p2ps.len(), party_count);
         }
 
@@ -59,7 +59,7 @@ impl<F, K> ProtocolRound<F, K> {
     pub fn bcast_out(&self) -> &Option<TofnResult<BytesVec>> {
         &self.bcast_out
     }
-    pub fn p2ps_out(&self) -> &Option<FillVec<Vec<u8>>> {
+    pub fn p2ps_out(&self) -> &Option<TofnResult<HoleVecMap<K, TofnResult<BytesVec>>>> {
         &self.p2ps_out
     }
     pub fn bcast_in(&mut self, from: Index<K>, bytes: &[u8]) {
