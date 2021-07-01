@@ -44,20 +44,15 @@ impl<K, V> IntoIterator for HoleVecMap<K, V> {
     }
 }
 
-/// Need our own Pair struct because can't do
-/// TODO get this doctest to behave properly
+/// Need our own crate-local `Pair` struct instead of tuple `(Index<K>,V)` because this...
 /// ```compile_fail
-/// # use std::iter::FromIterator;
-/// # use tofn::refactor::TofnResult;
-/// # use tofn::vecmap::{holevecmap_iter::HoleVecMapIter, Index, VecMap};
 /// impl<K, V> FromIterator<(Index<K>,V)> for TofnResult<HoleVecMap<K, V>> {
 ///     fn from_iter<Iter: IntoIterator<Item = (Index<K>,V)>>(iter: Iter) -> Self {
 ///         todo!()
 ///     }
 /// }
-/// # fn main() {}
 /// ```
-/// because the compiler complains:
+/// ...makes the compiler complain:
 /// "this is not defined in the current crate because tuples are always foreign"
 pub struct Pair<K, V>(pub Index<K>, pub V);
 
@@ -65,43 +60,52 @@ pub struct Pair<K, V>(pub Index<K>, pub V);
 // example: https://doc.rust-lang.org/std/result/enum.Result.html#method.from_iter
 impl<K, V> FromIterator<Pair<K, V>> for TofnResult<HoleVecMap<K, V>> {
     fn from_iter<Iter: IntoIterator<Item = Pair<K, V>>>(iter: Iter) -> Self {
-        let kv_pairs: Vec<Pair<K, V>> = iter.into_iter().collect();
-
         // indices must be in ascending order with at most one hole
         // (if there is no hole then the hole is the final index)
         let mut hole: Option<Index<K>> = None;
-        for (i, kv_pair) in kv_pairs.iter().enumerate() {
-            match kv_pair.0 .0 {
-                j if hole.is_none() && j == i => continue,
-                j if hole.is_some() && j == i + 1 => continue,
-                j if hole.is_none() && j == i + 1 => hole = Some(Index::from_usize(i)),
-                j => {
+        let vec: VecMap<K, V> = iter
+            .into_iter()
+            .enumerate()
+            .map(|(i, pair)| {
+                let j = pair.0 .0;
+                if hole.is_none() && j == i + 1 {
+                    hole = Some(Index::from_usize(i));
+                }
+                if (hole.is_none() && j == i) || (hole.is_some() && j == i + 1) {
+                    Ok(pair.1)
+                } else {
                     // Need to manually convert `hole` to String
                     // because https://stackoverflow.com/a/31371094
                     let hole_str = match hole {
                         Some(index) => index.0.to_string(),
                         None => "`None`".to_string(),
                     };
-                    return Err(format!(
+                    Err(format!(
                         "invalid iterator: index {} at position {} with hole {}",
                         j, i, hole_str
-                    ));
+                    ))
                 }
-            }
-        }
+            })
+            .collect::<TofnResult<VecMap<K, V>>>()?;
 
         let hole = match hole {
             Some(index) => index,
-            None => Index::from_usize(kv_pairs.len()), // hole is the final index
+            None => Index::from_usize(vec.len()), // hole is the final index
         };
 
         Ok(HoleVecMap {
-            vec: kv_pairs.into_iter().map(|p| p.1).collect(),
+            vec,
             hole,
             phantom: std::marker::PhantomData,
         })
     }
 }
+
+// impl<K, V> FromIterator<Pair<K, TofnResult<V>>> for TofnResult<HoleVecMap<K, V>> {
+//     fn from_iter<Iter: IntoIterator<Item = Pair<K, TofnResult<V>>>>(iter: Iter) -> Self {
+//         todo!()
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
