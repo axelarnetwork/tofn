@@ -3,14 +3,11 @@ use tracing::warn;
 use crate::{
     paillier_k256,
     protocol::gg20::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo},
-    refactor::{
-        protocol::executer::{
-            ProtocolBuilder::{self, *},
-            RoundExecuter,
-        },
-        BytesVec,
+    refactor::protocol::executer::{
+        ProtocolBuilder::{self, *},
+        RoundExecuterTyped,
     },
-    vecmap::{FillHoleVecMap, FillVecMap, VecMap},
+    vecmap::{HoleVecMap, VecMap},
     zkp::schnorr_k256,
 };
 
@@ -26,32 +23,27 @@ pub(super) struct R4 {
     pub(super) all_X_i: Vec<k256::ProjectivePoint>,
 }
 
-impl RoundExecuter for R4 {
-    type FinalOutput = KeygenOutput;
+impl RoundExecuterTyped for R4 {
+    type FinalOutputTyped = KeygenOutput;
     type Index = KeygenPartyIndex;
+    type Bcast = r3::Bcast;
+    type P2p = ();
 
-    fn execute(
+    fn execute_typed(
         self: Box<Self>,
         _party_count: usize,
         index: usize,
-        bcasts_in: FillVecMap<Self::Index, BytesVec>,
-        _p2ps_in: VecMap<Self::Index, FillHoleVecMap<Self::Index, BytesVec>>,
-    ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
-        // deserialize incoming messages
-        let r3bcasts: Vec<r3::Bcast> = bcasts_in
-            .into_iter()
-            .map(|(_, bytes)| bincode::deserialize(&bytes.as_ref().unwrap()).unwrap())
-            .collect();
-
+        bcasts_in: VecMap<Self::Index, Self::Bcast>,
+        _p2ps_in: VecMap<Self::Index, HoleVecMap<Self::Index, Self::P2p>>,
+    ) -> ProtocolBuilder<Self::FinalOutputTyped, Self::Index> {
         // verify proofs
-        let criminals: Vec<Vec<Crime>> = r3bcasts
+        let criminals: Vec<Vec<Crime>> = bcasts_in
             .iter()
-            .enumerate()
             .map(|(i, r3bcast)| {
                 if schnorr_k256::verify(
                     &schnorr_k256::Statement {
                         base: &k256::ProjectivePoint::generator(),
-                        target: &self.all_X_i[i],
+                        target: &self.all_X_i[i.as_usize()],
                     },
                     &r3bcast.x_i_proof,
                 )
