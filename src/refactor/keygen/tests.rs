@@ -1,9 +1,8 @@
 use super::*;
 use crate::{
-    fillvec::FillVec,
     protocol::gg20::vss_k256,
-    refactor::{keygen::temp::to_fillvec, protocol::Protocol, BytesVec},
-    vecmap::VecMap,
+    refactor::{protocol::Protocol, BytesVec},
+    vecmap::{HoleVecMap, VecMap},
 };
 use rand::RngCore;
 use tracing_test::traced_test;
@@ -144,22 +143,14 @@ pub(crate) fn execute_keygen_from_recovery(
             party.bcast_in(from, bytes);
         }
     }
-    // TODO TEMPORARY: translate HoleVecMap into FillVec
-    let r2_p2ps: Vec<FillVec<Vec<u8>>> = r2_parties
+    let r2_p2ps: VecMap<KeygenPartyIndex, HoleVecMap<KeygenPartyIndex, BytesVec>> = r2_parties
         .iter()
-        .map(|party| {
-            to_fillvec(
-                party.p2ps_out().as_ref().unwrap().as_ref().unwrap().clone(),
-                party.index(),
-            )
-        })
+        .map(|party| party.p2ps_out().clone().unwrap().unwrap())
         .collect();
     for party in r2_parties.iter_mut() {
-        for (from, p2ps) in r2_p2ps.iter().enumerate() {
-            for (to, msg) in p2ps.vec_ref().iter().enumerate() {
-                if let Some(msg) = msg {
-                    party.p2p_in(from, to, msg);
-                }
+        for (from, p2ps) in r2_p2ps.iter() {
+            for (to, msg) in p2ps.iter() {
+                party.p2p_in(from.as_usize(), to.as_usize(), msg);
             }
         }
     }

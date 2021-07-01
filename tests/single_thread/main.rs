@@ -1,21 +1,22 @@
 use rand::RngCore;
 use tofn::{
-    fillvec::FillVec,
     protocol::gg20::SecretKeyShare,
     refactor::{
-        keygen::{new_keygen, temp::to_fillvec, KeygenOutput, KeygenPartyIndex},
+        keygen::{new_keygen, KeygenOutput, KeygenPartyIndex},
         protocol::{Protocol, ProtocolRound},
         BytesVec, TofnResult,
     },
-    vecmap::VecMap,
+    vecmap::{HoleVecMap, VecMap},
 };
 use tracing::error;
+use tracing_test::traced_test; // enable logs in tests
 
 /// TODO rename parent dir to `example`
 /// TODO clean up
 // TODO generic over final output F
 
 #[test]
+#[traced_test]
 fn main() {
     let (share_count, threshold) = (5, 2);
     let session_nonce = b"foobar";
@@ -82,38 +83,37 @@ fn next_round(
         .collect();
     for (from, bcast) in bcasts.into_iter() {
         if let Some(bcast) = bcast {
-            if let Ok(bytes) = bcast {
-                for round in rounds.iter_mut() {
-                    round.bcast_in(from, &bytes);
+            match bcast {
+                Ok(bytes) => {
+                    for round in rounds.iter_mut() {
+                        round.bcast_in(from, &bytes);
+                    }
                 }
-            } else {
-                error!("missing bcast from party {}", from);
-            }
+                Err(e) => error!("bcast error from party {}: {}", from, e),
+            };
         }
     }
 
     // deliver p2ps
-    let all_p2ps: Vec<Option<FillVec<Vec<u8>>>> = rounds
+    let all_p2ps: VecMap<
+        KeygenPartyIndex,
+        Option<TofnResult<HoleVecMap<KeygenPartyIndex, BytesVec>>>,
+    > = rounds
         .iter()
-        .map(|round| {
-            round
-                .p2ps_out()
-                .clone()
-                .map(|r| to_fillvec(r.unwrap(), round.index()))
-        })
+        .map(|round| round.p2ps_out().clone())
         .collect();
-    for (from, p2ps) in all_p2ps.into_iter().enumerate() {
+    for (from, p2ps) in all_p2ps.into_iter() {
         if let Some(p2ps) = p2ps {
-            for (to, p2p) in p2ps
-                .into_vec()
-                .into_iter()
-                .enumerate()
-                .filter_map(|(i, p2p)| p2p.map(|p| (i, p)))
-            {
-                for round in rounds.iter_mut() {
-                    round.p2p_in(from, to, &p2p);
+            match p2ps {
+                Ok(p2ps) => {
+                    for (to, bytes) in p2ps {
+                        for round in rounds.iter_mut() {
+                            round.p2p_in(from.as_usize(), to.as_usize(), &bytes);
+                        }
+                    }
                 }
-            }
+                Err(e) => error!("p2p error from party {}: {}", from, e),
+            };
         }
     }
 
