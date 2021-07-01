@@ -1,11 +1,17 @@
 use std::iter::FromIterator;
 
-use super::{vecmap_iter::VecMapIter, Index};
+use super::{vecmap_iter::VecMapIter, HoleVecMap, Index};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct VecMap<K, V>(Vec<V>, std::marker::PhantomData<Index<K>>);
 
 impl<K, V> VecMap<K, V> {
+    pub fn from_vec(vec: Vec<V>) -> Self {
+        Self(vec, std::marker::PhantomData)
+    }
+    pub fn into_vec(self) -> Vec<V> {
+        self.0
+    }
     pub fn get(&self, index: Index<K>) -> &V {
         // TODO range check?
         &self.0[index.0]
@@ -16,6 +22,11 @@ impl<K, V> VecMap<K, V> {
     }
     pub fn len(&self) -> usize {
         self.0.len()
+    }
+    pub fn puncture_hole(mut self, hole: Index<K>) -> (HoleVecMap<K, V>, V) {
+        // TODO range check?
+        let hole_val = self.0.remove(hole.0);
+        (HoleVecMap::from_vecmap(self, hole), hole_val)
     }
     pub fn iter(&self) -> VecMapIter<K, std::slice::Iter<V>> {
         VecMapIter::new(self.0.iter())
@@ -44,6 +55,6 @@ impl<'a, K, V> IntoIterator for &'a VecMap<K, V> {
 
 impl<K, V> FromIterator<V> for VecMap<K, V> {
     fn from_iter<Iter: IntoIterator<Item = V>>(iter: Iter) -> Self {
-        Self(Vec::from_iter(iter), std::marker::PhantomData)
+        Self::from_vec(Vec::from_iter(iter))
     }
 }

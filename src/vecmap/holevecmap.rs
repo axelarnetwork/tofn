@@ -12,6 +12,13 @@ pub struct HoleVecMap<K, V> {
 }
 
 impl<K, V> HoleVecMap<K, V> {
+    pub fn from_vecmap(vec: VecMap<K, V>, hole: Index<K>) -> Self {
+        HoleVecMap {
+            vec,
+            hole,
+            phantom: std::marker::PhantomData,
+        }
+    }
     pub fn get(&self, index: Index<K>) -> &V {
         self.vec.get(self.map_index(index).expect("bad index"))
     }
@@ -21,10 +28,14 @@ impl<K, V> HoleVecMap<K, V> {
     pub fn len(&self) -> usize {
         self.vec.len() + 1
     }
+    pub fn plug_hole(self, val: V) -> VecMap<K, V> {
+        let mut vec = self.vec.into_vec();
+        vec.insert(self.hole.0, val);
+        VecMap::from_vec(vec)
+    }
     pub fn iter(&self) -> HoleVecMapIter<K, std::slice::Iter<V>> {
         HoleVecMapIter::new(self.vec.iter(), self.hole)
     }
-
     fn map_index(&self, index: Index<K>) -> Result<Index<K>, &'static str> {
         match index.0 {
             i if i < self.hole.0 => Ok(index),
@@ -104,11 +115,7 @@ where
             None => Index::from_usize(vec.len()), // hole is the final index
         };
 
-        Ok(HoleVecMap {
-            vec,
-            hole,
-            phantom: std::marker::PhantomData,
-        })
+        Ok(HoleVecMap::from_vecmap(vec, hole))
     }
 }
 

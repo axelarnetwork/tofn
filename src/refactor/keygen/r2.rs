@@ -76,9 +76,8 @@ impl RoundExecuter for R2 {
         // TODO Vss::shares() should return a VecMap
         // for now we manually convert Vec to VecMap
         // TODO helper method to spit a VecMap into (mine, HoleVecMap)
-        let u_i_shares: VecMap<KeygenPartyIndex, _> =
-            self.u_i_vss.shares(party_count).into_iter().collect();
-        let u_i_my_share = u_i_shares.get(index).clone();
+        let (u_i_other_shares, u_i_my_share) =
+            VecMap::from_vec(self.u_i_vss.shares(party_count)).puncture_hole(index);
 
         // #[cfg(feature = "malicious")]
         // let my_u_i_shares_k256 = if let Behaviour::R2BadShare { victim } = self.behaviour {
@@ -104,37 +103,33 @@ impl RoundExecuter for R2 {
         //     my_u_i_shares_k256
         // };
 
-        let p2ps_out = Some(
-            u_i_shares
-                .into_iter()
-                .filter_map(|(i, share)| {
-                    if i == index {
-                        None
-                    } else {
-                        // encrypt the share for party i
-                        let (u_i_share_ciphertext, _) =
-                            bcasts_in.get(i).ek.encrypt(&share.get_scalar().into());
+        let p2ps_out = u_i_other_shares
+            .into_iter()
+            .map(|(i, share)| {
+                // encrypt the share for party i
+                let (u_i_share_ciphertext, _) =
+                    bcasts_in.get(i).ek.encrypt(&share.get_scalar().into());
 
-                        // #[cfg(feature = "malicious")]
-                        // let u_i_share_ciphertext_k256 = match self.behaviour {
-                        //     Behaviour::R2BadEncryption { victim } if victim == i => {
-                        //         info!(
-                        //             "(k256) malicious party {} do {:?}",
-                        //             self.my_index, self.behaviour
-                        //         );
-                        //         u_i_share_ciphertext_k256.corrupt()
-                        //     }
-                        //     _ => u_i_share_ciphertext_k256,
-                        // };
+                // #[cfg(feature = "malicious")]
+                // let u_i_share_ciphertext_k256 = match self.behaviour {
+                //     Behaviour::R2BadEncryption { victim } if victim == i => {
+                //         info!(
+                //             "(k256) malicious party {} do {:?}",
+                //             self.my_index, self.behaviour
+                //         );
+                //         u_i_share_ciphertext_k256.corrupt()
+                //     }
+                //     _ => u_i_share_ciphertext_k256,
+                // };
 
-                        let p2p = P2p {
-                            u_i_share_ciphertext,
-                        };
-                        Some(Pair(i, serialize(&p2p)))
-                    }
-                })
-                .collect(),
-        );
+                Some(Pair(
+                    i,
+                    serialize(&P2p {
+                        u_i_share_ciphertext,
+                    }),
+                ))
+            })
+            .collect();
 
         let bcast_out = Some(serialize(&Bcast {
             y_i_reveal: self.y_i_reveal.clone(),

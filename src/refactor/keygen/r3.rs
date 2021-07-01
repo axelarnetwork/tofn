@@ -79,8 +79,6 @@ impl RoundExecuter for R3 {
         }
 
         // decrypt shares
-        // TODO need a helper for p2ps: give me an interator over messages to me
-        // let share_infos : HoleVecMap<_, (vss_k256::Share, paillier_k256::Randomness)>
         let share_infos = p2ps_in
             .to_me(index)
             .map(|(from, p2p)| {
