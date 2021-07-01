@@ -56,10 +56,15 @@ impl<K, V> IntoIterator for HoleVecMap<K, V> {
 /// "this is not defined in the current crate because tuples are always foreign"
 pub struct Pair<K, V>(pub Index<K>, pub V);
 
-// TODO if V is a Result then need a way to bubble up the result
-// example: https://doc.rust-lang.org/std/result/enum.Result.html#method.from_iter
 impl<K, V> FromIterator<Pair<K, V>> for TofnResult<HoleVecMap<K, V>> {
     fn from_iter<Iter: IntoIterator<Item = Pair<K, V>>>(iter: Iter) -> Self {
+        Self::from_iter(iter.into_iter().map(|pair| Pair(pair.0, Ok(pair.1))))
+    }
+}
+
+/// Follow the lead: https://doc.rust-lang.org/std/result/enum.Result.html#method.from_iter
+impl<K, V> FromIterator<Pair<K, TofnResult<V>>> for TofnResult<HoleVecMap<K, V>> {
+    fn from_iter<Iter: IntoIterator<Item = Pair<K, TofnResult<V>>>>(iter: Iter) -> Self {
         // indices must be in ascending order with at most one hole
         // (if there is no hole then the hole is the final index)
         let mut hole: Option<Index<K>> = None;
@@ -72,7 +77,7 @@ impl<K, V> FromIterator<Pair<K, V>> for TofnResult<HoleVecMap<K, V>> {
                     hole = Some(Index::from_usize(i));
                 }
                 if (hole.is_none() && j == i) || (hole.is_some() && j == i + 1) {
-                    Ok(pair.1)
+                    pair.1
                 } else {
                     // Need to manually convert `hole` to String
                     // because https://stackoverflow.com/a/31371094
@@ -100,12 +105,6 @@ impl<K, V> FromIterator<Pair<K, V>> for TofnResult<HoleVecMap<K, V>> {
         })
     }
 }
-
-// impl<K, V> FromIterator<Pair<K, TofnResult<V>>> for TofnResult<HoleVecMap<K, V>> {
-//     fn from_iter<Iter: IntoIterator<Item = Pair<K, TofnResult<V>>>>(iter: Iter) -> Self {
-//         todo!()
-//     }
-// }
 
 #[cfg(test)]
 mod tests {
