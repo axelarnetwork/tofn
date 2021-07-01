@@ -97,25 +97,18 @@ pub(super) mod tests; // pub(super) so that sign module can see tests::execute_k
 
 // TODO TEMPORARY: translate HoleVecMap into FillVec
 pub mod temp {
-    use crate::{
-        fillvec::FillVec,
-        refactor::{BytesVec, TofnResult},
-        vecmap::HoleVecMap,
-    };
+    use crate::{fillvec::FillVec, refactor::BytesVec, vecmap::HoleVecMap};
 
     use super::KeygenPartyIndex;
 
     pub fn to_fillvec(
-        hole_vecmap: HoleVecMap<KeygenPartyIndex, TofnResult<BytesVec>>,
+        hole_vecmap: HoleVecMap<KeygenPartyIndex, BytesVec>,
         hole: usize,
     ) -> FillVec<BytesVec> {
         let mut res = FillVec::from_vec(
             hole_vecmap
                 .into_iter()
-                .map(|(_, r)| match r {
-                    Ok(bytes) => Some(bytes),
-                    Err(_) => None,
-                })
+                .map(|(_, bytes)| Some(bytes))
                 .collect(),
         );
         res.vec_ref_mut().insert(hole, None);

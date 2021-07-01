@@ -18,7 +18,7 @@ pub struct ProtocolRound<F, K> {
     party_count: usize,
     index: usize,
     bcast_out: Option<TofnResult<BytesVec>>,
-    p2ps_out: Option<TofnResult<HoleVecMap<K, TofnResult<BytesVec>>>>, // TODO nested results
+    p2ps_out: Option<TofnResult<HoleVecMap<K, BytesVec>>>,
     bcasts_in: Option<FillVecMap<K, BytesVec>>,
     p2ps_in: Option<Vec<FillVec<Vec<u8>>>>, // TODO FillVec with hole?
 }
@@ -29,7 +29,7 @@ impl<F, K> ProtocolRound<F, K> {
         party_count: usize,
         index: usize,
         bcast_out: Option<TofnResult<BytesVec>>,
-        p2ps_out: Option<TofnResult<HoleVecMap<K, TofnResult<BytesVec>>>>,
+        p2ps_out: Option<TofnResult<HoleVecMap<K, BytesVec>>>,
     ) -> Self {
         // validate args
         // TODO return error instead of panic?
@@ -59,7 +59,7 @@ impl<F, K> ProtocolRound<F, K> {
     pub fn bcast_out(&self) -> &Option<TofnResult<BytesVec>> {
         &self.bcast_out
     }
-    pub fn p2ps_out(&self) -> &Option<TofnResult<HoleVecMap<K, TofnResult<BytesVec>>>> {
+    pub fn p2ps_out(&self) -> &Option<TofnResult<HoleVecMap<K, BytesVec>>> {
         &self.p2ps_out
     }
     pub fn bcast_in(&mut self, from: Index<K>, bytes: &[u8]) {

@@ -21,7 +21,7 @@ pub trait DeTimeout {
 pub struct ProtocolRoundBuilder<F, K> {
     pub round: Box<dyn RoundExecuter<FinalOutput = F, Index = K>>,
     pub bcast_out: Option<TofnResult<BytesVec>>,
-    pub p2ps_out: Option<TofnResult<HoleVecMap<K, TofnResult<BytesVec>>>>,
+    pub p2ps_out: Option<TofnResult<HoleVecMap<K, BytesVec>>>,
 }
 
 pub trait RoundExecuterTyped: Send + Sync {

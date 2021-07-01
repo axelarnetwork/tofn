@@ -10,9 +10,8 @@ use crate::{
         protocol::executer::{
             serialize, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuterTyped,
         },
-        BytesVec, TofnResult,
     },
-    vecmap::{HoleVecMap, Pair, VecMap},
+    vecmap::{Pair, VecMap},
 };
 
 use super::{r1, KeygenOutput, KeygenPartyIndex, KeygenProtocolBuilder};
@@ -105,7 +104,7 @@ impl RoundExecuterTyped for R2 {
         // };
 
         // TODO nested results
-        let p2ps_out: Option<TofnResult<HoleVecMap<_, TofnResult<BytesVec>>>> = Some(
+        let p2ps_out = Some(
             u_i_shares
                 .into_iter()
                 .filter_map(|(i, share)| {
