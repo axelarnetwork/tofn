@@ -33,7 +33,7 @@ pub trait RoundExecuter: Send + Sync {
         party_count: usize,
         index: Index<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>, // TODO Option
-        p2ps_in: VecMap<Self::Index, HoleVecMap<Self::Index, Self::P2p>>, // TODO Option
+        p2ps_in: P2ps<Self::Index, Self::P2p>, //VecMap<Self::Index, HoleVecMap<Self::Index, Self::P2p>>, // TODO Option
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index>;
 
     #[cfg(test)]
@@ -106,7 +106,7 @@ impl<T: RoundExecuter> RoundExecuterRaw for T {
             })
             .collect();
         let p2ps_in = match p2ps_deserialize {
-            Ok(vec) => vec,
+            Ok(vec) => P2ps::from_vecmaps(vec),
             Err(_) => {
                 return ProtocolBuilder::Done(Self::FinalOutput::new_deserialization_failure())
             }
@@ -123,6 +123,8 @@ impl<T: RoundExecuter> RoundExecuterRaw for T {
 }
 
 use tracing::error;
+
+use super::P2ps;
 
 pub(crate) fn serialize<T: ?Sized>(value: &T) -> TofnResult<BytesVec>
 where

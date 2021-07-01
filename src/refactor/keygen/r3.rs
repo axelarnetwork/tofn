@@ -8,10 +8,13 @@ use crate::{
     protocol::gg20::vss_k256,
     refactor::{
         keygen::r4,
-        protocol::executer::{serialize, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuter},
+        protocol::{
+            executer::{serialize, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuter},
+            P2ps,
+        },
         TofnResult,
     },
-    vecmap::{HoleVecMap, Index, Pair, VecMap},
+    vecmap::{Index, Pair, VecMap},
     zkp::schnorr_k256,
 };
 
@@ -53,7 +56,7 @@ impl RoundExecuter for R3 {
         party_count: usize,
         index: Index<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
-        p2ps_in: VecMap<Self::Index, HoleVecMap<Self::Index, Self::P2p>>,
+        p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
         // check y_i commits
         let criminals: Vec<Vec<Crime>> = bcasts_in
@@ -78,26 +81,17 @@ impl RoundExecuter for R3 {
         // decrypt shares
         // TODO need a helper for p2ps: give me an interator over messages to me
         // let share_infos : HoleVecMap<_, (vss_k256::Share, paillier_k256::Randomness)>
-        let share_infos: TofnResult<HoleVecMap<_, (vss_k256::Share, paillier_k256::Randomness)>> =
-            p2ps_in
-                .iter()
-                .filter_map(|(i, party_p2ps_in)| {
-                    if i == index {
-                        None
-                    } else {
-                        let (u_i_share_plaintext, u_i_share_randomness) =
-                            self.dk.decrypt_with_randomness(
-                                &party_p2ps_in.get(index).u_i_share_ciphertext,
-                            );
-                        let u_i_share = vss_k256::Share::from_scalar(
-                            u_i_share_plaintext.to_scalar(),
-                            index.as_usize(),
-                        );
-                        Some(Pair(i, (u_i_share, u_i_share_randomness)))
-                    }
-                })
-                .collect();
-        let share_infos = share_infos.expect("failure to build share_infos");
+        let share_infos = p2ps_in
+            .to_me(index)
+            .map(|(from, p2p)| {
+                let (u_i_share_plaintext, u_i_share_randomness) =
+                    self.dk.decrypt_with_randomness(&p2p.u_i_share_ciphertext);
+                let u_i_share =
+                    vss_k256::Share::from_scalar(u_i_share_plaintext.to_scalar(), index.as_usize());
+                Pair(from, (u_i_share, u_i_share_randomness))
+            })
+            .collect::<TofnResult<_>>()
+            .expect("failure to build share_infos");
 
         // validate shares
         // TODO may need a helper that converts a HoleVecMap (iterator?) to a VecMap<VssComplaint>

@@ -7,9 +7,12 @@ use crate::{
     protocol::gg20::vss_k256,
     refactor::{
         keygen::{r3, Crime},
-        protocol::executer::{serialize, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuter},
+        protocol::{
+            executer::{serialize, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuter},
+            P2ps,
+        },
     },
-    vecmap::{HoleVecMap, Index, Pair, VecMap},
+    vecmap::{Index, Pair, VecMap},
 };
 
 use super::{r1, KeygenOutput, KeygenPartyIndex, KeygenProtocolBuilder};
@@ -49,7 +52,7 @@ impl RoundExecuter for R2 {
         party_count: usize,
         index: Index<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
-        _p2ps_in: VecMap<Self::Index, HoleVecMap<Self::Index, Self::P2p>>,
+        _p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> KeygenProtocolBuilder {
         // check Paillier proofs
         // TODO `criminals` should have its own struct, something like VecMap<Vec<Crime>>

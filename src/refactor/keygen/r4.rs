@@ -3,11 +3,14 @@ use tracing::warn;
 use crate::{
     paillier_k256,
     protocol::gg20::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo},
-    refactor::protocol::executer::{
-        ProtocolBuilder::{self, *},
-        RoundExecuter,
+    refactor::protocol::{
+        executer::{
+            ProtocolBuilder::{self, *},
+            RoundExecuter,
+        },
+        P2ps,
     },
-    vecmap::{HoleVecMap, Index, VecMap},
+    vecmap::{Index, VecMap},
     zkp::schnorr_k256,
 };
 
@@ -34,7 +37,7 @@ impl RoundExecuter for R4 {
         _party_count: usize,
         index: Index<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
-        _p2ps_in: VecMap<Self::Index, HoleVecMap<Self::Index, Self::P2p>>,
+        _p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
         // verify proofs
         let criminals: Vec<Vec<Crime>> = bcasts_in
