@@ -17,8 +17,8 @@ pub enum Message<K> {
         bytes: BytesVec,
     },
     P2p {
-        from: usize,
-        to: usize,
+        from: Index<K>,
+        to: Index<K>,
         bytes: BytesVec,
     },
 }
@@ -62,8 +62,8 @@ pub fn execute_protocol<F, I>(
             if let Ok(p2ps_out) = p2ps_out {
                 for (to, bytes) in p2ps_out.iter() {
                     broadcaster.send(Message::P2p {
-                        from: round.index(),
-                        to: to.as_usize(),
+                        from: Index::from_usize(round.index()),
+                        to: to,
                         bytes: bytes.clone(),
                     });
                 }

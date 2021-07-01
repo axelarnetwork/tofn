@@ -150,7 +150,7 @@ pub(crate) fn execute_keygen_from_recovery(
     for party in r2_parties.iter_mut() {
         for (from, p2ps) in r2_p2ps.iter() {
             for (to, msg) in p2ps.iter() {
-                party.p2p_in(from.as_usize(), to.as_usize(), msg);
+                party.p2p_in(from, to, msg);
             }
         }
     }

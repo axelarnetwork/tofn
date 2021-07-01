@@ -108,7 +108,7 @@ fn next_round(
                 Ok(p2ps) => {
                     for (to, bytes) in p2ps {
                         for round in rounds.iter_mut() {
-                            round.p2p_in(from.as_usize(), to.as_usize(), &bytes);
+                            round.p2p_in(from, to, &bytes);
                         }
                     }
                 }

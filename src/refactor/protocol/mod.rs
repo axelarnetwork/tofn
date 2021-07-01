@@ -69,12 +69,10 @@ impl<F, K> ProtocolRound<F, K> {
             warn!("`bcast_in` called but no bcasts expected; discarding `bytes`");
         }
     }
-    pub fn p2p_in(&mut self, from: usize, to: usize, bytes: &[u8]) {
+    pub fn p2p_in(&mut self, from: Index<K>, to: Index<K>, bytes: &[u8]) {
         if let Some(ref mut p2ps_in) = self.p2ps_in {
             // TODO range checks
-            p2ps_in
-                .get_mut(Index::from_usize(from))
-                .set_warn(Index::from_usize(to), bytes.to_vec());
+            p2ps_in.get_mut(from).set_warn(to, bytes.to_vec());
         } else {
             warn!("`p2p_in` called but no p2ps expected; discaring `bytes`");
         }
