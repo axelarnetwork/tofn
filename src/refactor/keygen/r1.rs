@@ -9,7 +9,7 @@ use crate::{
         },
         BytesVec,
     },
-    vecmap::{FillHoleVecMap, FillVecMap, VecMap},
+    vecmap::{FillHoleVecMap, FillVecMap, Index, VecMap},
 };
 use serde::{Deserialize, Serialize};
 
@@ -36,7 +36,7 @@ impl RoundExecuterRaw for R1 {
     fn execute_raw(
         self: Box<Self>,
         _party_count: usize,
-        _index: usize,
+        _index: Index<Self::Index>,
         _bcasts_in: FillVecMap<Self::Index, BytesVec>,
         _p2ps_in: VecMap<Self::Index, FillHoleVecMap<Self::Index, BytesVec>>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {

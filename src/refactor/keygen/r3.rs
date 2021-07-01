@@ -51,7 +51,7 @@ impl RoundExecuter for R3 {
     fn execute(
         self: Box<Self>,
         party_count: usize,
-        index: usize,
+        index: Index<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
         p2ps_in: VecMap<Self::Index, HoleVecMap<Self::Index, Self::P2p>>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
@@ -82,17 +82,17 @@ impl RoundExecuter for R3 {
             p2ps_in
                 .iter()
                 .filter_map(|(i, party_p2ps_in)| {
-                    if i.as_usize() == index {
+                    if i == index {
                         None
                     } else {
                         let (u_i_share_plaintext, u_i_share_randomness) =
                             self.dk.decrypt_with_randomness(
-                                &party_p2ps_in
-                                    .get(Index::from_usize(index))
-                                    .u_i_share_ciphertext,
+                                &party_p2ps_in.get(index).u_i_share_ciphertext,
                             );
-                        let u_i_share =
-                            vss_k256::Share::from_scalar(u_i_share_plaintext.to_scalar(), index);
+                        let u_i_share = vss_k256::Share::from_scalar(
+                            u_i_share_plaintext.to_scalar(),
+                            index.as_usize(),
+                        );
                         Some(Pair(i, (u_i_share, u_i_share_randomness)))
                     }
                 })
@@ -179,7 +179,7 @@ impl RoundExecuter for R3 {
         let x_i_proof = schnorr_k256::prove(
             &schnorr_k256::Statement {
                 base: &k256::ProjectivePoint::generator(),
-                target: &all_X_i[index],
+                target: &all_X_i[index.as_usize()],
             },
             &schnorr_k256::Witness { scalar: &x_i },
         );

@@ -3,6 +3,7 @@ use crate::refactor::protocol::{
     executer::{DeTimeout, ProtocolBuilder},
     Protocol, ProtocolRound,
 };
+use crate::vecmap::Index;
 
 use super::TofnResult;
 
@@ -25,12 +26,13 @@ pub const MAX_SHARE_COUNT: usize = 1000;
 pub fn new_keygen(
     share_count: usize,
     threshold: usize,
-    index: usize,
+    index: Index<KeygenPartyIndex>,
     secret_recovery_key: &SecretRecoveryKey,
     session_nonce: &[u8],
 ) -> TofnResult<KeygenProtocol> {
     // validate args
-    if share_count <= threshold || share_count <= index || share_count > MAX_SHARE_COUNT {
+    if share_count <= threshold || share_count <= index.as_usize() || share_count > MAX_SHARE_COUNT
+    {
         return Err(format!(
             "invalid (share_count,threshold,index): ({},{},{})",
             share_count, threshold, index

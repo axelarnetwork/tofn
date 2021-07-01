@@ -9,7 +9,7 @@ use crate::{
         keygen::{r3, Crime},
         protocol::executer::{serialize, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuter},
     },
-    vecmap::{HoleVecMap, Pair, VecMap},
+    vecmap::{HoleVecMap, Index, Pair, VecMap},
 };
 
 use super::{r1, KeygenOutput, KeygenPartyIndex, KeygenProtocolBuilder};
@@ -47,7 +47,7 @@ impl RoundExecuter for R2 {
     fn execute(
         self: Box<Self>,
         party_count: usize,
-        index: usize,
+        index: Index<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
         _p2ps_in: VecMap<Self::Index, HoleVecMap<Self::Index, Self::P2p>>,
     ) -> KeygenProtocolBuilder {
@@ -70,12 +70,12 @@ impl RoundExecuter for R2 {
             return ProtocolBuilder::Done(Err(criminals));
         }
 
-        let u_i_shares = self.u_i_vss.shares(party_count);
-
         // TODO Vss::shares() should return a VecMap
         // for now we manually convert Vec to VecMap
-        let u_i_my_share = u_i_shares[index].clone();
-        let u_i_shares: VecMap<KeygenPartyIndex, _> = u_i_shares.into_iter().collect();
+        // TODO helper method to spit a VecMap into (mine, HoleVecMap)
+        let u_i_shares: VecMap<KeygenPartyIndex, _> =
+            self.u_i_vss.shares(party_count).into_iter().collect();
+        let u_i_my_share = u_i_shares.get(index).clone();
 
         // #[cfg(feature = "malicious")]
         // let my_u_i_shares_k256 = if let Behaviour::R2BadShare { victim } = self.behaviour {
@@ -101,12 +101,11 @@ impl RoundExecuter for R2 {
         //     my_u_i_shares_k256
         // };
 
-        // TODO nested results
         let p2ps_out = Some(
             u_i_shares
                 .into_iter()
                 .filter_map(|(i, share)| {
-                    if i.as_usize() == index {
+                    if i == index {
                         None
                     } else {
                         // encrypt the share for party i

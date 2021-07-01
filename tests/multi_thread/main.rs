@@ -7,6 +7,7 @@ use tofn::{
         keygen::{new_keygen, KeygenOutput, KeygenPartyIndex},
         protocol::Protocol,
     },
+    vecmap::Index,
 };
 
 /// TODO rename parent dir to `example`
@@ -25,7 +26,7 @@ fn main() {
             new_keygen(
                 share_count,
                 threshold,
-                index,
+                Index::from_usize(index),
                 &secret_recovery_key,
                 session_nonce,
             )

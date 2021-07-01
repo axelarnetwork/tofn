@@ -6,7 +6,7 @@ use tofn::{
         protocol::{Protocol, ProtocolRound},
         BytesVec, TofnResult,
     },
-    vecmap::{HoleVecMap, VecMap},
+    vecmap::{HoleVecMap, Index, VecMap},
 };
 use tracing::error;
 use tracing_test::traced_test; // enable logs in tests
@@ -28,7 +28,7 @@ fn main() {
             new_keygen(
                 share_count,
                 threshold,
-                index,
+                Index::from_usize(index),
                 &secret_recovery_key,
                 session_nonce,
             )

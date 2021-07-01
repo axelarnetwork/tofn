@@ -65,7 +65,7 @@ pub(crate) fn execute_keygen_from_recovery(
             match new_keygen(
                 share_count,
                 threshold,
-                i,
+                Index::from_usize(i),
                 &secret_recovery_keys[i],
                 session_nonce,
             )

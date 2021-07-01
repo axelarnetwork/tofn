@@ -51,7 +51,7 @@ pub fn execute_protocol<F, I>(
         if let Some(bcast_out) = round.bcast_out() {
             if let Ok(bytes) = bcast_out {
                 broadcaster.send(Message::Bcast {
-                    from: Index::from_usize(round.index()),
+                    from: round.index(),
                     bytes: bytes.clone(),
                 });
             } else {
@@ -62,8 +62,8 @@ pub fn execute_protocol<F, I>(
             if let Ok(p2ps_out) = p2ps_out {
                 for (to, bytes) in p2ps_out.iter() {
                     broadcaster.send(Message::P2p {
-                        from: Index::from_usize(round.index()),
-                        to: to,
+                        from: round.index(),
+                        to,
                         bytes: bytes.clone(),
                     });
                 }

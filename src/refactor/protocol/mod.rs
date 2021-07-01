@@ -13,7 +13,7 @@ pub enum Protocol<F, K> {
 pub struct ProtocolRound<F, K> {
     round: Box<dyn RoundExecuterRaw<FinalOutput = F, Index = K>>,
     party_count: usize,
-    index: usize,
+    index: Index<K>,
     bcast_out: Option<TofnResult<BytesVec>>,
     p2ps_out: Option<TofnResult<HoleVecMap<K, BytesVec>>>,
     bcasts_in: Option<FillVecMap<K, BytesVec>>,
@@ -24,13 +24,13 @@ impl<F, K> ProtocolRound<F, K> {
     pub fn new(
         round: Box<dyn RoundExecuterRaw<FinalOutput = F, Index = K>>,
         party_count: usize,
-        index: usize,
+        index: Index<K>,
         bcast_out: Option<TofnResult<BytesVec>>,
         p2ps_out: Option<TofnResult<HoleVecMap<K, BytesVec>>>,
     ) -> Self {
         // validate args
         // TODO return error instead of panic?
-        assert!(index < party_count);
+        assert!(index.as_usize() < party_count);
         if let Some(Ok(ref p2ps)) = p2ps_out {
             assert_eq!(p2ps.len(), party_count);
         }
@@ -111,7 +111,7 @@ impl<F, K> ProtocolRound<F, K> {
     pub fn party_count(&self) -> usize {
         self.party_count
     }
-    pub fn index(&self) -> usize {
+    pub fn index(&self) -> Index<K> {
         self.index
     }
 

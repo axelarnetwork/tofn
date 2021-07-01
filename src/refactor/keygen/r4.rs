@@ -7,7 +7,7 @@ use crate::{
         ProtocolBuilder::{self, *},
         RoundExecuter,
     },
-    vecmap::{HoleVecMap, VecMap},
+    vecmap::{HoleVecMap, Index, VecMap},
     zkp::schnorr_k256,
 };
 
@@ -32,7 +32,7 @@ impl RoundExecuter for R4 {
     fn execute(
         self: Box<Self>,
         _party_count: usize,
-        index: usize,
+        index: Index<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
         _p2ps_in: VecMap<Self::Index, HoleVecMap<Self::Index, Self::P2p>>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
@@ -80,7 +80,7 @@ impl RoundExecuter for R4 {
                 all_shares,
             },
             share: ShareSecretInfo {
-                index,
+                index: index.as_usize(),
                 dk: self.dk,
                 x_i: self.x_i.into(),
             },

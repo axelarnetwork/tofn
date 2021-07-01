@@ -2,7 +2,7 @@ use serde::de::DeserializeOwned;
 
 use crate::{
     refactor::{BytesVec, TofnResult},
-    vecmap::{FillHoleVecMap, FillVecMap, HoleVecMap, Pair, VecMap},
+    vecmap::{FillHoleVecMap, FillVecMap, HoleVecMap, Index, Pair, VecMap},
 };
 
 pub enum ProtocolBuilder<F, K> {
@@ -31,7 +31,7 @@ pub trait RoundExecuter: Send + Sync {
     fn execute(
         self: Box<Self>,
         party_count: usize,
-        index: usize,
+        index: Index<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>, // TODO Option
         p2ps_in: VecMap<Self::Index, HoleVecMap<Self::Index, Self::P2p>>, // TODO Option
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index>;
@@ -49,7 +49,7 @@ pub trait RoundExecuterRaw: Send + Sync {
     fn execute_raw(
         self: Box<Self>,
         party_count: usize,
-        index: usize,
+        index: Index<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, BytesVec>, // TODO Option
         p2ps_in: VecMap<Self::Index, FillHoleVecMap<Self::Index, BytesVec>>, // TODO Option
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index>;
@@ -67,7 +67,7 @@ impl<T: RoundExecuter> RoundExecuterRaw for T {
     fn execute_raw(
         self: Box<Self>,
         party_count: usize,
-        index: usize,
+        index: Index<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, BytesVec>,
         p2ps_in: VecMap<Self::Index, FillHoleVecMap<Self::Index, BytesVec>>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
