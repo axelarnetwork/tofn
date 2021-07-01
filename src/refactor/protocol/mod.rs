@@ -1,7 +1,4 @@
-use crate::{
-    fillvec::FillVec,
-    vecmap::{FillVecMap, HoleVecMap, Index},
-};
+use crate::vecmap::{FillHoleVecMap, FillVecMap, HoleVecMap, Index, VecMap};
 use tracing::warn;
 
 use self::executer::{ProtocolBuilder, RoundExecuter};
@@ -20,7 +17,7 @@ pub struct ProtocolRound<F, K> {
     bcast_out: Option<TofnResult<BytesVec>>,
     p2ps_out: Option<TofnResult<HoleVecMap<K, BytesVec>>>,
     bcasts_in: Option<FillVecMap<K, BytesVec>>,
-    p2ps_in: Option<Vec<FillVec<Vec<u8>>>>, // TODO FillVec with hole?
+    p2ps_in: Option<VecMap<K, FillHoleVecMap<K, BytesVec>>>,
 }
 
 impl<F, K> ProtocolRound<F, K> {
@@ -42,9 +39,11 @@ impl<F, K> ProtocolRound<F, K> {
         let bcasts_in = bcast_out
             .as_ref()
             .map(|_| FillVecMap::with_size(party_count));
-        let p2ps_in = p2ps_out
-            .as_ref()
-            .map(|_| vec![FillVec::with_len(party_count); party_count]);
+        let p2ps_in = p2ps_out.as_ref().map(|_| {
+            (0..party_count)
+                .map(|i| FillHoleVecMap::with_size(party_count, Index::from_usize(i)))
+                .collect()
+        });
 
         Self {
             round,
@@ -73,7 +72,9 @@ impl<F, K> ProtocolRound<F, K> {
     pub fn p2p_in(&mut self, from: usize, to: usize, bytes: &[u8]) {
         if let Some(ref mut p2ps_in) = self.p2ps_in {
             // TODO range checks
-            p2ps_in[from].overwrite_warn(to, bytes.to_vec());
+            p2ps_in
+                .get_mut(Index::from_usize(from))
+                .set_warn(Index::from_usize(to), bytes.to_vec());
         } else {
             warn!("`p2p_in` called but no p2ps expected; discaring `bytes`");
         }
@@ -87,7 +88,7 @@ impl<F, K> ProtocolRound<F, K> {
             return true;
         }
         let expecting_more_p2ps = match self.p2ps_in {
-            Some(ref p2ps_in) => !p2ps_in.iter().enumerate().all(|(i, p)| p.is_full_except(i)),
+            Some(ref p2ps_in) => !p2ps_in.iter().all(|(_, p)| p.is_full()),
             None => false,
         };
         expecting_more_p2ps
@@ -96,8 +97,8 @@ impl<F, K> ProtocolRound<F, K> {
         match self.round.execute(
             self.party_count,
             self.index,
-            self.bcasts_in.unwrap_or_else(|| FillVecMap::with_size(0)),
-            self.p2ps_in.unwrap_or_else(|| Vec::new()),
+            self.bcasts_in.unwrap_or_else(|| FillVecMap::with_size(0)), // TODO accept Option instead
+            self.p2ps_in.unwrap_or_else(|| std::iter::empty().collect()), // TODO accept Option instead
         ) {
             ProtocolBuilder::NotDone(builder) => Protocol::NotDone(ProtocolRound::new(
                 builder.round,

@@ -1,7 +1,6 @@
 use tracing::warn;
 
 use crate::{
-    fillvec::FillVec,
     paillier_k256,
     protocol::gg20::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo},
     refactor::{
@@ -11,7 +10,7 @@ use crate::{
         },
         BytesVec,
     },
-    vecmap::FillVecMap,
+    vecmap::{FillHoleVecMap, FillVecMap, VecMap},
     zkp::schnorr_k256,
 };
 
@@ -36,7 +35,7 @@ impl RoundExecuter for R4 {
         _party_count: usize,
         index: usize,
         bcasts_in: FillVecMap<Self::Index, BytesVec>,
-        _p2ps_in: Vec<FillVec<Vec<u8>>>,
+        _p2ps_in: VecMap<Self::Index, FillHoleVecMap<Self::Index, BytesVec>>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
         // deserialize incoming messages
         let r3bcasts: Vec<r3::Bcast> = bcasts_in

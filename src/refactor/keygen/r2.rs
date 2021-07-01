@@ -11,7 +11,7 @@ use crate::{
             serialize, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuterTyped,
         },
     },
-    vecmap::{Pair, VecMap},
+    vecmap::{HoleVecMap, Pair, VecMap},
 };
 
 use super::{r1, KeygenOutput, KeygenPartyIndex, KeygenProtocolBuilder};
@@ -51,7 +51,7 @@ impl RoundExecuterTyped for R2 {
         party_count: usize,
         index: usize,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
-        _p2ps_in: Vec<FillVec<Self::P2p>>,
+        _p2ps_in: VecMap<Self::Index, HoleVecMap<Self::Index, Self::P2p>>,
     ) -> KeygenProtocolBuilder {
         // check Paillier proofs
         // TODO `criminals` should have its own struct, something like VecMap<Vec<Crime>>

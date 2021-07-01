@@ -3,7 +3,7 @@ use crate::{
     fillvec::FillVec,
     protocol::gg20::vss_k256,
     refactor::{keygen::temp::to_fillvec, protocol::Protocol, BytesVec},
-    vecmap::{HoleVecMap, VecMap},
+    vecmap::VecMap,
 };
 use rand::RngCore;
 use tracing_test::traced_test;

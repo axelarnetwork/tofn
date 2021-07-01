@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 use crate::{
-    fillvec::FillVec,
     hash,
     k256_serde::to_bytes,
     paillier_k256,
@@ -12,8 +11,9 @@ use crate::{
         protocol::executer::{
             serialize, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuterTyped,
         },
+        TofnResult,
     },
-    vecmap::VecMap,
+    vecmap::{HoleVecMap, Index, Pair, VecMap},
     zkp::schnorr_k256,
 };
 
@@ -55,7 +55,7 @@ impl RoundExecuterTyped for R3 {
         party_count: usize,
         index: usize,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
-        p2ps_in: Vec<FillVec<Self::P2p>>,
+        p2ps_in: VecMap<Self::Index, HoleVecMap<Self::Index, Self::P2p>>,
     ) -> ProtocolBuilder<Self::FinalOutputTyped, Self::Index> {
         // check y_i commits
         let criminals: Vec<Vec<Crime>> = bcasts_in
@@ -78,55 +78,60 @@ impl RoundExecuterTyped for R3 {
         }
 
         // decrypt shares
-        // TODO share_infos iterates only over _other_ parties
-        // ie. iterate over p2p msgs from others to me
-        let share_infos: FillVec<(vss_k256::Share, paillier_k256::Randomness)> = FillVec::from_vec(
+        // TODO need a helper for p2ps: give me an interator over messages to me
+        // let share_infos : HoleVecMap<_, (vss_k256::Share, paillier_k256::Randomness)>
+        let share_infos: TofnResult<HoleVecMap<_, (vss_k256::Share, paillier_k256::Randomness)>> =
             p2ps_in
                 .iter()
-                .map(|r2_p2ps| {
-                    // return None if my_p2p is None
-                    r2_p2ps.vec_ref()[index].as_ref().map(|my_p2p| {
-                        let (u_i_share_plaintext, u_i_share_randomness) = self
-                            .dk
-                            .decrypt_with_randomness(&my_p2p.u_i_share_ciphertext);
+                .filter_map(|(i, party_p2ps_in)| {
+                    if i.as_usize() == index {
+                        None
+                    } else {
+                        let (u_i_share_plaintext, u_i_share_randomness) =
+                            self.dk.decrypt_with_randomness(
+                                &party_p2ps_in
+                                    .get(Index::from_usize(index))
+                                    .u_i_share_ciphertext,
+                            );
                         let u_i_share =
                             vss_k256::Share::from_scalar(u_i_share_plaintext.to_scalar(), index);
-                        (u_i_share, u_i_share_randomness)
-                    })
+                        Some(Pair(i, (u_i_share, u_i_share_randomness)))
+                    }
                 })
-                .collect(),
-        );
+                .collect();
+        let share_infos = share_infos.expect("failure to build share_infos");
 
         // validate shares
+        // TODO may need a helper that converts a HoleVecMap (iterator?) to a VecMap<VssComplaint>
         // TODO zip
         // - share_infos (which iterates only over _other_ parties)
         // - r2bcasts (which iterates over _all_ parties)
-        let vss_failures: Vec<VssComplaint> = share_infos
-            .vec_ref()
-            .iter()
-            .zip(bcasts_in.iter())
-            .filter_map(|(share_info, (from, r2bcast))| {
-                if let Some((u_i_share, u_i_share_randomness)) = share_info {
-                    if !r2bcast.u_i_share_commits.validate_share(&u_i_share) {
-                        warn!(
-                            "party {} accuse {} of {:?}",
-                            index,
-                            from,
-                            Crime::R4FailBadVss { victim: index },
-                        );
-                        Some(VssComplaint {
-                            criminal_index: from.as_usize(),
-                            share: u_i_share.clone(),
-                            share_randomness: u_i_share_randomness.clone(),
-                        })
-                    } else {
-                        None
-                    }
-                } else {
-                    None // if share_info is none then I must be talking to myself
-                }
-            })
-            .collect();
+        // let vss_failures: Vec<VssComplaint> = share_infos
+        //     .vec_ref()
+        //     .iter()
+        //     .zip(bcasts_in.iter())
+        //     .filter_map(|(share_info, (from, r2bcast))| {
+        //         if let Some((u_i_share, u_i_share_randomness)) = share_info {
+        //             if !r2bcast.u_i_share_commits.validate_share(&u_i_share) {
+        //                 warn!(
+        //                     "party {} accuse {} of {:?}",
+        //                     index,
+        //                     from,
+        //                     Crime::R4FailBadVss { victim: index },
+        //                 );
+        //                 Some(VssComplaint {
+        //                     criminal_index: from.as_usize(),
+        //                     share: u_i_share.clone(),
+        //                     share_randomness: u_i_share_randomness.clone(),
+        //                 })
+        //             } else {
+        //                 None
+        //             }
+        //         } else {
+        //             None // if share_info is none then I must be talking to myself
+        //         }
+        //     })
+        //     .collect();
         // if !vss_failures.is_empty() {
         //     return RoundOutput::NotDone(RoundWaiter {
         //         round: Box::new(r4::R4 {
@@ -150,16 +155,10 @@ impl RoundExecuterTyped for R3 {
 
         // compute x_i
         let x_i = share_infos
-            .vec_ref()
-            .iter()
-            .filter_map(|share_info| {
-                if let Some((share, _)) = share_info {
-                    Some(share.get_scalar())
-                } else {
-                    None
-                }
-            })
-            .fold(*self.u_i_my_share.get_scalar(), |acc, x| acc + x);
+            .into_iter()
+            .fold(*self.u_i_my_share.get_scalar(), |acc, (_, (share, _))| {
+                acc + share.get_scalar()
+            });
 
         // compute y
         let y = bcasts_in

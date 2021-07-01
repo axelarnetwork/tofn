@@ -1,9 +1,8 @@
 use serde::de::DeserializeOwned;
 
 use crate::{
-    fillvec::FillVec,
     refactor::{BytesVec, TofnResult},
-    vecmap::{FillVecMap, HoleVecMap, VecMap},
+    vecmap::{FillHoleVecMap, FillVecMap, HoleVecMap, Pair, VecMap},
 };
 
 pub enum ProtocolBuilder<F, K> {
@@ -33,8 +32,8 @@ pub trait RoundExecuterTyped: Send + Sync {
         self: Box<Self>,
         party_count: usize,
         index: usize,
-        bcasts_in: VecMap<Self::Index, Self::Bcast>,
-        p2ps_in: Vec<FillVec<Self::P2p>>,
+        bcasts_in: VecMap<Self::Index, Self::Bcast>, // TODO Option
+        p2ps_in: VecMap<Self::Index, HoleVecMap<Self::Index, Self::P2p>>, // TODO Option
     ) -> ProtocolBuilder<Self::FinalOutputTyped, Self::Index>;
 
     #[cfg(test)]
@@ -51,7 +50,7 @@ pub trait RoundExecuter: Send + Sync {
         party_count: usize,
         index: usize,
         bcasts_in: FillVecMap<Self::Index, BytesVec>, // TODO Option
-        p2ps_in: Vec<FillVec<Vec<u8>>>,               // TODO Option
+        p2ps_in: VecMap<Self::Index, FillHoleVecMap<Self::Index, BytesVec>>, // TODO Option
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index>;
 
     #[cfg(test)]
@@ -69,20 +68,16 @@ impl<T: RoundExecuterTyped> RoundExecuter for T {
         party_count: usize,
         index: usize,
         bcasts_in: FillVecMap<Self::Index, BytesVec>,
-        p2ps_in: Vec<FillVec<Vec<u8>>>,
+        p2ps_in: VecMap<Self::Index, FillHoleVecMap<Self::Index, BytesVec>>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
         // TODO this is only a PoC for timeout, deserialization errors
         // DeTimeout needs a fuller API to return detailed fault info
 
         // check for timeouts
         let bcast_timeout = !bcasts_in.is_full();
-        let p2p_timeout = p2ps_in.iter().enumerate().any(|(i, party)| {
-            party
-                .vec_ref()
-                .iter()
-                .enumerate()
-                .any(|(j, b)| j != i && b.is_none())
-        });
+        let p2p_timeout = !p2ps_in
+            .iter()
+            .all(|(_, party_p2ps_in)| party_p2ps_in.is_full());
         if bcast_timeout || p2p_timeout {
             return ProtocolBuilder::Done(Self::FinalOutput::new_timeout());
         }
@@ -100,32 +95,23 @@ impl<T: RoundExecuterTyped> RoundExecuter for T {
         };
 
         // attempt to deserialize p2ps
-        // TODO this sucks with FillVec
-        let mut p2ps_in_deserialized: Vec<FillVec<T::P2p>> = Vec::with_capacity(p2ps_in.len());
-        for (i, party_p2ps) in p2ps_in.iter().enumerate() {
-            let mut party_p2ps_deserialized: Vec<Option<T::P2p>> =
-                Vec::with_capacity(party_p2ps.len());
-            for (j, bytes) in party_p2ps.vec_ref().iter().enumerate() {
-                if j == i {
-                    party_p2ps_deserialized.push(None);
-                } else {
-                    let res = bincode::deserialize(&bytes.as_ref().unwrap());
-                    match res {
-                        Ok(p2p) => party_p2ps_deserialized.push(Some(p2p)),
-                        Err(_) => {
-                            return ProtocolBuilder::Done(
-                                Self::FinalOutput::new_deserialization_failure(),
-                            )
-                        }
-                    }
-                }
+        let p2ps_deserialize: TofnResult<VecMap<_, _>> = p2ps_in
+            .into_iter()
+            .map(|(_, party_p2ps)| {
+                party_p2ps
+                    .into_iter()
+                    .map(|(i, bytes)| Pair(i, bincode::deserialize(&bytes.as_ref().unwrap())))
+                    .collect::<Result<HoleVecMap<_, _>, _>>()
+            })
+            .collect();
+        let p2ps_in = match p2ps_deserialize {
+            Ok(vec) => vec,
+            Err(_) => {
+                return ProtocolBuilder::Done(Self::FinalOutput::new_deserialization_failure())
             }
-            assert_eq!(party_p2ps_deserialized.len(), party_p2ps.len());
-            p2ps_in_deserialized.push(FillVec::from_vec(party_p2ps_deserialized));
-        }
-        assert_eq!(p2ps_in_deserialized.len(), p2ps_in.len());
+        };
 
-        self.execute_typed(party_count, index, bcasts_in, p2ps_in_deserialized)
+        self.execute_typed(party_count, index, bcasts_in, p2ps_in)
     }
 
     #[cfg(test)]
@@ -136,17 +122,6 @@ impl<T: RoundExecuterTyped> RoundExecuter for T {
 }
 
 use tracing::error;
-
-pub(crate) fn serialize_as_option<T: ?Sized>(value: &T) -> Option<Vec<u8>>
-where
-    T: serde::Serialize,
-{
-    let bytes = bincode::serialize(value).ok();
-    if bytes.is_none() {
-        error!("serialization failure");
-    }
-    bytes
-}
 
 pub(crate) fn serialize<T: ?Sized>(value: &T) -> TofnResult<BytesVec>
 where
