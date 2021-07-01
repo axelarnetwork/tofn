@@ -7,9 +7,7 @@ use crate::{
     protocol::gg20::vss_k256,
     refactor::{
         keygen::{r3, Crime},
-        protocol::executer::{
-            serialize, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuterTyped,
-        },
+        protocol::executer::{serialize, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuter},
     },
     vecmap::{HoleVecMap, Pair, VecMap},
 };
@@ -40,13 +38,13 @@ pub(super) struct R2 {
     pub(super) y_i_reveal: hash::Randomness,
 }
 
-impl RoundExecuterTyped for R2 {
-    type FinalOutputTyped = KeygenOutput;
+impl RoundExecuter for R2 {
+    type FinalOutput = KeygenOutput;
     type Index = KeygenPartyIndex;
     type Bcast = r1::Bcast;
     type P2p = ();
 
-    fn execute_typed(
+    fn execute(
         self: Box<Self>,
         party_count: usize,
         index: usize,

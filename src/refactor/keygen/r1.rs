@@ -5,7 +5,7 @@ use crate::{
         protocol::executer::{
             serialize,
             ProtocolBuilder::{self, *},
-            ProtocolRoundBuilder, RoundExecuter,
+            ProtocolRoundBuilder, RoundExecuterRaw,
         },
         BytesVec,
     },
@@ -29,11 +29,11 @@ pub(super) struct Bcast {
     pub(super) zkp_proof: paillier_k256::zk::ZkSetupProof,
 }
 
-impl RoundExecuter for R1 {
+impl RoundExecuterRaw for R1 {
     type FinalOutput = KeygenOutput;
     type Index = KeygenPartyIndex;
 
-    fn execute(
+    fn execute_raw(
         self: Box<Self>,
         _party_count: usize,
         _index: usize,

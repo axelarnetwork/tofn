@@ -8,9 +8,7 @@ use crate::{
     protocol::gg20::vss_k256,
     refactor::{
         keygen::r4,
-        protocol::executer::{
-            serialize, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuterTyped,
-        },
+        protocol::executer::{serialize, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuter},
         TofnResult,
     },
     vecmap::{HoleVecMap, Index, Pair, VecMap},
@@ -43,20 +41,20 @@ pub(super) struct R3 {
     pub(super) r1bcasts: Vec<r1::Bcast>, // TODO Vec<everything>
 }
 
-impl RoundExecuterTyped for R3 {
-    type FinalOutputTyped = KeygenOutput;
+impl RoundExecuter for R3 {
+    type FinalOutput = KeygenOutput;
     type Index = KeygenPartyIndex;
     type Bcast = r2::Bcast;
     type P2p = r2::P2p;
 
     #[allow(non_snake_case)]
-    fn execute_typed(
+    fn execute(
         self: Box<Self>,
         party_count: usize,
         index: usize,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
         p2ps_in: VecMap<Self::Index, HoleVecMap<Self::Index, Self::P2p>>,
-    ) -> ProtocolBuilder<Self::FinalOutputTyped, Self::Index> {
+    ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
         // check y_i commits
         let criminals: Vec<Vec<Crime>> = bcasts_in
             .iter()

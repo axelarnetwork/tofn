@@ -18,23 +18,23 @@ pub trait DeTimeout {
 }
 
 pub struct ProtocolRoundBuilder<F, K> {
-    pub round: Box<dyn RoundExecuter<FinalOutput = F, Index = K>>,
+    pub round: Box<dyn RoundExecuterRaw<FinalOutput = F, Index = K>>,
     pub bcast_out: Option<TofnResult<BytesVec>>,
     pub p2ps_out: Option<TofnResult<HoleVecMap<K, BytesVec>>>,
 }
 
-pub trait RoundExecuterTyped: Send + Sync {
-    type FinalOutputTyped: DeTimeout;
+pub trait RoundExecuter: Send + Sync {
+    type FinalOutput: DeTimeout;
     type Index;
     type Bcast: DeserializeOwned;
     type P2p: DeserializeOwned;
-    fn execute_typed(
+    fn execute(
         self: Box<Self>,
         party_count: usize,
         index: usize,
         bcasts_in: VecMap<Self::Index, Self::Bcast>, // TODO Option
         p2ps_in: VecMap<Self::Index, HoleVecMap<Self::Index, Self::P2p>>, // TODO Option
-    ) -> ProtocolBuilder<Self::FinalOutputTyped, Self::Index>;
+    ) -> ProtocolBuilder<Self::FinalOutput, Self::Index>;
 
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
@@ -42,10 +42,11 @@ pub trait RoundExecuterTyped: Send + Sync {
     }
 }
 
-pub trait RoundExecuter: Send + Sync {
+/// "raw" means we haven't yet checked for timeouts or deserialization failure
+pub trait RoundExecuterRaw: Send + Sync {
     type FinalOutput;
     type Index;
-    fn execute(
+    fn execute_raw(
         self: Box<Self>,
         party_count: usize,
         index: usize,
@@ -55,15 +56,15 @@ pub trait RoundExecuter: Send + Sync {
 
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
-        unimplemented!("(RoundExecuter) return `self` to enable runtime reflection: https://bennetthardwick.com/dont-use-boxed-trait-objects-for-struct-internals")
+        unimplemented!("(RoundExecuterRaw) return `self` to enable runtime reflection: https://bennetthardwick.com/dont-use-boxed-trait-objects-for-struct-internals")
     }
 }
 
-impl<T: RoundExecuterTyped> RoundExecuter for T {
-    type FinalOutput = T::FinalOutputTyped;
+impl<T: RoundExecuter> RoundExecuterRaw for T {
+    type FinalOutput = T::FinalOutput;
     type Index = T::Index;
 
-    fn execute(
+    fn execute_raw(
         self: Box<Self>,
         party_count: usize,
         index: usize,
@@ -111,7 +112,7 @@ impl<T: RoundExecuterTyped> RoundExecuter for T {
             }
         };
 
-        self.execute_typed(party_count, index, bcasts_in, p2ps_in)
+        self.execute(party_count, index, bcasts_in, p2ps_in)
     }
 
     #[cfg(test)]

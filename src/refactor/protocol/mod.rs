@@ -1,7 +1,7 @@
 use crate::vecmap::{FillHoleVecMap, FillVecMap, HoleVecMap, Index, VecMap};
 use tracing::warn;
 
-use self::executer::{ProtocolBuilder, RoundExecuter};
+use self::executer::{ProtocolBuilder, RoundExecuterRaw};
 
 use super::{BytesVec, TofnResult};
 
@@ -11,7 +11,7 @@ pub enum Protocol<F, K> {
 }
 
 pub struct ProtocolRound<F, K> {
-    round: Box<dyn RoundExecuter<FinalOutput = F, Index = K>>,
+    round: Box<dyn RoundExecuterRaw<FinalOutput = F, Index = K>>,
     party_count: usize,
     index: usize,
     bcast_out: Option<TofnResult<BytesVec>>,
@@ -22,7 +22,7 @@ pub struct ProtocolRound<F, K> {
 
 impl<F, K> ProtocolRound<F, K> {
     pub fn new(
-        round: Box<dyn RoundExecuter<FinalOutput = F, Index = K>>,
+        round: Box<dyn RoundExecuterRaw<FinalOutput = F, Index = K>>,
         party_count: usize,
         index: usize,
         bcast_out: Option<TofnResult<BytesVec>>,
@@ -94,7 +94,7 @@ impl<F, K> ProtocolRound<F, K> {
         expecting_more_p2ps
     }
     pub fn execute_next_round(self) -> Protocol<F, K> {
-        match self.round.execute(
+        match self.round.execute_raw(
             self.party_count,
             self.index,
             self.bcasts_in.unwrap_or_else(|| FillVecMap::with_size(0)), // TODO accept Option instead
@@ -118,7 +118,7 @@ impl<F, K> ProtocolRound<F, K> {
     }
 
     #[cfg(test)]
-    pub fn round(&self) -> &Box<dyn RoundExecuter<FinalOutput = F, Index = K>> {
+    pub fn round(&self) -> &Box<dyn RoundExecuterRaw<FinalOutput = F, Index = K>> {
         &self.round
     }
 }

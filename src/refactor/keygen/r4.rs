@@ -5,7 +5,7 @@ use crate::{
     protocol::gg20::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo},
     refactor::protocol::executer::{
         ProtocolBuilder::{self, *},
-        RoundExecuterTyped,
+        RoundExecuter,
     },
     vecmap::{HoleVecMap, VecMap},
     zkp::schnorr_k256,
@@ -23,19 +23,19 @@ pub(super) struct R4 {
     pub(super) all_X_i: Vec<k256::ProjectivePoint>,
 }
 
-impl RoundExecuterTyped for R4 {
-    type FinalOutputTyped = KeygenOutput;
+impl RoundExecuter for R4 {
+    type FinalOutput = KeygenOutput;
     type Index = KeygenPartyIndex;
     type Bcast = r3::Bcast;
     type P2p = ();
 
-    fn execute_typed(
+    fn execute(
         self: Box<Self>,
         _party_count: usize,
         index: usize,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
         _p2ps_in: VecMap<Self::Index, HoleVecMap<Self::Index, Self::P2p>>,
-    ) -> ProtocolBuilder<Self::FinalOutputTyped, Self::Index> {
+    ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
         // verify proofs
         let criminals: Vec<Vec<Crime>> = bcasts_in
             .iter()
