@@ -63,7 +63,7 @@ impl RoundExecuter for R3 {
             .iter()
             .map(|(i, r2bcast)| {
                 let r1bcast = &self.r1bcasts.get(i);
-                let y_i = r2bcast.u_i_share_commits.secret_commit();
+                let y_i = r2bcast.u_i_vss_commit.secret_commit();
                 let y_i_commit = hash::commit_with_randomness(to_bytes(y_i), &r2bcast.y_i_reveal);
                 if y_i_commit != r1bcast.y_i_commit {
                     let crime = Crime::R3BadReveal;
@@ -154,7 +154,7 @@ impl RoundExecuter for R3 {
         let y = bcasts_in
             .iter()
             .fold(k256::ProjectivePoint::identity(), |acc, (_, r2bcast)| {
-                acc + r2bcast.u_i_share_commits.secret_commit()
+                acc + r2bcast.u_i_vss_commit.secret_commit()
             });
 
         // compute all_X_i
@@ -163,7 +163,7 @@ impl RoundExecuter for R3 {
                 bcasts_in
                     .iter()
                     .fold(k256::ProjectivePoint::identity(), |acc, (_, x)| {
-                        acc + x.u_i_share_commits.share_commit(i)
+                        acc + x.u_i_vss_commit.share_commit(i)
                     })
             })
             .collect();

@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 use crate::{
-    fillvec::FillVec,
     hash, paillier_k256,
     protocol::gg20::vss_k256,
     refactor::{
@@ -18,15 +17,9 @@ use crate::{
 use super::{r1, KeygenOutput, KeygenPartyIndex, KeygenProtocolBuilder};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(super) struct OutMsg {
-    pub(super) bcast: Bcast,
-    pub(super) p2ps: FillVec<P2p>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
 pub(super) struct Bcast {
     pub(super) y_i_reveal: hash::Randomness,
-    pub(super) u_i_share_commits: vss_k256::Commit,
+    pub(super) u_i_vss_commit: vss_k256::Commit,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -132,7 +125,7 @@ impl RoundExecuter for R2 {
 
         let bcast_out = Some(serialize(&Bcast {
             y_i_reveal: self.y_i_reveal.clone(),
-            u_i_share_commits: self.u_i_vss.commit(),
+            u_i_vss_commit: self.u_i_vss.commit(),
         }));
 
         ProtocolBuilder::NotDone(ProtocolRoundBuilder {
@@ -140,7 +133,7 @@ impl RoundExecuter for R2 {
                 threshold: self.threshold,
                 dk: self.dk,
                 u_i_my_share,
-                r1bcasts: bcasts_in.into_iter().map(|(_, x)| x).collect(), // TODO r1bcasts should be a VecMap
+                r1bcasts: bcasts_in,
             }),
             bcast_out,
             p2ps_out,
