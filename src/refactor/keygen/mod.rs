@@ -30,6 +30,25 @@ pub fn new_keygen(
     secret_recovery_key: &SecretRecoveryKey,
     session_nonce: &[u8],
 ) -> TofnResult<KeygenProtocol> {
+    new_keygen_impl(
+        share_count,
+        threshold,
+        index,
+        secret_recovery_key,
+        session_nonce,
+        #[cfg(feature = "malicious")]
+        Behaviour::Honest,
+    )
+}
+
+fn new_keygen_impl(
+    share_count: usize,
+    threshold: usize,
+    index: Index<KeygenPartyIndex>,
+    secret_recovery_key: &SecretRecoveryKey,
+    session_nonce: &[u8],
+    #[cfg(feature = "malicious")] behaviour: Behaviour,
+) -> TofnResult<KeygenProtocol> {
     // validate args
     if share_count <= threshold || share_count <= index.as_usize() || share_count > MAX_SHARE_COUNT
     {
@@ -52,12 +71,34 @@ pub fn new_keygen(
         Box::new(r1::R1 {
             threshold,
             rng_seed,
+            #[cfg(feature = "malicious")]
+            behaviour,
         }),
         share_count,
         index,
         None,
         None,
     )))
+}
+
+#[cfg(feature = "malicious")]
+pub fn new_keygen_with_behaviour(
+    share_count: usize,
+    threshold: usize,
+    index: Index<KeygenPartyIndex>,
+    secret_recovery_key: &SecretRecoveryKey,
+    session_nonce: &[u8],
+    behaviour: Behaviour,
+) -> TofnResult<KeygenProtocol> {
+    new_keygen_impl(
+        share_count,
+        threshold,
+        index,
+        secret_recovery_key,
+        session_nonce,
+        #[cfg(feature = "malicious")]
+        behaviour,
+    )
 }
 
 // all crimes
@@ -96,3 +137,8 @@ mod rng;
 
 #[cfg(test)]
 pub(super) mod tests; // pub(super) so that sign module can see tests::execute_keygen
+
+#[cfg(feature = "malicious")]
+pub mod malicious;
+#[cfg(feature = "malicious")]
+use malicious::Behaviour;

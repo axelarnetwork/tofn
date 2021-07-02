@@ -20,6 +20,9 @@ use crate::{
 
 use super::{r1, r2, Fault, KeygenOutput, KeygenPartyIndex};
 
+#[cfg(feature = "malicious")]
+use super::malicious::Behaviour;
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(super) struct Bcast {
     pub(super) x_i_proof: schnorr_k256::Proof,
@@ -42,6 +45,9 @@ pub(super) struct R3 {
     pub(super) dk: paillier_k256::DecryptionKey,
     pub(super) u_i_my_share: vss_k256::Share,
     pub(super) r1bcasts: VecMap<KeygenPartyIndex, r1::Bcast>,
+
+    #[cfg(feature = "malicious")]
+    pub(super) behaviour: Behaviour,
 }
 
 impl RoundExecuter for R3 {
@@ -182,6 +188,8 @@ impl RoundExecuter for R3 {
                 y,
                 x_i,
                 all_X_i,
+                #[cfg(feature = "malicious")]
+                behaviour: self.behaviour,
             }),
             bcast_out: Some(serialize(&Bcast { x_i_proof })),
             p2ps_out: None,

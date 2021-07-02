@@ -16,6 +16,9 @@ use crate::{
 
 use super::{r1, r3, Fault, KeygenOutput, KeygenPartyIndex};
 
+#[cfg(feature = "malicious")]
+use super::malicious::Behaviour;
+
 #[allow(non_snake_case)]
 pub(super) struct R4 {
     pub(super) threshold: usize,
@@ -24,6 +27,9 @@ pub(super) struct R4 {
     pub(super) y: k256::ProjectivePoint,
     pub(super) x_i: k256::Scalar,
     pub(super) all_X_i: VecMap<KeygenPartyIndex, k256::ProjectivePoint>,
+
+    #[cfg(feature = "malicious")]
+    pub(super) behaviour: Behaviour,
 }
 
 impl RoundExecuter for R4 {

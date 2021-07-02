@@ -16,6 +16,9 @@ use crate::{
 
 use super::{r1, KeygenOutput, KeygenPartyIndex, KeygenProtocolBuilder};
 
+#[cfg(feature = "malicious")]
+use super::malicious::Behaviour;
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(super) struct Bcast {
     pub(super) y_i_reveal: hash::Randomness,
@@ -32,6 +35,9 @@ pub(super) struct R2 {
     pub(super) dk: paillier_k256::DecryptionKey,
     pub(super) u_i_vss: vss_k256::Vss,
     pub(super) y_i_reveal: hash::Randomness,
+
+    #[cfg(feature = "malicious")]
+    pub(super) behaviour: Behaviour,
 }
 
 impl RoundExecuter for R2 {
@@ -147,6 +153,8 @@ impl RoundExecuter for R2 {
                 dk: self.dk,
                 u_i_my_share,
                 r1bcasts: bcasts_in,
+                #[cfg(feature = "malicious")]
+                behaviour: self.behaviour,
             }),
             bcast_out,
             p2ps_out,

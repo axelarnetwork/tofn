@@ -15,9 +15,15 @@ use serde::{Deserialize, Serialize};
 
 use super::{r2, rng, KeygenOutput, KeygenPartyIndex};
 
+#[cfg(feature = "malicious")]
+use super::malicious::Behaviour;
+
 pub(super) struct R1 {
     pub(super) threshold: usize,
     pub(super) rng_seed: rng::Seed,
+
+    #[cfg(feature = "malicious")]
+    pub(super) behaviour: Behaviour,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -87,6 +93,8 @@ impl RoundExecuterRaw for R1 {
                 dk,
                 u_i_vss,
                 y_i_reveal,
+                #[cfg(feature = "malicious")]
+                behaviour: self.behaviour,
             }),
             bcast_out,
             p2ps_out: None,
