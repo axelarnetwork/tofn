@@ -20,10 +20,10 @@ use super::{r1, r3, Crime, KeygenOutput, KeygenPartyIndex};
 pub(super) struct R4 {
     pub(super) threshold: usize,
     pub(super) dk: paillier_k256::DecryptionKey,
-    pub(super) r1bcasts: Vec<r1::Bcast>,
+    pub(super) r1bcasts: VecMap<KeygenPartyIndex, r1::Bcast>,
     pub(super) y: k256::ProjectivePoint,
     pub(super) x_i: k256::Scalar,
-    pub(super) all_X_i: Vec<k256::ProjectivePoint>,
+    pub(super) all_X_i: VecMap<KeygenPartyIndex, k256::ProjectivePoint>,
 }
 
 impl RoundExecuter for R4 {
@@ -46,7 +46,7 @@ impl RoundExecuter for R4 {
                 if schnorr_k256::verify(
                     &schnorr_k256::Statement {
                         base: &k256::ProjectivePoint::generator(),
-                        target: &self.all_X_i[i.as_usize()],
+                        target: &self.all_X_i.get(i),
                     },
                     &r3bcast.x_i_proof,
                 )
@@ -68,9 +68,8 @@ impl RoundExecuter for R4 {
         let all_shares: Vec<SharePublicInfo> = self
             .r1bcasts
             .iter()
-            .enumerate()
             .map(|(i, r1bcast)| SharePublicInfo {
-                X_i: self.all_X_i[i].into(),
+                X_i: self.all_X_i.get(i).into(),
                 ek: r1bcast.ek.clone(),
                 zkp: r1bcast.zkp.clone(),
             })

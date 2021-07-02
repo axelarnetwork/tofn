@@ -41,7 +41,7 @@ pub(super) struct R3 {
     pub(super) threshold: usize,
     pub(super) dk: paillier_k256::DecryptionKey,
     pub(super) u_i_my_share: vss_k256::Share,
-    pub(super) r1bcasts: Vec<r1::Bcast>, // TODO Vec<everything>
+    pub(super) r1bcasts: VecMap<KeygenPartyIndex, r1::Bcast>,
 }
 
 impl RoundExecuter for R3 {
@@ -62,7 +62,7 @@ impl RoundExecuter for R3 {
         let criminals: Vec<Vec<Crime>> = bcasts_in
             .iter()
             .map(|(i, r2bcast)| {
-                let r1bcast = &self.r1bcasts[i.as_usize()];
+                let r1bcast = &self.r1bcasts.get(i);
                 let y_i = r2bcast.u_i_share_commits.secret_commit();
                 let y_i_commit = hash::commit_with_randomness(to_bytes(y_i), &r2bcast.y_i_reveal);
                 if y_i_commit != r1bcast.y_i_commit {
@@ -158,7 +158,7 @@ impl RoundExecuter for R3 {
             });
 
         // compute all_X_i
-        let all_X_i: Vec<k256::ProjectivePoint> = (0..party_count)
+        let all_X_i: VecMap<KeygenPartyIndex, k256::ProjectivePoint> = (0..party_count)
             .map(|i| {
                 bcasts_in
                     .iter()
@@ -171,7 +171,7 @@ impl RoundExecuter for R3 {
         let x_i_proof = schnorr_k256::prove(
             &schnorr_k256::Statement {
                 base: &k256::ProjectivePoint::generator(),
-                target: &all_X_i[index.as_usize()],
+                target: &all_X_i.get(index),
             },
             &schnorr_k256::Witness { scalar: &x_i },
         );
