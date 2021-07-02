@@ -5,7 +5,7 @@ use crate::{
     hash, paillier_k256,
     protocol::gg20::vss_k256,
     refactor::{
-        keygen::{r3, Crime},
+        keygen::{r3, Fault},
         protocol::{
             executer::{serialize, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuter},
             P2ps,
@@ -48,22 +48,35 @@ impl RoundExecuter for R2 {
         _p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> KeygenProtocolBuilder {
         // check Paillier proofs
-        // TODO `criminals` should have its own struct, something like VecMap<Vec<Crime>>
-        let mut criminals = vec![Vec::new(); party_count];
-        for (i, r1bcast) in bcasts_in.iter() {
-            if !r1bcast.ek.verify(&r1bcast.ek_proof) {
-                let crime = Crime::R2BadEncryptionKeyProof;
-                warn!("party {} detect {:?} by {}", index, crime, i);
-                criminals[i.as_usize()].push(crime);
-            }
-            if !r1bcast.zkp.verify(&r1bcast.zkp_proof) {
-                let crime = Crime::R2BadZkSetupProof;
-                warn!("party {} detect {:?} by {}", index, crime, i);
-                criminals[i.as_usize()].push(crime);
-            }
+        let faulters_ek: Vec<_> = bcasts_in
+            .iter()
+            .filter_map(|(i, bcast)| {
+                if !bcast.ek.verify(&bcast.ek_proof) {
+                    let fault = Fault::R2BadEncryptionKeyProof;
+                    warn!("party {} detect {:?} by {}", index, fault, i);
+                    Some((i, fault))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        if !faulters_ek.is_empty() {
+            return ProtocolBuilder::Done(Err(faulters_ek));
         }
-        if !criminals.iter().all(Vec::is_empty) {
-            return ProtocolBuilder::Done(Err(criminals));
+        let faulters_zkp: Vec<_> = bcasts_in
+            .iter()
+            .filter_map(|(i, bcast)| {
+                if !bcast.zkp.verify(&bcast.zkp_proof) {
+                    let fault = Fault::R2BadZkSetupProof;
+                    warn!("party {} detect {:?} by {}", index, fault, i);
+                    Some((i, fault))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        if !faulters_zkp.is_empty() {
+            return ProtocolBuilder::Done(Err(faulters_zkp));
         }
 
         let (u_i_other_shares, u_i_my_share) =

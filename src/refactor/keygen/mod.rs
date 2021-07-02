@@ -14,7 +14,7 @@ pub struct KeygenPartyIndex;
 
 pub type KeygenProtocol = Protocol<KeygenOutput, KeygenPartyIndex>;
 pub type KeygenProtocolBuilder = ProtocolBuilder<KeygenOutput, KeygenPartyIndex>;
-pub type KeygenOutput = Result<SecretKeyShare, Vec<Vec<Crime>>>;
+pub type KeygenOutput = Result<SecretKeyShare, Vec<(Index<KeygenPartyIndex>, Fault)>>;
 pub type SecretRecoveryKey = [u8; 64];
 
 // Can't define a keygen-specific alias for `RoundExecuter` that sets
@@ -66,7 +66,7 @@ pub fn new_keygen(
 // <crime> is a description
 // example: R3FailBadProof -> crime detected in r3_fail()
 #[derive(Debug, Clone, PartialEq)]
-pub enum Crime {
+pub enum Fault {
     MissingMessage,   // TODO add victim for missing p2p messages?
     CorruptedMessage, // TODO add victim for missing p2p messages?
     R2BadZkSetupProof,
@@ -81,10 +81,10 @@ pub enum Crime {
 /// TODO PoC only
 impl DeTimeout for KeygenOutput {
     fn new_timeout() -> Self {
-        Err(vec![vec![Crime::MissingMessage]])
+        Err(vec![(Index::from_usize(0), Fault::MissingMessage)])
     }
     fn new_deserialization_failure() -> Self {
-        Err(vec![vec![Crime::CorruptedMessage]])
+        Err(vec![(Index::from_usize(0), Fault::CorruptedMessage)])
     }
 }
 

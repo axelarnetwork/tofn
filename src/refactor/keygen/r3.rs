@@ -14,11 +14,11 @@ use crate::{
         },
         TofnResult,
     },
-    vecmap::{Index, Pair, VecMap},
+    vecmap::{zip2, Index, Pair, VecMap},
     zkp::schnorr_k256,
 };
 
-use super::{r1, r2, Crime, KeygenOutput, KeygenPartyIndex};
+use super::{r1, r2, Fault, KeygenOutput, KeygenPartyIndex};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(super) struct Bcast {
@@ -59,23 +59,21 @@ impl RoundExecuter for R3 {
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
         // check y_i commits
-        let criminals: Vec<Vec<Crime>> = bcasts_in
-            .iter()
-            .map(|(i, r2bcast)| {
-                let r1bcast = &self.r1bcasts.get(i);
+        let faulters: Vec<_> = zip2(&bcasts_in, &self.r1bcasts)
+            .filter_map(|(i, r2bcast, r1bcast)| {
                 let y_i = r2bcast.u_i_vss_commit.secret_commit();
                 let y_i_commit = hash::commit_with_randomness(to_bytes(y_i), &r2bcast.y_i_reveal);
                 if y_i_commit != r1bcast.y_i_commit {
-                    let crime = Crime::R3BadReveal;
-                    warn!("party {} detect {:?} by {}", index, crime, i);
-                    vec![crime]
+                    let fault = Fault::R3BadReveal;
+                    warn!("party {} detect {:?} by {}", index, fault, i);
+                    Some((i, fault))
                 } else {
-                    vec![]
+                    None
                 }
             })
             .collect();
-        if !criminals.iter().all(Vec::is_empty) {
-            return ProtocolBuilder::Done(Err(criminals));
+        if !faulters.is_empty() {
+            return ProtocolBuilder::Done(Err(faulters));
         }
 
         // decrypt shares

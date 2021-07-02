@@ -10,11 +10,11 @@ use crate::{
         },
         P2ps,
     },
-    vecmap::{Index, VecMap},
+    vecmap::{zip2, Index, VecMap},
     zkp::schnorr_k256,
 };
 
-use super::{r1, r3, Crime, KeygenOutput, KeygenPartyIndex};
+use super::{r1, r3, Fault, KeygenOutput, KeygenPartyIndex};
 
 #[allow(non_snake_case)]
 pub(super) struct R4 {
@@ -32,6 +32,7 @@ impl RoundExecuter for R4 {
     type Bcast = r3::Bcast;
     type P2p = ();
 
+    #[allow(non_snake_case)]
     fn execute(
         self: Box<Self>,
         _party_count: usize,
@@ -40,28 +41,27 @@ impl RoundExecuter for R4 {
         _p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
         // verify proofs
-        let criminals: Vec<Vec<Crime>> = bcasts_in
-            .iter()
-            .map(|(i, r3bcast)| {
+        let faulters: Vec<_> = zip2(&bcasts_in, &self.all_X_i)
+            .filter_map(|(i, bcast, X_i)| {
                 if schnorr_k256::verify(
                     &schnorr_k256::Statement {
                         base: &k256::ProjectivePoint::generator(),
-                        target: &self.all_X_i.get(i),
+                        target: &X_i,
                     },
-                    &r3bcast.x_i_proof,
+                    &bcast.x_i_proof,
                 )
                 .is_err()
                 {
-                    let crime = Crime::R4BadDLProof;
-                    warn!("party {} detect {:?} by {}", index, crime, i);
-                    vec![crime]
+                    let fault = Fault::R4BadDLProof;
+                    warn!("party {} detect {:?} by {}", index, fault, i);
+                    Some((i, fault))
                 } else {
-                    vec![]
+                    None
                 }
             })
             .collect();
-        if !criminals.iter().all(Vec::is_empty) {
-            return Done(Err(criminals));
+        if !faulters.is_empty() {
+            return ProtocolBuilder::Done(Err(faulters));
         }
 
         // prepare data for final output
