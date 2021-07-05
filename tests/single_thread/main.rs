@@ -3,10 +3,10 @@ use rand::RngCore;
 use tofn::{
     protocol::gg20::SecretKeyShare,
     refactor::{
-        keygen::{new_keygen, KeygenOutput, KeygenPartyIndex},
+        keygen::{new_keygen, KeygenPartyIndex, KeygenProtocol},
         protocol::Protocol,
     },
-    vecmap::Index,
+    vecmap::{Index, VecMap},
 };
 // use tracing::{error, info};
 use tracing_test::traced_test; // enable logs in tests
@@ -21,7 +21,7 @@ fn main() {
     let (share_count, threshold) = (5, 2);
     let session_nonce = b"foobar";
 
-    let mut parties: Vec<Protocol<KeygenOutput, KeygenPartyIndex>> = (0..share_count)
+    let mut parties: VecMap<KeygenPartyIndex, KeygenProtocol> = (0..share_count)
         .map(|index| {
             let mut secret_recovery_key = [0; 64];
             rand::thread_rng().fill_bytes(&mut secret_recovery_key);
@@ -40,7 +40,6 @@ fn main() {
 
     let results: Vec<SecretKeyShare> = parties
         .into_iter()
-        .enumerate()
         .map(|(i, party)| match party {
             Protocol::NotDone(_) => panic!("party {} not done yet", i),
             Protocol::Done(result) => result.expect("party finished with error"),

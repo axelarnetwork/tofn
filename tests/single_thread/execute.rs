@@ -9,7 +9,7 @@ use tofn::{
 };
 use tracing::{error, warn};
 
-pub fn execute_protocol<F, K>(mut parties: Vec<Protocol<F, K>>) -> Vec<Protocol<F, K>>
+pub fn execute_protocol<F, K>(mut parties: VecMap<K, Protocol<F, K>>) -> VecMap<K, Protocol<F, K>>
 where
     K: Behave,
 {
@@ -19,31 +19,38 @@ where
     parties
 }
 
-fn nobody_done<F, K>(parties: &[Protocol<F, K>]) -> bool
+fn nobody_done<F, K>(parties: &VecMap<K, Protocol<F, K>>) -> bool
 where
     K: Behave,
 {
     // warn if there's disagreement
-    let (done, not_done): (Vec<&Protocol<F, K>>, Vec<&Protocol<F, K>>) = parties
-        .iter()
-        .partition(|party| matches!(party, Protocol::Done(_)));
+    let (mut done, mut not_done) = (
+        Vec::with_capacity(parties.len()),
+        Vec::with_capacity(parties.len()),
+    );
+    for (i, party) in parties.iter() {
+        if matches!(party, Protocol::Done(_)) {
+            done.push(i);
+        } else {
+            not_done.push(i);
+        }
+    }
     if !done.is_empty() && !not_done.is_empty() {
         warn!(
-            "disagreement: done parties xxx, not done parties xxx",
-            // done, not_done
+            "disagreement: done parties {:?}, not done parties {:?}",
+            done, not_done
         );
     }
     done.is_empty()
 }
 
-fn next_round<F, K>(parties: Vec<Protocol<F, K>>) -> Vec<Protocol<F, K>>
+fn next_round<F, K>(parties: VecMap<K, Protocol<F, K>>) -> VecMap<K, Protocol<F, K>>
 where
     K: Behave,
 {
     // extract current round from parties
-    let mut rounds: Vec<ProtocolRound<F, K>> = parties
+    let mut rounds: VecMap<K, ProtocolRound<F, K>> = parties
         .into_iter()
-        .enumerate()
         .map(|(i, party)| match party {
             Protocol::NotDone(round) => round,
             Protocol::Done(_) => panic!("party {} done too early", i),
@@ -53,13 +60,13 @@ where
     // deliver bcasts
     let bcasts: VecMap<K, Option<TofnResult<BytesVec>>> = rounds
         .iter()
-        .map(|round| round.bcast_out().clone())
+        .map(|(_, round)| round.bcast_out().clone())
         .collect();
     for (from, bcast) in bcasts.into_iter() {
         if let Some(bcast) = bcast {
             match bcast {
                 Ok(bytes) => {
-                    for round in rounds.iter_mut() {
+                    for (_, round) in rounds.iter_mut() {
                         round.bcast_in(from, &bytes);
                     }
                 }
@@ -71,14 +78,14 @@ where
     // deliver p2ps
     let all_p2ps: VecMap<K, Option<TofnResult<HoleVecMap<K, BytesVec>>>> = rounds
         .iter()
-        .map(|round| round.p2ps_out().clone())
+        .map(|(_, round)| round.p2ps_out().clone())
         .collect();
     for (from, p2ps) in all_p2ps.into_iter() {
         if let Some(p2ps) = p2ps {
             match p2ps {
                 Ok(p2ps) => {
                     for (to, bytes) in p2ps {
-                        for round in rounds.iter_mut() {
+                        for (_, round) in rounds.iter_mut() {
                             round.p2p_in(from, to, &bytes);
                         }
                     }
@@ -91,7 +98,6 @@ where
     // compute next round's parties
     rounds
         .into_iter()
-        .enumerate()
         .map(|(i, round)| {
             assert!(
                 !round.expecting_more_msgs_this_round(),

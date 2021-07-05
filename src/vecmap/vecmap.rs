@@ -36,6 +36,9 @@ where
     pub fn iter(&self) -> VecMapIter<K, std::slice::Iter<V>> {
         VecMapIter::new(self.0.iter())
     }
+    pub fn iter_mut(&mut self) -> VecMapIter<K, std::slice::IterMut<V>> {
+        VecMapIter::new(self.0.iter_mut())
+    }
 }
 
 impl<K, V> IntoIterator for VecMap<K, V>
