@@ -1,12 +1,12 @@
-use crate::vecmap::{HoleVecMap, Index, VecMap};
+use crate::vecmap::{Behave, HoleVecMap, Index, VecMap};
 
 pub struct P2ps<K, V>(VecMap<K, HoleVecMap<K, V>>)
 where
-    K: Clone;
+    K: Behave;
 
 impl<K, V> P2ps<K, V>
 where
-    K: Clone,
+    K: Behave,
 {
     // TODO TEMPORARY eliminate from_vecmaps
     pub fn from_vecmaps(v: VecMap<K, HoleVecMap<K, V>>) -> Self {

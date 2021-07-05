@@ -2,18 +2,21 @@
 // use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::{vecmap_iter::VecMapIter, Index, VecMap};
+use super::{vecmap_iter::VecMapIter, Behave, Index, VecMap};
 
 // #[derive(Debug, Clone, Serialize, Deserialize)]
 #[derive(Debug, Clone)]
-pub struct FillVecMap<K, V> {
+pub struct FillVecMap<K, V>
+where
+    K: Behave,
+{
     vec: VecMap<K, Option<V>>,
     some_count: usize, // TODO eliminate `some_count`?
 }
 
 impl<K, V> FillVecMap<K, V>
 where
-    K: Clone,
+    K: Behave,
 {
     pub fn with_size(len: usize) -> Self {
         Self {
@@ -66,7 +69,10 @@ where
     // }
 }
 
-impl<K, V> IntoIterator for FillVecMap<K, V> {
+impl<K, V> IntoIterator for FillVecMap<K, V>
+where
+    K: Behave,
+{
     type Item = <VecMapIter<K, std::vec::IntoIter<Option<V>>> as Iterator>::Item;
     type IntoIter = VecMapIter<K, std::vec::IntoIter<Option<V>>>;
 

@@ -1,22 +1,28 @@
-use super::{vecmap_iter::VecMapIter, Index, VecMap};
+use super::{vecmap_iter::VecMapIter, Behave, Index, VecMap};
 
 pub fn zip2<'a, K, V0, V1>(
     v0: &'a VecMap<K, V0>,
     v1: &'a VecMap<K, V1>,
 ) -> Zip2<K, std::slice::Iter<'a, V0>, std::slice::Iter<'a, V1>>
 where
-    K: Clone,
+    K: Behave,
 {
     Zip2::new(v0.iter(), v1.iter())
 }
 
-pub struct Zip2<K, I0, I1> {
+pub struct Zip2<K, I0, I1>
+where
+    K: Behave,
+{
     iter0: VecMapIter<K, I0>,
     iter1: VecMapIter<K, I1>,
     phantom: std::marker::PhantomData<K>,
 }
 
-impl<K, I0, I1> Zip2<K, I0, I1> {
+impl<K, I0, I1> Zip2<K, I0, I1>
+where
+    K: Behave,
+{
     pub fn new(iter0: VecMapIter<K, I0>, iter1: VecMapIter<K, I1>) -> Self {
         Self {
             iter0,
@@ -28,6 +34,7 @@ impl<K, I0, I1> Zip2<K, I0, I1> {
 
 impl<K, I0, I1> Iterator for Zip2<K, I0, I1>
 where
+    K: Behave,
     I0: Iterator,
     I1: Iterator,
 {
@@ -50,12 +57,13 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::vecmap::vecmap::VecMap;
+    use crate::vecmap::{vecmap::VecMap, Behave};
 
     use super::zip2;
 
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, Copy, PartialEq)]
     struct TestIndex;
+    impl Behave for TestIndex {}
 
     #[test]
     fn basic_correctness() {

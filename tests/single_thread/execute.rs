@@ -5,13 +5,13 @@ use tofn::{
         protocol::{Protocol, ProtocolRound},
         BytesVec, TofnResult,
     },
-    vecmap::{HoleVecMap, VecMap},
+    vecmap::{Behave, HoleVecMap, VecMap},
 };
 use tracing::{error, warn};
 
 pub fn execute_protocol<F, K>(mut parties: Vec<Protocol<F, K>>) -> Vec<Protocol<F, K>>
 where
-    K: Clone,
+    K: Behave,
 {
     while nobody_done(&parties) {
         parties = next_round(parties);
@@ -21,7 +21,7 @@ where
 
 fn nobody_done<F, K>(parties: &[Protocol<F, K>]) -> bool
 where
-    K: Clone,
+    K: Behave,
 {
     // warn if there's disagreement
     let (done, not_done): (Vec<&Protocol<F, K>>, Vec<&Protocol<F, K>>) = parties
@@ -38,7 +38,7 @@ where
 
 fn next_round<F, K>(parties: Vec<Protocol<F, K>>) -> Vec<Protocol<F, K>>
 where
-    K: Clone,
+    K: Behave,
 {
     // extract current round from parties
     let mut rounds: Vec<ProtocolRound<F, K>> = parties

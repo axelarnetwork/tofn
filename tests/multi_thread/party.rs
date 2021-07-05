@@ -6,12 +6,15 @@ use std::sync::mpsc::Receiver;
 // https://github.com/rust-lang/rust/issues/83248
 use tofn::{
     refactor::{protocol::Protocol, BytesVec},
-    vecmap::Index,
+    vecmap::{Behave, Index},
 };
 use tracing::error;
 
-// #[derive(Clone)]
-pub enum Message<K> {
+#[derive(Clone)]
+pub enum Message<K>
+where
+    K: Behave,
+{
     Bcast {
         from: Index<K>,
         bytes: BytesVec,
@@ -23,23 +26,23 @@ pub enum Message<K> {
     },
 }
 
-/// Manually impl `Clone` because https://stackoverflow.com/a/31371094
-impl<K> Clone for Message<K> {
-    fn clone(&self) -> Self {
-        use Message::*;
-        match self {
-            Bcast { from, bytes } => Bcast {
-                from: from.clone(),
-                bytes: bytes.clone(),
-            },
-            P2p { from, to, bytes } => P2p {
-                from: *from,
-                to: *to,
-                bytes: bytes.clone(),
-            },
-        }
-    }
-}
+// /// Manually impl `Clone` because https://stackoverflow.com/a/31371094
+// impl<K> Clone for Message<K> {
+//     fn clone(&self) -> Self {
+//         use Message::*;
+//         match self {
+//             Bcast { from, bytes } => Bcast {
+//                 from: from.clone(),
+//                 bytes: bytes.clone(),
+//             },
+//             P2p { from, to, bytes } => P2p {
+//                 from: *from,
+//                 to: *to,
+//                 bytes: bytes.clone(),
+//             },
+//         }
+//     }
+// }
 
 pub fn execute_protocol<F, K>(
     mut party: Protocol<F, K>,
@@ -47,7 +50,7 @@ pub fn execute_protocol<F, K>(
     broadcaster: Broadcaster<Message<K>>,
 ) -> F
 where
-    K: Clone,
+    K: Behave,
 {
     while let Protocol::NotDone(mut round) = party {
         // send outgoing messages

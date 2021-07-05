@@ -1,4 +1,4 @@
-use crate::vecmap::{FillHoleVecMap, FillVecMap, HoleVecMap, Index, VecMap};
+use crate::vecmap::{Behave, FillHoleVecMap, FillVecMap, HoleVecMap, Index, VecMap};
 use tracing::warn;
 
 use self::executer::{ProtocolBuilder, RoundExecuterRaw};
@@ -7,7 +7,7 @@ use super::{BytesVec, TofnResult};
 
 pub enum Protocol<F, K>
 where
-    K: Clone,
+    K: Behave,
 {
     NotDone(ProtocolRound<F, K>),
     Done(F),
@@ -15,7 +15,7 @@ where
 
 pub struct ProtocolRound<F, K>
 where
-    K: Clone,
+    K: Behave,
 {
     round: Box<dyn RoundExecuterRaw<FinalOutput = F, Index = K>>,
     party_count: usize,
@@ -28,7 +28,7 @@ where
 
 impl<F, K> ProtocolRound<F, K>
 where
-    K: Clone,
+    K: Behave,
 {
     pub fn new(
         round: Box<dyn RoundExecuterRaw<FinalOutput = F, Index = K>>,

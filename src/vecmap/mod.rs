@@ -1,7 +1,15 @@
-#[derive(Debug)] // manual impls for Clone, Copy, PartialEq---see below
-pub struct Index<K>(usize, std::marker::PhantomData<K>);
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Index<K>(usize, std::marker::PhantomData<K>)
+where
+    K: Behave;
 
-impl<K> Index<K> {
+/// Alias for all the trait bounds on `K` in order to work around https://stackoverflow.com/a/31371094
+pub trait Behave: std::fmt::Debug + Clone + Copy + PartialEq {}
+
+impl<K> Index<K>
+where
+    K: Behave,
+{
     // TODO provide a range iterator (0..n)?
     // TODO from_usize, as_usize should be private
     pub fn from_usize(index: usize) -> Self {
@@ -12,25 +20,28 @@ impl<K> Index<K> {
     }
 }
 
-impl<K> std::fmt::Display for Index<K> {
+impl<K> std::fmt::Display for Index<K>
+where
+    K: Behave,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-/// Manually impl `Clone`, `Copy`, `PartialEq` because https://stackoverflow.com/a/31371094
-impl<K> Clone for Index<K> {
-    fn clone(&self) -> Self {
-        Self::from_usize(self.0)
-    }
-}
-impl<K> Copy for Index<K> {}
+// /// Manually impl `Clone`, `Copy`, `PartialEq` because https://stackoverflow.com/a/31371094
+// impl<K> Clone for Index<K> {
+//     fn clone(&self) -> Self {
+//         Self::from_usize(self.0)
+//     }
+// }
+// impl<K> Copy for Index<K> {}
 
-impl<K> PartialEq for Index<K> {
-    fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0
-    }
-}
+// impl<K> PartialEq for Index<K> {
+//     fn eq(&self, other: &Self) -> bool {
+//         self.0 == other.0
+//     }
+// }
 
 mod vecmap;
 mod vecmap_iter;

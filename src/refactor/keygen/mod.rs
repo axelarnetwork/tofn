@@ -3,7 +3,7 @@ use crate::refactor::protocol::{
     executer::{DeTimeout, ProtocolBuilder},
     Protocol, ProtocolRound,
 };
-use crate::vecmap::Index;
+use crate::vecmap::{Behave, Index};
 
 use super::TofnResult;
 
@@ -11,6 +11,7 @@ use super::TofnResult;
 // in order to avoid this problem: https://stackoverflow.com/a/31371094
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct KeygenPartyIndex;
+impl Behave for KeygenPartyIndex {}
 
 pub type KeygenProtocol = Protocol<KeygenOutput, KeygenPartyIndex>;
 pub type KeygenProtocolBuilder = ProtocolBuilder<KeygenOutput, KeygenPartyIndex>;

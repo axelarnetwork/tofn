@@ -2,12 +2,12 @@ use serde::de::DeserializeOwned;
 
 use crate::{
     refactor::{BytesVec, TofnResult},
-    vecmap::{FillHoleVecMap, FillVecMap, HoleVecMap, Index, Pair, VecMap},
+    vecmap::{Behave, FillHoleVecMap, FillVecMap, HoleVecMap, Index, Pair, VecMap},
 };
 
 pub enum ProtocolBuilder<F, K>
 where
-    K: Clone,
+    K: Behave,
 {
     NotDone(ProtocolRoundBuilder<F, K>),
     Done(F),
@@ -22,7 +22,7 @@ pub trait DeTimeout {
 
 pub struct ProtocolRoundBuilder<F, K>
 where
-    K: Clone,
+    K: Behave,
 {
     pub round: Box<dyn RoundExecuterRaw<FinalOutput = F, Index = K>>,
     pub bcast_out: Option<TofnResult<BytesVec>>,
@@ -31,7 +31,7 @@ where
 
 pub trait RoundExecuter: Send + Sync {
     type FinalOutput: DeTimeout;
-    type Index: Clone;
+    type Index: Behave;
     type Bcast: DeserializeOwned;
     type P2p: DeserializeOwned;
     fn execute(
@@ -51,7 +51,7 @@ pub trait RoundExecuter: Send + Sync {
 /// "raw" means we haven't yet checked for timeouts or deserialization failure
 pub trait RoundExecuterRaw: Send + Sync {
     type FinalOutput;
-    type Index: Clone;
+    type Index: Behave;
     fn execute_raw(
         self: Box<Self>,
         party_count: usize,

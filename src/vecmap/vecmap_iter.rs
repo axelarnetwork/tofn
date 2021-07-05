@@ -1,12 +1,18 @@
-use super::Index;
+use super::{Behave, Index};
 
 /// Follows the implementation of std::iter::Enumerate https://doc.rust-lang.org/std/iter/struct.Enumerate.html
-pub struct VecMapIter<K, I> {
+pub struct VecMapIter<K, I>
+where
+    K: Behave,
+{
     iter: I,
     count: Index<K>,
 }
 
-impl<K, I> VecMapIter<K, I> {
+impl<K, I> VecMapIter<K, I>
+where
+    K: Behave,
+{
     pub fn new(iter: I) -> Self {
         Self {
             iter,
@@ -17,6 +23,7 @@ impl<K, I> VecMapIter<K, I> {
 
 impl<K, I> Iterator for VecMapIter<K, I>
 where
+    K: Behave,
     I: Iterator,
 {
     type Item = (Index<K>, <I as Iterator>::Item);
@@ -39,10 +46,11 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::vecmap::vecmap::VecMap;
+    use crate::vecmap::{vecmap::VecMap, Behave};
 
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, Copy, PartialEq)]
     struct TestIndex;
+    impl Behave for TestIndex {}
 
     #[test]
     #[should_panic]

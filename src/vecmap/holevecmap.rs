@@ -2,12 +2,12 @@ use std::iter::FromIterator;
 
 use crate::refactor::TofnResult;
 
-use super::{holevecmap_iter::HoleVecMapIter, Index, VecMap};
+use super::{holevecmap_iter::HoleVecMapIter, Behave, Index, VecMap};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct HoleVecMap<K, V>
 where
-    K: Clone,
+    K: Behave,
 {
     vec: VecMap<K, V>,
     hole: Index<K>,
@@ -16,7 +16,7 @@ where
 
 impl<K, V> HoleVecMap<K, V>
 where
-    K: Clone,
+    K: Behave,
 {
     pub fn from_vecmap(vec: VecMap<K, V>, hole: Index<K>) -> Self {
         HoleVecMap {
@@ -54,7 +54,7 @@ where
 
 impl<K, V> IntoIterator for HoleVecMap<K, V>
 where
-    K: Clone,
+    K: Behave,
 {
     type Item = (Index<K>, <std::vec::IntoIter<V> as Iterator>::Item);
     type IntoIter = HoleVecMapIter<K, std::vec::IntoIter<V>>;
@@ -74,11 +74,13 @@ where
 /// ```
 /// ...makes the compiler complain:
 /// "this is not defined in the current crate because tuples are always foreign"
-pub struct Pair<K, V>(pub Index<K>, pub V);
+pub struct Pair<K, V>(pub Index<K>, pub V)
+where
+    K: Behave;
 
 impl<K, V> FromIterator<Pair<K, V>> for TofnResult<HoleVecMap<K, V>>
 where
-    K: Clone,
+    K: Behave,
 {
     fn from_iter<Iter: IntoIterator<Item = Pair<K, V>>>(iter: Iter) -> Self {
         Self::from_iter(
@@ -92,7 +94,7 @@ where
 impl<K, V, E> FromIterator<Pair<K, Result<V, E>>> for TofnResult<HoleVecMap<K, V>>
 where
     E: std::fmt::Display,
-    K: Clone,
+    K: Behave,
 {
     fn from_iter<Iter: IntoIterator<Item = Pair<K, Result<V, E>>>>(iter: Iter) -> Self {
         // indices must be in ascending order with at most one hole
@@ -136,13 +138,14 @@ where
 mod tests {
     use crate::{
         refactor::TofnResult,
-        vecmap::{holevecmap::HoleVecMap, Index},
+        vecmap::{holevecmap::HoleVecMap, Behave, Index},
     };
 
     use super::Pair;
 
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, Copy, PartialEq)]
     struct TestIndex;
+    impl Behave for TestIndex {}
 
     #[test]
     fn basic_correctness() {

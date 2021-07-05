@@ -1,12 +1,18 @@
-use super::{vecmap_iter::VecMapIter, Index};
+use super::{vecmap_iter::VecMapIter, Behave, Index};
 
 /// Follows the implementation of std::iter::Enumerate https://doc.rust-lang.org/std/iter/struct.Enumerate.html
-pub struct HoleVecMapIter<K, I> {
+pub struct HoleVecMapIter<K, I>
+where
+    K: Behave,
+{
     iter: VecMapIter<K, I>,
     hole: Index<K>,
 }
 
-impl<K, I> HoleVecMapIter<K, I> {
+impl<K, I> HoleVecMapIter<K, I>
+where
+    K: Behave,
+{
     pub fn new(iter: VecMapIter<K, I>, hole: Index<K>) -> Self {
         Self { iter, hole }
     }
@@ -14,6 +20,7 @@ impl<K, I> HoleVecMapIter<K, I> {
 
 impl<K, I> Iterator for HoleVecMapIter<K, I>
 where
+    K: Behave,
     I: Iterator,
 {
     type Item = <VecMapIter<K, I> as Iterator>::Item;

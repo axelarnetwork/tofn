@@ -4,13 +4,13 @@ use tracing::warn;
 
 use crate::refactor::TofnResult;
 
-use super::{holevecmap::Pair, holevecmap_iter::HoleVecMapIter, HoleVecMap, Index};
+use super::{holevecmap::Pair, holevecmap_iter::HoleVecMapIter, Behave, HoleVecMap, Index};
 
 // #[derive(Debug, Clone, Serialize, Deserialize)]
 #[derive(Debug, Clone)]
 pub struct FillHoleVecMap<K, V>
 where
-    K: Clone,
+    K: Behave,
 {
     hole_vec: HoleVecMap<K, Option<V>>,
     some_count: usize, // TODO eliminate `some_count`?
@@ -18,7 +18,7 @@ where
 
 impl<K, V> FillHoleVecMap<K, V>
 where
-    K: Clone,
+    K: Behave,
 {
     /// if hole >= len-1 then use hole = len-1
     pub fn with_size(len: usize, hole: Index<K>) -> Self {
@@ -54,7 +54,7 @@ where
 
 impl<K, V> IntoIterator for FillHoleVecMap<K, V>
 where
-    K: Clone,
+    K: Behave,
 {
     type Item = <HoleVecMapIter<K, std::vec::IntoIter<Option<V>>> as Iterator>::Item;
     type IntoIter = HoleVecMapIter<K, std::vec::IntoIter<Option<V>>>;
