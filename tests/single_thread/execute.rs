@@ -7,7 +7,7 @@ use tofn::{
     },
     vecmap::{HoleVecMap, VecMap},
 };
-use tracing::error;
+use tracing::{error, warn};
 
 pub fn execute_protocol<F, K>(mut parties: Vec<Protocol<F, K>>) -> Vec<Protocol<F, K>>
 where
@@ -23,9 +23,17 @@ fn nobody_done<F, K>(parties: &[Protocol<F, K>]) -> bool
 where
     K: Clone,
 {
-    parties
+    // warn if there's disagreement
+    let (done, not_done): (Vec<&Protocol<F, K>>, Vec<&Protocol<F, K>>) = parties
         .iter()
-        .all(|party| matches!(party, Protocol::NotDone(_)))
+        .partition(|party| matches!(party, Protocol::Done(_)));
+    if !done.is_empty() && !not_done.is_empty() {
+        warn!(
+            "disagreement: done parties xxx, not done parties xxx",
+            // done, not_done
+        );
+    }
+    done.is_empty()
 }
 
 fn next_round<F, K>(parties: Vec<Protocol<F, K>>) -> Vec<Protocol<F, K>>
