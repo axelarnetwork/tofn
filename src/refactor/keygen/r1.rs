@@ -12,6 +12,7 @@ use crate::{
     vecmap::{FillHoleVecMap, FillVecMap, Index, VecMap},
 };
 use serde::{Deserialize, Serialize};
+use tracing::info;
 
 use super::{r2, rng, KeygenOutput, KeygenPartyIndex};
 
@@ -42,7 +43,7 @@ impl RoundExecuterRaw for R1 {
     fn execute_raw(
         self: Box<Self>,
         _party_count: usize,
-        _index: Index<Self::Index>,
+        index: Index<Self::Index>,
         _bcasts_in: FillVecMap<Self::Index, BytesVec>,
         _p2ps_in: VecMap<Self::Index, FillHoleVecMap<Self::Index, BytesVec>>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
@@ -51,13 +52,13 @@ impl RoundExecuterRaw for R1 {
             &(k256::ProjectivePoint::generator() * u_i_vss.get_secret()),
         ));
 
-        // #[cfg(feature = "malicious")]
-        // let y_i_commit = if matches!(self.behaviour, Behaviour::R1BadCommit) {
-        //     info!("malicious party {} do {:?}", self.my_index, self.behaviour);
-        //     y_i_commit.corrupt()
-        // } else {
-        //     y_i_commit
-        // };
+        #[cfg(feature = "malicious")]
+        let y_i_commit = if matches!(self.behaviour, Behaviour::R1BadCommit) {
+            info!("malicious party {} do {:?}", index, self.behaviour);
+            y_i_commit.corrupt()
+        } else {
+            y_i_commit
+        };
 
         let mut rng = rng::rng_from_seed(self.rng_seed);
         let (ek, dk) = paillier_k256::keygen_unsafe(&mut rng);

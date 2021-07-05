@@ -11,9 +11,8 @@ use tofn::{
 // use tracing::{error, info};
 use tracing_test::traced_test; // enable logs in tests
 
-/// TODO rename parent dir to `example`
-/// TODO clean up
-// TODO generic over final output F
+/// A simple test to illustrate use of the library
+/// TODO change file hierarchy
 
 #[test]
 #[traced_test]
@@ -52,4 +51,7 @@ fn main() {
     }
 }
 
-mod execute;
+pub mod execute;
+
+#[cfg(feature = "malicious")]
+mod keygen_malicious;

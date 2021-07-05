@@ -24,6 +24,12 @@ pub enum Behaviour {
     R3BadXIWitness,
 }
 
+impl Behaviour {
+    pub fn is_honest(&self) -> bool {
+        matches!(self, Self::Honest)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum MsgType {
     R1Bcast,
