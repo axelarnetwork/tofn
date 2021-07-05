@@ -41,6 +41,7 @@ where
 mod tests {
     use crate::vecmap::vecmap::VecMap;
 
+    #[derive(Debug, Clone)]
     struct TestIndex;
 
     #[test]

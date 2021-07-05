@@ -8,12 +8,18 @@ use super::{holevecmap::Pair, holevecmap_iter::HoleVecMapIter, HoleVecMap, Index
 
 // #[derive(Debug, Clone, Serialize, Deserialize)]
 #[derive(Debug, Clone)]
-pub struct FillHoleVecMap<K, V> {
+pub struct FillHoleVecMap<K, V>
+where
+    K: Clone,
+{
     hole_vec: HoleVecMap<K, Option<V>>,
     some_count: usize, // TODO eliminate `some_count`?
 }
 
-impl<K, V> FillHoleVecMap<K, V> {
+impl<K, V> FillHoleVecMap<K, V>
+where
+    K: Clone,
+{
     /// if hole >= len-1 then use hole = len-1
     pub fn with_size(len: usize, hole: Index<K>) -> Self {
         Self {
@@ -46,7 +52,10 @@ impl<K, V> FillHoleVecMap<K, V> {
     }
 }
 
-impl<K, V> IntoIterator for FillHoleVecMap<K, V> {
+impl<K, V> IntoIterator for FillHoleVecMap<K, V>
+where
+    K: Clone,
+{
     type Item = <HoleVecMapIter<K, std::vec::IntoIter<Option<V>>> as Iterator>::Item;
     type IntoIter = HoleVecMapIter<K, std::vec::IntoIter<Option<V>>>;
 

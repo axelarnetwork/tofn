@@ -41,11 +41,14 @@ impl<K> Clone for Message<K> {
     }
 }
 
-pub fn execute_protocol<F, I>(
-    mut party: Protocol<F, I>,
-    input: Receiver<Message<I>>,
-    broadcaster: Broadcaster<Message<I>>,
-) -> F {
+pub fn execute_protocol<F, K>(
+    mut party: Protocol<F, K>,
+    input: Receiver<Message<K>>,
+    broadcaster: Broadcaster<Message<K>>,
+) -> F
+where
+    K: Clone,
+{
     while let Protocol::NotDone(mut round) = party {
         // send outgoing messages
         if let Some(bcast_out) = round.bcast_out() {

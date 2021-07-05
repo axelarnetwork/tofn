@@ -5,7 +5,10 @@ use super::{vecmap_iter::VecMapIter, HoleVecMap, Index};
 #[derive(Debug, Clone, PartialEq)]
 pub struct VecMap<K, V>(Vec<V>, std::marker::PhantomData<Index<K>>);
 
-impl<K, V> VecMap<K, V> {
+impl<K, V> VecMap<K, V>
+where
+    K: Clone,
+{
     pub fn from_vec(vec: Vec<V>) -> Self {
         Self(vec, std::marker::PhantomData)
     }
@@ -44,7 +47,10 @@ impl<K, V> IntoIterator for VecMap<K, V> {
 
 /// impl IntoIterator for &VecMap as suggested here: https://doc.rust-lang.org/std/iter/index.html#iterating-by-reference
 /// follow the template of Vec: https://doc.rust-lang.org/src/alloc/vec/mod.rs.html#2451-2458
-impl<'a, K, V> IntoIterator for &'a VecMap<K, V> {
+impl<'a, K, V> IntoIterator for &'a VecMap<K, V>
+where
+    K: Clone,
+{
     type Item = (Index<K>, <std::slice::Iter<'a, V> as Iterator>::Item);
     type IntoIter = VecMapIter<K, std::slice::Iter<'a, V>>;
 
@@ -53,7 +59,10 @@ impl<'a, K, V> IntoIterator for &'a VecMap<K, V> {
     }
 }
 
-impl<K, V> FromIterator<V> for VecMap<K, V> {
+impl<K, V> FromIterator<V> for VecMap<K, V>
+where
+    K: Clone,
+{
     fn from_iter<Iter: IntoIterator<Item = V>>(iter: Iter) -> Self {
         Self::from_vec(Vec::from_iter(iter))
     }

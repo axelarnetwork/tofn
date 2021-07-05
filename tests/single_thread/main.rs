@@ -4,12 +4,11 @@ use tofn::{
     protocol::gg20::SecretKeyShare,
     refactor::{
         keygen::{new_keygen, KeygenOutput, KeygenPartyIndex},
-        protocol::{Protocol, ProtocolRound},
-        BytesVec, TofnResult,
+        protocol::Protocol,
     },
-    vecmap::{HoleVecMap, Index, VecMap},
+    vecmap::Index,
 };
-use tracing::{error, info};
+// use tracing::{error, info};
 use tracing_test::traced_test; // enable logs in tests
 
 /// TODO rename parent dir to `example`

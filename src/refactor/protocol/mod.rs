@@ -5,12 +5,18 @@ use self::executer::{ProtocolBuilder, RoundExecuterRaw};
 
 use super::{BytesVec, TofnResult};
 
-pub enum Protocol<F, K> {
+pub enum Protocol<F, K>
+where
+    K: Clone,
+{
     NotDone(ProtocolRound<F, K>),
     Done(F),
 }
 
-pub struct ProtocolRound<F, K> {
+pub struct ProtocolRound<F, K>
+where
+    K: Clone,
+{
     round: Box<dyn RoundExecuterRaw<FinalOutput = F, Index = K>>,
     party_count: usize,
     index: Index<K>,
@@ -20,7 +26,10 @@ pub struct ProtocolRound<F, K> {
     p2ps_in: Option<VecMap<K, FillHoleVecMap<K, BytesVec>>>,
 }
 
-impl<F, K> ProtocolRound<F, K> {
+impl<F, K> ProtocolRound<F, K>
+where
+    K: Clone,
+{
     pub fn new(
         round: Box<dyn RoundExecuterRaw<FinalOutput = F, Index = K>>,
         party_count: usize,

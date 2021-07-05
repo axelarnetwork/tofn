@@ -5,13 +5,19 @@ use crate::refactor::TofnResult;
 use super::{holevecmap_iter::HoleVecMapIter, Index, VecMap};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct HoleVecMap<K, V> {
+pub struct HoleVecMap<K, V>
+where
+    K: Clone,
+{
     vec: VecMap<K, V>,
     hole: Index<K>,
     phantom: std::marker::PhantomData<Index<K>>,
 }
 
-impl<K, V> HoleVecMap<K, V> {
+impl<K, V> HoleVecMap<K, V>
+where
+    K: Clone,
+{
     pub fn from_vecmap(vec: VecMap<K, V>, hole: Index<K>) -> Self {
         HoleVecMap {
             vec,
@@ -46,7 +52,10 @@ impl<K, V> HoleVecMap<K, V> {
     }
 }
 
-impl<K, V> IntoIterator for HoleVecMap<K, V> {
+impl<K, V> IntoIterator for HoleVecMap<K, V>
+where
+    K: Clone,
+{
     type Item = (Index<K>, <std::vec::IntoIter<V> as Iterator>::Item);
     type IntoIter = HoleVecMapIter<K, std::vec::IntoIter<V>>;
 
@@ -67,7 +76,10 @@ impl<K, V> IntoIterator for HoleVecMap<K, V> {
 /// "this is not defined in the current crate because tuples are always foreign"
 pub struct Pair<K, V>(pub Index<K>, pub V);
 
-impl<K, V> FromIterator<Pair<K, V>> for TofnResult<HoleVecMap<K, V>> {
+impl<K, V> FromIterator<Pair<K, V>> for TofnResult<HoleVecMap<K, V>>
+where
+    K: Clone,
+{
     fn from_iter<Iter: IntoIterator<Item = Pair<K, V>>>(iter: Iter) -> Self {
         Self::from_iter(
             iter.into_iter()
@@ -80,6 +92,7 @@ impl<K, V> FromIterator<Pair<K, V>> for TofnResult<HoleVecMap<K, V>> {
 impl<K, V, E> FromIterator<Pair<K, Result<V, E>>> for TofnResult<HoleVecMap<K, V>>
 where
     E: std::fmt::Display,
+    K: Clone,
 {
     fn from_iter<Iter: IntoIterator<Item = Pair<K, Result<V, E>>>>(iter: Iter) -> Self {
         // indices must be in ascending order with at most one hole
@@ -128,6 +141,7 @@ mod tests {
 
     use super::Pair;
 
+    #[derive(Debug, Clone)]
     struct TestIndex;
 
     #[test]

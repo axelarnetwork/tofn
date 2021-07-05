@@ -2,35 +2,38 @@
 
 use tofn::{
     refactor::{
-        keygen::{KeygenOutput, KeygenPartyIndex},
         protocol::{Protocol, ProtocolRound},
         BytesVec, TofnResult,
     },
-    vecmap::{HoleVecMap, Index, VecMap},
+    vecmap::{HoleVecMap, VecMap},
 };
 use tracing::error;
 
-pub fn execute_protocol(
-    mut parties: Vec<Protocol<KeygenOutput, KeygenPartyIndex>>,
-) -> Vec<Protocol<KeygenOutput, KeygenPartyIndex>> {
+pub fn execute_protocol<F, K>(mut parties: Vec<Protocol<F, K>>) -> Vec<Protocol<F, K>>
+where
+    K: Clone,
+{
     while nobody_done(&parties) {
         parties = next_round(parties);
     }
     parties
 }
 
-fn nobody_done<F, K>(parties: &[Protocol<F, K>]) -> bool {
+fn nobody_done<F, K>(parties: &[Protocol<F, K>]) -> bool
+where
+    K: Clone,
+{
     parties
         .iter()
         .all(|party| matches!(party, Protocol::NotDone(_)))
 }
 
-// TODO generic over final output F
-fn next_round(
-    parties: Vec<Protocol<KeygenOutput, KeygenPartyIndex>>,
-) -> Vec<Protocol<KeygenOutput, KeygenPartyIndex>> {
+fn next_round<F, K>(parties: Vec<Protocol<F, K>>) -> Vec<Protocol<F, K>>
+where
+    K: Clone,
+{
     // extract current round from parties
-    let mut rounds: Vec<ProtocolRound<KeygenOutput, KeygenPartyIndex>> = parties
+    let mut rounds: Vec<ProtocolRound<F, K>> = parties
         .into_iter()
         .enumerate()
         .map(|(i, party)| match party {
@@ -40,7 +43,7 @@ fn next_round(
         .collect();
 
     // deliver bcasts
-    let bcasts: VecMap<KeygenPartyIndex, Option<TofnResult<BytesVec>>> = rounds
+    let bcasts: VecMap<K, Option<TofnResult<BytesVec>>> = rounds
         .iter()
         .map(|round| round.bcast_out().clone())
         .collect();
@@ -58,10 +61,7 @@ fn next_round(
     }
 
     // deliver p2ps
-    let all_p2ps: VecMap<
-        KeygenPartyIndex,
-        Option<TofnResult<HoleVecMap<KeygenPartyIndex, BytesVec>>>,
-    > = rounds
+    let all_p2ps: VecMap<K, Option<TofnResult<HoleVecMap<K, BytesVec>>>> = rounds
         .iter()
         .map(|round| round.p2ps_out().clone())
         .collect();

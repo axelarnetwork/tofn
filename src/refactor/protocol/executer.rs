@@ -5,7 +5,10 @@ use crate::{
     vecmap::{FillHoleVecMap, FillVecMap, HoleVecMap, Index, Pair, VecMap},
 };
 
-pub enum ProtocolBuilder<F, K> {
+pub enum ProtocolBuilder<F, K>
+where
+    K: Clone,
+{
     NotDone(ProtocolRoundBuilder<F, K>),
     Done(F),
 }
@@ -17,7 +20,10 @@ pub trait DeTimeout {
     fn new_deserialization_failure() -> Self;
 }
 
-pub struct ProtocolRoundBuilder<F, K> {
+pub struct ProtocolRoundBuilder<F, K>
+where
+    K: Clone,
+{
     pub round: Box<dyn RoundExecuterRaw<FinalOutput = F, Index = K>>,
     pub bcast_out: Option<TofnResult<BytesVec>>,
     pub p2ps_out: Option<TofnResult<HoleVecMap<K, BytesVec>>>,
@@ -25,7 +31,7 @@ pub struct ProtocolRoundBuilder<F, K> {
 
 pub trait RoundExecuter: Send + Sync {
     type FinalOutput: DeTimeout;
-    type Index;
+    type Index: Clone;
     type Bcast: DeserializeOwned;
     type P2p: DeserializeOwned;
     fn execute(
@@ -45,7 +51,7 @@ pub trait RoundExecuter: Send + Sync {
 /// "raw" means we haven't yet checked for timeouts or deserialization failure
 pub trait RoundExecuterRaw: Send + Sync {
     type FinalOutput;
-    type Index;
+    type Index: Clone;
     fn execute_raw(
         self: Box<Self>,
         party_count: usize,

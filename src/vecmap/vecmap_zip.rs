@@ -3,7 +3,10 @@ use super::{vecmap_iter::VecMapIter, Index, VecMap};
 pub fn zip2<'a, K, V0, V1>(
     v0: &'a VecMap<K, V0>,
     v1: &'a VecMap<K, V1>,
-) -> Zip2<K, std::slice::Iter<'a, V0>, std::slice::Iter<'a, V1>> {
+) -> Zip2<K, std::slice::Iter<'a, V0>, std::slice::Iter<'a, V1>>
+where
+    K: Clone,
+{
     Zip2::new(v0.iter(), v1.iter())
 }
 
@@ -51,6 +54,7 @@ mod tests {
 
     use super::zip2;
 
+    #[derive(Debug, Clone)]
     struct TestIndex;
 
     #[test]

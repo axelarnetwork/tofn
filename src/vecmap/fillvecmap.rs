@@ -11,7 +11,10 @@ pub struct FillVecMap<K, V> {
     some_count: usize, // TODO eliminate `some_count`?
 }
 
-impl<K, V> FillVecMap<K, V> {
+impl<K, V> FillVecMap<K, V>
+where
+    K: Clone,
+{
     pub fn with_size(len: usize) -> Self {
         Self {
             vec: (0..len).map(|_| None).collect(),
