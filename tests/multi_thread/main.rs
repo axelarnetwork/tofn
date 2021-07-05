@@ -45,7 +45,7 @@ fn main() {
         });
     }
 
-    drop(result_sender);
+    drop(result_sender); // so that result_receiver can close
 
     let results: Vec<SecretKeyShare> = result_receiver
         .into_iter()

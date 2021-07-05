@@ -24,12 +24,6 @@ pub enum Behaviour {
     R3BadXIWitness,
 }
 
-// impl Keygen {
-//     pub fn set_behaviour(&mut self, behaviour: Behaviour) {
-//         self.behaviour = behaviour;
-//     }
-// }
-
 #[derive(Clone, Debug)]
 pub enum MsgType {
     R1Bcast,
