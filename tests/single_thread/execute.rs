@@ -53,7 +53,7 @@ where
         .into_iter()
         .map(|(i, party)| match party {
             Protocol::NotDone(round) => round,
-            Protocol::Done(_) => panic!("party {} done too early", i),
+            Protocol::Done(_) => panic!("next_round called but party {} is done", i),
         })
         .collect();
 
@@ -99,11 +99,12 @@ where
     rounds
         .into_iter()
         .map(|(i, round)| {
-            assert!(
-                !round.expecting_more_msgs_this_round(),
-                "party {} should not be expecting more messages this round",
-                i
-            );
+            if round.expecting_more_msgs_this_round() {
+                warn!(
+                    "all messages delivered this round but party {} still expecting messages",
+                    i,
+                );
+            }
             round.execute_next_round()
         })
         .collect()
