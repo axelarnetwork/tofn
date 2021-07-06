@@ -24,30 +24,35 @@ use super::{r1, r2, Fault, KeygenOutput, KeygenPartyIndex};
 use super::malicious::Behaviour;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(super) struct Bcast {
-    pub(super) x_i_proof: schnorr_k256::Proof,
+pub enum Bcast {
+    Happy(BcastHappy),
+    Sad(BcastSad),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BcastFail {
-    pub vss_complaints: Vec<VssComplaint>,
+pub struct BcastHappy {
+    pub x_i_proof: schnorr_k256::Proof,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BcastSad {
+    pub vss_complaints: Vec<(Index<KeygenPartyIndex>, VssComplaint)>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VssComplaint {
-    pub criminal_index: usize,
     pub share: vss_k256::Share,
     pub share_randomness: paillier_k256::Randomness,
 }
 
-pub(super) struct R3 {
-    pub(super) threshold: usize,
-    pub(super) dk: paillier_k256::DecryptionKey,
-    pub(super) u_i_my_share: vss_k256::Share,
-    pub(super) r1bcasts: VecMap<KeygenPartyIndex, r1::Bcast>,
+pub struct R3 {
+    pub threshold: usize,
+    pub dk: paillier_k256::DecryptionKey,
+    pub u_i_my_share: vss_k256::Share,
+    pub r1bcasts: VecMap<KeygenPartyIndex, r1::Bcast>,
 
     #[cfg(feature = "malicious")]
-    pub(super) behaviour: Behaviour,
+    pub behaviour: Behaviour,
 }
 
 impl RoundExecuter for R3 {
@@ -96,6 +101,26 @@ impl RoundExecuter for R3 {
             .expect("failure to build share_infos");
 
         // validate shares
+        // let vss_failures = share_infos
+        //     .iter()
+        //     .filter_map(|(i, (share, randomness))| {
+        //         if bcasts_in.get(i).u_i_vss_commit.validate_share(share) {
+        //             None
+        //         } else {
+        //             warn!(
+        //                 "party {} accuse {} of {:?}",
+        //                 index,
+        //                 i,
+        //                 Fault::R4FailBadVss { victim: index },
+        //             );
+        //             Some(VssComplaint {
+        //                 share: share.clone(),
+        //                 share_randomness: randomness.clone(),
+        //             })
+        //         }
+        //     })
+        //     .collect();
+
         // TODO may need a helper that converts a HoleVecMap (iterator?) to a VecMap<VssComplaint>
         // TODO zip
         // - share_infos (which iterates only over _other_ parties)
@@ -181,7 +206,7 @@ impl RoundExecuter for R3 {
         );
 
         ProtocolBuilder::NotDone(ProtocolRoundBuilder {
-            round: Box::new(r4::R4 {
+            round: Box::new(r4::happy::R4 {
                 threshold: self.threshold,
                 dk: self.dk,
                 r1bcasts: self.r1bcasts,
@@ -191,7 +216,7 @@ impl RoundExecuter for R3 {
                 #[cfg(feature = "malicious")]
                 behaviour: self.behaviour,
             }),
-            bcast_out: Some(serialize(&Bcast { x_i_proof })),
+            bcast_out: Some(serialize(&Bcast::Happy(BcastHappy { x_i_proof }))),
             p2ps_out: None,
         })
     }

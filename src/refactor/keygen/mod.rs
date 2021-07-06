@@ -4,12 +4,13 @@ use crate::refactor::protocol::{
     Protocol, ProtocolRound,
 };
 use crate::vecmap::{Behave, Index};
+use serde::{Deserialize, Serialize};
 
 use super::TofnResult;
 
 // need to derive all this crap for each new marker struct
 // in order to avoid this problem: https://stackoverflow.com/a/31371094
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct KeygenPartyIndex;
 impl Behave for KeygenPartyIndex {}
 
@@ -114,7 +115,7 @@ pub enum Fault {
     R2BadZkSetupProof,
     R2BadEncryptionKeyProof,
     R3BadReveal,
-    R4FailBadVss { victim: usize },
+    R4FailBadVss { victim: Index<KeygenPartyIndex> },
     // R4FailBadEncryption { victim: usize },
     // R4FailFalseAccusation { victim: usize },
     R4BadDLProof,

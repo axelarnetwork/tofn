@@ -47,8 +47,9 @@ where
 #[cfg(test)]
 mod tests {
     use crate::vecmap::{vecmap::VecMap, Behave};
+    use serde::{Deserialize, Serialize};
 
-    #[derive(Debug, Clone, Copy, PartialEq)]
+    #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
     struct TestIndex;
     impl Behave for TestIndex {}
 

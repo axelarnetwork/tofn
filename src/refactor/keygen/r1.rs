@@ -19,21 +19,21 @@ use super::{r2, rng, KeygenOutput, KeygenPartyIndex};
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
 
-pub(super) struct R1 {
-    pub(super) threshold: usize,
-    pub(super) rng_seed: rng::Seed,
+pub struct R1 {
+    pub threshold: usize,
+    pub rng_seed: rng::Seed,
 
     #[cfg(feature = "malicious")]
-    pub(super) behaviour: Behaviour,
+    pub behaviour: Behaviour,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct Bcast {
-    pub(super) y_i_commit: hash::Output,
-    pub(super) ek: paillier_k256::EncryptionKey,
-    pub(super) ek_proof: paillier_k256::zk::EncryptionKeyProof,
-    pub(super) zkp: paillier_k256::zk::ZkSetup,
-    pub(super) zkp_proof: paillier_k256::zk::ZkSetupProof,
+pub struct Bcast {
+    pub y_i_commit: hash::Output,
+    pub ek: paillier_k256::EncryptionKey,
+    pub ek_proof: paillier_k256::zk::EncryptionKeyProof,
+    pub zkp: paillier_k256::zk::ZkSetup,
+    pub zkp_proof: paillier_k256::zk::ZkSetupProof,
 }
 
 impl RoundExecuterRaw for R1 {

@@ -3,33 +3,34 @@ use tracing::warn;
 use crate::{
     paillier_k256,
     protocol::gg20::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo},
-    refactor::protocol::{
-        executer::{
-            ProtocolBuilder::{self, *},
-            RoundExecuter,
+    refactor::{
+        keygen::{r1, r3, Fault, KeygenOutput, KeygenPartyIndex},
+        protocol::{
+            executer::{
+                ProtocolBuilder::{self, *},
+                RoundExecuter,
+            },
+            P2ps,
         },
-        P2ps,
     },
     vecmap::{zip2, Index, VecMap},
     zkp::schnorr_k256,
 };
 
-use super::{r1, r3, Fault, KeygenOutput, KeygenPartyIndex};
-
 #[cfg(feature = "malicious")]
-use super::malicious::Behaviour;
+use crate::refactor::keygen::malicious::Behaviour;
 
 #[allow(non_snake_case)]
-pub(super) struct R4 {
-    pub(super) threshold: usize,
-    pub(super) dk: paillier_k256::DecryptionKey,
-    pub(super) r1bcasts: VecMap<KeygenPartyIndex, r1::Bcast>,
-    pub(super) y: k256::ProjectivePoint,
-    pub(super) x_i: k256::Scalar,
-    pub(super) all_X_i: VecMap<KeygenPartyIndex, k256::ProjectivePoint>,
+pub struct R4 {
+    pub threshold: usize,
+    pub dk: paillier_k256::DecryptionKey,
+    pub r1bcasts: VecMap<KeygenPartyIndex, r1::Bcast>,
+    pub y: k256::ProjectivePoint,
+    pub x_i: k256::Scalar,
+    pub all_X_i: VecMap<KeygenPartyIndex, k256::ProjectivePoint>,
 
     #[cfg(feature = "malicious")]
-    pub(super) behaviour: Behaviour,
+    pub behaviour: Behaviour,
 }
 
 impl RoundExecuter for R4 {
@@ -46,6 +47,16 @@ impl RoundExecuter for R4 {
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
         _p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
+        // move to sad path if necessary
+        // TODO for now just unwrap happy path
+        let bcasts_in: VecMap<Self::Index, r3::BcastHappy> = bcasts_in
+            .into_iter()
+            .map(|(_, bcast)| match bcast {
+                r3::Bcast::Happy(h) => h,
+                r3::Bcast::Sad(_) => unreachable!(),
+            })
+            .collect();
+
         // verify proofs
         let faulters: Vec<_> = zip2(&bcasts_in, &self.all_X_i)
             .filter_map(|(i, bcast, X_i)| {

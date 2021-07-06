@@ -61,10 +61,12 @@ impl TestCase {
 // }
 
 pub fn single_fault_test_case_list() -> Vec<TestCase> {
+    // let zero = Index::from_usize(0);
     vec![
         single_fault_test_case(R1BadCommit, R3BadReveal),
         single_fault_test_case(R1BadEncryptionKeyProof, R2BadEncryptionKeyProof),
         single_fault_test_case(R1BadZkSetupProof, R2BadZkSetupProof),
+        // single_fault_test_case(R2BadShare { victim: zero }, R4FailBadVss { victim: zero }),
     ]
 }
 

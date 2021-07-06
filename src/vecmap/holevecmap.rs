@@ -1,6 +1,5 @@
-use std::iter::FromIterator;
-
 use crate::refactor::TofnResult;
+use std::iter::FromIterator;
 
 use super::{holevecmap_iter::HoleVecMapIter, Behave, Index, VecMap};
 
@@ -140,10 +139,11 @@ mod tests {
         refactor::TofnResult,
         vecmap::{holevecmap::HoleVecMap, Behave, Index},
     };
+    use serde::{Deserialize, Serialize};
 
     use super::Pair;
 
-    #[derive(Debug, Clone, Copy, PartialEq)]
+    #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
     struct TestIndex;
     impl Behave for TestIndex {}
 

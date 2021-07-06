@@ -20,24 +20,24 @@ use super::{r1, KeygenOutput, KeygenPartyIndex, KeygenProtocolBuilder};
 use super::malicious::Behaviour;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(super) struct Bcast {
-    pub(super) y_i_reveal: hash::Randomness,
-    pub(super) u_i_vss_commit: vss_k256::Commit,
+pub struct Bcast {
+    pub y_i_reveal: hash::Randomness,
+    pub u_i_vss_commit: vss_k256::Commit,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(super) struct P2p {
-    pub(super) u_i_share_ciphertext: paillier_k256::Ciphertext,
+pub struct P2p {
+    pub u_i_share_ciphertext: paillier_k256::Ciphertext,
 }
 
-pub(super) struct R2 {
-    pub(super) threshold: usize,
-    pub(super) dk: paillier_k256::DecryptionKey,
-    pub(super) u_i_vss: vss_k256::Vss,
-    pub(super) y_i_reveal: hash::Randomness,
+pub struct R2 {
+    pub threshold: usize,
+    pub dk: paillier_k256::DecryptionKey,
+    pub u_i_vss: vss_k256::Vss,
+    pub y_i_reveal: hash::Randomness,
 
     #[cfg(feature = "malicious")]
-    pub(super) behaviour: Behaviour,
+    pub behaviour: Behaviour,
 }
 
 impl RoundExecuter for R2 {
@@ -88,29 +88,7 @@ impl RoundExecuter for R2 {
         let (u_i_other_shares, u_i_my_share) =
             VecMap::from_vec(self.u_i_vss.shares(party_count)).puncture_hole(index);
 
-        // #[cfg(feature = "malicious")]
-        // let my_u_i_shares_k256 = if let Behaviour::R2BadShare { victim } = self.behaviour {
-        //     info!(
-        //         "(k256) malicious party {} do {:?}",
-        //         self.my_index, self.behaviour
-        //     );
-        //     my_u_i_shares_k256
-        //         .iter()
-        //         .enumerate()
-        //         .map(|(i, s)| {
-        //             if i == victim {
-        //                 vss_k256::Share::from_scalar(
-        //                     s.get_scalar() + k256::Scalar::one(),
-        //                     s.get_index(),
-        //                 )
-        //             } else {
-        //                 s.clone()
-        //             }
-        //         })
-        //         .collect()
-        // } else {
-        //     my_u_i_shares_k256
-        // };
+        let u_i_other_shares = self.corrupt_share(index, u_i_other_shares);
 
         let p2ps_out = Some(
             u_i_other_shares
@@ -164,5 +142,33 @@ impl RoundExecuter for R2 {
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+}
+
+pub mod malicious {
+    use tracing::info;
+
+    use crate::{
+        protocol::gg20::vss_k256::Share,
+        refactor::keygen::{self, KeygenPartyIndex},
+        vecmap::{HoleVecMap, Index},
+    };
+
+    use super::R2;
+
+    impl R2 {
+        pub fn corrupt_share(
+            &self,
+            index: Index<KeygenPartyIndex>,
+            mut other_shares: HoleVecMap<KeygenPartyIndex, Share>,
+        ) -> HoleVecMap<KeygenPartyIndex, Share> {
+            #[cfg(feature = "malicious")]
+            if let keygen::Behaviour::R2BadShare { victim } = self.behaviour {
+                info!("malicious party {} do {:?}", index, self.behaviour);
+                other_shares.get_mut(victim).corrupt();
+            }
+
+            other_shares
+        }
     }
 }
