@@ -65,13 +65,13 @@ impl RoundExecuterRaw for R1 {
         let (zkp, zkp_proof) = paillier_k256::zk::ZkSetup::new_unsafe(&mut rng);
         let ek_proof = dk.correctness_proof();
 
-        // #[cfg(feature = "malicious")]
-        // let ek_proof = if matches!(self.behaviour, Behaviour::R1BadEncryptionKeyProof) {
-        //     info!("malicious party {} do {:?}", self.my_index, self.behaviour);
-        //     paillier_k256::zk::malicious::corrupt_ek_proof(ek_proof)
-        // } else {
-        //     ek_proof
-        // };
+        #[cfg(feature = "malicious")]
+        let ek_proof = if matches!(self.behaviour, Behaviour::R1BadEncryptionKeyProof) {
+            info!("malicious party {} do {:?}", index, self.behaviour);
+            paillier_k256::zk::malicious::corrupt_ek_proof(ek_proof)
+        } else {
+            ek_proof
+        };
 
         // #[cfg(feature = "malicious")]
         // let zkp_proof = if matches!(self.behaviour, Behaviour::R1BadZkSetupProof) {
