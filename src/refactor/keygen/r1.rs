@@ -73,13 +73,14 @@ impl RoundExecuterRaw for R1 {
             ek_proof
         };
 
-        // #[cfg(feature = "malicious")]
-        // let zkp_proof = if matches!(self.behaviour, Behaviour::R1BadZkSetupProof) {
-        //     info!("malicious party {} do {:?}", self.my_index, self.behaviour);
-        //     paillier_k256::zk::malicious::corrupt_zksetup_proof(zkp_proof)
-        // } else {
-        //     zkp_proof
-        // };
+        #[cfg(feature = "malicious")]
+        let zkp_proof = if matches!(self.behaviour, Behaviour::R1BadZkSetupProof) {
+            info!("malicious party {} do {:?}", index, self.behaviour);
+            paillier_k256::zk::malicious::corrupt_zksetup_proof(zkp_proof)
+        } else {
+            zkp_proof
+        };
+
         let bcast_out = Some(serialize(&Bcast {
             y_i_commit,
             ek,

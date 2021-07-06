@@ -61,8 +61,11 @@ impl TestCase {
 // }
 
 pub fn single_fault_test_case_list() -> Vec<TestCase> {
-    vec![single_fault_test_case(R1BadCommit, R3BadReveal),
-    single_fault_test_case(R1BadEncryptionKeyProof, R2BadEncryptionKeyProof),]
+    vec![
+        single_fault_test_case(R1BadCommit, R3BadReveal),
+        single_fault_test_case(R1BadEncryptionKeyProof, R2BadEncryptionKeyProof),
+        single_fault_test_case(R1BadZkSetupProof, R2BadZkSetupProof),
+    ]
 }
 
 fn single_fault_test_case(behaviour: Behaviour, fault: Fault) -> TestCase {
