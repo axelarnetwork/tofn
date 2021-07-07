@@ -1,7 +1,7 @@
 use serde::de::DeserializeOwned;
 
 use crate::{
-    refactor::{BytesVec, TofnResult},
+    refactor::{protocol::Fault, BytesVec, TofnResult},
     vecmap::{Behave, FillHoleVecMap, FillVecMap, HoleVecMap, Index, Pair, VecMap},
 };
 
@@ -128,7 +128,7 @@ impl<T: RoundExecuter> RoundExecuterRaw for T {
     }
 }
 
-use tracing::error;
+use tracing::{error, warn};
 
 use super::P2ps;
 
@@ -144,13 +144,19 @@ where
 }
 
 /*
-fn test_execute_raw(
-    self: Box<Self>,
+fn test_execute_raw<F, K, B, P>(
+    // self: Box<Self>,
     party_count: usize,
-    index: Index<Self::Index>,
-    bcasts_in: FillVecMap<Self::Index, BytesVec>,
-    p2ps_in: VecMap<Self::Index, FillHoleVecMap<Self::Index, BytesVec>>,
-) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
+    index: Index<K>,
+    bcasts_in: FillVecMap<K, BytesVec>,
+    p2ps_in: VecMap<K, FillHoleVecMap<K, BytesVec>>,
+)
+//-> ProtocolBuilder<F, K>
+where
+    K: Behave,
+    B: DeserializeOwned,
+    P: DeserializeOwned,
+{
     let mut faulters = FillVecMap::with_size(party_count);
 
     // check for timeout faults
@@ -169,7 +175,8 @@ fn test_execute_raw(
         }
     }
     if !faulters.is_empty() {
-        return ProtocolBuilder::Done(Err(faulters));
+        // return ProtocolBuilder::Done(Err(faulters));
+        panic!("TODO timeout faults");
     }
 
     // attempt to deserialize bcasts, p2ps
@@ -177,10 +184,7 @@ fn test_execute_raw(
         .into_iter()
         .map(|(_, bytes)| bincode::deserialize(&bytes.as_ref().unwrap()))
         .collect();
-    let p2ps_deserialized: VecMap<
-        _,
-        HoleVecMap<Self::Index, Result<<T as RoundExecuter>::P2p, _>>,
-    > = p2ps_in
+    let p2ps_deserialized: VecMap<_, HoleVecMap<K, Result<P, _>>> = p2ps_in
         .into_iter()
         .map(|(from, p2ps)| {
             p2ps.into_iter()
@@ -209,11 +213,12 @@ fn test_execute_raw(
         }
     }
     if !faulters.is_empty() {
-        return ProtocolBuilder::Done(Err(faulters));
+        // return ProtocolBuilder::Done(Err(faulters));
+        panic!("TODO deserialization faults");
     }
 
     // unwrap deserialized bcasts, p2ps
-    let bcasts_in = bcasts_deserialized
+    let bcasts_in: VecMap<K, B> = bcasts_deserialized
         .into_iter()
         .map(|(from, bcast)| bcast.unwrap())
         .collect();
@@ -223,12 +228,12 @@ fn test_execute_raw(
             .map(|(from, p2ps)| {
                 p2ps.into_iter()
                     .map(|(to, p2p)| Pair(to, p2p.unwrap()))
-                    .collect::<TofnResult<HoleVecMap<Self::Index, <T as RoundExecuter>::P2p>>>()
+                    .collect::<TofnResult<HoleVecMap<K, P>>>()
                     .expect("TODO propagate TofnError")
             })
             .collect(),
     );
 
-    self.execute(party_count, index, bcasts_in, p2ps_in)
+    // self.execute(party_count, index, bcasts_in, p2ps_in)
 }
 */
