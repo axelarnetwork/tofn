@@ -115,9 +115,9 @@ pub enum Fault {
     R2BadZkSetupProof,
     R2BadEncryptionKeyProof,
     R3BadReveal,
-    R4FailBadVss { victim: Index<KeygenPartyIndex> },
-    R4SadBadEncryption { victim: Index<KeygenPartyIndex> },
-    R4SadFalseAccusation { victim: Index<KeygenPartyIndex> },
+    // R4SadBadVss { victim: Index<KeygenPartyIndex> },
+    // R4SadBadEncryption { victim: Index<KeygenPartyIndex> },
+    // R4SadFalseAccusation { victim: Index<KeygenPartyIndex> },
     R4BadDLProof,
 }
 

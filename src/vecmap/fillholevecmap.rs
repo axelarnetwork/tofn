@@ -50,6 +50,9 @@ where
     pub fn is_full(&self) -> bool {
         self.some_count == self.hole_vec.len() - 1
     }
+    pub fn iter(&self) -> HoleVecMapIter<K, std::slice::Iter<Option<V>>> {
+        self.hole_vec.iter()
+    }
 }
 
 impl<K, V> IntoIterator for FillHoleVecMap<K, V>

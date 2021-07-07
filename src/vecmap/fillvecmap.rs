@@ -56,11 +56,12 @@ where
     pub fn is_full(&self) -> bool {
         self.some_count == self.vec.len()
     }
-
-    // Replicate std::vec interface https://doc.rust-lang.org/src/alloc/vec/mod.rs.html#1800
-    // pub fn is_empty(&self) -> bool {
-    //     self.some_count == 0
-    // }
+    pub fn iter(&self) -> VecMapIter<K, std::slice::Iter<Option<V>>> {
+        self.vec.iter()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.some_count == 0
+    }
     // pub fn from_vec(vec: Vec<Option<T>>) -> Self {
     //     Self {
     //         some_count: vec.iter().filter(|x| x.is_some()).count(),
