@@ -3,10 +3,7 @@ use rand::RngCore;
 use std::{sync::mpsc, thread};
 use tofn::{
     protocol::gg20::SecretKeyShare,
-    refactor::{
-        keygen::{new_keygen, KeygenOutput, KeygenPartyIndex, KeygenProtocol},
-        protocol::Protocol,
-    },
+    refactor::keygen::{new_keygen, KeygenProtocol},
     vecmap::Index,
 };
 

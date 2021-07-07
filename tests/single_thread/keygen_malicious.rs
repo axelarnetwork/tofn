@@ -67,6 +67,11 @@ pub fn single_fault_test_case_list() -> Vec<TestCase> {
         single_fault_test_case(R1BadEncryptionKeyProof, R2BadEncryptionKeyProof),
         single_fault_test_case(R1BadZkSetupProof, R2BadZkSetupProof),
         // single_fault_test_case(R2BadShare { victim: zero }, R4FailBadVss { victim: zero }),
+        // single_fault_test_case(
+        //     R2BadEncryption { victim: zero },
+        //     R4SadBadEncryption { victim: zero },
+        // ),
+        single_fault_test_case(R3BadXIWitness, R4BadDLProof),
     ]
 }
 

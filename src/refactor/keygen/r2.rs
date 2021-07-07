@@ -98,17 +98,8 @@ impl RoundExecuter for R2 {
                     let (u_i_share_ciphertext, _) =
                         bcasts_in.get(i).ek.encrypt(&share.get_scalar().into());
 
-                    // #[cfg(feature = "malicious")]
-                    // let u_i_share_ciphertext_k256 = match self.behaviour {
-                    //     Behaviour::R2BadEncryption { victim } if victim == i => {
-                    //         info!(
-                    //             "(k256) malicious party {} do {:?}",
-                    //             self.my_index, self.behaviour
-                    //         );
-                    //         u_i_share_ciphertext_k256.corrupt()
-                    //     }
-                    //     _ => u_i_share_ciphertext_k256,
-                    // };
+                    let u_i_share_ciphertext =
+                        self.corrupt_ciphertext(index, i, u_i_share_ciphertext);
 
                     Pair(
                         i,
@@ -149,6 +140,7 @@ pub mod malicious {
     use tracing::info;
 
     use crate::{
+        paillier_k256::Ciphertext,
         protocol::gg20::vss_k256::Share,
         refactor::keygen::{self, KeygenPartyIndex},
         vecmap::{HoleVecMap, Index},
@@ -159,16 +151,33 @@ pub mod malicious {
     impl R2 {
         pub fn corrupt_share(
             &self,
-            index: Index<KeygenPartyIndex>,
+            my_index: Index<KeygenPartyIndex>,
             mut other_shares: HoleVecMap<KeygenPartyIndex, Share>,
         ) -> HoleVecMap<KeygenPartyIndex, Share> {
             #[cfg(feature = "malicious")]
             if let keygen::Behaviour::R2BadShare { victim } = self.behaviour {
-                info!("malicious party {} do {:?}", index, self.behaviour);
+                info!("malicious party {} do {:?}", my_index, self.behaviour);
                 other_shares.get_mut(victim).corrupt();
             }
 
             other_shares
+        }
+
+        pub fn corrupt_ciphertext(
+            &self,
+            my_index: Index<KeygenPartyIndex>,
+            target_index: Index<KeygenPartyIndex>,
+            mut ciphertext: Ciphertext,
+        ) -> Ciphertext {
+            #[cfg(feature = "malicious")]
+            if let keygen::Behaviour::R2BadEncryption { victim } = self.behaviour {
+                if victim == target_index {
+                    info!("malicious party {} do {:?}", my_index, self.behaviour);
+                    ciphertext.corrupt();
+                }
+            }
+
+            ciphertext
         }
     }
 }

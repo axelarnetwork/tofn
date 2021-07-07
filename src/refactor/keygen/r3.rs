@@ -197,6 +197,8 @@ impl RoundExecuter for R3 {
             })
             .collect();
 
+        let x_i = self.corrupt_scalar(index, x_i);
+
         let x_i_proof = schnorr_k256::prove(
             &schnorr_k256::Statement {
                 base: &k256::ProjectivePoint::generator(),
@@ -224,5 +226,31 @@ impl RoundExecuter for R3 {
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+}
+
+pub mod malicious {
+    use tracing::info;
+
+    use crate::{
+        refactor::keygen::{self, KeygenPartyIndex},
+        vecmap::Index,
+    };
+
+    use super::R3;
+
+    impl R3 {
+        pub fn corrupt_scalar(
+            &self,
+            my_index: Index<KeygenPartyIndex>,
+            mut x_i: k256::Scalar,
+        ) -> k256::Scalar {
+            #[cfg(feature = "malicious")]
+            if let keygen::Behaviour::R3BadXIWitness = self.behaviour {
+                info!("malicious party {} do {:?}", my_index, self.behaviour);
+                x_i += k256::Scalar::one();
+            }
+            x_i
+        }
     }
 }
