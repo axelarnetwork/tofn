@@ -1,0 +1,64 @@
+use super::{holevecmap_iter::HoleVecMapIter, vecmap_iter::VecMapIter, Behave, Index};
+
+/// Follows the implementation of std::iter::Enumerate https://doc.rust-lang.org/std/iter/struct.Enumerate.html
+pub struct P2psIter<K, I0, I1>
+where
+    K: Behave,
+{
+    iter0: VecMapIter<K, I0>,
+    iter1: Option<HoleVecMapIter<K, I1>>,
+    from: Index<K>,
+}
+
+impl<K, I0, I1> P2psIter<K, I0, I1>
+where
+    K: Behave,
+{
+    pub fn new(iter: VecMapIter<K, I0>) -> Self {
+        Self {
+            iter0: iter,
+            iter1: None,
+            from: Index::from_usize(0),
+        }
+    }
+}
+
+impl<K, I0, I1> Iterator for P2psIter<K, I0, I1>
+where
+    K: Behave,
+    I0: Iterator,
+    <I0 as Iterator>::Item: IntoIterator<
+        IntoIter = HoleVecMapIter<K, I1>,
+        Item = <HoleVecMapIter<K, I1> as Iterator>::Item,
+    >,
+    I1: Iterator,
+{
+    type Item = (Index<K>, Index<K>, <I1 as Iterator>::Item);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some(ref mut iter1) = self.iter1 {
+                if let Some((to, item)) = iter1.next() {
+                    return Some((self.from, to, item));
+                } else {
+                    self.iter1 = None;
+                }
+            }
+            // self.iter1 is None; grab the next one and try again
+            if let Some((from, holevecmap)) = self.iter0.next() {
+                self.from = from;
+                self.iter1 = Some(holevecmap.into_iter());
+            } else {
+                return None;
+            }
+        }
+    }
+
+    /// forbid use of `enumerate` because this functionality is already provided by this iterator
+    fn enumerate(self) -> std::iter::Enumerate<Self>
+    where
+        Self: Sized,
+    {
+        unimplemented!("iterator already returns a type-safe (index,value) pair");
+    }
+}

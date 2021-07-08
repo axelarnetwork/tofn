@@ -58,7 +58,12 @@ pub use fillvecmap::FillVecMap;
 
 mod holevecmap;
 mod holevecmap_iter;
-pub use holevecmap::{HoleVecMap, Pair};
+pub use holevecmap::HoleVecMap;
 
 mod fillholevecmap;
 pub use fillholevecmap::FillHoleVecMap;
+
+mod p2ps;
+pub use p2ps::{FillP2ps, P2ps};
+mod p2ps_iter;
+pub use p2ps_iter::P2psIter;

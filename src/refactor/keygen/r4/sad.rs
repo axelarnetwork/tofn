@@ -3,15 +3,12 @@ use tracing::error;
 use crate::{
     refactor::{
         keygen::{r3, KeygenOutput, KeygenPartyIndex},
-        protocol::{
-            executer::{
-                ProtocolBuilder::{self, *},
-                RoundExecuter,
-            },
-            P2ps,
+        protocol::executer::{
+            ProtocolBuilder::{self, *},
+            RoundExecuter,
         },
     },
-    vecmap::{Index, VecMap},
+    vecmap::{Index, P2ps, VecMap},
 };
 
 #[cfg(feature = "malicious")]

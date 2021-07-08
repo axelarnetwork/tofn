@@ -8,12 +8,9 @@ use crate::{
     protocol::gg20::vss_k256,
     refactor::{
         keygen::r4,
-        protocol::{
-            executer::{serialize, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuter},
-            P2ps,
-        },
+        protocol::executer::{serialize, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuter},
     },
-    vecmap::{zip2, Index, VecMap},
+    vecmap::{zip2, Index, P2ps, VecMap},
     zkp::schnorr_k256,
 };
 

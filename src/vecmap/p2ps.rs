@@ -1,5 +1,7 @@
 use crate::vecmap::{Behave, FillHoleVecMap, HoleVecMap, Index, VecMap};
 
+use super::p2ps_iter::P2psIter;
+
 pub struct P2ps<K, V>(VecMap<K, HoleVecMap<K, V>>)
 where
     K: Behave;
@@ -21,6 +23,9 @@ where
                 Some((k, hole_vec.get(me)))
             }
         })
+    }
+    pub fn iter(&self) -> P2psIter<K, std::slice::Iter<HoleVecMap<K, V>>, std::slice::Iter<V>> {
+        P2psIter::new(self.0.iter())
     }
 
     pub fn map_to_me<W, F>(&self, me: Index<K>, mut f: F) -> HoleVecMap<K, W>
@@ -48,17 +53,21 @@ where
     }
 }
 
-// impl<K, V> FromIterator<(Index<K>, Index<K>, V)> for P2ps<K, V>
-// where
-//     K: Behave,
-// {
-//     fn from_iter<Iter: IntoIterator<Item = (Index<K>, Index<K>, V)>>(iter: Iter) -> Self {
-//         Self::from_iter(
-//             iter.into_iter()
-//                 .map(|pair| Pair(pair.0, TofnResult::Ok(pair.1))),
-//         )
-//     }
-// }
+impl<K, V> IntoIterator for P2ps<K, V>
+where
+    K: Behave,
+{
+    type Item = (
+        Index<K>,
+        Index<K>,
+        <std::vec::IntoIter<V> as Iterator>::Item,
+    );
+    type IntoIter = P2psIter<K, std::vec::IntoIter<HoleVecMap<K, V>>, std::vec::IntoIter<V>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        P2psIter::new(self.0.into_iter())
+    }
+}
 
 pub struct FillP2ps<K, V>(VecMap<K, FillHoleVecMap<K, V>>)
 where
@@ -80,6 +89,9 @@ where
     }
     pub fn set_warn(&mut self, from: Index<K>, to: Index<K>, value: V) {
         self.0.get_mut(from).set_warn(to, value);
+    }
+    pub fn is_full(&self) -> bool {
+        self.0.iter().all(|(i, v)| v.is_full())
     }
     pub fn unwrap_all_map<W, F>(self, f: F) -> P2ps<K, W>
     where

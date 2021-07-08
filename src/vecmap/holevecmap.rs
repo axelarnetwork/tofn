@@ -76,6 +76,21 @@ where
     }
 }
 
+/// impl IntoIterator for &HoleVecMap as suggested here: https://doc.rust-lang.org/std/iter/index.html#iterating-by-reference
+/// follow the template of Vec: https://doc.rust-lang.org/src/alloc/vec/mod.rs.html#2451-2458
+impl<'a, K, V> IntoIterator for &'a HoleVecMap<K, V>
+where
+    K: Behave,
+{
+    type Item = (Index<K>, <std::slice::Iter<'a, V> as Iterator>::Item);
+    type IntoIter = HoleVecMapIter<K, std::slice::Iter<'a, V>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+/*
 /// Need our own crate-local `Pair` struct instead of tuple `(Index<K>,V)` because this...
 /// ```compile_fail
 /// impl<K, V> FromIterator<(Index<K>,V)> for TofnResult<HoleVecMap<K, V>> {
@@ -206,3 +221,4 @@ mod tests {
         assert_eq!(*holevecmap.get(Index::from_usize(4)), 14);
     }
 }
+*/

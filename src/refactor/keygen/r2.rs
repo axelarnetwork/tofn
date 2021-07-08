@@ -6,12 +6,9 @@ use crate::{
     protocol::gg20::vss_k256,
     refactor::{
         keygen::{r3, Fault},
-        protocol::{
-            executer::{serialize, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuter},
-            P2ps,
-        },
+        protocol::executer::{serialize, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuter},
     },
-    vecmap::{Index, VecMap},
+    vecmap::{Index, P2ps, VecMap},
 };
 
 use super::{r1, KeygenOutput, KeygenPartyIndex, KeygenProtocolBuilder};

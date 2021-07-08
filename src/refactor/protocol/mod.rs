@@ -1,4 +1,4 @@
-use crate::vecmap::{Behave, FillHoleVecMap, FillVecMap, HoleVecMap, Index, VecMap};
+use crate::vecmap::{Behave, FillP2ps, FillVecMap, HoleVecMap, Index};
 use tracing::warn;
 
 use self::executer::{ProtocolBuilder, RoundExecuterRaw};
@@ -23,7 +23,7 @@ where
     bcast_out: Option<TofnResult<BytesVec>>,
     p2ps_out: Option<TofnResult<HoleVecMap<K, BytesVec>>>,
     bcasts_in: Option<FillVecMap<K, BytesVec>>,
-    p2ps_in: Option<VecMap<K, FillHoleVecMap<K, BytesVec>>>,
+    p2ps_in: Option<FillP2ps<K, BytesVec>>,
 }
 
 impl<F, K> ProtocolRound<F, K>
@@ -48,11 +48,7 @@ where
         let bcasts_in = bcast_out
             .as_ref()
             .map(|_| FillVecMap::with_size(party_count));
-        let p2ps_in = p2ps_out.as_ref().map(|_| {
-            (0..party_count)
-                .map(|i| FillHoleVecMap::with_size(party_count, Index::from_usize(i)))
-                .collect()
-        });
+        let p2ps_in = p2ps_out.as_ref().map(|_| FillP2ps::with_size(party_count));
 
         Self {
             round,
@@ -81,7 +77,7 @@ where
     pub fn p2p_in(&mut self, from: Index<K>, to: Index<K>, bytes: &[u8]) {
         if let Some(ref mut p2ps_in) = self.p2ps_in {
             // TODO range checks
-            p2ps_in.get_mut(from).set_warn(to, bytes.to_vec());
+            p2ps_in.set_warn(from, to, bytes.to_vec());
         } else {
             warn!("`p2p_in` called but no p2ps expected; discaring `bytes`");
         }
@@ -95,7 +91,7 @@ where
             return true;
         }
         let expecting_more_p2ps = match self.p2ps_in {
-            Some(ref p2ps_in) => !p2ps_in.iter().all(|(_, p)| p.is_full()),
+            Some(ref p2ps_in) => !p2ps_in.is_full(),
             None => false,
         };
         expecting_more_p2ps
@@ -105,7 +101,7 @@ where
             self.party_count,
             self.index,
             self.bcasts_in.unwrap_or_else(|| FillVecMap::with_size(0)), // TODO accept Option instead
-            self.p2ps_in.unwrap_or_else(|| std::iter::empty().collect()), // TODO accept Option instead
+            self.p2ps_in.unwrap_or_else(|| FillP2ps::with_size(0)), // TODO accept Option instead
         ) {
             ProtocolBuilder::NotDone(builder) => Protocol::NotDone(ProtocolRound::new(
                 builder.round,
@@ -131,7 +127,5 @@ where
 }
 
 pub mod executer;
-mod p2ps;
-pub use p2ps::P2ps;
 mod fault;
 pub use fault::Fault;

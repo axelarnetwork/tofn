@@ -5,15 +5,12 @@ use crate::{
     protocol::gg20::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo},
     refactor::{
         keygen::{r1, r3, Fault, KeygenOutput, KeygenPartyIndex},
-        protocol::{
-            executer::{
-                ProtocolBuilder::{self, *},
-                RoundExecuter,
-            },
-            P2ps,
+        protocol::executer::{
+            ProtocolBuilder::{self, *},
+            RoundExecuter,
         },
     },
-    vecmap::{zip2, Index, VecMap},
+    vecmap::{zip2, Index, P2ps, VecMap},
     zkp::schnorr_k256,
 };
 

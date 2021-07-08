@@ -9,7 +9,7 @@ use crate::{
         },
         BytesVec,
     },
-    vecmap::{FillHoleVecMap, FillVecMap, Index, VecMap},
+    vecmap::{FillP2ps, FillVecMap, Index},
 };
 use serde::{Deserialize, Serialize};
 use tracing::info;
@@ -45,7 +45,7 @@ impl RoundExecuterRaw for R1 {
         _party_count: usize,
         index: Index<Self::Index>,
         _bcasts_in: FillVecMap<Self::Index, BytesVec>,
-        _p2ps_in: VecMap<Self::Index, FillHoleVecMap<Self::Index, BytesVec>>,
+        _p2ps_in: FillP2ps<Self::Index, BytesVec>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
         let u_i_vss = vss_k256::Vss::new(self.threshold);
         let (y_i_commit, y_i_reveal) = hash::commit(k256_serde::to_bytes(
