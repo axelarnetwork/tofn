@@ -1,14 +1,15 @@
 use tracing::error;
 
 use crate::{
+    protocol::gg20::SecretKeyShare,
     refactor::{
-        keygen::{r3, KeygenOutput, KeygenPartyIndex},
+        keygen::{r3, KeygenPartyIndex},
         protocol::executer::{
             ProtocolBuilder::{self, *},
             RoundExecuter,
         },
     },
-    vecmap::{Index, P2ps, VecMap},
+    vecmap::{FillVecMap, Index, P2ps, VecMap},
 };
 
 #[cfg(feature = "malicious")]
@@ -27,7 +28,7 @@ pub struct R4Sad {
 }
 
 impl RoundExecuter for R4Sad {
-    type FinalOutput = KeygenOutput;
+    type FinalOutput = SecretKeyShare;
     type Index = KeygenPartyIndex;
     type Bcast = r3::Bcast;
     type P2p = ();
@@ -35,7 +36,7 @@ impl RoundExecuter for R4Sad {
     #[allow(non_snake_case)]
     fn execute(
         self: Box<Self>,
-        _party_count: usize,
+        party_count: usize,
         index: Index<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
         _p2ps_in: P2ps<Self::Index, Self::P2p>,
@@ -53,7 +54,7 @@ impl RoundExecuter for R4Sad {
             .collect();
         if bcasts_in.is_empty() {
             error!("party {} entered r4 sad path with no complaints", index);
-            return Done(Err(Vec::new()));
+            return Done(Err(FillVecMap::with_size(party_count)));
         }
 
         // verify complaints

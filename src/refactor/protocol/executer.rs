@@ -1,7 +1,7 @@
 use serde::de::DeserializeOwned;
 
 use crate::{
-    refactor::{BytesVec, TofnResult},
+    refactor::{protocol::Fault, BytesVec, TofnResult},
     vecmap::{Behave, FillP2ps, FillVecMap, HoleVecMap, Index, P2ps, VecMap},
 };
 
@@ -10,14 +10,7 @@ where
     K: Behave,
 {
     NotDone(ProtocolRoundBuilder<F, K>),
-    Done(F),
-}
-
-/// FinalOutput should impl DeTimeout
-/// allow us to create a new FinalOutput that indicates timeout or deserialization error
-pub trait DeTimeout {
-    fn new_timeout() -> Self;
-    fn new_deserialization_failure() -> Self;
+    Done(ProtocolOutput<F, K>),
 }
 
 pub struct ProtocolRoundBuilder<F, K>
@@ -30,7 +23,7 @@ where
 }
 
 pub trait RoundExecuter: Send + Sync {
-    type FinalOutput: DeTimeout;
+    type FinalOutput;
     type Index: Behave;
     type Bcast: DeserializeOwned;
     type P2p: DeserializeOwned;
@@ -77,33 +70,54 @@ impl<T: RoundExecuter> RoundExecuterRaw for T {
         bcasts_in: FillVecMap<Self::Index, BytesVec>,
         p2ps_in: FillP2ps<Self::Index, BytesVec>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
-        // TODO this is only a PoC for timeout, deserialization errors
-        // DeTimeout needs a fuller API to return detailed fault info
+        let mut faulters = FillVecMap::with_size(party_count);
 
-        // check for timeouts
-        if !bcasts_in.is_full() || !p2ps_in.is_full() {
-            return ProtocolBuilder::Done(Self::FinalOutput::new_timeout());
-        }
-
-        // attempt to deserialize bcasts
-        let bcasts_deserialize: Result<VecMap<_, _>, _> = bcasts_in
-            .into_iter()
-            .map(|(_, bytes)| bincode::deserialize(&bytes.as_ref().unwrap()))
-            .collect();
-        let bcasts_in = match bcasts_deserialize {
-            Ok(vec) => vec,
-            Err(_) => {
-                return ProtocolBuilder::Done(Self::FinalOutput::new_deserialization_failure())
+        // check for timeout faults
+        for (from, bcast) in bcasts_in.iter() {
+            if bcast.is_none() {
+                warn!("party {} detect missing bcast from {}", index, from);
+                faulters.set(from, Fault::MissingMessage);
             }
-        };
-
-        // attempt to deserialize p2ps
-        let p2ps_deserialize: P2ps<_, Result<T::P2p, _>> =
-            p2ps_in.unwrap_all_map(|bytes| bincode::deserialize(&bytes));
-        if !p2ps_deserialize.iter().all(|(_, _, r)| r.is_ok()) {
-            return ProtocolBuilder::Done(Self::FinalOutput::new_deserialization_failure());
         }
-        let p2ps_in = p2ps_deserialize.map(|r| r.unwrap());
+        for (from, to, p2p) in p2ps_in.iter() {
+            if p2p.is_none() {
+                warn!("party {} detect missing p2p from {} to {}", index, from, to);
+                faulters.set(from, Fault::MissingMessage);
+            }
+        }
+        if !faulters.is_empty() {
+            return ProtocolBuilder::Done(Err(faulters));
+        }
+
+        // attempt to deserialize bcasts, p2ps
+        let bcasts_deserialized: VecMap<_, Result<_, _>> =
+            bcasts_in.unwrap_all_map(|bytes| bincode::deserialize(&bytes));
+        let p2ps_deserialized: P2ps<_, Result<_, _>> =
+            p2ps_in.unwrap_all_map(|bytes| bincode::deserialize(&bytes));
+
+        // check for deserialization faults
+        for (from, bcast) in bcasts_deserialized.iter() {
+            if bcast.is_err() {
+                warn!("party {} detect corrupted bcast from {}", index, from);
+                faulters.set(from, Fault::CorruptedMessage);
+            }
+        }
+        for (from, to, p2p) in p2ps_deserialized.iter() {
+            if p2p.is_err() {
+                warn!(
+                    "party {} detect corrupted p2p from {} to {}",
+                    index, from, to
+                );
+                faulters.set(from, Fault::CorruptedMessage);
+            }
+        }
+        if !faulters.is_empty() {
+            return ProtocolBuilder::Done(Err(faulters));
+        }
+
+        // unwrap deserialized bcasts, p2ps
+        let bcasts_in = bcasts_deserialized.map(Result::unwrap);
+        let p2ps_in = p2ps_deserialized.map(Result::unwrap);
 
         self.execute(party_count, index, bcasts_in, p2ps_in)
     }
@@ -115,7 +129,9 @@ impl<T: RoundExecuter> RoundExecuterRaw for T {
     }
 }
 
-use tracing::error;
+use tracing::{error, warn};
+
+use super::ProtocolOutput;
 
 pub(crate) fn serialize<T: ?Sized>(value: &T) -> TofnResult<BytesVec>
 where
@@ -127,98 +143,3 @@ where
     }
     result
 }
-
-/*
-fn test_execute_raw<F, K, B, P>(
-    // self: Box<Self>,
-    party_count: usize,
-    index: Index<K>,
-    bcasts_in: FillVecMap<K, BytesVec>,
-    p2ps_in: VecMap<K, FillHoleVecMap<K, BytesVec>>,
-)
-//-> ProtocolBuilder<F, K>
-where
-    K: Behave,
-    B: DeserializeOwned,
-    P: DeserializeOwned,
-{
-    let mut faulters = FillVecMap::with_size(party_count);
-
-    // check for timeout faults
-    for (from, bcast) in bcasts_in.iter() {
-        if bcast.is_none() {
-            warn!("party {} detect missing bcast from {}", index, from);
-            faulters.set(from, Fault::MissingMessage);
-        }
-    }
-    for (from, p2ps) in p2ps_in.iter() {
-        for (to, p2p) in p2ps.iter() {
-            if p2p.is_none() {
-                warn!("party {} detect missing p2p from {} to {}", index, from, to);
-                faulters.set(from, Fault::MissingMessage);
-            }
-        }
-    }
-    if !faulters.is_empty() {
-        // return ProtocolBuilder::Done(Err(faulters));
-        panic!("TODO timeout faults");
-    }
-
-    // attempt to deserialize bcasts, p2ps
-    let bcasts_deserialized: VecMap<_, Result<_, _>> = bcasts_in
-        .into_iter()
-        .map(|(_, bytes)| bincode::deserialize(&bytes.as_ref().unwrap()))
-        .collect();
-    let p2ps_deserialized: VecMap<_, HoleVecMap<K, Result<P, _>>> = p2ps_in
-        .into_iter()
-        .map(|(from, p2ps)| {
-            p2ps.into_iter()
-                .map(|(to, bytes)| Pair(to, bincode::deserialize(&bytes.as_ref().unwrap())))
-                .collect::<TofnResult<_>>()
-                .expect("TODO propagate TofnError")
-        })
-        .collect();
-
-    // check for deserialization faults
-    for (from, bcast) in bcasts_deserialized.iter() {
-        if bcast.is_err() {
-            warn!("party {} detect corrupted bcast from {}", index, from);
-            faulters.set(from, Fault::CorruptedMessage);
-        }
-    }
-    for (from, p2ps) in p2ps_deserialized.iter() {
-        for (to, p2p) in p2ps.iter() {
-            if p2p.is_err() {
-                warn!(
-                    "party {} detect corrupted p2p from {} to {}",
-                    index, from, to
-                );
-                faulters.set(from, Fault::CorruptedMessage);
-            }
-        }
-    }
-    if !faulters.is_empty() {
-        // return ProtocolBuilder::Done(Err(faulters));
-        panic!("TODO deserialization faults");
-    }
-
-    // unwrap deserialized bcasts, p2ps
-    let bcasts_in: VecMap<K, B> = bcasts_deserialized
-        .into_iter()
-        .map(|(from, bcast)| bcast.unwrap())
-        .collect();
-    let p2ps_in = P2ps::from_vecmaps(
-        p2ps_deserialized
-            .into_iter()
-            .map(|(from, p2ps)| {
-                p2ps.into_iter()
-                    .map(|(to, p2p)| Pair(to, p2p.unwrap()))
-                    .collect::<TofnResult<HoleVecMap<K, P>>>()
-                    .expect("TODO propagate TofnError")
-            })
-            .collect(),
-    );
-
-    // self.execute(party_count, index, bcasts_in, p2ps_in)
-}
-*/

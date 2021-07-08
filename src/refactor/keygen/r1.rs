@@ -1,6 +1,6 @@
 use crate::{
     hash, k256_serde, paillier_k256,
-    protocol::gg20::vss_k256,
+    protocol::gg20::{vss_k256, SecretKeyShare},
     refactor::{
         protocol::executer::{
             serialize,
@@ -14,7 +14,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
-use super::{r2, rng, KeygenOutput, KeygenPartyIndex};
+use super::{r2, rng, KeygenPartyIndex};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -37,7 +37,7 @@ pub struct Bcast {
 }
 
 impl RoundExecuterRaw for R1 {
-    type FinalOutput = KeygenOutput;
+    type FinalOutput = SecretKeyShare;
     type Index = KeygenPartyIndex;
 
     fn execute_raw(

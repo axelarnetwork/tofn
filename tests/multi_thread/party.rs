@@ -5,7 +5,10 @@ use std::sync::mpsc::Receiver;
 // `use` statements for type aliased enums :(
 // https://github.com/rust-lang/rust/issues/83248
 use tofn::{
-    refactor::{protocol::Protocol, BytesVec},
+    refactor::{
+        protocol::{Protocol, ProtocolOutput},
+        BytesVec,
+    },
     vecmap::{Behave, Index},
 };
 use tracing::error;
@@ -48,7 +51,7 @@ pub fn execute_protocol<F, K>(
     mut party: Protocol<F, K>,
     input: Receiver<Message<K>>,
     broadcaster: Broadcaster<Message<K>>,
-) -> F
+) -> ProtocolOutput<F, K>
 where
     K: Behave,
 {

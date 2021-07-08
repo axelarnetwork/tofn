@@ -5,13 +5,13 @@ use tracing::warn;
 use super::{holevecmap_iter::HoleVecMapIter, Behave, HoleVecMap, Index, VecMap};
 
 // #[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FillHoleVecMap<K, V>
 where
     K: Behave,
 {
     hole_vec: HoleVecMap<K, Option<V>>,
-    some_count: usize, // TODO eliminate `some_count`?
+    some_count: usize,
 }
 
 impl<K, V> FillHoleVecMap<K, V>
@@ -62,7 +62,6 @@ where
     }
 }
 
-// TODO don't impl IntoIterator for FillVecMap?
 impl<K, V> IntoIterator for FillHoleVecMap<K, V>
 where
     K: Behave,
@@ -72,5 +71,22 @@ where
 
     fn into_iter(self) -> Self::IntoIter {
         self.hole_vec.into_iter()
+    }
+}
+
+/// impl IntoIterator for &FillHoleVecMap as suggested here: https://doc.rust-lang.org/std/iter/index.html#iterating-by-reference
+/// follow the template of Vec: https://doc.rust-lang.org/src/alloc/vec/mod.rs.html#2451-2458
+impl<'a, K, V> IntoIterator for &'a FillHoleVecMap<K, V>
+where
+    K: Behave,
+{
+    type Item = (
+        Index<K>,
+        <std::slice::Iter<'a, Option<V>> as Iterator>::Item,
+    );
+    type IntoIter = HoleVecMapIter<K, std::slice::Iter<'a, Option<V>>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }

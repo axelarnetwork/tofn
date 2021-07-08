@@ -1,6 +1,6 @@
 use super::{holevecmap_iter::HoleVecMapIter, vecmap_iter::VecMapIter, Behave, Index};
 
-/// Follows the implementation of std::iter::Enumerate https://doc.rust-lang.org/std/iter/struct.Enumerate.html
+// follow the example of std::iter::Flatten: https://doc.rust-lang.org/src/core/iter/adapters/flatten.rs.html#251-278
 pub struct P2psIter<K, I0, I1>
 where
     K: Behave,
@@ -23,7 +23,6 @@ where
     }
 }
 
-// follow the example of std::iter::Flatten: https://doc.rust-lang.org/src/core/iter/adapters/flatten.rs.html#251-278
 impl<K, I0, I1> Iterator for P2psIter<K, I0, I1>
 where
     K: Behave,

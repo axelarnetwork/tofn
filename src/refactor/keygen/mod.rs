@@ -1,8 +1,5 @@
 use crate::protocol::gg20::SecretKeyShare;
-use crate::refactor::protocol::{
-    executer::{DeTimeout, ProtocolBuilder},
-    Protocol, ProtocolRound,
-};
+use crate::refactor::protocol::{executer::ProtocolBuilder, Protocol, ProtocolRound};
 use crate::vecmap::{Behave, Index};
 use serde::{Deserialize, Serialize};
 
@@ -14,9 +11,8 @@ use super::TofnResult;
 pub struct KeygenPartyIndex;
 impl Behave for KeygenPartyIndex {}
 
-pub type KeygenProtocol = Protocol<KeygenOutput, KeygenPartyIndex>;
-pub type KeygenProtocolBuilder = ProtocolBuilder<KeygenOutput, KeygenPartyIndex>;
-pub type KeygenOutput = Result<SecretKeyShare, Vec<(Index<KeygenPartyIndex>, Fault)>>;
+pub type KeygenProtocol = Protocol<SecretKeyShare, KeygenPartyIndex>;
+pub type KeygenProtocolBuilder = ProtocolBuilder<SecretKeyShare, KeygenPartyIndex>;
 pub type SecretRecoveryKey = [u8; 64];
 
 // Can't define a keygen-specific alias for `RoundExecuter` that sets
@@ -101,34 +97,6 @@ pub fn new_keygen_with_behaviour(
         #[cfg(feature = "malicious")]
         behaviour,
     )
-}
-
-// all crimes
-// names have the form <round><crime> where
-// <round> indicates round where the crime is detected, and
-// <crime> is a description
-// example: R3FailBadProof -> crime detected in r3_fail()
-#[derive(Debug, Clone, PartialEq)]
-pub enum Fault {
-    MissingMessage,   // TODO add victim for missing p2p messages?
-    CorruptedMessage, // TODO add victim for missing p2p messages?
-    R2BadZkSetupProof,
-    R2BadEncryptionKeyProof,
-    R3BadReveal,
-    // R4SadBadVss { victim: Index<KeygenPartyIndex> },
-    // R4SadBadEncryption { victim: Index<KeygenPartyIndex> },
-    // R4SadFalseAccusation { victim: Index<KeygenPartyIndex> },
-    R4BadDLProof,
-}
-
-/// TODO PoC only
-impl DeTimeout for KeygenOutput {
-    fn new_timeout() -> Self {
-        Err(vec![(Index::from_usize(0), Fault::MissingMessage)])
-    }
-    fn new_deserialization_failure() -> Self {
-        Err(vec![(Index::from_usize(0), Fault::CorruptedMessage)])
-    }
 }
 
 mod r1;

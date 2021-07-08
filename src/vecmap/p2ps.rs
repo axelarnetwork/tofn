@@ -102,6 +102,28 @@ where
     pub fn unwrap_all(self) -> P2ps<K, V> {
         self.unwrap_all_map(std::convert::identity)
     }
+    pub fn iter(
+        &self,
+    ) -> P2psIter<K, std::slice::Iter<FillHoleVecMap<K, V>>, std::slice::Iter<Option<V>>> {
+        P2psIter::new(self.0.iter())
+    }
+}
+
+impl<K, V> IntoIterator for FillP2ps<K, V>
+where
+    K: Behave,
+{
+    type Item = (
+        Index<K>,
+        Index<K>,
+        <std::vec::IntoIter<Option<V>> as Iterator>::Item,
+    );
+    type IntoIter =
+        P2psIter<K, std::vec::IntoIter<FillHoleVecMap<K, V>>, std::vec::IntoIter<Option<V>>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        P2psIter::new(self.0.into_iter())
+    }
 }
 
 #[cfg(test)]

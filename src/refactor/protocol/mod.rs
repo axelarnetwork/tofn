@@ -10,8 +10,10 @@ where
     K: Behave,
 {
     NotDone(ProtocolRound<F, K>),
-    Done(F),
+    Done(ProtocolOutput<F, K>),
 }
+
+pub type ProtocolOutput<F, K> = Result<F, FillVecMap<K, Fault>>;
 
 pub struct ProtocolRound<F, K>
 where

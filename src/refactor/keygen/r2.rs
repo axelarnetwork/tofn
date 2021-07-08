@@ -3,15 +3,18 @@ use tracing::{debug, warn};
 
 use crate::{
     hash, paillier_k256,
-    protocol::gg20::vss_k256,
+    protocol::gg20::{vss_k256, SecretKeyShare},
     refactor::{
-        keygen::{r3, Fault},
-        protocol::executer::{serialize, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuter},
+        keygen::r3,
+        protocol::{
+            executer::{serialize, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuter},
+            Fault::ProtocolFault,
+        },
     },
-    vecmap::{Index, P2ps, VecMap},
+    vecmap::{FillVecMap, Index, P2ps, VecMap},
 };
 
-use super::{r1, KeygenOutput, KeygenPartyIndex, KeygenProtocolBuilder};
+use super::{r1, KeygenPartyIndex, KeygenProtocolBuilder};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -38,7 +41,7 @@ pub struct R2 {
 }
 
 impl RoundExecuter for R2 {
-    type FinalOutput = KeygenOutput;
+    type FinalOutput = SecretKeyShare;
     type Index = KeygenPartyIndex;
     type Bcast = r1::Bcast;
     type P2p = ();
@@ -50,36 +53,21 @@ impl RoundExecuter for R2 {
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
         _p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> KeygenProtocolBuilder {
+        let mut faulters = FillVecMap::with_size(party_count);
+
         // check Paillier proofs
-        let faulters_ek: Vec<_> = bcasts_in
-            .iter()
-            .filter_map(|(i, bcast)| {
-                if !bcast.ek.verify(&bcast.ek_proof) {
-                    let fault = Fault::R2BadEncryptionKeyProof;
-                    warn!("party {} detect {:?} by {}", index, fault, i);
-                    Some((i, fault))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        if !faulters_ek.is_empty() {
-            return ProtocolBuilder::Done(Err(faulters_ek));
+        for (from, bcast) in bcasts_in.iter() {
+            if !bcast.ek.verify(&bcast.ek_proof) {
+                warn!("party {} detect bad ek proof by {}", index, from);
+                faulters.set(from, ProtocolFault);
+            }
+            if !bcast.zkp.verify(&bcast.zkp_proof) {
+                warn!("party {} detect bad zk setup proof by {}", index, from);
+                faulters.set(from, ProtocolFault);
+            }
         }
-        let faulters_zkp: Vec<_> = bcasts_in
-            .iter()
-            .filter_map(|(i, bcast)| {
-                if !bcast.zkp.verify(&bcast.zkp_proof) {
-                    let fault = Fault::R2BadZkSetupProof;
-                    warn!("party {} detect {:?} by {}", index, fault, i);
-                    Some((i, fault))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        if !faulters_zkp.is_empty() {
-            return ProtocolBuilder::Done(Err(faulters_zkp));
+        if !faulters.is_empty() {
+            return ProtocolBuilder::Done(Err(faulters));
         }
 
         let (u_i_other_shares, u_i_my_share) =

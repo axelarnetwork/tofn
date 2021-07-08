@@ -1,14 +1,13 @@
 use tofn::{
+    protocol::gg20::SecretKeyShare,
     refactor::{
         keygen::{
             malicious::Behaviour::{self, *},
-            new_keygen_with_behaviour,
-            Fault::{self, *},
-            KeygenOutput, KeygenPartyIndex, KeygenProtocol, SecretRecoveryKey,
+            new_keygen_with_behaviour, KeygenPartyIndex, KeygenProtocol, SecretRecoveryKey,
         },
-        protocol::Protocol::*,
+        protocol::{Fault, Protocol::*, ProtocolOutput},
     },
-    vecmap::{Behave, Index, VecMap},
+    vecmap::{Behave, FillVecMap, Index, VecMap},
 };
 use tracing::info;
 use tracing_test::traced_test;
@@ -25,11 +24,14 @@ fn single_faults() {
 pub struct TestCase {
     pub threshold: usize,
     pub behaviours: VecMap<KeygenPartyIndex, Behaviour>,
-    pub expected_honest_output: KeygenOutput,
+    pub expected_honest_output: ProtocolOutput<SecretKeyShare, KeygenPartyIndex>,
 }
 
 impl TestCase {
-    pub fn assert_expected_output(&self, output: &KeygenOutput) {
+    pub fn assert_expected_output(
+        &self,
+        output: &ProtocolOutput<SecretKeyShare, KeygenPartyIndex>,
+    ) {
         match output {
             Ok(_) => assert!(
                 self.expected_honest_output.is_ok(),
@@ -63,26 +65,28 @@ impl TestCase {
 pub fn single_fault_test_case_list() -> Vec<TestCase> {
     // let zero = Index::from_usize(0);
     vec![
-        single_fault_test_case(R1BadCommit, R3BadReveal),
-        single_fault_test_case(R1BadEncryptionKeyProof, R2BadEncryptionKeyProof),
-        single_fault_test_case(R1BadZkSetupProof, R2BadZkSetupProof),
+        single_fault_test_case(R1BadCommit),
+        single_fault_test_case(R1BadEncryptionKeyProof),
+        single_fault_test_case(R1BadZkSetupProof),
         // single_fault_test_case(R2BadShare { victim: zero }, R4FailBadVss { victim: zero }),
         // single_fault_test_case(
         //     R2BadEncryption { victim: zero },
         //     R4SadBadEncryption { victim: zero },
         // ),
-        single_fault_test_case(R3BadXIWitness, R4BadDLProof),
+        single_fault_test_case(R3BadXIWitness),
     ]
 }
 
-fn single_fault_test_case(behaviour: Behaviour, fault: Fault) -> TestCase {
+fn single_fault_test_case(behaviour: Behaviour) -> TestCase {
     // 3 parties (threshold 1)
     // party 1 is malicious
     // honest parties should identify party 1 as faulter
+    let mut faulters = FillVecMap::with_size(3);
+    faulters.set(Index::from_usize(1), Fault::ProtocolFault);
     TestCase {
         threshold: 1,
         behaviours: VecMap::from_vec(vec![Honest, behaviour, Honest]),
-        expected_honest_output: Err(vec![(Index::from_usize(1), fault)]),
+        expected_honest_output: Err(faulters),
     }
 }
 

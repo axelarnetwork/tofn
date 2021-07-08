@@ -4,13 +4,16 @@ use crate::{
     paillier_k256,
     protocol::gg20::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo},
     refactor::{
-        keygen::{r1, r3, Fault, KeygenOutput, KeygenPartyIndex},
-        protocol::executer::{
-            ProtocolBuilder::{self, *},
-            RoundExecuter,
+        keygen::{r1, r3, KeygenPartyIndex},
+        protocol::{
+            executer::{
+                ProtocolBuilder::{self, *},
+                RoundExecuter,
+            },
+            Fault::ProtocolFault,
         },
     },
-    vecmap::{zip2, Index, P2ps, VecMap},
+    vecmap::{FillVecMap, Index, P2ps, VecMap},
     zkp::schnorr_k256,
 };
 
@@ -31,7 +34,7 @@ pub struct R4 {
 }
 
 impl RoundExecuter for R4 {
-    type FinalOutput = KeygenOutput;
+    type FinalOutput = SecretKeyShare;
     type Index = KeygenPartyIndex;
     type Bcast = r3::Bcast;
     type P2p = ();
@@ -39,7 +42,7 @@ impl RoundExecuter for R4 {
     #[allow(non_snake_case)]
     fn execute(
         self: Box<Self>,
-        _party_count: usize,
+        party_count: usize,
         index: Index<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
         _p2ps_in: P2ps<Self::Index, Self::P2p>,
@@ -55,25 +58,21 @@ impl RoundExecuter for R4 {
             .collect();
 
         // verify proofs
-        let faulters: Vec<_> = zip2(&bcasts_in, &self.all_X_i)
-            .filter_map(|(i, bcast, X_i)| {
-                if schnorr_k256::verify(
-                    &schnorr_k256::Statement {
-                        base: &k256::ProjectivePoint::generator(),
-                        target: &X_i,
-                    },
-                    &bcast.x_i_proof,
-                )
-                .is_err()
-                {
-                    let fault = Fault::R4BadDLProof;
-                    warn!("party {} detect {:?} by {}", index, fault, i);
-                    Some((i, fault))
-                } else {
-                    None
-                }
-            })
-            .collect();
+        let mut faulters = FillVecMap::with_size(party_count);
+        for (from, bcast) in bcasts_in.iter() {
+            if schnorr_k256::verify(
+                &schnorr_k256::Statement {
+                    base: &k256::ProjectivePoint::generator(),
+                    target: &self.all_X_i.get(from),
+                },
+                &bcast.x_i_proof,
+            )
+            .is_err()
+            {
+                warn!("party {} detect bad DL proof by {}", index, from);
+                faulters.set(from, ProtocolFault);
+            }
+        }
         if !faulters.is_empty() {
             return ProtocolBuilder::Done(Err(faulters));
         }

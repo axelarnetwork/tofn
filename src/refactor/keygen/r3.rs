@@ -5,16 +5,19 @@ use crate::{
     hash,
     k256_serde::to_bytes,
     paillier_k256,
-    protocol::gg20::vss_k256,
+    protocol::gg20::{vss_k256, SecretKeyShare},
     refactor::{
         keygen::r4,
-        protocol::executer::{serialize, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuter},
+        protocol::{
+            executer::{serialize, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuter},
+            Fault::ProtocolFault,
+        },
     },
-    vecmap::{zip2, Index, P2ps, VecMap},
+    vecmap::{FillVecMap, Index, P2ps, VecMap},
     zkp::schnorr_k256,
 };
 
-use super::{r1, r2, Fault, KeygenOutput, KeygenPartyIndex};
+use super::{r1, r2, KeygenPartyIndex};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -52,7 +55,7 @@ pub struct R3 {
 }
 
 impl RoundExecuter for R3 {
-    type FinalOutput = KeygenOutput;
+    type FinalOutput = SecretKeyShare;
     type Index = KeygenPartyIndex;
     type Bcast = r2::Bcast;
     type P2p = r2::P2p;
@@ -65,20 +68,17 @@ impl RoundExecuter for R3 {
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
+        let mut faulters = FillVecMap::with_size(party_count);
+
         // check y_i commits
-        let faulters: Vec<_> = zip2(&bcasts_in, &self.r1bcasts)
-            .filter_map(|(i, r2bcast, r1bcast)| {
-                let y_i = r2bcast.u_i_vss_commit.secret_commit();
-                let y_i_commit = hash::commit_with_randomness(to_bytes(y_i), &r2bcast.y_i_reveal);
-                if y_i_commit != r1bcast.y_i_commit {
-                    let fault = Fault::R3BadReveal;
-                    warn!("party {} detect {:?} by {}", index, fault, i);
-                    Some((i, fault))
-                } else {
-                    None
-                }
-            })
-            .collect();
+        for (from, bcast) in bcasts_in.iter() {
+            let y_i = bcast.u_i_vss_commit.secret_commit();
+            let y_i_commit = hash::commit_with_randomness(to_bytes(y_i), &bcast.y_i_reveal);
+            if y_i_commit != self.r1bcasts.get(from).y_i_commit {
+                warn!("party {} detect bad reveal by {}", index, from);
+                faulters.set(from, ProtocolFault);
+            }
+        }
         if !faulters.is_empty() {
             return ProtocolBuilder::Done(Err(faulters));
         }

@@ -5,7 +5,7 @@ use tracing::warn;
 use super::{vecmap_iter::VecMapIter, Behave, Index, VecMap};
 
 // #[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FillVecMap<K, V>
 where
     K: Behave,

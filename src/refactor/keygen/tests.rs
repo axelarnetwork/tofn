@@ -60,7 +60,7 @@ pub(crate) fn execute_keygen_from_recovery(
 ) -> Vec<SecretKeyShare> {
     let share_count = secret_recovery_keys.len();
 
-    let r0_parties: Vec<ProtocolRound<KeygenOutput, KeygenPartyIndex>> = (0..share_count)
+    let r0_parties: Vec<ProtocolRound<SecretKeyShare, KeygenPartyIndex>> = (0..share_count)
         .map(|i| {
             match new_keygen(
                 share_count,
@@ -78,7 +78,7 @@ pub(crate) fn execute_keygen_from_recovery(
         .collect();
 
     // execute round 1 all parties
-    let mut r1_parties: Vec<ProtocolRound<KeygenOutput, KeygenPartyIndex>> = r0_parties
+    let mut r1_parties: Vec<ProtocolRound<SecretKeyShare, KeygenPartyIndex>> = r0_parties
         .into_iter()
         .enumerate()
         .map(|(i, party)| {
@@ -119,7 +119,7 @@ pub(crate) fn execute_keygen_from_recovery(
         .collect();
 
     // execute round 2 all parties
-    let mut r2_parties: Vec<ProtocolRound<KeygenOutput, KeygenPartyIndex>> = r1_parties
+    let mut r2_parties: Vec<ProtocolRound<SecretKeyShare, KeygenPartyIndex>> = r1_parties
         .into_iter()
         .enumerate()
         .map(|(i, party)| {
@@ -156,7 +156,7 @@ pub(crate) fn execute_keygen_from_recovery(
     }
 
     // execute round 3 all parties
-    let mut r3_parties: Vec<ProtocolRound<KeygenOutput, KeygenPartyIndex>> = r2_parties
+    let mut r3_parties: Vec<ProtocolRound<SecretKeyShare, KeygenPartyIndex>> = r2_parties
         .into_iter()
         .enumerate()
         .map(|(i, party)| {
