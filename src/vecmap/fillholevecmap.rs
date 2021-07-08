@@ -2,9 +2,7 @@
 // use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use crate::refactor::TofnResult;
-
-use super::{holevecmap::Pair, holevecmap_iter::HoleVecMapIter, Behave, HoleVecMap, Index};
+use super::{holevecmap_iter::HoleVecMapIter, Behave, HoleVecMap, Index, VecMap};
 
 // #[derive(Debug, Clone, Serialize, Deserialize)]
 #[derive(Debug, Clone)]
@@ -23,10 +21,10 @@ where
     /// if hole >= len-1 then use hole = len-1
     pub fn with_size(len: usize, hole: Index<K>) -> Self {
         Self {
-            hole_vec: (0..len - 1)
-                .map(|i| Pair(Index::from_usize(if i < hole.0 { i } else { i + 1 }), None))
-                .collect::<TofnResult<_>>()
-                .expect("fail to initialize HoleVec"),
+            hole_vec: HoleVecMap::from_vecmap(
+                VecMap::from_vec((0..len - 1).map(|_| None).collect()),
+                hole,
+            ),
             some_count: 0,
         }
     }
