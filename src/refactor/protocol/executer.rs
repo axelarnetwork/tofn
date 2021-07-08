@@ -129,7 +129,7 @@ impl<T: RoundExecuter> RoundExecuterRaw for T {
     }
 }
 
-use tracing::{error, warn};
+use tracing::{error, info, warn};
 
 use super::ProtocolOutput;
 
@@ -142,4 +142,18 @@ where
         error!("serialization failure: {}", err_msg);
     }
     result
+}
+
+pub(crate) fn log_fault_info<K>(me: Index<K>, faulter: Index<K>, fault: &str)
+where
+    K: Behave,
+{
+    info!("party {} detect [{}] by {}", me, fault, faulter,);
+}
+
+pub(crate) fn log_fault_warn<K>(me: Index<K>, faulter: Index<K>, fault: &str)
+where
+    K: Behave,
+{
+    warn!("party {} detect [{}] by {}", me, fault, faulter,);
 }

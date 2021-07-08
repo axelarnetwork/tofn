@@ -4,9 +4,10 @@ use crate::{
     paillier_k256,
     protocol::gg20::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo},
     refactor::{
-        keygen::{r1, r3, KeygenPartyIndex},
+        keygen::{r1, r2, r3, r4::sad::R4Sad, KeygenPartyIndex},
         protocol::{
             executer::{
+                log_fault_warn,
                 ProtocolBuilder::{self, *},
                 RoundExecuter,
             },
@@ -25,6 +26,8 @@ pub struct R4 {
     pub threshold: usize,
     pub dk: paillier_k256::DecryptionKey,
     pub r1bcasts: VecMap<KeygenPartyIndex, r1::Bcast>,
+    pub r2bcasts: VecMap<KeygenPartyIndex, r2::Bcast>,
+    pub r2p2ps: P2ps<KeygenPartyIndex, r2::P2p>,
     pub y: k256::ProjectivePoint,
     pub x_i: k256::Scalar,
     pub all_X_i: VecMap<KeygenPartyIndex, k256::ProjectivePoint>,
@@ -48,7 +51,23 @@ impl RoundExecuter for R4 {
         _p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
         // move to sad path if necessary
-        // TODO for now just unwrap happy path
+        if bcasts_in
+            .iter()
+            .any(|(_, bcast)| matches!(bcast, r3::Bcast::Sad(_)))
+        {
+            warn!(
+                "party {} r4 received complaints from others; move to sad path",
+                index
+            );
+            return Box::new(R4Sad {
+                r1bcasts: self.r1bcasts,
+                r2bcasts: self.r2bcasts,
+                r2p2ps: self.r2p2ps,
+            })
+            .execute(party_count, index, bcasts_in, _p2ps_in);
+        }
+
+        // unwrap BcastHappy msgs
         let bcasts_in: VecMap<Self::Index, r3::BcastHappy> = bcasts_in
             .into_iter()
             .map(|(_, bcast)| match bcast {
@@ -69,7 +88,7 @@ impl RoundExecuter for R4 {
             )
             .is_err()
             {
-                warn!("party {} detect bad DL proof by {}", index, from);
+                log_fault_warn(index, from, "bad DL proof");
                 faulters.set(from, ProtocolFault);
             }
         }

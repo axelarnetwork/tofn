@@ -10,11 +10,9 @@ impl<K, V> P2ps<K, V>
 where
     K: Behave,
 {
-    // TODO TEMPORARY eliminate from_vecmaps
-    pub fn from_vecmaps(v: VecMap<K, HoleVecMap<K, V>>) -> Self {
-        Self(v)
+    pub fn get(&self, from: Index<K>, to: Index<K>) -> &V {
+        self.0.get(from).get(to)
     }
-
     pub fn to_me(&self, me: Index<K>) -> impl Iterator<Item = (Index<K>, &V)> + '_ {
         self.0.iter().filter_map(move |(k, hole_vec)| {
             if k == me {
@@ -27,7 +25,6 @@ where
     pub fn iter(&self) -> P2psIter<K, std::slice::Iter<HoleVecMap<K, V>>, std::slice::Iter<V>> {
         P2psIter::new(self.0.iter())
     }
-
     pub fn map_to_me<W, F>(&self, me: Index<K>, mut f: F) -> HoleVecMap<K, W>
     where
         F: FnMut(&V) -> W,
@@ -37,14 +34,12 @@ where
             me,
         )
     }
-
     pub fn map_to_me2<W, F>(&self, me: Index<K>, f: F) -> HoleVecMap<K, W>
     where
         F: FnMut((Index<K>, &V)) -> W,
     {
         HoleVecMap::from_vecmap(VecMap::from_vec(self.to_me(me).map(f).collect()), me)
     }
-
     pub fn map<W, F>(self, f: F) -> P2ps<K, W>
     where
         F: FnMut(V) -> W + Clone,

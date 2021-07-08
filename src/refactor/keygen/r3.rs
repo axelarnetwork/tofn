@@ -35,7 +35,7 @@ pub struct BcastHappy {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BcastSad {
-    pub vss_complaints: Vec<(Index<KeygenPartyIndex>, VssComplaint)>,
+    pub vss_complaints: Vec<(Index<KeygenPartyIndex>, VssComplaint)>, // TODO is there a better collection?
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -215,6 +215,8 @@ impl RoundExecuter for R3 {
                 threshold: self.threshold,
                 dk: self.dk,
                 r1bcasts: self.r1bcasts,
+                r2bcasts: bcasts_in,
+                r2p2ps: p2ps_in,
                 y,
                 x_i,
                 all_X_i,
