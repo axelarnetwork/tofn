@@ -35,7 +35,7 @@ pub struct BcastHappy {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BcastSad {
-    pub vss_complaints: Vec<(Index<KeygenPartyIndex>, VssComplaint)>, // TODO is there a better collection?
+    pub vss_complaints: FillVecMap<KeygenPartyIndex, VssComplaint>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -84,17 +84,6 @@ impl RoundExecuter for R3 {
         }
 
         // decrypt shares
-        // let share_infos = p2ps_in
-        //     .to_me(index)
-        //     .map(|(from, p2p)| {
-        //         let (u_i_share_plaintext, u_i_share_randomness) =
-        //             self.dk.decrypt_with_randomness(&p2p.u_i_share_ciphertext);
-        //         let u_i_share =
-        //             vss_k256::Share::from_scalar(u_i_share_plaintext.to_scalar(), index.as_usize());
-        //         Pair(from, (u_i_share, u_i_share_randomness))
-        //     })
-        //     .collect::<TofnResult<_>>()
-        //     .expect("failure to build share_infos");
         let share_infos = p2ps_in.map_to_me(index, |p2p| {
             let (u_i_share_plaintext, u_i_share_randomness) =
                 self.dk.decrypt_with_randomness(&p2p.u_i_share_ciphertext);

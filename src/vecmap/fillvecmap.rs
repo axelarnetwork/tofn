@@ -1,11 +1,10 @@
 //! A fillable Vec
-// use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 use super::{vecmap_iter::VecMapIter, Behave, Index, VecMap};
 
-// #[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FillVecMap<K, V>
 where
     K: Behave,
@@ -56,12 +55,24 @@ where
     pub fn is_full(&self) -> bool {
         self.some_count == self.vec.len()
     }
-    pub fn iter(&self) -> VecMapIter<K, std::slice::Iter<Option<V>>> {
-        self.vec.iter()
-    }
     pub fn is_empty(&self) -> bool {
         self.some_count == 0
     }
+    pub fn iter(&self) -> VecMapIter<K, std::slice::Iter<Option<V>>> {
+        self.vec.iter()
+    }
+
+    /// Iterate only over items that are `Some`
+    pub fn iter_some(&self) -> impl Iterator<Item = (Index<K>, &V)> + '_ {
+        self.vec
+            .iter()
+            .filter_map(|(i, x)| if let Some(y) = x { Some((i, y)) } else { None })
+    }
+    pub fn into_iter_some(self) -> impl Iterator<Item = (Index<K>, V)> {
+        self.into_iter()
+            .filter_map(|(i, x)| if let Some(y) = x { Some((i, y)) } else { None })
+    }
+
     // pub fn from_vec(vec: Vec<Option<T>>) -> Self {
     //     Self {
     //         some_count: vec.iter().filter(|x| x.is_some()).count(),

@@ -1,14 +1,11 @@
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Index<K>(usize, std::marker::PhantomData<K>)
 where
     K: Behave;
 
 /// Alias for all the trait bounds on `K` in order to work around https://stackoverflow.com/a/31371094
-pub trait Behave:
-    std::fmt::Debug + Clone + Copy + PartialEq + Serialize + DeserializeOwned
-{
-}
+pub trait Behave: std::fmt::Debug + Clone + Copy + PartialEq {}
 
 impl<K> Index<K>
 where

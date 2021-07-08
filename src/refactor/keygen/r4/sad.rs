@@ -56,7 +56,7 @@ impl RoundExecuter for R4Sad {
 
         // verify complaints
         for (accuser, accusations) in accusations_iter {
-            for (accused, accusation) in accusations.vss_complaints.into_iter() {
+            for (accused, accusation) in accusations.vss_complaints.into_iter_some() {
                 if accuser == accused {
                     log_fault_info(index, accuser, "self accusation");
                     faulters.set(accuser, ProtocolFault);

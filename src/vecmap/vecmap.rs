@@ -1,8 +1,9 @@
+use serde::{Deserialize, Serialize};
 use std::iter::FromIterator;
 
 use super::{vecmap_iter::VecMapIter, Behave, HoleVecMap, Index};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct VecMap<K, V>(Vec<V>, std::marker::PhantomData<Index<K>>)
 where
     K: Behave;
@@ -33,7 +34,6 @@ where
         let hole_val = self.0.remove(hole.0);
         (HoleVecMap::from_vecmap(self, hole), hole_val)
     }
-    // TODO eliminate iterators in favour of `map`?
     pub fn iter(&self) -> VecMapIter<K, std::slice::Iter<V>> {
         VecMapIter::new(self.0.iter())
     }
