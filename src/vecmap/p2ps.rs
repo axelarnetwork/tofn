@@ -91,7 +91,7 @@ where
         self.0.get_mut(from).set_warn(to, value);
     }
     pub fn is_full(&self) -> bool {
-        self.0.iter().all(|(i, v)| v.is_full())
+        self.0.iter().all(|(_, v)| v.is_full())
     }
     pub fn unwrap_all_map<W, F>(self, f: F) -> P2ps<K, W>
     where
@@ -101,5 +101,52 @@ where
     }
     pub fn unwrap_all(self) -> P2ps<K, V> {
         self.unwrap_all_map(std::convert::identity)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::FillP2ps;
+    use crate::vecmap::{Behave, Index};
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+    struct TestIndex;
+    impl Behave for TestIndex {}
+
+    #[test]
+    fn basic_correctness() {
+        let zero = Index::from_usize(0);
+        let one = Index::from_usize(1);
+        let two = Index::from_usize(2);
+
+        let mut fill_p2ps: FillP2ps<TestIndex, usize> = FillP2ps::with_size(3);
+        fill_p2ps.set(zero, one, 0);
+        fill_p2ps.set(zero, two, 1);
+        fill_p2ps.set(one, zero, 2);
+        fill_p2ps.set(one, two, 3);
+        fill_p2ps.set(two, zero, 4);
+        fill_p2ps.set(two, one, 5);
+        assert!(fill_p2ps.is_full());
+        let p2ps = fill_p2ps.unwrap_all();
+
+        let expects: Vec<(_, _, &usize)> = vec![
+            (zero, one, &0),
+            (zero, two, &1),
+            (one, zero, &2),
+            (one, two, &3),
+            (two, zero, &4),
+            (two, one, &5),
+        ];
+
+        // test P2ps::iter()
+        for (p2ps, &expect) in p2ps.iter().zip(expects.iter()) {
+            assert_eq!(p2ps, expect);
+        }
+
+        // test P2ps::into_iter()
+        for (p2ps, expect) in p2ps.into_iter().zip(expects.into_iter()) {
+            assert_eq!(p2ps, (expect.0, expect.1, *expect.2));
+        }
     }
 }

@@ -1,6 +1,3 @@
-use crate::refactor::TofnResult;
-use std::iter::FromIterator;
-
 use super::{holevecmap_iter::HoleVecMapIter, Behave, Index, VecMap};
 
 #[derive(Debug, Clone, PartialEq)]

@@ -23,14 +23,12 @@ where
     }
 }
 
+// follow the example of std::iter::Flatten: https://doc.rust-lang.org/src/core/iter/adapters/flatten.rs.html#251-278
 impl<K, I0, I1> Iterator for P2psIter<K, I0, I1>
 where
     K: Behave,
     I0: Iterator,
-    <I0 as Iterator>::Item: IntoIterator<
-        IntoIter = HoleVecMapIter<K, I1>,
-        Item = <HoleVecMapIter<K, I1> as Iterator>::Item,
-    >,
+    <I0 as Iterator>::Item: IntoIterator<IntoIter = HoleVecMapIter<K, I1>>,
     I1: Iterator,
 {
     type Item = (Index<K>, Index<K>, <I1 as Iterator>::Item);

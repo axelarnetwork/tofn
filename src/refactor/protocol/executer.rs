@@ -1,8 +1,8 @@
 use serde::de::DeserializeOwned;
 
 use crate::{
-    refactor::{protocol::Fault, BytesVec, TofnResult},
-    vecmap::{Behave, FillHoleVecMap, FillP2ps, FillVecMap, HoleVecMap, Index, P2ps, VecMap},
+    refactor::{BytesVec, TofnResult},
+    vecmap::{Behave, FillP2ps, FillVecMap, HoleVecMap, Index, P2ps, VecMap},
 };
 
 pub enum ProtocolBuilder<F, K>
@@ -86,39 +86,26 @@ impl<T: RoundExecuter> RoundExecuterRaw for T {
         }
 
         // attempt to deserialize bcasts
-        // let bcasts_deserialize: Result<VecMap<_, _>, _> = bcasts_in
-        //     .into_iter()
-        //     .map(|(_, bytes)| bincode::deserialize(&bytes.as_ref().unwrap()))
-        //     .collect();
-        // let bcasts_in = match bcasts_deserialize {
-        //     Ok(vec) => vec,
-        //     Err(_) => {
-        //         return ProtocolBuilder::Done(Self::FinalOutput::new_deserialization_failure())
-        //     }
-        // };
+        let bcasts_deserialize: Result<VecMap<_, _>, _> = bcasts_in
+            .into_iter()
+            .map(|(_, bytes)| bincode::deserialize(&bytes.as_ref().unwrap()))
+            .collect();
+        let bcasts_in = match bcasts_deserialize {
+            Ok(vec) => vec,
+            Err(_) => {
+                return ProtocolBuilder::Done(Self::FinalOutput::new_deserialization_failure())
+            }
+        };
 
         // attempt to deserialize p2ps
-        let p2ps_deserialize: P2ps<Self::Index, Result<T::P2p, _>> =
+        let p2ps_deserialize: P2ps<_, Result<T::P2p, _>> =
             p2ps_in.unwrap_all_map(|bytes| bincode::deserialize(&bytes));
-        let foo = p2ps_deserialize.iter().all(|(a, b, c)| c.is_ok());
-        // let p2ps_deserialize: TofnResult<VecMap<_, _>> = p2ps_in
-        //     .into_iter()
-        //     .map(|(_, party_p2ps)| {
-        //         party_p2ps
-        //             .into_iter()
-        //             .map(|(i, bytes)| Pair(i, bincode::deserialize(&bytes.as_ref().unwrap())))
-        //             .collect::<Result<HoleVecMap<_, _>, _>>()
-        //     })
-        //     .collect();
-        // let p2ps_in = match p2ps_deserialize {
-        //     Ok(vec) => P2ps::from_vecmaps(vec),
-        //     Err(_) => {
-        //         return ProtocolBuilder::Done(Self::FinalOutput::new_deserialization_failure())
-        //     }
-        // };
+        if !p2ps_deserialize.iter().all(|(_, _, r)| r.is_ok()) {
+            return ProtocolBuilder::Done(Self::FinalOutput::new_deserialization_failure());
+        }
+        let p2ps_in = p2ps_deserialize.map(|r| r.unwrap());
 
-        // self.execute(party_count, index, bcasts_in, p2ps_in)
-        todo!()
+        self.execute(party_count, index, bcasts_in, p2ps_in)
     }
 
     #[cfg(test)]
@@ -128,7 +115,7 @@ impl<T: RoundExecuter> RoundExecuterRaw for T {
     }
 }
 
-use tracing::{error, warn};
+use tracing::error;
 
 pub(crate) fn serialize<T: ?Sized>(value: &T) -> TofnResult<BytesVec>
 where
