@@ -11,7 +11,7 @@ use crate::{
             P2ps,
         },
     },
-    vecmap::{Index, Pair, VecMap},
+    vecmap::{Index, VecMap},
 };
 
 use super::{r1, KeygenOutput, KeygenPartyIndex, KeygenProtocolBuilder};

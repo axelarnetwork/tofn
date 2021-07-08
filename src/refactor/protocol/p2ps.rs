@@ -23,6 +23,23 @@ where
         })
     }
 
+    pub fn map_to_me<W, F>(&self, me: Index<K>, mut f: F) -> HoleVecMap<K, W>
+    where
+        F: FnMut(&V) -> W,
+    {
+        HoleVecMap::from_vecmap(
+            VecMap::from_vec(self.to_me(me).map(|(_, v)| f(v)).collect()),
+            me,
+        )
+    }
+
+    pub fn map_to_me2<W, F>(&self, me: Index<K>, f: F) -> HoleVecMap<K, W>
+    where
+        F: FnMut((Index<K>, &V)) -> W,
+    {
+        HoleVecMap::from_vecmap(VecMap::from_vec(self.to_me(me).map(f).collect()), me)
+    }
+
     pub fn map<W, F>(self, f: F) -> P2ps<K, W>
     where
         F: FnMut(V) -> W + Clone,
