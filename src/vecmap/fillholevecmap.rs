@@ -53,6 +53,15 @@ where
     pub fn iter(&self) -> HoleVecMapIter<K, std::slice::Iter<Option<V>>> {
         self.hole_vec.iter()
     }
+    pub fn unwrap_all_map<W, F>(self, mut f: F) -> HoleVecMap<K, W>
+    where
+        F: FnMut(V) -> W,
+    {
+        self.hole_vec.map(|x| f(x.unwrap()))
+    }
+    pub fn unwrap_all(self) -> HoleVecMap<K, V> {
+        self.unwrap_all_map(std::convert::identity)
+    }
 }
 
 impl<K, V> IntoIterator for FillHoleVecMap<K, V>

@@ -22,7 +22,26 @@ where
             }
         })
     }
+
+    pub fn map<W, F>(self, f: F) -> P2ps<K, W>
+    where
+        F: FnMut(V) -> W + Clone,
+    {
+        P2ps::<K, W>(self.0.map(|v| v.map(f.clone())))
+    }
 }
+
+// impl<K, V> FromIterator<(Index<K>, Index<K>, V)> for P2ps<K, V>
+// where
+//     K: Behave,
+// {
+//     fn from_iter<Iter: IntoIterator<Item = (Index<K>, Index<K>, V)>>(iter: Iter) -> Self {
+//         Self::from_iter(
+//             iter.into_iter()
+//                 .map(|pair| Pair(pair.0, TofnResult::Ok(pair.1))),
+//         )
+//     }
+// }
 
 pub struct FillP2ps<K, V>(VecMap<K, FillHoleVecMap<K, V>>)
 where
@@ -44,5 +63,14 @@ where
     }
     pub fn set_warn(&mut self, from: Index<K>, to: Index<K>, value: V) {
         self.0.get_mut(from).set_warn(to, value);
+    }
+    pub fn unwrap_all_map<W, F>(self, f: F) -> P2ps<K, W>
+    where
+        F: FnMut(V) -> W + Clone,
+    {
+        P2ps::<K, W>(self.0.map(|v| v.unwrap_all_map(f.clone())))
+    }
+    pub fn unwrap_all(self) -> P2ps<K, V> {
+        self.unwrap_all_map(std::convert::identity)
     }
 }

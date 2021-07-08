@@ -33,11 +33,18 @@ where
         let hole_val = self.0.remove(hole.0);
         (HoleVecMap::from_vecmap(self, hole), hole_val)
     }
+    // TODO eliminate iterators in favour of `map`?
     pub fn iter(&self) -> VecMapIter<K, std::slice::Iter<V>> {
         VecMapIter::new(self.0.iter())
     }
     pub fn iter_mut(&mut self) -> VecMapIter<K, std::slice::IterMut<V>> {
         VecMapIter::new(self.0.iter_mut())
+    }
+    pub fn map<W, F>(self, f: F) -> VecMap<K, W>
+    where
+        F: FnMut(V) -> W,
+    {
+        VecMap::<K, W>::from_vec(self.0.into_iter().map(f).collect())
     }
 }
 

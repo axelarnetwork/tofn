@@ -49,6 +49,12 @@ where
             _ => Err("index out of range"),
         }
     }
+    pub fn map<W, F>(self, f: F) -> HoleVecMap<K, W>
+    where
+        F: FnMut(V) -> W,
+    {
+        HoleVecMap::<K, W>::from_vecmap(self.vec.map(f), self.hole)
+    }
 }
 
 impl<K, V> IntoIterator for HoleVecMap<K, V>

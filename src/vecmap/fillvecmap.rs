@@ -68,6 +68,15 @@ where
     //         vec,
     //     }
     // }
+    pub fn unwrap_all_map<W, F>(self, mut f: F) -> VecMap<K, W>
+    where
+        F: FnMut(V) -> W,
+    {
+        self.vec.map(|x| f(x.unwrap()))
+    }
+    pub fn unwrap_all(self) -> VecMap<K, V> {
+        self.unwrap_all_map(std::convert::identity)
+    }
 }
 
 impl<K, V> IntoIterator for FillVecMap<K, V>
