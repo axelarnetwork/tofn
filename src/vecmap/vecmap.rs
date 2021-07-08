@@ -46,6 +46,12 @@ where
     {
         VecMap::<K, W>::from_vec(self.0.into_iter().map(f).collect())
     }
+    pub fn map2<W, F>(self, f: F) -> VecMap<K, W>
+    where
+        F: FnMut((Index<K>, V)) -> W,
+    {
+        self.into_iter().map(f).collect()
+    }
 }
 
 impl<K, V> IntoIterator for VecMap<K, V>

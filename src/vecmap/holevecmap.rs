@@ -55,6 +55,13 @@ where
     {
         HoleVecMap::<K, W>::from_vecmap(self.vec.map(f), self.hole)
     }
+    pub fn map2<W, F>(self, f: F) -> HoleVecMap<K, W>
+    where
+        F: FnMut((Index<K>, V)) -> W,
+    {
+        let hole = self.hole;
+        HoleVecMap::<K, W>::from_vecmap(self.into_iter().map(f).collect(), hole)
+    }
 }
 
 impl<K, V> IntoIterator for HoleVecMap<K, V>
