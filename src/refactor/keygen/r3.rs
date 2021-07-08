@@ -9,7 +9,9 @@ use crate::{
     refactor::{
         keygen::r4,
         protocol::{
-            executer::{serialize, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuter},
+            executer::{
+                log_accuse_warn, serialize, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuter,
+            },
             Fault::ProtocolFault,
         },
     },
@@ -93,25 +95,21 @@ impl RoundExecuter for R3 {
         });
 
         // validate shares
-        // let vss_failures = share_infos
-        //     .iter()
-        //     .filter_map(|(i, (share, randomness))| {
-        //         if bcasts_in.get(i).u_i_vss_commit.validate_share(share) {
-        //             None
-        //         } else {
-        //             warn!(
-        //                 "party {} accuse {} of {:?}",
-        //                 index,
-        //                 i,
-        //                 Fault::R4FailBadVss { victim: index },
-        //             );
-        //             Some(VssComplaint {
-        //                 share: share.clone(),
-        //                 share_randomness: randomness.clone(),
-        //             })
-        //         }
-        //     })
-        //     .collect();
+        let mut vss_complaints = FillVecMap::with_size(party_count);
+        for (from, (share, randomness)) in share_infos.iter() {
+            if !bcasts_in.get(from).u_i_vss_commit.validate_share(share) {
+                log_accuse_warn(index, from, "invalid vss share");
+                vss_complaints.set(
+                    from,
+                    VssComplaint {
+                        share: share.clone(),
+                        share_randomness: randomness.clone(),
+                    },
+                );
+            }
+        }
+
+        // DONE TO HERE
 
         // TODO may need a helper that converts a HoleVecMap (iterator?) to a VecMap<VssComplaint>
         // TODO zip

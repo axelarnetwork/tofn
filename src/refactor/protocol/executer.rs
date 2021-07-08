@@ -157,3 +157,10 @@ where
 {
     warn!("party {} detect [{}] by {}", me, fault, faulter,);
 }
+
+pub(crate) fn log_accuse_warn<K>(me: Index<K>, faulter: Index<K>, fault: &str)
+where
+    K: Behave,
+{
+    warn!("party {} accuse {} of [{}]", me, faulter, fault);
+}
