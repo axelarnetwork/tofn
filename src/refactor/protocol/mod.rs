@@ -3,7 +3,7 @@ use crate::vecmap::{Behave, FillP2ps, FillVecMap, HoleVecMap, Index};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::{BytesVec, TofnResult};
+use super::BytesVec;
 
 pub enum Protocol<F, K>
 where
@@ -22,8 +22,8 @@ where
     round: Box<dyn RoundExecuterRaw<FinalOutput = F, Index = K>>,
     party_count: usize,
     index: Index<K>,
-    bcast_out: Option<TofnResult<BytesVec>>,
-    p2ps_out: Option<TofnResult<HoleVecMap<K, BytesVec>>>,
+    bcast_out: Option<BytesVec>,
+    p2ps_out: Option<HoleVecMap<K, BytesVec>>,
     bcasts_in: Option<FillVecMap<K, BytesVec>>,
     p2ps_in: Option<FillP2ps<K, BytesVec>>,
 }
@@ -36,13 +36,13 @@ where
         round: Box<dyn RoundExecuterRaw<FinalOutput = F, Index = K>>,
         party_count: usize,
         index: Index<K>,
-        bcast_out: Option<TofnResult<BytesVec>>,
-        p2ps_out: Option<TofnResult<HoleVecMap<K, BytesVec>>>,
+        bcast_out: Option<BytesVec>,
+        p2ps_out: Option<HoleVecMap<K, BytesVec>>,
     ) -> Self {
         // validate args
         // TODO return error instead of panic?
         assert!(index.as_usize() < party_count);
-        if let Some(Ok(ref p2ps)) = p2ps_out {
+        if let Some(ref p2ps) = p2ps_out {
             assert_eq!(p2ps.len(), party_count);
         }
 
@@ -62,10 +62,10 @@ where
             p2ps_in,
         }
     }
-    pub fn bcast_out(&self) -> &Option<TofnResult<BytesVec>> {
+    pub fn bcast_out(&self) -> &Option<BytesVec> {
         &self.bcast_out
     }
-    pub fn p2ps_out(&self) -> &Option<TofnResult<HoleVecMap<K, BytesVec>>> {
+    pub fn p2ps_out(&self) -> &Option<HoleVecMap<K, BytesVec>> {
         &self.p2ps_out
     }
     pub fn bcast_in(&mut self, from: Index<K>, bytes: &[u8]) {

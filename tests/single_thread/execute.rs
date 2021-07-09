@@ -3,11 +3,11 @@
 use tofn::{
     refactor::{
         protocol::{Protocol, ProtocolRound},
-        BytesVec, TofnResult,
+        BytesVec,
     },
     vecmap::{Behave, HoleVecMap, VecMap},
 };
-use tracing::{error, warn};
+use tracing::warn;
 
 pub fn execute_protocol<F, K>(mut parties: VecMap<K, Protocol<F, K>>) -> VecMap<K, Protocol<F, K>>
 where
@@ -58,40 +58,30 @@ where
         .collect();
 
     // deliver bcasts
-    let bcasts: VecMap<K, Option<TofnResult<BytesVec>>> = rounds
+    let bcasts: VecMap<K, Option<BytesVec>> = rounds
         .iter()
         .map(|(_, round)| round.bcast_out().clone())
         .collect();
     for (from, bcast) in bcasts.into_iter() {
-        if let Some(bcast) = bcast {
-            match bcast {
-                Ok(bytes) => {
-                    for (_, round) in rounds.iter_mut() {
-                        round.bcast_in(from, &bytes);
-                    }
-                }
-                Err(e) => error!("bcast error from party {}: {}", from, e),
-            };
+        if let Some(bytes) = bcast {
+            for (_, round) in rounds.iter_mut() {
+                round.bcast_in(from, &bytes);
+            }
         }
     }
 
     // deliver p2ps
-    let all_p2ps: VecMap<K, Option<TofnResult<HoleVecMap<K, BytesVec>>>> = rounds
+    let all_p2ps: VecMap<K, Option<HoleVecMap<K, BytesVec>>> = rounds
         .iter()
         .map(|(_, round)| round.p2ps_out().clone())
         .collect();
     for (from, p2ps) in all_p2ps.into_iter() {
         if let Some(p2ps) = p2ps {
-            match p2ps {
-                Ok(p2ps) => {
-                    for (to, bytes) in p2ps {
-                        for (_, round) in rounds.iter_mut() {
-                            round.p2p_in(from, to, &bytes);
-                        }
-                    }
+            for (to, bytes) in p2ps {
+                for (_, round) in rounds.iter_mut() {
+                    round.p2p_in(from, to, &bytes);
                 }
-                Err(e) => error!("p2p error from party {}: {}", from, e),
-            };
+            }
         }
     }
 

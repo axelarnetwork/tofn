@@ -11,7 +11,6 @@ use tofn::{
     },
     vecmap::{Behave, Index},
 };
-use tracing::error;
 
 #[derive(Clone)]
 pub enum Message<K>
@@ -57,27 +56,19 @@ where
 {
     while let Protocol::NotDone(mut round) = party {
         // send outgoing messages
-        if let Some(bcast_out) = round.bcast_out() {
-            if let Ok(bytes) = bcast_out {
-                broadcaster.send(Message::Bcast {
-                    from: round.index(),
-                    bytes: bytes.clone(),
-                });
-            } else {
-                error!("missing bcast from party {}", round.index());
-            }
+        if let Some(bytes) = round.bcast_out() {
+            broadcaster.send(Message::Bcast {
+                from: round.index(),
+                bytes: bytes.clone(),
+            });
         }
         if let Some(p2ps_out) = round.p2ps_out() {
-            if let Ok(p2ps_out) = p2ps_out {
-                for (to, bytes) in p2ps_out.iter() {
-                    broadcaster.send(Message::P2p {
-                        from: round.index(),
-                        to,
-                        bytes: bytes.clone(),
-                    });
-                }
-            } else {
-                error!("missing all p2ps from party {}", round.index());
+            for (to, bytes) in p2ps_out.iter() {
+                broadcaster.send(Message::P2p {
+                    from: round.index(),
+                    to,
+                    bytes: bytes.clone(),
+                });
             }
         }
         // collect incoming messages

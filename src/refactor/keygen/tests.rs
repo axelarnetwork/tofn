@@ -95,7 +95,7 @@ pub(crate) fn execute_keygen_from_recovery(
     // deliver r1 messages
     let r1_bcasts: VecMap<KeygenPartyIndex, BytesVec> = r1_parties
         .iter()
-        .map(|party| party.bcast_out().clone().unwrap().unwrap())
+        .map(|party| party.bcast_out().clone().unwrap())
         .collect();
     for party in r1_parties.iter_mut() {
         for (from, bytes) in r1_bcasts.iter() {
@@ -136,7 +136,7 @@ pub(crate) fn execute_keygen_from_recovery(
     // deliver r2 messages
     let r2_bcasts: VecMap<KeygenPartyIndex, BytesVec> = r2_parties
         .iter()
-        .map(|party| party.bcast_out().clone().unwrap().unwrap())
+        .map(|party| party.bcast_out().clone().unwrap())
         .collect();
     for party in r2_parties.iter_mut() {
         for (from, bytes) in r2_bcasts.iter() {
@@ -145,7 +145,7 @@ pub(crate) fn execute_keygen_from_recovery(
     }
     let r2_p2ps: VecMap<KeygenPartyIndex, HoleVecMap<KeygenPartyIndex, BytesVec>> = r2_parties
         .iter()
-        .map(|party| party.p2ps_out().clone().unwrap().unwrap())
+        .map(|party| party.p2ps_out().clone().unwrap())
         .collect();
     for party in r2_parties.iter_mut() {
         for (from, p2ps) in r2_p2ps.iter() {
@@ -161,7 +161,7 @@ pub(crate) fn execute_keygen_from_recovery(
         .enumerate()
         .map(|(i, party)| {
             assert!(party.bcast_out().is_some());
-            assert!(party.p2ps_out().as_ref().unwrap().as_ref().unwrap().len() == share_count);
+            assert!(party.p2ps_out().as_ref().unwrap().len() == share_count);
             assert!(!party.expecting_more_msgs_this_round());
             match party.execute_next_round() {
                 Protocol::NotDone(next_round) => next_round,
@@ -173,7 +173,7 @@ pub(crate) fn execute_keygen_from_recovery(
     // deliver r3 messages
     let r3_bcasts: VecMap<KeygenPartyIndex, BytesVec> = r3_parties
         .iter()
-        .map(|party| party.bcast_out().clone().unwrap().unwrap())
+        .map(|party| party.bcast_out().clone().unwrap())
         .collect();
     for party in r3_parties.iter_mut() {
         for (from, bytes) in r3_bcasts.iter() {

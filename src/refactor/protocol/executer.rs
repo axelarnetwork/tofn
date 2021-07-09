@@ -1,7 +1,7 @@
 use serde::de::DeserializeOwned;
 
 use crate::{
-    refactor::{protocol::Fault, BytesVec, TofnResult},
+    refactor::{protocol::Fault, BytesVec},
     vecmap::{Behave, FillP2ps, FillVecMap, HoleVecMap, Index, P2ps, VecMap},
 };
 
@@ -18,8 +18,8 @@ where
     K: Behave,
 {
     pub round: Box<dyn RoundExecuterRaw<FinalOutput = F, Index = K>>,
-    pub bcast_out: Option<TofnResult<BytesVec>>,
-    pub p2ps_out: Option<TofnResult<HoleVecMap<K, BytesVec>>>,
+    pub bcast_out: Option<BytesVec>,
+    pub p2ps_out: Option<HoleVecMap<K, BytesVec>>,
 }
 
 pub trait RoundExecuter: Send + Sync {
@@ -133,7 +133,7 @@ use tracing::{error, info, warn};
 
 use super::ProtocolOutput;
 
-pub(crate) fn serialize<T: ?Sized>(value: &T) -> TofnResult<BytesVec>
+pub(crate) fn serialize<T: ?Sized>(value: &T) -> BytesVec
 where
     T: serde::Serialize,
 {
@@ -141,7 +141,7 @@ where
     if let Err(ref err_msg) = result {
         error!("serialization failure: {}", err_msg);
     }
-    result
+    result.unwrap()
 }
 
 pub(crate) fn log_fault_info<K>(me: Index<K>, faulter: Index<K>, fault: &str)

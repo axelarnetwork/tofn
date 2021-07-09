@@ -19,10 +19,10 @@ use crate::{
     zkp::schnorr_k256,
 };
 
-use super::{malicious::log_confess_info, r1, r2, KeygenPartyIndex};
+use super::{r1, r2, KeygenPartyIndex};
 
 #[cfg(feature = "malicious")]
-use super::malicious::Behaviour;
+use super::malicious::{log_confess_info, Behaviour};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Bcast {
@@ -207,13 +207,11 @@ impl RoundExecuter for R3 {
 }
 
 pub mod malicious {
-
-    use crate::{
-        refactor::keygen::{self, malicious::log_confess_info, KeygenPartyIndex},
-        vecmap::Index,
-    };
-
     use super::R3;
+    use crate::{refactor::keygen::KeygenPartyIndex, vecmap::Index};
+
+    #[cfg(feature = "malicious")]
+    use super::super::malicious::{log_confess_info, Behaviour};
 
     impl R3 {
         pub fn corrupt_scalar(
@@ -222,7 +220,7 @@ pub mod malicious {
             mut x_i: k256::Scalar,
         ) -> k256::Scalar {
             #[cfg(feature = "malicious")]
-            if let keygen::Behaviour::R3BadXIWitness = self.behaviour {
+            if let Behaviour::R3BadXIWitness = self.behaviour {
                 log_confess_info(my_index, &self.behaviour, "");
                 x_i += k256::Scalar::one();
             }

@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tracing::{debug, warn};
+use tracing::warn;
 
 use crate::{
     hash, paillier_k256,
@@ -75,39 +75,16 @@ impl RoundExecuter for R2 {
 
         let u_i_other_shares = self.corrupt_share(index, u_i_other_shares);
 
-        let p2ps_out = Some(
-            // u_i_other_shares
-            //     .into_iter()
-            //     .map(|(i, share)| {
-            //         // encrypt the share for party i
-            //         let (u_i_share_ciphertext, _) =
-            //             bcasts_in.get(i).ek.encrypt(&share.get_scalar().into());
+        let p2ps_out = Some(u_i_other_shares.map2(|(i, share)| {
+            // encrypt the share for party i
+            let (u_i_share_ciphertext, _) = bcasts_in.get(i).ek.encrypt(&share.get_scalar().into());
 
-            //         let u_i_share_ciphertext =
-            //             self.corrupt_ciphertext(index, i, u_i_share_ciphertext);
+            let u_i_share_ciphertext = self.corrupt_ciphertext(index, i, u_i_share_ciphertext);
 
-            //         Pair(
-            //             i,
-            //             serialize(&P2p {
-            //                 u_i_share_ciphertext,
-            //             }),
-            //         )
-            //     })
-            //     .collect(),
-            Ok(u_i_other_shares.map2(|(i, share)| {
-                debug!("party {} map2 with i={}", index, i);
-                // encrypt the share for party i
-                let (u_i_share_ciphertext, _) =
-                    bcasts_in.get(i).ek.encrypt(&share.get_scalar().into());
-
-                let u_i_share_ciphertext = self.corrupt_ciphertext(index, i, u_i_share_ciphertext);
-
-                serialize(&P2p {
-                    u_i_share_ciphertext,
-                })
-                .unwrap()
-            })),
-        );
+            serialize(&P2p {
+                u_i_share_ciphertext,
+            })
+        }));
 
         let bcast_out = Some(serialize(&Bcast {
             y_i_reveal: self.y_i_reveal.clone(),
