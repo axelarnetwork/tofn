@@ -1,12 +1,11 @@
 use tracing::warn;
 
 use crate::{
-    refactor::api::{
-        executer::{ProtocolBuilder, RoundExecuterRaw},
-        BytesVec, Protocol, Round,
-    },
+    refactor::api::{executer::RoundExecuterRaw, BytesVec, Protocol, Round},
     vecmap::{Behave, FillP2ps, FillVecMap, HoleVecMap, Index},
 };
+
+use super::ProtocolBuilder;
 
 pub struct BcastAndP2p<F, K>
 where

@@ -1,26 +1,12 @@
 use serde::de::DeserializeOwned;
 
 use crate::{
-    refactor::api::{BytesVec, Fault},
-    vecmap::{Behave, FillP2ps, FillVecMap, HoleVecMap, Index, P2ps, VecMap},
+    refactor::{
+        api::{BytesVec, Fault},
+        protocol_round::ProtocolBuilder,
+    },
+    vecmap::{Behave, FillP2ps, FillVecMap, Index, P2ps, VecMap},
 };
-
-pub enum ProtocolBuilder<F, K>
-where
-    K: Behave,
-{
-    NotDone(ProtocolRoundBuilder<F, K>),
-    Done(ProtocolOutput<F, K>),
-}
-
-pub struct ProtocolRoundBuilder<F, K>
-where
-    K: Behave,
-{
-    pub round: Box<dyn RoundExecuterRaw<FinalOutput = F, Index = K>>,
-    pub bcast_out: Option<BytesVec>,
-    pub p2ps_out: Option<HoleVecMap<K, BytesVec>>,
-}
 
 pub trait RoundExecuter: Send + Sync {
     type FinalOutput;
@@ -130,8 +116,6 @@ impl<T: RoundExecuter> RoundExecuterRaw for T {
 }
 
 use tracing::{error, info, warn};
-
-use super::ProtocolOutput;
 
 pub(crate) fn serialize<T: ?Sized>(value: &T) -> BytesVec
 where

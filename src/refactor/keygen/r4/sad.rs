@@ -4,14 +4,11 @@ use crate::{
     protocol::gg20::SecretKeyShare,
     refactor::{
         api::{
-            executer::{
-                log_fault_info,
-                ProtocolBuilder::{self, *},
-                RoundExecuter,
-            },
+            executer::{log_fault_info, RoundExecuter},
             Fault::ProtocolFault,
         },
         keygen::{r1, r2, r3, KeygenPartyIndex},
+        protocol_round::ProtocolBuilder,
     },
     vecmap::{FillVecMap, Index, P2ps, VecMap},
 };
@@ -43,7 +40,7 @@ impl RoundExecuter for R4Sad {
             .all(|(_, bcast)| matches!(bcast, r3::Bcast::Happy(_)))
         {
             error!("party {} entered r4 sad path with no complaints", index);
-            return Done(Err(FillVecMap::with_size(party_count)));
+            return ProtocolBuilder::Done(Err(FillVecMap::with_size(party_count)));
         }
 
         let mut faulters = FillVecMap::with_size(party_count);
@@ -90,7 +87,7 @@ impl RoundExecuter for R4Sad {
         if faulters.is_empty() {
             error!("party {} r4 sad found no faulters", index);
         }
-        return Done(Err(faulters));
+        return ProtocolBuilder::Done(Err(faulters));
     }
 
     #[cfg(test)]

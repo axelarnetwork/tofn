@@ -1,9 +1,9 @@
 use crate::protocol::gg20::SecretKeyShare;
-use crate::refactor::api::{executer::ProtocolBuilder, Protocol, TofnResult};
+use crate::refactor::api::{Protocol, TofnResult};
 use crate::vecmap::{Behave, Index};
 use serde::{Deserialize, Serialize};
 
-use super::protocol_round::BcastAndP2p;
+use super::protocol_round::{BcastAndP2p, ProtocolBuilder};
 
 // need to derive all this crap for each new marker struct
 // in order to avoid this problem: https://stackoverflow.com/a/31371094

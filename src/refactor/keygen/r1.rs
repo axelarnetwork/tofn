@@ -1,13 +1,15 @@
 use crate::{
     hash, k256_serde, paillier_k256,
     protocol::gg20::{vss_k256, SecretKeyShare},
-    refactor::api::{
-        executer::{
-            serialize,
-            ProtocolBuilder::{self, *},
-            ProtocolRoundBuilder, RoundExecuterRaw,
+    refactor::{
+        api::{
+            executer::{serialize, RoundExecuterRaw},
+            BytesVec,
         },
-        BytesVec,
+        protocol_round::{
+            ProtocolBuilder::{self, *},
+            ProtocolRoundBuilder,
+        },
     },
     vecmap::{FillP2ps, FillVecMap, Index},
 };

@@ -5,14 +5,11 @@ use crate::{
     protocol::gg20::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo},
     refactor::{
         api::{
-            executer::{
-                log_fault_warn,
-                ProtocolBuilder::{self, *},
-                RoundExecuter,
-            },
+            executer::{log_fault_warn, RoundExecuter},
             Fault::ProtocolFault,
         },
         keygen::{r1, r2, r3, r4::sad::R4Sad, KeygenPartyIndex},
+        protocol_round::ProtocolBuilder,
     },
     vecmap::{FillVecMap, Index, P2ps, VecMap},
     zkp::schnorr_k256,
@@ -107,7 +104,7 @@ impl RoundExecuter for R4 {
             })
             .collect();
 
-        Done(Ok(SecretKeyShare {
+        ProtocolBuilder::Done(Ok(SecretKeyShare {
             group: GroupPublicInfo {
                 threshold: self.threshold,
                 y: self.y.into(),
