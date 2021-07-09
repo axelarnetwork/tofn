@@ -1,7 +1,7 @@
-use crate::vecmap::{Behave, FillP2ps, FillVecMap, HoleVecMap, Index};
-use tracing::warn;
-
 use self::executer::{ProtocolBuilder, RoundExecuterRaw};
+use crate::vecmap::{Behave, FillP2ps, FillVecMap, HoleVecMap, Index};
+use serde::{Deserialize, Serialize};
+use tracing::warn;
 
 use super::{BytesVec, TofnResult};
 
@@ -129,5 +129,10 @@ where
 }
 
 pub mod executer;
-mod fault;
-pub use fault::Fault;
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum Fault {
+    MissingMessage,
+    CorruptedMessage,
+    ProtocolFault,
+}
