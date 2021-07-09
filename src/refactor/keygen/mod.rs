@@ -1,8 +1,9 @@
 use crate::protocol::gg20::SecretKeyShare;
-use crate::refactor::protocol::{executer::ProtocolBuilder, Protocol, ProtocolRound};
+use crate::refactor::protocol::{executer::ProtocolBuilder, Protocol};
 use crate::vecmap::{Behave, Index};
 use serde::{Deserialize, Serialize};
 
+use super::protocol_round::BcastAndP2p;
 use super::TofnResult;
 
 // need to derive all this crap for each new marker struct
@@ -65,7 +66,7 @@ fn new_keygen_impl(
     // compute the RNG seed now so as to minimize copying of `secret_recovery_key`
     let rng_seed = rng::seed(secret_recovery_key, session_nonce);
 
-    Ok(Protocol::NotDone(Box::new(ProtocolRound::new(
+    Ok(Protocol::NotDone(Box::new(BcastAndP2p::new(
         Box::new(r1::R1 {
             threshold,
             rng_seed,
