@@ -63,16 +63,16 @@ impl TestCase {
 // }
 
 pub fn single_fault_test_case_list() -> Vec<TestCase> {
-    // let zero = Index::from_usize(0);
+    let zero = Index::from_usize(0);
+    let one = Index::from_usize(1);
     vec![
         single_fault_test_case(R1BadCommit),
         single_fault_test_case(R1BadEncryptionKeyProof),
         single_fault_test_case(R1BadZkSetupProof),
-        // single_fault_test_case(R2BadShare { victim: zero }, R4FailBadVss { victim: zero }),
-        // single_fault_test_case(
-        //     R2BadEncryption { victim: zero },
-        //     R4SadBadEncryption { victim: zero },
-        // ),
+        single_fault_test_case(R2BadShare { victim: zero }),
+        single_fault_test_case(R2BadEncryption { victim: zero }),
+        single_fault_test_case(R3FalseAccusation { victim: zero }),
+        single_fault_test_case(R3FalseAccusation { victim: one }), // self accusation
         single_fault_test_case(R3BadXIWitness),
     ]
 }
@@ -124,7 +124,7 @@ fn execute_test_case(test_case: &TestCase) {
 
     parties = execute_protocol(parties);
 
-    // TEST: honest parties finished and correctly computed the criminals list
+    // TEST: honest parties finished and produced the expected output
     for (index, behaviour) in test_case.behaviours.iter() {
         if behaviour.is_honest() {
             match parties.get(index) {

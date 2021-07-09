@@ -1,6 +1,8 @@
 // use strum_macros::EnumIter;
 
-use crate::vecmap::Index;
+use tracing::info;
+
+use crate::vecmap::{Behave, Index};
 
 use super::KeygenPartyIndex;
 
@@ -51,6 +53,17 @@ pub enum MsgType {
 //         Self::from_usize(0)
 //     }
 // }
+
+pub(crate) fn log_confess_info<K>(me: Index<K>, behaviour: &Behaviour, msg: &str)
+where
+    K: Behave,
+{
+    if msg.is_empty() {
+        info!("malicious party {} do {:?}", me, behaviour);
+    } else {
+        info!("malicious party {} do {:?} [{}]", me, behaviour, msg);
+    }
+}
 
 // #[cfg(test)]
 // mod tests;

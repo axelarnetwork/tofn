@@ -67,7 +67,7 @@ impl RoundExecuter for R4Sad {
                 let accuser_ek = &self.r1bcasts.get(accuser).ek;
                 let share_ciphertext = accuser_ek.encrypt_with_randomness(
                     &accusation.share.get_scalar().into(),
-                    &accusation.share_randomness,
+                    &accusation.randomness,
                 );
                 if share_ciphertext != self.r2p2ps.get(accused, accuser).u_i_share_ciphertext {
                     log_fault_info(index, accused, "bad encryption");

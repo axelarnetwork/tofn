@@ -23,6 +23,12 @@ where
             some_count: 0,
         }
     }
+    // pub fn size(&self) -> usize {
+    //     self.vec.len()
+    // }
+    // pub fn get(&self, index: Index<K>) -> &Option<V> {
+    //     self.vec.get(index)
+    // }
     pub fn set(&mut self, index: Index<K>, value: V) {
         self.set_impl(index, value, false)
     }
@@ -40,12 +46,9 @@ where
         }
         *stored = Some(value);
     }
-    // pub fn size(&self) -> usize {
-    //     self.vec.len()
-    // }
-    // pub fn is_none(&self, index: usize) -> bool {
-    //     matches!(self.vec[index], None)
-    // }
+    pub fn is_none(&self, index: Index<K>) -> bool {
+        self.vec.get(index).is_none()
+    }
     // /// Returns `true` if all items are `Some`, except possibly the `index`th item.
     // pub fn is_full_except(&self, index: usize) -> bool {
     //     (self.is_none(index) && self.some_count() >= self.vec.len() - 1)

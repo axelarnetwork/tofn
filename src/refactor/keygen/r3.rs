@@ -19,7 +19,7 @@ use crate::{
     zkp::schnorr_k256,
 };
 
-use super::{r1, r2, KeygenPartyIndex};
+use super::{malicious::log_confess_info, r1, r2, KeygenPartyIndex};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -37,13 +37,13 @@ pub struct BcastHappy {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BcastSad {
-    pub vss_complaints: FillVecMap<KeygenPartyIndex, VssComplaint>,
+    pub vss_complaints: FillVecMap<KeygenPartyIndex, ShareInfo>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VssComplaint {
+pub struct ShareInfo {
     pub share: vss_k256::Share,
-    pub share_randomness: paillier_k256::Randomness,
+    pub randomness: paillier_k256::Randomness,
 }
 
 pub struct R3 {
@@ -91,23 +91,50 @@ impl RoundExecuter for R3 {
                 self.dk.decrypt_with_randomness(&p2p.u_i_share_ciphertext);
             let u_i_share =
                 vss_k256::Share::from_scalar(u_i_share_plaintext.to_scalar(), index.as_usize());
-            (u_i_share, u_i_share_randomness)
+            ShareInfo {
+                share: u_i_share,
+                randomness: u_i_share_randomness,
+            }
         });
 
         // validate shares
         let mut vss_complaints = FillVecMap::with_size(party_count);
-        for (from, (share, randomness)) in share_infos.iter() {
-            if !bcasts_in.get(from).u_i_vss_commit.validate_share(share) {
+        for (from, info) in share_infos.iter() {
+            if !bcasts_in
+                .get(from)
+                .u_i_vss_commit
+                .validate_share(&info.share)
+            {
                 log_accuse_warn(index, from, "invalid vss share");
                 vss_complaints.set(
                     from,
-                    VssComplaint {
-                        share: share.clone(),
-                        share_randomness: randomness.clone(),
+                    ShareInfo {
+                        share: info.share.clone(),
+                        randomness: info.randomness.clone(),
                     },
                 );
             }
         }
+
+        #[cfg(feature = "malicious")]
+        if let Behaviour::R3FalseAccusation { victim } = self.behaviour {
+            if !vss_complaints.is_none(victim) {
+                log_confess_info(index, &self.behaviour, "but the accusation is true");
+            } else if victim == index {
+                log_confess_info(index, &self.behaviour, "self accusation");
+                vss_complaints.set(
+                    victim,
+                    ShareInfo {
+                        share: vss_k256::Share::from_scalar(k256::Scalar::one(), 1), // junk data
+                        randomness: self.r1bcasts.get(index).ek.sample_randomness(), // junk data
+                    },
+                );
+            } else {
+                log_confess_info(index, &self.behaviour, "");
+                vss_complaints.set(victim, share_infos.get(victim).clone());
+            }
+        }
+
         if !vss_complaints.is_empty() {
             return ProtocolBuilder::NotDone(ProtocolRoundBuilder {
                 round: Box::new(r4::sad::R4Sad {
@@ -123,8 +150,8 @@ impl RoundExecuter for R3 {
         // compute x_i
         let x_i = share_infos
             .into_iter()
-            .fold(*self.u_i_my_share.get_scalar(), |acc, (_, (share, _))| {
-                acc + share.get_scalar()
+            .fold(*self.u_i_my_share.get_scalar(), |acc, (_, info)| {
+                acc + info.share.get_scalar()
             });
 
         // compute y
@@ -180,10 +207,9 @@ impl RoundExecuter for R3 {
 }
 
 pub mod malicious {
-    use tracing::info;
 
     use crate::{
-        refactor::keygen::{self, KeygenPartyIndex},
+        refactor::keygen::{self, malicious::log_confess_info, KeygenPartyIndex},
         vecmap::Index,
     };
 
@@ -197,7 +223,7 @@ pub mod malicious {
         ) -> k256::Scalar {
             #[cfg(feature = "malicious")]
             if let keygen::Behaviour::R3BadXIWitness = self.behaviour {
-                info!("malicious party {} do {:?}", my_index, self.behaviour);
+                log_confess_info(my_index, &self.behaviour, "");
                 x_i += k256::Scalar::one();
             }
             x_i
