@@ -1,7 +1,7 @@
 use serde::de::DeserializeOwned;
 
 use crate::{
-    refactor::{protocol::Fault, BytesVec},
+    refactor::protocol::{BytesVec, Fault},
     vecmap::{Behave, FillP2ps, FillVecMap, HoleVecMap, Index, P2ps, VecMap},
 };
 

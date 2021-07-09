@@ -5,10 +5,7 @@ use std::sync::mpsc::Receiver;
 // `use` statements for type aliased enums :(
 // https://github.com/rust-lang/rust/issues/83248
 use tofn::{
-    refactor::{
-        protocol::{Protocol, ProtocolOutput},
-        BytesVec,
-    },
+    refactor::protocol::{BytesVec, Protocol, ProtocolOutput},
     vecmap::{Behave, Index},
 };
 

@@ -1,8 +1,8 @@
 use crate::{
     hash, k256_serde, paillier_k256,
     protocol::gg20::{vss_k256, SecretKeyShare},
-    refactor::{
-        protocol::executer::{
+    refactor::protocol::{
+        executer::{
             serialize,
             ProtocolBuilder::{self, *},
             ProtocolRoundBuilder, RoundExecuterRaw,

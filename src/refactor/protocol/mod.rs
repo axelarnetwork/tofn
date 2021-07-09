@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use self::executer::RoundExecuterRaw;
 
-use super::BytesVec;
+pub type TofnResult<T> = Result<T, String>;
+pub type BytesVec = Vec<u8>;
 
 pub enum Protocol<F, K>
 where

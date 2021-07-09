@@ -1,7 +1,7 @@
 //! Single-threaded generic protocol execution
 
 use tofn::{
-    refactor::{protocol::Protocol, BytesVec},
+    refactor::protocol::{BytesVec, Protocol},
     vecmap::{Behave, HoleVecMap, VecMap},
 };
 use tracing::warn;

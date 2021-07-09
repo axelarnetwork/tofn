@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
     protocol::gg20::vss_k256,
-    refactor::{protocol::Protocol, BytesVec},
+    refactor::protocol::{BytesVec, Protocol},
     vecmap::{HoleVecMap, VecMap},
 };
 use rand::RngCore;

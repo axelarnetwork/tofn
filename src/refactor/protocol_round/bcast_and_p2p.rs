@@ -1,12 +1,9 @@
 use tracing::warn;
 
 use crate::{
-    refactor::{
-        protocol::{
-            executer::{ProtocolBuilder, RoundExecuterRaw},
-            Protocol, Round,
-        },
-        BytesVec,
+    refactor::protocol::{
+        executer::{ProtocolBuilder, RoundExecuterRaw},
+        BytesVec, Protocol, Round,
     },
     vecmap::{Behave, FillP2ps, FillVecMap, HoleVecMap, Index},
 };
