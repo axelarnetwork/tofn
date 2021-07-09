@@ -108,59 +108,17 @@ impl RoundExecuter for R3 {
                 );
             }
         }
-
-        // DONE TO HERE
-
-        // TODO may need a helper that converts a HoleVecMap (iterator?) to a VecMap<VssComplaint>
-        // TODO zip
-        // - share_infos (which iterates only over _other_ parties)
-        // - r2bcasts (which iterates over _all_ parties)
-        // let vss_failures: Vec<VssComplaint> = share_infos
-        //     .vec_ref()
-        //     .iter()
-        //     .zip(bcasts_in.iter())
-        //     .filter_map(|(share_info, (from, r2bcast))| {
-        //         if let Some((u_i_share, u_i_share_randomness)) = share_info {
-        //             if !r2bcast.u_i_share_commits.validate_share(&u_i_share) {
-        //                 warn!(
-        //                     "party {} accuse {} of {:?}",
-        //                     index,
-        //                     from,
-        //                     Crime::R4FailBadVss { victim: index },
-        //                 );
-        //                 Some(VssComplaint {
-        //                     criminal_index: from.as_usize(),
-        //                     share: u_i_share.clone(),
-        //                     share_randomness: u_i_share_randomness.clone(),
-        //                 })
-        //             } else {
-        //                 None
-        //             }
-        //         } else {
-        //             None // if share_info is none then I must be talking to myself
-        //         }
-        //     })
-        //     .collect();
-        // if !vss_failures.is_empty() {
-        //     return RoundOutput::NotDone(RoundWaiter {
-        //         round: Box::new(r4::R4 {
-        //             share_count: party_count,
-        //             threshold: self.threshold,
-        //             index: index,
-        //         }),
-        //         msgs_out: SerializedMsgs {
-        //             bcast: None,
-        //             p2ps: None,
-        //         },
-        //         msgs_in: vec![
-        //             SerializedMsgs {
-        //                 bcast: None,
-        //                 p2ps: None,
-        //             };
-        //             party_count
-        //         ],
-        //     })
-        // }
+        if !vss_complaints.is_empty() {
+            return ProtocolBuilder::NotDone(ProtocolRoundBuilder {
+                round: Box::new(r4::sad::R4Sad {
+                    r1bcasts: self.r1bcasts,
+                    r2bcasts: bcasts_in,
+                    r2p2ps: p2ps_in,
+                }),
+                bcast_out: Some(serialize(&Bcast::Sad(BcastSad { vss_complaints }))),
+                p2ps_out: None,
+            });
+        }
 
         // compute x_i
         let x_i = share_infos
