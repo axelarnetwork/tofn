@@ -4,7 +4,7 @@ use crate::{
     refactor::{
         protocol::{
             executer::{ProtocolBuilder, RoundExecuterRaw},
-            Protocol, ProtocolRoundTrait,
+            Protocol, Round,
         },
         BytesVec,
     },
@@ -59,7 +59,7 @@ where
         }
     }
 }
-impl<F, K> ProtocolRoundTrait for BcastAndP2p<F, K>
+impl<F, K> Round for BcastAndP2p<F, K>
 where
     // Why 'static? Because `execute_next_round` returns `Protocol`,
     // which leads to this problem: https://stackoverflow.com/a/40053651

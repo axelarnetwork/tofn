@@ -10,14 +10,14 @@ pub enum Protocol<F, K>
 where
     K: Behave,
 {
-    NotDone(Box<dyn ProtocolRoundTrait<FinalOutput = F, Index = K>>),
+    NotDone(Box<dyn Round<FinalOutput = F, Index = K>>),
     Done(ProtocolOutput<F, K>),
 }
 
 pub type ProtocolOutput<F, K> = Result<F, FillVecMap<K, Fault>>;
 
 // TODO rename to ProtocolRound
-pub trait ProtocolRoundTrait: Send + Sync {
+pub trait Round: Send + Sync {
     type FinalOutput;
     type Index: Behave;
 
