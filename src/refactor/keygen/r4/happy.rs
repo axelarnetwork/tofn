@@ -4,12 +4,12 @@ use crate::{
     paillier_k256,
     protocol::gg20::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo},
     refactor::{
-        api::{
-            executer::{log_fault_warn, RoundExecuter},
-            Fault::ProtocolFault,
-        },
+        api::Fault::ProtocolFault,
         keygen::{r1, r2, r3, r4::sad::R4Sad, KeygenPartyIndex},
-        protocol_round::ProtocolBuilder,
+        protocol_round::{
+            bcast_and_p2p::executer::{log_fault_warn, RoundExecuter},
+            ProtocolBuilder,
+        },
     },
     vecmap::{FillVecMap, Index, P2ps, VecMap},
     zkp::schnorr_k256,

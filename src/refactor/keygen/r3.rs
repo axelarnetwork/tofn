@@ -7,12 +7,12 @@ use crate::{
     paillier_k256,
     protocol::gg20::{vss_k256, SecretKeyShare},
     refactor::{
-        api::{
-            executer::{log_accuse_warn, serialize, RoundExecuter},
-            Fault::ProtocolFault,
-        },
+        api::Fault::ProtocolFault,
         keygen::r4,
-        protocol_round::{ProtocolBuilder, ProtocolRoundBuilder},
+        protocol_round::{
+            bcast_and_p2p::executer::{log_accuse_warn, serialize, RoundExecuter},
+            ProtocolBuilder, ProtocolRoundBuilder,
+        },
     },
     vecmap::{FillVecMap, Index, P2ps, VecMap},
     zkp::schnorr_k256,

@@ -5,12 +5,12 @@ use crate::{
     hash, paillier_k256,
     protocol::gg20::{vss_k256, SecretKeyShare},
     refactor::{
-        api::{
-            executer::{serialize, RoundExecuter},
-            Fault::ProtocolFault,
-        },
+        api::Fault::ProtocolFault,
         keygen::r3,
-        protocol_round::{ProtocolBuilder, ProtocolRoundBuilder},
+        protocol_round::{
+            bcast_and_p2p::executer::{serialize, RoundExecuter},
+            ProtocolBuilder, ProtocolRoundBuilder,
+        },
     },
     vecmap::{FillVecMap, Index, P2ps, VecMap},
 };

@@ -2,7 +2,7 @@
 use crate::vecmap::{Behave, FillVecMap, HoleVecMap, Index};
 use serde::{Deserialize, Serialize};
 
-use self::executer::RoundExecuterRaw;
+use super::protocol_round::bcast_and_p2p::executer::RoundExecuterRaw;
 
 pub type TofnResult<T> = Result<T, String>;
 pub type BytesVec = Vec<u8>;
@@ -31,14 +31,12 @@ pub trait Round: Send + Sync {
     fn party_count(&self) -> usize;
     fn index(&self) -> Index<Self::Index>;
 
-    // TODO replace with round_as_any
+    // TODO replace with round_as_any and return Any instead of RoundExecuterRaw
     #[cfg(test)]
     fn round(
         &self,
     ) -> &Box<dyn RoundExecuterRaw<FinalOutput = Self::FinalOutput, Index = Self::Index>>;
 }
-
-pub mod executer;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Fault {

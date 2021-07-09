@@ -3,12 +3,12 @@ use tracing::error;
 use crate::{
     protocol::gg20::SecretKeyShare,
     refactor::{
-        api::{
-            executer::{log_fault_info, RoundExecuter},
-            Fault::ProtocolFault,
-        },
+        api::Fault::ProtocolFault,
         keygen::{r1, r2, r3, KeygenPartyIndex},
-        protocol_round::ProtocolBuilder,
+        protocol_round::{
+            bcast_and_p2p::executer::{log_fault_info, RoundExecuter},
+            ProtocolBuilder,
+        },
     },
     vecmap::{FillVecMap, Index, P2ps, VecMap},
 };

@@ -2,11 +2,9 @@ use crate::{
     hash, k256_serde, paillier_k256,
     protocol::gg20::{vss_k256, SecretKeyShare},
     refactor::{
-        api::{
-            executer::{serialize, RoundExecuterRaw},
-            BytesVec,
-        },
+        api::BytesVec,
         protocol_round::{
+            bcast_and_p2p::executer::{serialize, RoundExecuterRaw},
             ProtocolBuilder::{self, *},
             ProtocolRoundBuilder,
         },

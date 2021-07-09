@@ -1,9 +1,11 @@
-mod bcast_and_p2p;
+pub mod bcast_and_p2p;
 pub use bcast_and_p2p::BcastAndP2p;
 
 use crate::vecmap::{Behave, HoleVecMap};
 
-use super::api::{executer::RoundExecuterRaw, BytesVec, ProtocolOutput};
+use self::bcast_and_p2p::executer::RoundExecuterRaw;
+
+use super::api::{BytesVec, ProtocolOutput};
 
 pub enum ProtocolBuilder<F, K>
 where
