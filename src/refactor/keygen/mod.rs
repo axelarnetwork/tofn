@@ -1,5 +1,5 @@
 use crate::protocol::gg20::SecretKeyShare;
-use crate::refactor::protocol::{executer::ProtocolBuilder, Protocol, TofnResult};
+use crate::refactor::api::{executer::ProtocolBuilder, Protocol, TofnResult};
 use crate::vecmap::{Behave, Index};
 use serde::{Deserialize, Serialize};
 

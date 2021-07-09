@@ -3,8 +3,7 @@ use tracing::error;
 use crate::{
     protocol::gg20::SecretKeyShare,
     refactor::{
-        keygen::{r1, r2, r3, KeygenPartyIndex},
-        protocol::{
+        api::{
             executer::{
                 log_fault_info,
                 ProtocolBuilder::{self, *},
@@ -12,6 +11,7 @@ use crate::{
             },
             Fault::ProtocolFault,
         },
+        keygen::{r1, r2, r3, KeygenPartyIndex},
     },
     vecmap::{FillVecMap, Index, P2ps, VecMap},
 };

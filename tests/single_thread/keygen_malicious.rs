@@ -1,11 +1,11 @@
 use tofn::{
     protocol::gg20::SecretKeyShare,
     refactor::{
+        api::{Fault, Protocol::*, ProtocolOutput},
         keygen::{
             malicious::Behaviour::{self, *},
             new_keygen_with_behaviour, KeygenPartyIndex, KeygenProtocol, SecretRecoveryKey,
         },
-        protocol::{Fault, Protocol::*, ProtocolOutput},
     },
     vecmap::{Behave, FillVecMap, Index, VecMap},
 };

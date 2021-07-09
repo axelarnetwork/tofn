@@ -3,8 +3,8 @@ use rand::RngCore;
 use tofn::{
     protocol::gg20::SecretKeyShare,
     refactor::{
+        api::Protocol,
         keygen::{new_keygen, KeygenPartyIndex, KeygenProtocol},
-        protocol::Protocol,
     },
     vecmap::{Index, VecMap},
 };

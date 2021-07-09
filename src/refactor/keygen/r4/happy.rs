@@ -4,8 +4,7 @@ use crate::{
     paillier_k256,
     protocol::gg20::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo},
     refactor::{
-        keygen::{r1, r2, r3, r4::sad::R4Sad, KeygenPartyIndex},
-        protocol::{
+        api::{
             executer::{
                 log_fault_warn,
                 ProtocolBuilder::{self, *},
@@ -13,6 +12,7 @@ use crate::{
             },
             Fault::ProtocolFault,
         },
+        keygen::{r1, r2, r3, r4::sad::R4Sad, KeygenPartyIndex},
     },
     vecmap::{FillVecMap, Index, P2ps, VecMap},
     zkp::schnorr_k256,

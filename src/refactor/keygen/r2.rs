@@ -5,11 +5,11 @@ use crate::{
     hash, paillier_k256,
     protocol::gg20::{vss_k256, SecretKeyShare},
     refactor::{
-        keygen::r3,
-        protocol::{
+        api::{
             executer::{serialize, ProtocolBuilder, ProtocolRoundBuilder, RoundExecuter},
             Fault::ProtocolFault,
         },
+        keygen::r3,
     },
     vecmap::{FillVecMap, Index, P2ps, VecMap},
 };
