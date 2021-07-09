@@ -5,7 +5,7 @@ where
     K: Behave;
 
 /// Alias for all the trait bounds on `K` in order to work around https://stackoverflow.com/a/31371094
-pub trait Behave: std::fmt::Debug + Clone + Copy + PartialEq {}
+pub trait Behave: std::fmt::Debug + Clone + Copy + PartialEq + Send + Sync {}
 
 impl<K> Index<K>
 where

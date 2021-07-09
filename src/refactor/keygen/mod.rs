@@ -65,7 +65,7 @@ fn new_keygen_impl(
     // compute the RNG seed now so as to minimize copying of `secret_recovery_key`
     let rng_seed = rng::seed(secret_recovery_key, session_nonce);
 
-    Ok(Protocol::NotDone(ProtocolRound::new(
+    Ok(Protocol::NotDone(Box::new(ProtocolRound::new(
         Box::new(r1::R1 {
             threshold,
             rng_seed,
@@ -76,7 +76,7 @@ fn new_keygen_impl(
         index,
         None,
         None,
-    )))
+    ))))
 }
 
 #[cfg(feature = "malicious")]

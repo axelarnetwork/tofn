@@ -1,10 +1,7 @@
 //! Single-threaded generic protocol execution
 
 use tofn::{
-    refactor::{
-        protocol::{Protocol, ProtocolRound},
-        BytesVec,
-    },
+    refactor::{protocol::Protocol, BytesVec},
     vecmap::{Behave, HoleVecMap, VecMap},
 };
 use tracing::warn;
@@ -49,7 +46,7 @@ where
     K: Behave,
 {
     // extract current round from parties
-    let mut rounds: VecMap<K, ProtocolRound<F, K>> = parties
+    let mut rounds: VecMap<K, _> = parties
         .into_iter()
         .map(|(i, party)| match party {
             Protocol::NotDone(round) => round,

@@ -6,18 +6,18 @@ use tracing::warn;
 
 use super::BytesVec;
 
-pub enum Protocol<'a, F, K>
+pub enum Protocol<F, K>
 where
     K: Behave,
 {
-    NotDone(Box<dyn ProtocolRoundTrait<'a, FinalOutput = F, Index = K> + 'a>),
+    NotDone(Box<dyn ProtocolRoundTrait<FinalOutput = F, Index = K>>),
     Done(ProtocolOutput<F, K>),
 }
 
 pub type ProtocolOutput<F, K> = Result<F, FillVecMap<K, Fault>>;
 
-// TODO rename to ProtocolRound, add : Send + Sync
-pub trait ProtocolRoundTrait<'a> {
+// TODO rename to ProtocolRound
+pub trait ProtocolRoundTrait: Send + Sync {
     type FinalOutput;
     type Index: Behave;
 
@@ -26,7 +26,7 @@ pub trait ProtocolRoundTrait<'a> {
     fn bcast_in(&mut self, from: Index<Self::Index>, bytes: &[u8]);
     fn p2p_in(&mut self, from: Index<Self::Index>, to: Index<Self::Index>, bytes: &[u8]);
     fn expecting_more_msgs_this_round(&self) -> bool;
-    fn execute_next_round(self) -> Protocol<'a, Self::FinalOutput, Self::Index>;
+    fn execute_next_round(self: Box<Self>) -> Protocol<Self::FinalOutput, Self::Index>;
     fn party_count(&self) -> usize;
     fn index(&self) -> Index<Self::Index>;
 
@@ -38,12 +38,11 @@ pub trait ProtocolRoundTrait<'a> {
 }
 
 // TODO rename to something with bcast_and_p2p
-pub struct ProtocolRound<'a, F, K>
+pub struct ProtocolRound<F, K>
 where
-    K: Behave + 'a,
-    F: 'a,
+    K: Behave,
 {
-    round: Box<dyn RoundExecuterRaw<FinalOutput = F, Index = K> + 'a>,
+    round: Box<dyn RoundExecuterRaw<FinalOutput = F, Index = K>>,
     party_count: usize,
     index: Index<K>,
     bcast_out: Option<BytesVec>,
@@ -52,13 +51,12 @@ where
     p2ps_in: Option<FillP2ps<K, BytesVec>>,
 }
 
-impl<'a, F, K> ProtocolRound<'a, F, K>
+impl<F, K> ProtocolRound<F, K>
 where
-    K: Behave + 'a,
-    F: 'a,
+    K: Behave,
 {
     pub fn new(
-        round: Box<dyn RoundExecuterRaw<FinalOutput = F, Index = K> + 'a>,
+        round: Box<dyn RoundExecuterRaw<FinalOutput = F, Index = K>>,
         party_count: usize,
         index: Index<K>,
         bcast_out: Option<BytesVec>,
@@ -88,10 +86,12 @@ where
         }
     }
 }
-impl<'a, F, K> ProtocolRoundTrait<'a> for ProtocolRound<'a, F, K>
+impl<F, K> ProtocolRoundTrait for ProtocolRound<F, K>
 where
-    K: Behave + 'a,
-    F: 'a,
+    // Why 'static? Because `execute_next_round` returns `Protocol`,
+    // which leads to this problem: https://stackoverflow.com/a/40053651
+    K: Behave + 'static,
+    F: 'static,
 {
     type FinalOutput = F;
     type Index = K;
@@ -132,7 +132,7 @@ where
         };
         expecting_more_p2ps
     }
-    fn execute_next_round(self) -> Protocol<'a, Self::FinalOutput, Self::Index> {
+    fn execute_next_round(self: Box<Self>) -> Protocol<Self::FinalOutput, Self::Index> {
         match self.round.execute_raw(
             self.party_count,
             self.index,
