@@ -3,7 +3,10 @@ use crate::{
     vecmap::{Behave, FillP2ps, FillVecMap, HoleVecMap, Index},
 };
 
-use super::{bcast_and_p2p::executer::RoundExecuterRaw, no_messages};
+use super::{
+    bcast_and_p2p::executer::RoundExecuterRaw,
+    no_messages::{self, NoMessagesRound},
+};
 
 pub enum Round<F, K>
 where
@@ -18,11 +21,7 @@ where
         bcasts_in: Option<FillVecMap<K, BytesVec>>,
         p2ps_in: Option<FillP2ps<K, BytesVec>>,
     },
-    NoMessages {
-        round: Box<dyn no_messages::Executer<FinalOutput = F, Index = K>>,
-        party_count: usize,
-        index: Index<K>,
-    },
+    NoMessages(NoMessagesRound<F, K>),
 }
 
 impl<F, K> Round<F, K>
@@ -67,11 +66,11 @@ where
     ) -> Self {
         assert!(index.as_usize() < party_count);
 
-        Round::NoMessages {
+        Round::NoMessages(NoMessagesRound {
             round,
             party_count,
             index,
-        }
+        })
     }
 
     #[cfg(test)]
@@ -86,11 +85,7 @@ where
                 bcasts_in: _,
                 p2ps_in: _,
             } => round.as_any(),
-            Round::NoMessages {
-                round,
-                party_count: _,
-                index: _,
-            } => round.as_any(),
+            Round::NoMessages(r) => r.round.as_any(),
         }
     }
 }

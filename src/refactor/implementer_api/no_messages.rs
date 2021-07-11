@@ -16,3 +16,12 @@ pub trait Executer: Send + Sync {
         unimplemented!("(RoundExecuter) return `self` to enable runtime reflection: https://bennetthardwick.com/dont-use-boxed-trait-objects-for-struct-internals")
     }
 }
+
+pub struct NoMessagesRound<F, K>
+where
+    K: Behave,
+{
+    pub round: Box<dyn Executer<FinalOutput = F, Index = K>>,
+    pub party_count: usize,
+    pub index: Index<K>,
+}

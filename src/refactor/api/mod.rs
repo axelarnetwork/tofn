@@ -40,11 +40,7 @@ where
                 bcasts_in: _,
                 p2ps_in: _,
             } => bcast_out,
-            Round::NoMessages {
-                round: _,
-                party_count: _,
-                index: _,
-            } => &None,
+            Round::NoMessages(_) => &None,
         }
     }
     pub fn p2ps_out(&self) -> &Option<HoleVecMap<K, BytesVec>> {
@@ -58,11 +54,7 @@ where
                 bcasts_in: _,
                 p2ps_in: _,
             } => p2ps_out,
-            Round::NoMessages {
-                round: _,
-                party_count: _,
-                index: _,
-            } => &None,
+            Round::NoMessages(_) => &None,
         }
     }
     pub fn bcast_in(&mut self, from: Index<K>, bytes: &[u8]) {
@@ -83,11 +75,9 @@ where
                     warn!("`bcast_in` called but no bcasts expected; discarding `bytes`");
                 }
             }
-            Round::NoMessages {
-                round: _,
-                party_count: _,
-                index: _,
-            } => warn!("`bcast_in` called but no bcasts expected; discarding `bytes`"),
+            Round::NoMessages(_) => {
+                warn!("`bcast_in` called but no bcasts expected; discarding `bytes`")
+            }
         }
     }
     pub fn p2p_in(&mut self, from: Index<K>, to: Index<K>, bytes: &[u8]) {
@@ -108,11 +98,9 @@ where
                     warn!("`p2p_in` called but no p2ps expected; discaring `bytes`");
                 }
             }
-            Round::NoMessages {
-                round: _,
-                party_count: _,
-                index: _,
-            } => warn!("`p2p_in` called but no p2ps expected; discaring `bytes`"),
+            Round::NoMessages(_) => {
+                warn!("`p2p_in` called but no p2ps expected; discaring `bytes`")
+            }
         }
     }
     pub fn expecting_more_msgs_this_round(&self) -> bool {
@@ -139,11 +127,7 @@ where
                 };
                 expecting_more_p2ps
             }
-            Round::NoMessages {
-                round: _,
-                party_count: _,
-                index: _,
-            } => false,
+            Round::NoMessages(_) => false,
         }
     }
     pub fn execute_next_round(self) -> Protocol<F, K> {
@@ -166,11 +150,10 @@ where
                     )
                     .build(party_count, index)
             }
-            Round::NoMessages {
-                round,
-                party_count,
-                index,
-            } => round.execute(party_count, index).build(party_count, index),
+            Round::NoMessages(r) => r
+                .round
+                .execute(r.party_count, r.index)
+                .build(r.party_count, r.index),
         }
     }
     pub fn party_count(&self) -> usize {
@@ -184,11 +167,7 @@ where
                 bcasts_in: _,
                 p2ps_in: _,
             } => *party_count,
-            Round::NoMessages {
-                round: _,
-                party_count,
-                index: _,
-            } => *party_count,
+            Round::NoMessages(r) => r.party_count,
         }
     }
     pub fn index(&self) -> Index<K> {
@@ -202,11 +181,7 @@ where
                 bcasts_in: _,
                 p2ps_in: _,
             } => *index,
-            Round::NoMessages {
-                round: _,
-                party_count: _,
-                index,
-            } => *index,
+            Round::NoMessages(r) => r.index,
         }
     }
 }
