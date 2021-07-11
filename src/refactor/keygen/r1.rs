@@ -6,7 +6,7 @@ use crate::{
         protocol_round::{
             bcast_and_p2p::executer::{serialize, RoundExecuterRaw},
             ProtocolBuilder::{self, *},
-            ProtocolRoundBuilder,
+            RoundBuilder,
         },
     },
     vecmap::{FillP2ps, FillVecMap, Index},
@@ -89,7 +89,7 @@ impl RoundExecuterRaw for R1 {
             zkp_proof,
         }));
 
-        NotDone(ProtocolRoundBuilder {
+        NotDone(RoundBuilder {
             round: Box::new(r2::R2 {
                 threshold: self.threshold,
                 dk,

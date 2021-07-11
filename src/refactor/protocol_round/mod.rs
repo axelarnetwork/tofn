@@ -11,14 +11,14 @@ pub enum ProtocolBuilder<F, K>
 where
     K: Behave,
 {
-    NotDone(ProtocolRoundBuilder<F, K>),
+    NotDone(RoundBuilder<F, K>),
     Done(ProtocolOutput<F, K>),
 }
 
 // TODO rename to RoundBulder
 // make it an enum for each of bcast_and_p2p, bcast_only, p2p_only, no_msgs
 // each `round` is a Box<dyn ExecuterXXX> where XXX is one of bcast_and_p2p, etc.
-pub struct ProtocolRoundBuilder<F, K>
+pub struct RoundBuilder<F, K>
 where
     K: Behave,
 {

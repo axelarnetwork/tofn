@@ -11,7 +11,7 @@ use crate::{
         keygen::r4,
         protocol_round::{
             bcast_and_p2p::executer::{log_accuse_warn, serialize, RoundExecuter},
-            ProtocolBuilder, ProtocolRoundBuilder,
+            ProtocolBuilder, RoundBuilder,
         },
     },
     vecmap::{FillVecMap, Index, P2ps, VecMap},
@@ -135,7 +135,7 @@ impl RoundExecuter for R3 {
         }
 
         if !vss_complaints.is_empty() {
-            return ProtocolBuilder::NotDone(ProtocolRoundBuilder {
+            return ProtocolBuilder::NotDone(RoundBuilder {
                 round: Box::new(r4::sad::R4Sad {
                     r1bcasts: self.r1bcasts,
                     r2bcasts: bcasts_in,
@@ -181,7 +181,7 @@ impl RoundExecuter for R3 {
             &schnorr_k256::Witness { scalar: &x_i },
         );
 
-        ProtocolBuilder::NotDone(ProtocolRoundBuilder {
+        ProtocolBuilder::NotDone(RoundBuilder {
             round: Box::new(r4::happy::R4 {
                 threshold: self.threshold,
                 dk: self.dk,

@@ -9,7 +9,7 @@ use crate::{
         keygen::r3,
         protocol_round::{
             bcast_and_p2p::executer::{serialize, RoundExecuter},
-            ProtocolBuilder, ProtocolRoundBuilder,
+            ProtocolBuilder, RoundBuilder,
         },
     },
     vecmap::{FillVecMap, Index, P2ps, VecMap},
@@ -92,7 +92,7 @@ impl RoundExecuter for R2 {
             u_i_vss_commit: self.u_i_vss.commit(),
         }));
 
-        ProtocolBuilder::NotDone(ProtocolRoundBuilder {
+        ProtocolBuilder::NotDone(RoundBuilder {
             round: Box::new(r3::R3 {
                 threshold: self.threshold,
                 dk: self.dk,
