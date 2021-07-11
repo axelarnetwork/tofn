@@ -1,5 +1,5 @@
 //! TODO traits only here, rename to `api` or `traits` or something.
-use crate::vecmap::{Behave, FillP2ps, FillVecMap, HoleVecMap, Index};
+use crate::vecmap::{Behave, FillVecMap, HoleVecMap, Index};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
@@ -31,50 +31,21 @@ where
 {
     pub fn bcast_out(&self) -> Option<&BytesVec> {
         match self {
-            Round::BcastAndP2p {
-                round: _,
-                party_count: _,
-                index: _,
-                bcast_out,
-                p2ps_out: _,
-                bcasts_in: _,
-                p2ps_in: _,
-            } => bcast_out.as_ref(),
+            Round::BcastAndP2p(r) => Some(&r.bcast_out),
             Round::BcastOnly(r) => Some(&r.bcast_out),
             Round::NoMessages(_) => None,
         }
     }
-    pub fn p2ps_out(&self) -> &Option<HoleVecMap<K, BytesVec>> {
+    pub fn p2ps_out(&self) -> Option<&HoleVecMap<K, BytesVec>> {
         match self {
-            Round::BcastAndP2p {
-                round: _,
-                party_count: _,
-                index: _,
-                bcast_out: _,
-                p2ps_out,
-                bcasts_in: _,
-                p2ps_in: _,
-            } => p2ps_out,
-            Round::BcastOnly(_) | Round::NoMessages(_) => &None,
+            Round::BcastAndP2p(r) => Some(&r.p2ps_out),
+            Round::BcastOnly(_) | Round::NoMessages(_) => None,
         }
     }
     pub fn bcast_in(&mut self, from: Index<K>, bytes: &[u8]) {
         match self {
-            Round::BcastAndP2p {
-                round: _,
-                party_count: _,
-                index: _,
-                bcast_out: _,
-                p2ps_out: _,
-                bcasts_in,
-                p2ps_in: _,
-            } => {
-                if let Some(ref mut bcasts_in) = bcasts_in {
-                    // TODO range check
-                    bcasts_in.set_warn(from, bytes.to_vec());
-                } else {
-                    warn!("`bcast_in` called but no bcasts expected; discarding `bytes`");
-                }
+            Round::BcastAndP2p(r) => {
+                r.bcasts_in.set_warn(from, bytes.to_vec());
             }
             Round::BcastOnly(r) => r.bcasts_in.set_warn(from, bytes.to_vec()),
             Round::NoMessages(_) => {
@@ -84,21 +55,8 @@ where
     }
     pub fn p2p_in(&mut self, from: Index<K>, to: Index<K>, bytes: &[u8]) {
         match self {
-            Round::BcastAndP2p {
-                round: _,
-                party_count: _,
-                index: _,
-                bcast_out: _,
-                p2ps_out: _,
-                bcasts_in: _,
-                p2ps_in,
-            } => {
-                if let Some(ref mut p2ps_in) = p2ps_in {
-                    // TODO range checks
-                    p2ps_in.set_warn(from, to, bytes.to_vec());
-                } else {
-                    warn!("`p2p_in` called but no p2ps expected; discaring `bytes`");
-                }
+            Round::BcastAndP2p(r) => {
+                r.p2ps_in.set_warn(from, to, bytes.to_vec());
             }
             Round::BcastOnly(_) | Round::NoMessages(_) => {
                 warn!("`p2p_in` called but no p2ps expected; discaring `bytes`")
@@ -107,52 +65,17 @@ where
     }
     pub fn expecting_more_msgs_this_round(&self) -> bool {
         match self {
-            Round::BcastAndP2p {
-                round: _,
-                party_count: _,
-                index: _,
-                bcast_out: _,
-                p2ps_out: _,
-                bcasts_in,
-                p2ps_in,
-            } => {
-                let expecting_more_bcasts = match bcasts_in {
-                    Some(ref bcasts_in) => !bcasts_in.is_full(),
-                    None => false,
-                };
-                if expecting_more_bcasts {
-                    return true;
-                }
-                let expecting_more_p2ps = match p2ps_in {
-                    Some(ref p2ps_in) => !p2ps_in.is_full(),
-                    None => false,
-                };
-                expecting_more_p2ps
-            }
+            Round::BcastAndP2p(r) => !r.bcasts_in.is_full() || !r.p2ps_in.is_full(),
             Round::BcastOnly(r) => !r.bcasts_in.is_full(),
             Round::NoMessages(_) => false,
         }
     }
     pub fn execute_next_round(self) -> Protocol<F, K> {
         match self {
-            Round::BcastAndP2p {
-                round,
-                party_count,
-                index,
-                bcast_out: _,
-                p2ps_out: _,
-                bcasts_in,
-                p2ps_in,
-            } => {
-                round
-                    .execute_raw(
-                        party_count,
-                        index,
-                        bcasts_in.unwrap_or_else(|| FillVecMap::with_size(0)), // TODO accept Option instead
-                        p2ps_in.unwrap_or_else(|| FillP2ps::with_size(0)), // TODO accept Option instead
-                    )
-                    .build(party_count, index)
-            }
+            Round::BcastAndP2p(r) => r
+                .round
+                .execute_raw(r.party_count, r.index, r.bcasts_in, r.p2ps_in)
+                .build(r.party_count, r.index),
             Round::BcastOnly(r) => r
                 .round
                 .execute_raw(r.party_count, r.index, r.bcasts_in)
@@ -165,30 +88,14 @@ where
     }
     pub fn party_count(&self) -> usize {
         match self {
-            Round::BcastAndP2p {
-                round: _,
-                party_count,
-                index: _,
-                bcast_out: _,
-                p2ps_out: _,
-                bcasts_in: _,
-                p2ps_in: _,
-            } => *party_count,
+            Round::BcastAndP2p(r) => r.party_count,
             Round::BcastOnly(r) => r.party_count,
             Round::NoMessages(r) => r.party_count,
         }
     }
     pub fn index(&self) -> Index<K> {
         match self {
-            Round::BcastAndP2p {
-                round: _,
-                party_count: _,
-                index,
-                bcast_out: _,
-                p2ps_out: _,
-                bcasts_in: _,
-                p2ps_in: _,
-            } => *index,
+            Round::BcastAndP2p(r) => r.index,
             Round::BcastOnly(r) => r.index,
             Round::NoMessages(r) => r.index,
         }

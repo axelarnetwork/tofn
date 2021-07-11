@@ -70,7 +70,7 @@ where
     // deliver p2ps
     let all_p2ps: VecMap<K, Option<HoleVecMap<K, BytesVec>>> = rounds
         .iter()
-        .map(|(_, round)| round.p2ps_out().clone())
+        .map(|(_, round)| round.p2ps_out().cloned())
         .collect();
     for (from, p2ps) in all_p2ps.into_iter() {
         if let Some(p2ps) = p2ps {

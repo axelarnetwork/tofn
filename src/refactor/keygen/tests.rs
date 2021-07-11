@@ -144,7 +144,7 @@ pub(crate) fn execute_keygen_from_recovery(
     }
     let r2_p2ps: VecMap<KeygenPartyIndex, HoleVecMap<KeygenPartyIndex, BytesVec>> = r2_parties
         .iter()
-        .map(|party| party.p2ps_out().clone().unwrap())
+        .map(|party| party.p2ps_out().unwrap().clone())
         .collect();
     for party in r2_parties.iter_mut() {
         for (from, p2ps) in r2_p2ps.iter() {

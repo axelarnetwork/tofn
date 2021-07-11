@@ -73,7 +73,7 @@ impl bcast_only::Executer for R2 {
 
         let u_i_other_shares = self.corrupt_share(index, u_i_other_shares);
 
-        let p2ps_out = Some(u_i_other_shares.map2(|(i, share)| {
+        let p2ps_out = u_i_other_shares.map2(|(i, share)| {
             // encrypt the share for party i
             let (u_i_share_ciphertext, _) = bcasts_in.get(i).ek.encrypt(&share.get_scalar().into());
 
@@ -82,12 +82,12 @@ impl bcast_only::Executer for R2 {
             serialize(&P2p {
                 u_i_share_ciphertext,
             })
-        }));
+        });
 
-        let bcast_out = Some(serialize(&Bcast {
+        let bcast_out = serialize(&Bcast {
             y_i_reveal: self.y_i_reveal.clone(),
             u_i_vss_commit: self.u_i_vss.commit(),
-        }));
+        });
 
         ProtocolBuilder::NotDone(RoundBuilder::BcastAndP2p {
             round: Box::new(r3::R3 {

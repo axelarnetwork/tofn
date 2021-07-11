@@ -1,13 +1,12 @@
 //! API for protocol implementers, but not for users of protocols
 pub mod bcast_and_p2p;
+pub mod bcast_and_p2p2;
 pub mod bcast_only;
 pub mod no_messages;
 pub mod round;
 pub use round::Round;
 
 use crate::vecmap::{Behave, HoleVecMap, Index};
-
-use self::bcast_and_p2p::executer::RoundExecuterRaw;
 
 use super::api::{BytesVec, Protocol, ProtocolOutput};
 
@@ -50,9 +49,9 @@ where
     K: Behave,
 {
     BcastAndP2p {
-        round: Box<dyn RoundExecuterRaw<FinalOutput = F, Index = K>>,
-        bcast_out: Option<BytesVec>,
-        p2ps_out: Option<HoleVecMap<K, BytesVec>>,
+        round: Box<dyn bcast_and_p2p2::ExecuterRaw<FinalOutput = F, Index = K>>,
+        bcast_out: BytesVec,
+        p2ps_out: HoleVecMap<K, BytesVec>,
     },
     BcastOnly {
         round: Box<dyn bcast_only::ExecuterRaw<FinalOutput = F, Index = K>>,
