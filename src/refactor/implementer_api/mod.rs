@@ -31,6 +31,9 @@ where
                     bcast_out,
                     p2ps_out,
                 } => Round::new_bcast_and_p2p(round, party_count, index, bcast_out, p2ps_out),
+                RoundBuilder::BcastOnly { round, bcast_out } => {
+                    Round::new_bcast_only(round, party_count, index, bcast_out)
+                }
                 RoundBuilder::NoMessages { round } => {
                     Round::new_no_messages(round, party_count, index)
                 }
@@ -50,6 +53,10 @@ where
         round: Box<dyn RoundExecuterRaw<FinalOutput = F, Index = K>>,
         bcast_out: Option<BytesVec>,
         p2ps_out: Option<HoleVecMap<K, BytesVec>>,
+    },
+    BcastOnly {
+        round: Box<dyn bcast_only::ExecuterRaw<FinalOutput = F, Index = K>>,
+        bcast_out: BytesVec,
     },
     NoMessages {
         round: Box<dyn no_messages::Executer<FinalOutput = F, Index = K>>,

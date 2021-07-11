@@ -77,15 +77,15 @@ impl no_messages::Executer for R1 {
             zkp_proof
         };
 
-        let bcast_out = Some(serialize(&Bcast {
+        let bcast_out = serialize(&Bcast {
             y_i_commit,
             ek,
             ek_proof,
             zkp,
             zkp_proof,
-        }));
+        });
 
-        NotDone(RoundBuilder::BcastAndP2p {
+        NotDone(RoundBuilder::BcastOnly {
             round: Box::new(r2::R2 {
                 threshold: self.threshold,
                 dk,
@@ -95,7 +95,6 @@ impl no_messages::Executer for R1 {
                 behaviour: self.behaviour,
             }),
             bcast_out,
-            p2ps_out: None,
         })
     }
 }

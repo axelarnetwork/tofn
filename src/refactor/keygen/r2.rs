@@ -7,12 +7,11 @@ use crate::{
     refactor::{
         api::Fault::ProtocolFault,
         implementer_api::{
-            bcast_and_p2p::executer::{serialize, RoundExecuter},
-            ProtocolBuilder, RoundBuilder,
+            bcast_and_p2p::executer::serialize, bcast_only, ProtocolBuilder, RoundBuilder,
         },
         keygen::r3,
     },
-    vecmap::{FillVecMap, Index, P2ps, VecMap},
+    vecmap::{FillVecMap, Index, VecMap},
 };
 
 use super::{r1, KeygenPartyIndex, KeygenProtocolBuilder};
@@ -41,18 +40,16 @@ pub struct R2 {
     pub behaviour: Behaviour,
 }
 
-impl RoundExecuter for R2 {
+impl bcast_only::Executer for R2 {
     type FinalOutput = SecretKeyShare;
     type Index = KeygenPartyIndex;
     type Bcast = r1::Bcast;
-    type P2p = ();
 
     fn execute(
         self: Box<Self>,
         party_count: usize,
         index: Index<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
-        _p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> KeygenProtocolBuilder {
         let mut faulters = FillVecMap::with_size(party_count);
 
