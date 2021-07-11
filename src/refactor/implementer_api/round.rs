@@ -5,7 +5,7 @@ use crate::{
 
 use super::{
     bcast_and_p2p::executer::RoundExecuterRaw,
-    bcast_only::BcastOnlyRound,
+    bcast_only::{self, BcastOnlyRound},
     no_messages::{self, NoMessagesRound},
 };
 
@@ -59,6 +59,25 @@ where
             bcasts_in,
             p2ps_in,
         }
+    }
+
+    pub fn new_bcast_only(
+        round: Box<dyn bcast_only::ExecuterRaw<FinalOutput = F, Index = K>>,
+        party_count: usize,
+        index: Index<K>,
+        bcast_out: BytesVec,
+    ) -> Self {
+        // validate args
+        // TODO return error instead of panic?
+        assert!(index.as_usize() < party_count);
+
+        Round::BcastOnly(BcastOnlyRound {
+            round,
+            party_count,
+            index,
+            bcast_out,
+            bcasts_in: FillVecMap::with_size(party_count),
+        })
     }
 
     pub fn new_no_messages(
