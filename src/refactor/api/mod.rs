@@ -40,7 +40,7 @@ where
                 bcasts_in: _,
                 p2ps_in: _,
             } => bcast_out.as_ref(),
-            // Round::BcastOnly(r) => Some(&r.bcast_out),
+            Round::BcastOnly(r) => Some(&r.bcast_out),
             Round::NoMessages(_) => None,
         }
     }
@@ -55,7 +55,7 @@ where
                 bcasts_in: _,
                 p2ps_in: _,
             } => p2ps_out,
-            Round::NoMessages(_) => &None,
+            Round::BcastOnly(_) | Round::NoMessages(_) => &None,
         }
     }
     pub fn bcast_in(&mut self, from: Index<K>, bytes: &[u8]) {
@@ -76,6 +76,7 @@ where
                     warn!("`bcast_in` called but no bcasts expected; discarding `bytes`");
                 }
             }
+            Round::BcastOnly(r) => r.bcasts_in.set_warn(from, bytes.to_vec()),
             Round::NoMessages(_) => {
                 warn!("`bcast_in` called but no bcasts expected; discarding `bytes`")
             }
@@ -99,7 +100,7 @@ where
                     warn!("`p2p_in` called but no p2ps expected; discaring `bytes`");
                 }
             }
-            Round::NoMessages(_) => {
+            Round::BcastOnly(_) | Round::NoMessages(_) => {
                 warn!("`p2p_in` called but no p2ps expected; discaring `bytes`")
             }
         }
@@ -128,6 +129,7 @@ where
                 };
                 expecting_more_p2ps
             }
+            Round::BcastOnly(r) => !r.bcasts_in.is_full(),
             Round::NoMessages(_) => false,
         }
     }
@@ -151,6 +153,10 @@ where
                     )
                     .build(party_count, index)
             }
+            Round::BcastOnly(r) => r
+                .round
+                .execute_raw(r.party_count, r.index, r.bcasts_in)
+                .build(r.party_count, r.index),
             Round::NoMessages(r) => r
                 .round
                 .execute(r.party_count, r.index)
@@ -168,6 +174,7 @@ where
                 bcasts_in: _,
                 p2ps_in: _,
             } => *party_count,
+            Round::BcastOnly(r) => r.party_count,
             Round::NoMessages(r) => r.party_count,
         }
     }
@@ -182,6 +189,7 @@ where
                 bcasts_in: _,
                 p2ps_in: _,
             } => *index,
+            Round::BcastOnly(r) => r.index,
             Round::NoMessages(r) => r.index,
         }
     }

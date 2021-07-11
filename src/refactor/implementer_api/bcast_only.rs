@@ -102,4 +102,5 @@ where
     pub party_count: usize,
     pub index: Index<K>,
     pub bcast_out: BytesVec,
+    pub bcasts_in: FillVecMap<K, BytesVec>,
 }

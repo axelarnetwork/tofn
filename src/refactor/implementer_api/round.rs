@@ -22,7 +22,7 @@ where
         bcasts_in: Option<FillVecMap<K, BytesVec>>,
         p2ps_in: Option<FillP2ps<K, BytesVec>>,
     },
-    // BcastOnly(BcastOnlyRound<F, K>),
+    BcastOnly(BcastOnlyRound<F, K>),
     NoMessages(NoMessagesRound<F, K>),
 }
 
@@ -87,7 +87,7 @@ where
                 bcasts_in: _,
                 p2ps_in: _,
             } => round.as_any(),
-            // Round::BcastOnly(r) => r.round.as_any(),
+            Round::BcastOnly(r) => r.round.as_any(),
             Round::NoMessages(r) => r.round.as_any(),
         }
     }
