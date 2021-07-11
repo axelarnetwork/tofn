@@ -1,15 +1,13 @@
 use crate::{
     hash, k256_serde, paillier_k256,
     protocol::gg20::{vss_k256, SecretKeyShare},
-    refactor::{
-        api::BytesVec,
-        implementer_api::{
-            bcast_and_p2p::executer::{serialize, RoundExecuterRaw},
-            ProtocolBuilder::{self, *},
-            RoundBuilder,
-        },
+    refactor::implementer_api::{
+        bcast_and_p2p::executer::serialize,
+        no_messages,
+        ProtocolBuilder::{self, *},
+        RoundBuilder,
     },
-    vecmap::{FillP2ps, FillVecMap, Index},
+    vecmap::Index,
 };
 use serde::{Deserialize, Serialize};
 use tracing::info;
@@ -36,16 +34,14 @@ pub struct Bcast {
     pub zkp_proof: paillier_k256::zk::ZkSetupProof,
 }
 
-impl RoundExecuterRaw for R1 {
+impl no_messages::Executer for R1 {
     type FinalOutput = SecretKeyShare;
     type Index = KeygenPartyIndex;
 
-    fn execute_raw(
+    fn execute(
         self: Box<Self>,
         _party_count: usize,
         index: Index<Self::Index>,
-        _bcasts_in: FillVecMap<Self::Index, BytesVec>,
-        _p2ps_in: FillP2ps<Self::Index, BytesVec>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
         let u_i_vss = vss_k256::Vss::new(self.threshold);
         let (y_i_commit, y_i_reveal) = hash::commit(k256_serde::to_bytes(

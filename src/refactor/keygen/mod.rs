@@ -65,7 +65,7 @@ fn new_keygen_impl(
     // compute the RNG seed now so as to minimize copying of `secret_recovery_key`
     let rng_seed = rng::seed(secret_recovery_key, session_nonce);
 
-    Ok(Protocol::NotDone(Round::new_bcast_and_p2p(
+    Ok(Protocol::NotDone(Round::new_no_messages(
         Box::new(r1::R1 {
             threshold,
             rng_seed,
@@ -74,8 +74,6 @@ fn new_keygen_impl(
         }),
         share_count,
         index,
-        None,
-        None,
     )))
 }
 
