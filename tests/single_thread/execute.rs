@@ -57,7 +57,7 @@ where
     // deliver bcasts
     let bcasts: VecMap<K, Option<BytesVec>> = rounds
         .iter()
-        .map(|(_, round)| round.bcast_out().clone())
+        .map(|(_, round)| round.bcast_out().cloned())
         .collect();
     for (from, bcast) in bcasts.into_iter() {
         if let Some(bytes) = bcast {

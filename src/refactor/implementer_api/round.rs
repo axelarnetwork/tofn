@@ -5,6 +5,7 @@ use crate::{
 
 use super::{
     bcast_and_p2p::executer::RoundExecuterRaw,
+    bcast_only::BcastOnlyRound,
     no_messages::{self, NoMessagesRound},
 };
 
@@ -21,6 +22,7 @@ where
         bcasts_in: Option<FillVecMap<K, BytesVec>>,
         p2ps_in: Option<FillP2ps<K, BytesVec>>,
     },
+    // BcastOnly(BcastOnlyRound<F, K>),
     NoMessages(NoMessagesRound<F, K>),
 }
 
@@ -85,6 +87,7 @@ where
                 bcasts_in: _,
                 p2ps_in: _,
             } => round.as_any(),
+            // Round::BcastOnly(r) => r.round.as_any(),
             Round::NoMessages(r) => r.round.as_any(),
         }
     }

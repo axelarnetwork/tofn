@@ -29,7 +29,7 @@ impl<F, K> Round<F, K>
 where
     K: Behave,
 {
-    pub fn bcast_out(&self) -> &Option<BytesVec> {
+    pub fn bcast_out(&self) -> Option<&BytesVec> {
         match self {
             Round::BcastAndP2p {
                 round: _,
@@ -39,8 +39,9 @@ where
                 p2ps_out: _,
                 bcasts_in: _,
                 p2ps_in: _,
-            } => bcast_out,
-            Round::NoMessages(_) => &None,
+            } => bcast_out.as_ref(),
+            // Round::BcastOnly(r) => Some(&r.bcast_out),
+            Round::NoMessages(_) => None,
         }
     }
     pub fn p2ps_out(&self) -> &Option<HoleVecMap<K, BytesVec>> {

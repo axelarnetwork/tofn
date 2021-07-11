@@ -1,5 +1,6 @@
 //! API for protocol implementers, but not for users of protocols
 pub mod bcast_and_p2p;
+pub mod bcast_only;
 pub mod no_messages;
 pub mod round;
 pub use round::Round;
