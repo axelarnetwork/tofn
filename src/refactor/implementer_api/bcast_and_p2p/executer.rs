@@ -3,7 +3,7 @@ use serde::de::DeserializeOwned;
 use crate::{
     refactor::{
         api::{BytesVec, Fault},
-        protocol_round::ProtocolBuilder,
+        implementer_api::ProtocolBuilder,
     },
     vecmap::{Behave, FillP2ps, FillVecMap, Index, P2ps, VecMap},
 };

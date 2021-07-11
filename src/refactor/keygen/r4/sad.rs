@@ -4,11 +4,11 @@ use crate::{
     protocol::gg20::SecretKeyShare,
     refactor::{
         api::Fault::ProtocolFault,
-        keygen::{r1, r2, r3, KeygenPartyIndex},
-        protocol_round::{
+        implementer_api::{
             bcast_and_p2p::executer::{log_fault_info, RoundExecuter},
             ProtocolBuilder,
         },
+        keygen::{r1, r2, r3, KeygenPartyIndex},
     },
     vecmap::{FillVecMap, Index, P2ps, VecMap},
 };

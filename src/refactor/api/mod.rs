@@ -3,7 +3,7 @@ use crate::vecmap::{Behave, FillP2ps, FillVecMap, HoleVecMap, Index};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::protocol_round::round::Round;
+use super::implementer_api::round::Round;
 
 pub type TofnResult<T> = Result<T, String>;
 pub type BytesVec = Vec<u8>;

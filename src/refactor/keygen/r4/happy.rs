@@ -5,11 +5,11 @@ use crate::{
     protocol::gg20::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo},
     refactor::{
         api::Fault::ProtocolFault,
-        keygen::{r1, r2, r3, r4::sad::R4Sad, KeygenPartyIndex},
-        protocol_round::{
+        implementer_api::{
             bcast_and_p2p::executer::{log_fault_warn, RoundExecuter},
             ProtocolBuilder,
         },
+        keygen::{r1, r2, r3, r4::sad::R4Sad, KeygenPartyIndex},
     },
     vecmap::{FillVecMap, Index, P2ps, VecMap},
     zkp::schnorr_k256,

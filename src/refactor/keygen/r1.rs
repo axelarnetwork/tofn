@@ -3,7 +3,7 @@ use crate::{
     protocol::gg20::{vss_k256, SecretKeyShare},
     refactor::{
         api::BytesVec,
-        protocol_round::{
+        implementer_api::{
             bcast_and_p2p::executer::{serialize, RoundExecuterRaw},
             ProtocolBuilder::{self, *},
             RoundBuilder,

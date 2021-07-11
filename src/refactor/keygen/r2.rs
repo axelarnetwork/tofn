@@ -6,11 +6,11 @@ use crate::{
     protocol::gg20::{vss_k256, SecretKeyShare},
     refactor::{
         api::Fault::ProtocolFault,
-        keygen::r3,
-        protocol_round::{
+        implementer_api::{
             bcast_and_p2p::executer::{serialize, RoundExecuter},
             ProtocolBuilder, RoundBuilder,
         },
+        keygen::r3,
     },
     vecmap::{FillVecMap, Index, P2ps, VecMap},
 };
