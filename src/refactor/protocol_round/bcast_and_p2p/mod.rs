@@ -5,7 +5,7 @@ use crate::{
     vecmap::{Behave, FillP2ps, FillVecMap, HoleVecMap, Index},
 };
 
-use super::ProtocolBuilder;
+use super::{ProtocolBuilder, RoundBuilder};
 
 pub struct BcastAndP2p<F, K>
 where
@@ -108,13 +108,19 @@ where
             self.bcasts_in.unwrap_or_else(|| FillVecMap::with_size(0)), // TODO accept Option instead
             self.p2ps_in.unwrap_or_else(|| FillP2ps::with_size(0)), // TODO accept Option instead
         ) {
-            ProtocolBuilder::NotDone(builder) => Protocol::NotDone(Box::new(BcastAndP2p::new(
-                builder.round,
-                self.party_count,
-                self.index,
-                builder.bcast_out,
-                builder.p2ps_out,
-            ))),
+            ProtocolBuilder::NotDone(builder) => match builder {
+                RoundBuilder::BcastAndP2p {
+                    round,
+                    bcast_out,
+                    p2ps_out,
+                } => Protocol::NotDone(Box::new(BcastAndP2p::new(
+                    round,
+                    self.party_count,
+                    self.index,
+                    bcast_out,
+                    p2ps_out,
+                ))),
+            },
             ProtocolBuilder::Done(output) => Protocol::Done(output),
         }
     }

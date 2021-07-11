@@ -135,7 +135,7 @@ impl RoundExecuter for R3 {
         }
 
         if !vss_complaints.is_empty() {
-            return ProtocolBuilder::NotDone(RoundBuilder {
+            return ProtocolBuilder::NotDone(RoundBuilder::BcastAndP2p {
                 round: Box::new(r4::sad::R4Sad {
                     r1bcasts: self.r1bcasts,
                     r2bcasts: bcasts_in,
@@ -181,7 +181,7 @@ impl RoundExecuter for R3 {
             &schnorr_k256::Witness { scalar: &x_i },
         );
 
-        ProtocolBuilder::NotDone(RoundBuilder {
+        ProtocolBuilder::NotDone(RoundBuilder::BcastAndP2p {
             round: Box::new(r4::happy::R4 {
                 threshold: self.threshold,
                 dk: self.dk,

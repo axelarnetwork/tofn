@@ -89,7 +89,7 @@ impl RoundExecuterRaw for R1 {
             zkp_proof,
         }));
 
-        NotDone(RoundBuilder {
+        NotDone(RoundBuilder::BcastAndP2p {
             round: Box::new(r2::R2 {
                 threshold: self.threshold,
                 dk,

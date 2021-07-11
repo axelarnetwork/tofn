@@ -92,7 +92,7 @@ impl RoundExecuter for R2 {
             u_i_vss_commit: self.u_i_vss.commit(),
         }));
 
-        ProtocolBuilder::NotDone(RoundBuilder {
+        ProtocolBuilder::NotDone(RoundBuilder::BcastAndP2p {
             round: Box::new(r3::R3 {
                 threshold: self.threshold,
                 dk: self.dk,

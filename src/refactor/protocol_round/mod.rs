@@ -15,14 +15,15 @@ where
     Done(ProtocolOutput<F, K>),
 }
 
-// TODO rename to RoundBulder
 // make it an enum for each of bcast_and_p2p, bcast_only, p2p_only, no_msgs
 // each `round` is a Box<dyn ExecuterXXX> where XXX is one of bcast_and_p2p, etc.
-pub struct RoundBuilder<F, K>
+pub enum RoundBuilder<F, K>
 where
     K: Behave,
 {
-    pub round: Box<dyn RoundExecuterRaw<FinalOutput = F, Index = K>>,
-    pub bcast_out: Option<BytesVec>,
-    pub p2ps_out: Option<HoleVecMap<K, BytesVec>>,
+    BcastAndP2p {
+        round: Box<dyn RoundExecuterRaw<FinalOutput = F, Index = K>>,
+        bcast_out: Option<BytesVec>,
+        p2ps_out: Option<HoleVecMap<K, BytesVec>>,
+    },
 }
