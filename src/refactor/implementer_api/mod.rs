@@ -1,5 +1,5 @@
 //! API for protocol implementers, but not for users of protocols
-pub mod bcast_and_p2p2;
+pub mod bcast_and_p2p;
 pub mod bcast_only;
 pub mod no_messages;
 pub mod round;
@@ -48,7 +48,7 @@ where
     K: Behave,
 {
     BcastAndP2p {
-        round: Box<dyn bcast_and_p2p2::ExecuterRaw<FinalOutput = F, Index = K>>,
+        round: Box<dyn bcast_and_p2p::ExecuterRaw<FinalOutput = F, Index = K>>,
         bcast_out: BytesVec,
         p2ps_out: HoleVecMap<K, BytesVec>,
     },

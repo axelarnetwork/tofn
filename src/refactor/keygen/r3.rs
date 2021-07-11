@@ -9,7 +9,7 @@ use crate::{
     refactor::{
         api::Fault::ProtocolFault,
         implementer_api::{
-            bcast_and_p2p2, log_accuse_warn, serialize, ProtocolBuilder, RoundBuilder,
+            bcast_and_p2p, log_accuse_warn, serialize, ProtocolBuilder, RoundBuilder,
         },
         keygen::r4,
     },
@@ -54,7 +54,7 @@ pub struct R3 {
     pub behaviour: Behaviour,
 }
 
-impl bcast_and_p2p2::Executer for R3 {
+impl bcast_and_p2p::Executer for R3 {
     type FinalOutput = SecretKeyShare;
     type Index = KeygenPartyIndex;
     type Bcast = r2::Bcast;

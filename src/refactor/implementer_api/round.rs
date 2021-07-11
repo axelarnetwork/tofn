@@ -4,7 +4,7 @@ use crate::{
 };
 
 use super::{
-    bcast_and_p2p2::{self, BcastAndP2pRound},
+    bcast_and_p2p::{self, BcastAndP2pRound},
     bcast_only::{self, BcastOnlyRound},
     no_messages::{self, NoMessagesRound},
 };
@@ -23,7 +23,7 @@ where
     K: Behave,
 {
     pub fn new_bcast_and_p2p(
-        round: Box<dyn bcast_and_p2p2::ExecuterRaw<FinalOutput = F, Index = K>>,
+        round: Box<dyn bcast_and_p2p::ExecuterRaw<FinalOutput = F, Index = K>>,
         party_count: usize,
         index: Index<K>,
         bcast_out: BytesVec,
