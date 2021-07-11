@@ -3,8 +3,7 @@ use crate::refactor::api::{Protocol, TofnResult};
 use crate::vecmap::{Behave, Index};
 use serde::{Deserialize, Serialize};
 
-use super::api::Round;
-use super::protocol_round::ProtocolBuilder;
+use super::protocol_round::{ProtocolBuilder, Round};
 
 // need to derive all this crap for each new marker struct
 // in order to avoid this problem: https://stackoverflow.com/a/31371094

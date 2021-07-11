@@ -1,10 +1,10 @@
+//! API for protocol implementers, but not for users of protocols
 pub mod bcast_and_p2p;
 pub mod no_messages;
+pub mod round;
+pub use round::Round;
 
-use crate::{
-    refactor::api::Round,
-    vecmap::{Behave, HoleVecMap, Index},
-};
+use crate::vecmap::{Behave, HoleVecMap, Index};
 
 use self::bcast_and_p2p::executer::RoundExecuterRaw;
 
