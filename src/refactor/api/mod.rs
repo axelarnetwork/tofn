@@ -280,7 +280,7 @@ where
     }
 
     #[cfg(test)]
-    pub fn round(&self) -> &Box<dyn RoundExecuterRaw<FinalOutput = F, Index = K>> {
+    pub fn round_as_any(&self) -> &dyn std::any::Any {
         match self {
             Round::BcastAndP2p {
                 round,
@@ -290,12 +290,12 @@ where
                 p2ps_out: _,
                 bcasts_in: _,
                 p2ps_in: _,
-            } => round,
+            } => round.as_any(),
             Round::NoMessages {
                 round,
-                party_count,
-                index,
-            } => todo!("round_as_any"),
+                party_count: _,
+                index: _,
+            } => round.as_any(),
         }
     }
 }

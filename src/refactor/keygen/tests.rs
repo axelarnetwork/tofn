@@ -108,8 +108,7 @@ pub(crate) fn execute_keygen_from_recovery(
         .iter()
         .map(|party| {
             party
-                .round()
-                .as_any()
+                .round_as_any()
                 .downcast_ref::<r2::R2>()
                 .unwrap()
                 .u_i_vss

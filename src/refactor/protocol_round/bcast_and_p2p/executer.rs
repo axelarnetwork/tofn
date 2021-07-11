@@ -23,7 +23,7 @@ pub trait RoundExecuter: Send + Sync {
 
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
-        unimplemented!("(RoundExecuter) return `self` to enable runtime reflection: https://bennetthardwick.com/dont-use-boxed-trait-objects-for-struct-internals")
+        unimplemented!("(Executer) return `self` to enable runtime reflection: https://bennetthardwick.com/dont-use-boxed-trait-objects-for-struct-internals")
     }
 }
 
@@ -41,7 +41,7 @@ pub trait RoundExecuterRaw: Send + Sync {
 
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
-        unimplemented!("(RoundExecuterRaw) return `self` to enable runtime reflection: https://bennetthardwick.com/dont-use-boxed-trait-objects-for-struct-internals")
+        unimplemented!("(ExecuterRaw) return `self` to enable runtime reflection: https://bennetthardwick.com/dont-use-boxed-trait-objects-for-struct-internals")
     }
 }
 
