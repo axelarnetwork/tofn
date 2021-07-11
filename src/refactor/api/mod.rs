@@ -209,24 +209,4 @@ where
             } => *index,
         }
     }
-
-    #[cfg(test)]
-    pub fn round_as_any(&self) -> &dyn std::any::Any {
-        match self {
-            Round::BcastAndP2p {
-                round,
-                party_count: _,
-                index: _,
-                bcast_out: _,
-                p2ps_out: _,
-                bcasts_in: _,
-                p2ps_in: _,
-            } => round.as_any(),
-            Round::NoMessages {
-                round,
-                party_count: _,
-                index: _,
-            } => round.as_any(),
-        }
-    }
 }
