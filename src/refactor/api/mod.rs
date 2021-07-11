@@ -3,9 +3,7 @@ use crate::vecmap::{Behave, FillP2ps, FillVecMap, HoleVecMap, Index};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::protocol_round::{
-    bcast_and_p2p::executer::RoundExecuterRaw, no_messages, ProtocolBuilder, RoundBuilder,
-};
+use super::protocol_round::{bcast_and_p2p::executer::RoundExecuterRaw, no_messages};
 
 pub type TofnResult<T> = Result<T, String>;
 pub type BytesVec = Vec<u8>;
@@ -79,6 +77,20 @@ where
             p2ps_out,
             bcasts_in,
             p2ps_in,
+        }
+    }
+
+    pub fn new_no_messages(
+        round: Box<dyn no_messages::Executer<FinalOutput = F, Index = K>>,
+        party_count: usize,
+        index: Index<K>,
+    ) -> Self {
+        assert!(index.as_usize() < party_count);
+
+        Round::NoMessages {
+            round,
+            party_count,
+            index,
         }
     }
 
@@ -210,36 +222,20 @@ where
                 bcasts_in,
                 p2ps_in,
             } => {
-                match round.execute_raw(
-                    party_count,
-                    index,
-                    bcasts_in.unwrap_or_else(|| FillVecMap::with_size(0)), // TODO accept Option instead
-                    p2ps_in.unwrap_or_else(|| FillP2ps::with_size(0)), // TODO accept Option instead
-                ) {
-                    ProtocolBuilder::NotDone(builder) => match builder {
-                        RoundBuilder::BcastAndP2p {
-                            round,
-                            bcast_out,
-                            p2ps_out,
-                        } => Protocol::NotDone(Round::new_bcast_and_p2p(
-                            round,
-                            party_count,
-                            index,
-                            bcast_out,
-                            p2ps_out,
-                        )),
-                    },
-                    ProtocolBuilder::Done(output) => Protocol::Done(output),
-                }
+                round
+                    .execute_raw(
+                        party_count,
+                        index,
+                        bcasts_in.unwrap_or_else(|| FillVecMap::with_size(0)), // TODO accept Option instead
+                        p2ps_in.unwrap_or_else(|| FillP2ps::with_size(0)), // TODO accept Option instead
+                    )
+                    .build(party_count, index)
             }
             Round::NoMessages {
                 round,
                 party_count,
                 index,
-            } => match round.execute(party_count, index) {
-                ProtocolBuilder::NotDone(builder) => todo!("same as BcastAndP2p"),
-                ProtocolBuilder::Done(output) => Protocol::Done(output),
-            },
+            } => round.execute(party_count, index).build(party_count, index),
         }
     }
     pub fn party_count(&self) -> usize {
