@@ -3,7 +3,8 @@ use crate::refactor::api::{Protocol, TofnResult};
 use crate::vecmap::{Behave, Index};
 use serde::{Deserialize, Serialize};
 
-use super::protocol_round::{BcastAndP2p, ProtocolBuilder};
+use super::api::Round;
+use super::protocol_round::ProtocolBuilder;
 
 // need to derive all this crap for each new marker struct
 // in order to avoid this problem: https://stackoverflow.com/a/31371094
@@ -65,7 +66,7 @@ fn new_keygen_impl(
     // compute the RNG seed now so as to minimize copying of `secret_recovery_key`
     let rng_seed = rng::seed(secret_recovery_key, session_nonce);
 
-    Ok(Protocol::NotDone(Box::new(BcastAndP2p::new(
+    Ok(Protocol::NotDone(Round::new_bcast_and_p2p(
         Box::new(r1::R1 {
             threshold,
             rng_seed,
@@ -76,7 +77,7 @@ fn new_keygen_impl(
         index,
         None,
         None,
-    ))))
+    )))
 }
 
 #[cfg(feature = "malicious")]
