@@ -2,8 +2,7 @@ use crate::{
     hash, k256_serde, paillier_k256,
     protocol::gg20::{vss_k256, SecretKeyShare},
     refactor::implementer_api::{
-        bcast_and_p2p::executer::serialize,
-        no_messages,
+        no_messages, serialize,
         ProtocolBuilder::{self, *},
         RoundBuilder,
     },

@@ -4,7 +4,7 @@ use crate::{
     protocol::gg20::SecretKeyShare,
     refactor::{
         api::Fault::ProtocolFault,
-        implementer_api::{bcast_and_p2p::executer::log_fault_info, bcast_only, ProtocolBuilder},
+        implementer_api::{bcast_only, log_fault_info, ProtocolBuilder},
         keygen::{r1, r2, r3, KeygenPartyIndex},
     },
     vecmap::{FillVecMap, Index, P2ps, VecMap},

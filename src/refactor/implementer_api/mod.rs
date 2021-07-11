@@ -1,5 +1,4 @@
 //! API for protocol implementers, but not for users of protocols
-pub mod bcast_and_p2p;
 pub mod bcast_and_p2p2;
 pub mod bcast_only;
 pub mod no_messages;
@@ -60,4 +59,38 @@ where
     NoMessages {
         round: Box<dyn no_messages::Executer<FinalOutput = F, Index = K>>,
     },
+}
+
+use tracing::{error, info, warn};
+
+pub(crate) fn serialize<T: ?Sized>(value: &T) -> BytesVec
+where
+    T: serde::Serialize,
+{
+    let result = bincode::serialize(value).map_err(|err| err.to_string());
+    if let Err(ref err_msg) = result {
+        error!("serialization failure: {}", err_msg);
+    }
+    result.unwrap()
+}
+
+pub(crate) fn log_fault_info<K>(me: Index<K>, faulter: Index<K>, fault: &str)
+where
+    K: Behave,
+{
+    info!("party {} detect [{}] by {}", me, fault, faulter,);
+}
+
+pub(crate) fn log_fault_warn<K>(me: Index<K>, faulter: Index<K>, fault: &str)
+where
+    K: Behave,
+{
+    warn!("party {} detect [{}] by {}", me, fault, faulter,);
+}
+
+pub(crate) fn log_accuse_warn<K>(me: Index<K>, faulter: Index<K>, fault: &str)
+where
+    K: Behave,
+{
+    warn!("party {} accuse {} of [{}]", me, faulter, fault);
 }
