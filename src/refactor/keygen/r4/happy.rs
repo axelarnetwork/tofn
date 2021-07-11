@@ -5,10 +5,7 @@ use crate::{
     protocol::gg20::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo},
     refactor::{
         api::Fault::ProtocolFault,
-        implementer_api::{
-            bcast_and_p2p::executer::{log_fault_warn, RoundExecuter},
-            ProtocolBuilder,
-        },
+        implementer_api::{bcast_and_p2p::executer::log_fault_warn, bcast_only, ProtocolBuilder},
         keygen::{r1, r2, r3, r4::sad::R4Sad, KeygenPartyIndex},
     },
     vecmap::{FillVecMap, Index, P2ps, VecMap},
@@ -33,11 +30,10 @@ pub struct R4 {
     pub behaviour: Behaviour,
 }
 
-impl RoundExecuter for R4 {
+impl bcast_only::Executer for R4 {
     type FinalOutput = SecretKeyShare;
     type Index = KeygenPartyIndex;
     type Bcast = r3::Bcast;
-    type P2p = ();
 
     #[allow(non_snake_case)]
     fn execute(
@@ -45,7 +41,6 @@ impl RoundExecuter for R4 {
         party_count: usize,
         index: Index<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
-        _p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
         // move to sad path if necessary
         if bcasts_in
@@ -61,7 +56,7 @@ impl RoundExecuter for R4 {
                 r2bcasts: self.r2bcasts,
                 r2p2ps: self.r2p2ps,
             })
-            .execute(party_count, index, bcasts_in, _p2ps_in);
+            .execute(party_count, index, bcasts_in);
         }
 
         // unwrap BcastHappy msgs

@@ -4,10 +4,7 @@ use crate::{
     protocol::gg20::SecretKeyShare,
     refactor::{
         api::Fault::ProtocolFault,
-        implementer_api::{
-            bcast_and_p2p::executer::{log_fault_info, RoundExecuter},
-            ProtocolBuilder,
-        },
+        implementer_api::{bcast_and_p2p::executer::log_fault_info, bcast_only, ProtocolBuilder},
         keygen::{r1, r2, r3, KeygenPartyIndex},
     },
     vecmap::{FillVecMap, Index, P2ps, VecMap},
@@ -20,11 +17,10 @@ pub struct R4Sad {
     pub r2p2ps: P2ps<KeygenPartyIndex, r2::P2p>,
 }
 
-impl RoundExecuter for R4Sad {
+impl bcast_only::Executer for R4Sad {
     type FinalOutput = SecretKeyShare;
     type Index = KeygenPartyIndex;
     type Bcast = r3::Bcast;
-    type P2p = ();
 
     #[allow(non_snake_case)]
     fn execute(
@@ -32,7 +28,6 @@ impl RoundExecuter for R4Sad {
         party_count: usize,
         index: Index<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
-        _p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
         // check for no complaints
         if bcasts_in

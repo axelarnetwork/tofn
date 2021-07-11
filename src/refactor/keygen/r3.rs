@@ -135,14 +135,13 @@ impl RoundExecuter for R3 {
         }
 
         if !vss_complaints.is_empty() {
-            return ProtocolBuilder::NotDone(RoundBuilder::BcastAndP2p {
+            return ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
                 round: Box::new(r4::sad::R4Sad {
                     r1bcasts: self.r1bcasts,
                     r2bcasts: bcasts_in,
                     r2p2ps: p2ps_in,
                 }),
-                bcast_out: Some(serialize(&Bcast::Sad(BcastSad { vss_complaints }))),
-                p2ps_out: None,
+                bcast_out: serialize(&Bcast::Sad(BcastSad { vss_complaints })),
             });
         }
 
@@ -181,7 +180,7 @@ impl RoundExecuter for R3 {
             &schnorr_k256::Witness { scalar: &x_i },
         );
 
-        ProtocolBuilder::NotDone(RoundBuilder::BcastAndP2p {
+        ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
             round: Box::new(r4::happy::R4 {
                 threshold: self.threshold,
                 dk: self.dk,
@@ -194,8 +193,7 @@ impl RoundExecuter for R3 {
                 #[cfg(feature = "malicious")]
                 behaviour: self.behaviour,
             }),
-            bcast_out: Some(serialize(&Bcast::Happy(BcastHappy { x_i_proof }))),
-            p2ps_out: None,
+            bcast_out: serialize(&Bcast::Happy(BcastHappy { x_i_proof })),
         })
     }
 
