@@ -1,4 +1,5 @@
 pub mod bcast_and_p2p;
+pub mod no_messages;
 
 use crate::vecmap::{Behave, HoleVecMap};
 
