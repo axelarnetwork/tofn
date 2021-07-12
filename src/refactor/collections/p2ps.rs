@@ -43,19 +43,16 @@ where
     where
         F: FnMut(&V) -> W,
     {
-        Ok(HoleVecMap::from_vecmap(
+        HoleVecMap::from_vecmap(
             VecMap::from_vec(self.to_me(me)?.map(|(_, v)| f(v)).collect()),
             me,
-        )?)
+        )
     }
     pub fn map_to_me2<W, F>(&self, me: TypedUsize<K>, f: F) -> TofnResult<HoleVecMap<K, W>>
     where
         F: FnMut((TypedUsize<K>, &V)) -> W,
     {
-        Ok(HoleVecMap::from_vecmap(
-            VecMap::from_vec(self.to_me(me)?.map(f).collect()),
-            me,
-        )?)
+        HoleVecMap::from_vecmap(VecMap::from_vec(self.to_me(me)?.map(f).collect()), me)
     }
     pub fn map<W, F>(self, f: F) -> P2ps<K, W>
     where
