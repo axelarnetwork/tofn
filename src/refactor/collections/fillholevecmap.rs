@@ -21,14 +21,14 @@ where
     K: Behave,
 {
     /// if hole >= len-1 then use hole = len-1
-    pub fn with_size(len: usize, hole: TypedUsize<K>) -> Self {
-        Self {
+    pub fn with_size(len: usize, hole: TypedUsize<K>) -> TofnResult<Self> {
+        Ok(Self {
             hole_vec: HoleVecMap::from_vecmap(
                 VecMap::from_vec((0..len - 1).map(|_| None).collect()),
                 hole,
-            ),
+            )?,
             some_count: 0,
-        }
+        })
     }
     pub fn set(&mut self, index: TypedUsize<K>, value: V) -> TofnResult<()> {
         self.set_impl(index, value, false)

@@ -67,7 +67,7 @@ impl bcast_only::Executer for R2 {
         }
 
         let (u_i_other_shares, u_i_my_share) =
-            VecMap::from_vec(self.u_i_vss.shares(party_count)).puncture_hole(index);
+            VecMap::from_vec(self.u_i_vss.shares(party_count)).puncture_hole(index)?;
 
         let u_i_other_shares = self.corrupt_share(index, u_i_other_shares)?;
 

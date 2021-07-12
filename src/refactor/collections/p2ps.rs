@@ -46,7 +46,7 @@ where
         Ok(HoleVecMap::from_vecmap(
             VecMap::from_vec(self.to_me(me)?.map(|(_, v)| f(v)).collect()),
             me,
-        ))
+        )?)
     }
     pub fn map_to_me2<W, F>(&self, me: TypedUsize<K>, f: F) -> TofnResult<HoleVecMap<K, W>>
     where
@@ -55,7 +55,7 @@ where
         Ok(HoleVecMap::from_vecmap(
             VecMap::from_vec(self.to_me(me)?.map(f).collect()),
             me,
-        ))
+        )?)
     }
     pub fn map<W, F>(self, f: F) -> P2ps<K, W>
     where
@@ -92,7 +92,10 @@ where
     pub fn with_size(len: usize) -> Self {
         Self(
             (0..len)
-                .map(|hole| FillHoleVecMap::with_size(len, TypedUsize::from_usize(hole)))
+                .map(|hole| {
+                    FillHoleVecMap::with_size(len, TypedUsize::from_usize(hole))
+                        .expect("hole out of bounds")
+                })
                 .collect(),
         )
     }
