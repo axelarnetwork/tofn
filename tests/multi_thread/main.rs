@@ -4,7 +4,7 @@ use std::{sync::mpsc, thread};
 use tofn::{
     protocol::gg20::SecretKeyShare,
     refactor::keygen::{new_keygen, KeygenProtocol},
-    vecmap::Index,
+    vecmap::TypedUsize,
 };
 
 /// TODO rename parent dir to `example`
@@ -23,7 +23,7 @@ fn main() {
             new_keygen(
                 share_count,
                 threshold,
-                Index::from_usize(index),
+                TypedUsize::from_usize(index),
                 &secret_recovery_key,
                 session_nonce,
             )

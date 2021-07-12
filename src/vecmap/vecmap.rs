@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::iter::FromIterator;
 
-use super::{vecmap_iter::VecMapIter, Behave, HoleVecMap, Index};
+use super::{vecmap_iter::VecMapIter, Behave, HoleVecMap, TypedUsize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct VecMap<K, V>(Vec<V>, std::marker::PhantomData<Index<K>>)
+pub struct VecMap<K, V>(Vec<V>, std::marker::PhantomData<TypedUsize<K>>)
 where
     K: Behave;
 
@@ -18,18 +18,18 @@ where
     pub fn into_vec(self) -> Vec<V> {
         self.0
     }
-    pub fn get(&self, index: Index<K>) -> &V {
+    pub fn get(&self, index: TypedUsize<K>) -> &V {
         // TODO range check?
         &self.0[index.0]
     }
-    pub fn get_mut(&mut self, index: Index<K>) -> &mut V {
+    pub fn get_mut(&mut self, index: TypedUsize<K>) -> &mut V {
         // TODO range check?
         &mut self.0[index.0]
     }
     pub fn len(&self) -> usize {
         self.0.len()
     }
-    pub fn puncture_hole(mut self, hole: Index<K>) -> (HoleVecMap<K, V>, V) {
+    pub fn puncture_hole(mut self, hole: TypedUsize<K>) -> (HoleVecMap<K, V>, V) {
         // TODO range check?
         let hole_val = self.0.remove(hole.0);
         (HoleVecMap::from_vecmap(self, hole), hole_val)
@@ -48,7 +48,7 @@ where
     }
     pub fn map2<W, F>(self, f: F) -> VecMap<K, W>
     where
-        F: FnMut((Index<K>, V)) -> W,
+        F: FnMut((TypedUsize<K>, V)) -> W,
     {
         self.into_iter().map(f).collect()
     }
@@ -58,7 +58,7 @@ impl<K, V> IntoIterator for VecMap<K, V>
 where
     K: Behave,
 {
-    type Item = (Index<K>, <std::vec::IntoIter<V> as Iterator>::Item);
+    type Item = (TypedUsize<K>, <std::vec::IntoIter<V> as Iterator>::Item);
     type IntoIter = VecMapIter<K, std::vec::IntoIter<V>>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -72,7 +72,7 @@ impl<'a, K, V> IntoIterator for &'a VecMap<K, V>
 where
     K: Behave,
 {
-    type Item = (Index<K>, <std::slice::Iter<'a, V> as Iterator>::Item);
+    type Item = (TypedUsize<K>, <std::slice::Iter<'a, V> as Iterator>::Item);
     type IntoIter = VecMapIter<K, std::slice::Iter<'a, V>>;
 
     fn into_iter(self) -> Self::IntoIter {

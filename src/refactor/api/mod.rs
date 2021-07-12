@@ -1,5 +1,5 @@
 //! TODO traits only here, rename to `api` or `traits` or something.
-use crate::vecmap::{Behave, FillVecMap, HoleVecMap, Index};
+use crate::vecmap::{Behave, FillVecMap, HoleVecMap, TypedUsize};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
@@ -42,7 +42,7 @@ where
             Round::BcastOnly(_) | Round::NoMessages(_) => None,
         }
     }
-    pub fn bcast_in(&mut self, from: Index<K>, bytes: &[u8]) {
+    pub fn bcast_in(&mut self, from: TypedUsize<K>, bytes: &[u8]) {
         match self {
             Round::BcastAndP2p(r) => {
                 r.bcasts_in.set_warn(from, bytes.to_vec());
@@ -53,7 +53,7 @@ where
             }
         }
     }
-    pub fn p2p_in(&mut self, from: Index<K>, to: Index<K>, bytes: &[u8]) {
+    pub fn p2p_in(&mut self, from: TypedUsize<K>, to: TypedUsize<K>, bytes: &[u8]) {
         match self {
             Round::BcastAndP2p(r) => {
                 r.p2ps_in.set_warn(from, to, bytes.to_vec());
@@ -93,7 +93,7 @@ where
             Round::NoMessages(r) => r.party_count,
         }
     }
-    pub fn index(&self) -> Index<K> {
+    pub fn index(&self) -> TypedUsize<K> {
         match self {
             Round::BcastAndP2p(r) => r.index,
             Round::BcastOnly(r) => r.index,

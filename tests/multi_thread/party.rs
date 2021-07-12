@@ -6,7 +6,7 @@ use std::sync::mpsc::Receiver;
 // https://github.com/rust-lang/rust/issues/83248
 use tofn::{
     refactor::api::{BytesVec, Protocol, ProtocolOutput},
-    vecmap::{Behave, Index},
+    vecmap::{Behave, TypedUsize},
 };
 
 #[derive(Clone)]
@@ -15,12 +15,12 @@ where
     K: Behave,
 {
     Bcast {
-        from: Index<K>,
+        from: TypedUsize<K>,
         bytes: BytesVec,
     },
     P2p {
-        from: Index<K>,
-        to: Index<K>,
+        from: TypedUsize<K>,
+        to: TypedUsize<K>,
         bytes: BytesVec,
     },
 }

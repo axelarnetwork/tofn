@@ -1,6 +1,6 @@
 use crate::protocol::gg20::SecretKeyShare;
 use crate::refactor::api::{Protocol, TofnResult};
-use crate::vecmap::{Behave, Index};
+use crate::vecmap::{Behave, TypedUsize};
 use serde::{Deserialize, Serialize};
 
 use super::implementer_api::{ProtocolBuilder, Round};
@@ -24,7 +24,7 @@ pub const MAX_SHARE_COUNT: usize = 1000;
 pub fn new_keygen(
     share_count: usize,
     threshold: usize,
-    index: Index<KeygenPartyIndex>,
+    index: TypedUsize<KeygenPartyIndex>,
     secret_recovery_key: &SecretRecoveryKey,
     session_nonce: &[u8],
 ) -> TofnResult<KeygenProtocol> {
@@ -42,7 +42,7 @@ pub fn new_keygen(
 fn new_keygen_impl(
     share_count: usize,
     threshold: usize,
-    index: Index<KeygenPartyIndex>,
+    index: TypedUsize<KeygenPartyIndex>,
     secret_recovery_key: &SecretRecoveryKey,
     session_nonce: &[u8],
     #[cfg(feature = "malicious")] behaviour: Behaviour,
@@ -81,7 +81,7 @@ fn new_keygen_impl(
 pub fn new_keygen_with_behaviour(
     share_count: usize,
     threshold: usize,
-    index: Index<KeygenPartyIndex>,
+    index: TypedUsize<KeygenPartyIndex>,
     secret_recovery_key: &SecretRecoveryKey,
     session_nonce: &[u8],
     behaviour: Behaviour,

@@ -7,7 +7,7 @@ use tofn::{
             new_keygen_with_behaviour, KeygenPartyIndex, KeygenProtocol, SecretRecoveryKey,
         },
     },
-    vecmap::{Behave, FillVecMap, Index, VecMap},
+    vecmap::{Behave, FillVecMap, TypedUsize, VecMap},
 };
 use tracing::info;
 use tracing_test::traced_test;
@@ -63,8 +63,8 @@ impl TestCase {
 // }
 
 pub fn single_fault_test_case_list() -> Vec<TestCase> {
-    let zero = Index::from_usize(0);
-    let one = Index::from_usize(1);
+    let zero = TypedUsize::from_usize(0);
+    let one = TypedUsize::from_usize(1);
     vec![
         single_fault_test_case(R1BadCommit),
         single_fault_test_case(R1BadEncryptionKeyProof),
@@ -82,7 +82,7 @@ fn single_fault_test_case(behaviour: Behaviour) -> TestCase {
     // party 1 is malicious
     // honest parties should identify party 1 as faulter
     let mut faulters = FillVecMap::with_size(3);
-    faulters.set(Index::from_usize(1), Fault::ProtocolFault);
+    faulters.set(TypedUsize::from_usize(1), Fault::ProtocolFault);
     TestCase {
         threshold: 1,
         behaviours: VecMap::from_vec(vec![Honest, behaviour, Honest]),
@@ -91,7 +91,7 @@ fn single_fault_test_case(behaviour: Behaviour) -> TestCase {
 }
 
 /// return the all-zero array with the first bytes set to the bytes of `index`
-pub fn dummy_secret_recovery_key<K>(index: Index<K>) -> SecretRecoveryKey
+pub fn dummy_secret_recovery_key<K>(index: TypedUsize<K>) -> SecretRecoveryKey
 where
     K: Behave,
 {

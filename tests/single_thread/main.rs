@@ -6,7 +6,7 @@ use tofn::{
         api::Protocol,
         keygen::{new_keygen, KeygenPartyIndex, KeygenProtocol},
     },
-    vecmap::{Index, VecMap},
+    vecmap::{TypedUsize, VecMap},
 };
 // use tracing::{error, info};
 use tracing_test::traced_test; // enable logs in tests
@@ -27,7 +27,7 @@ fn main() {
             new_keygen(
                 share_count,
                 threshold,
-                Index::from_usize(index),
+                TypedUsize::from_usize(index),
                 &secret_recovery_key,
                 session_nonce,
             )

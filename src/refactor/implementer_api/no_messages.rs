@@ -1,4 +1,4 @@
-use crate::vecmap::{Behave, Index};
+use crate::vecmap::{Behave, TypedUsize};
 
 use super::ProtocolBuilder;
 
@@ -8,7 +8,7 @@ pub trait Executer: Send + Sync {
     fn execute(
         self: Box<Self>,
         party_count: usize,
-        index: Index<Self::Index>,
+        index: TypedUsize<Self::Index>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index>;
 
     #[cfg(test)]
@@ -23,5 +23,5 @@ where
 {
     pub round: Box<dyn Executer<FinalOutput = F, Index = K>>,
     pub party_count: usize,
-    pub index: Index<K>,
+    pub index: TypedUsize<K>,
 }

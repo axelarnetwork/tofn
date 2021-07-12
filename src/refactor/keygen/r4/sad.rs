@@ -7,7 +7,7 @@ use crate::{
         implementer_api::{bcast_only, log_fault_info, ProtocolBuilder},
         keygen::{r1, r2, r3, KeygenPartyIndex},
     },
-    vecmap::{FillVecMap, Index, P2ps, VecMap},
+    vecmap::{FillVecMap, P2ps, TypedUsize, VecMap},
 };
 
 #[allow(non_snake_case)]
@@ -26,7 +26,7 @@ impl bcast_only::Executer for R4Sad {
     fn execute(
         self: Box<Self>,
         party_count: usize,
-        index: Index<Self::Index>,
+        index: TypedUsize<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
         // check for no complaints

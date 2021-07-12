@@ -1,4 +1,4 @@
-use super::{holevecmap_iter::HoleVecMapIter, Behave, Index, VecMap};
+use super::{holevecmap_iter::HoleVecMapIter, Behave, TypedUsize, VecMap};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct HoleVecMap<K, V>
@@ -6,25 +6,25 @@ where
     K: Behave,
 {
     vec: VecMap<K, V>,
-    hole: Index<K>,
-    phantom: std::marker::PhantomData<Index<K>>,
+    hole: TypedUsize<K>,
+    phantom: std::marker::PhantomData<TypedUsize<K>>,
 }
 
 impl<K, V> HoleVecMap<K, V>
 where
     K: Behave,
 {
-    pub fn from_vecmap(vec: VecMap<K, V>, hole: Index<K>) -> Self {
+    pub fn from_vecmap(vec: VecMap<K, V>, hole: TypedUsize<K>) -> Self {
         HoleVecMap {
             vec,
             hole,
             phantom: std::marker::PhantomData,
         }
     }
-    pub fn get(&self, index: Index<K>) -> &V {
+    pub fn get(&self, index: TypedUsize<K>) -> &V {
         self.vec.get(self.map_index(index).expect("bad index"))
     }
-    pub fn get_mut(&mut self, index: Index<K>) -> &mut V {
+    pub fn get_mut(&mut self, index: TypedUsize<K>) -> &mut V {
         self.vec.get_mut(self.map_index(index).expect("bad index"))
     }
     pub fn len(&self) -> usize {
@@ -38,10 +38,10 @@ where
     pub fn iter(&self) -> HoleVecMapIter<K, std::slice::Iter<V>> {
         HoleVecMapIter::new(self.vec.iter(), self.hole)
     }
-    fn map_index(&self, index: Index<K>) -> Result<Index<K>, &'static str> {
+    fn map_index(&self, index: TypedUsize<K>) -> Result<TypedUsize<K>, &'static str> {
         match index.0 {
             i if i < self.hole.0 => Ok(index),
-            i if i > self.hole.0 && i <= self.vec.len() => Ok(Index::from_usize(i - 1)),
+            i if i > self.hole.0 && i <= self.vec.len() => Ok(TypedUsize::from_usize(i - 1)),
             i if i == self.hole.0 => Err("index == hole"),
             _ => Err("index out of range"),
         }
@@ -54,7 +54,7 @@ where
     }
     pub fn map2<W, F>(self, f: F) -> HoleVecMap<K, W>
     where
-        F: FnMut((Index<K>, V)) -> W,
+        F: FnMut((TypedUsize<K>, V)) -> W,
     {
         let hole = self.hole;
         HoleVecMap::<K, W>::from_vecmap(self.into_iter().map(f).collect(), hole)
@@ -65,7 +65,7 @@ impl<K, V> IntoIterator for HoleVecMap<K, V>
 where
     K: Behave,
 {
-    type Item = (Index<K>, <std::vec::IntoIter<V> as Iterator>::Item);
+    type Item = (TypedUsize<K>, <std::vec::IntoIter<V> as Iterator>::Item);
     type IntoIter = HoleVecMapIter<K, std::vec::IntoIter<V>>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -79,7 +79,7 @@ impl<'a, K, V> IntoIterator for &'a HoleVecMap<K, V>
 where
     K: Behave,
 {
-    type Item = (Index<K>, <std::slice::Iter<'a, V> as Iterator>::Item);
+    type Item = (TypedUsize<K>, <std::slice::Iter<'a, V> as Iterator>::Item);
     type IntoIter = HoleVecMapIter<K, std::slice::Iter<'a, V>>;
 
     fn into_iter(self) -> Self::IntoIter {

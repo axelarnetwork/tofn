@@ -6,7 +6,7 @@ use crate::{
         ProtocolBuilder::{self, *},
         RoundBuilder,
     },
-    vecmap::Index,
+    vecmap::TypedUsize,
 };
 use serde::{Deserialize, Serialize};
 use tracing::info;
@@ -40,7 +40,7 @@ impl no_messages::Executer for R1 {
     fn execute(
         self: Box<Self>,
         _party_count: usize,
-        index: Index<Self::Index>,
+        index: TypedUsize<Self::Index>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
         let u_i_vss = vss_k256::Vss::new(self.threshold);
         let (y_i_commit, y_i_reveal) = hash::commit(k256_serde::to_bytes(

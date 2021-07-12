@@ -5,7 +5,7 @@ pub mod no_messages;
 pub mod round;
 pub use round::Round;
 
-use crate::vecmap::{Behave, HoleVecMap, Index};
+use crate::vecmap::{Behave, HoleVecMap, TypedUsize};
 
 use super::api::{BytesVec, Protocol, ProtocolOutput};
 
@@ -21,7 +21,7 @@ impl<F, K> ProtocolBuilder<F, K>
 where
     K: Behave,
 {
-    pub fn build(self, party_count: usize, index: Index<K>) -> Protocol<F, K> {
+    pub fn build(self, party_count: usize, index: TypedUsize<K>) -> Protocol<F, K> {
         match self {
             Self::NotDone(builder) => Protocol::NotDone(match builder {
                 RoundBuilder::BcastAndP2p {
@@ -74,21 +74,21 @@ where
     result.unwrap()
 }
 
-pub(crate) fn log_fault_info<K>(me: Index<K>, faulter: Index<K>, fault: &str)
+pub(crate) fn log_fault_info<K>(me: TypedUsize<K>, faulter: TypedUsize<K>, fault: &str)
 where
     K: Behave,
 {
     info!("party {} detect [{}] by {}", me, fault, faulter,);
 }
 
-pub(crate) fn log_fault_warn<K>(me: Index<K>, faulter: Index<K>, fault: &str)
+pub(crate) fn log_fault_warn<K>(me: TypedUsize<K>, faulter: TypedUsize<K>, fault: &str)
 where
     K: Behave,
 {
     warn!("party {} detect [{}] by {}", me, fault, faulter,);
 }
 
-pub(crate) fn log_accuse_warn<K>(me: Index<K>, faulter: Index<K>, fault: &str)
+pub(crate) fn log_accuse_warn<K>(me: TypedUsize<K>, faulter: TypedUsize<K>, fault: &str)
 where
     K: Behave,
 {

@@ -8,7 +8,7 @@ use crate::{
         implementer_api::{bcast_only, log_fault_warn, ProtocolBuilder},
         keygen::{r1, r2, r3, r4::sad::R4Sad, KeygenPartyIndex},
     },
-    vecmap::{FillVecMap, Index, P2ps, VecMap},
+    vecmap::{FillVecMap, P2ps, TypedUsize, VecMap},
     zkp::schnorr_k256,
 };
 
@@ -39,7 +39,7 @@ impl bcast_only::Executer for R4 {
     fn execute(
         self: Box<Self>,
         party_count: usize,
-        index: Index<Self::Index>,
+        index: TypedUsize<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
         // move to sad path if necessary

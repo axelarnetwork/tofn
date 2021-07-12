@@ -1,4 +1,4 @@
-use crate::vecmap::{Behave, FillHoleVecMap, HoleVecMap, Index, VecMap};
+use crate::vecmap::{Behave, FillHoleVecMap, HoleVecMap, TypedUsize, VecMap};
 
 use super::p2ps_iter::P2psIter;
 
@@ -10,10 +10,10 @@ impl<K, V> P2ps<K, V>
 where
     K: Behave,
 {
-    pub fn get(&self, from: Index<K>, to: Index<K>) -> &V {
+    pub fn get(&self, from: TypedUsize<K>, to: TypedUsize<K>) -> &V {
         self.0.get(from).get(to)
     }
-    pub fn to_me(&self, me: Index<K>) -> impl Iterator<Item = (Index<K>, &V)> + '_ {
+    pub fn to_me(&self, me: TypedUsize<K>) -> impl Iterator<Item = (TypedUsize<K>, &V)> + '_ {
         self.0.iter().filter_map(move |(k, hole_vec)| {
             if k == me {
                 None
@@ -25,7 +25,7 @@ where
     pub fn iter(&self) -> P2psIter<K, std::slice::Iter<HoleVecMap<K, V>>, std::slice::Iter<V>> {
         P2psIter::new(self.0.iter())
     }
-    pub fn map_to_me<W, F>(&self, me: Index<K>, mut f: F) -> HoleVecMap<K, W>
+    pub fn map_to_me<W, F>(&self, me: TypedUsize<K>, mut f: F) -> HoleVecMap<K, W>
     where
         F: FnMut(&V) -> W,
     {
@@ -34,9 +34,9 @@ where
             me,
         )
     }
-    pub fn map_to_me2<W, F>(&self, me: Index<K>, f: F) -> HoleVecMap<K, W>
+    pub fn map_to_me2<W, F>(&self, me: TypedUsize<K>, f: F) -> HoleVecMap<K, W>
     where
-        F: FnMut((Index<K>, &V)) -> W,
+        F: FnMut((TypedUsize<K>, &V)) -> W,
     {
         HoleVecMap::from_vecmap(VecMap::from_vec(self.to_me(me).map(f).collect()), me)
     }
@@ -53,8 +53,8 @@ where
     K: Behave,
 {
     type Item = (
-        Index<K>,
-        Index<K>,
+        TypedUsize<K>,
+        TypedUsize<K>,
         <std::vec::IntoIter<V> as Iterator>::Item,
     );
     type IntoIter = P2psIter<K, std::vec::IntoIter<HoleVecMap<K, V>>, std::vec::IntoIter<V>>;
@@ -75,14 +75,14 @@ where
     pub fn with_size(len: usize) -> Self {
         Self(
             (0..len)
-                .map(|hole| FillHoleVecMap::with_size(len, Index::from_usize(hole)))
+                .map(|hole| FillHoleVecMap::with_size(len, TypedUsize::from_usize(hole)))
                 .collect(),
         )
     }
-    pub fn set(&mut self, from: Index<K>, to: Index<K>, value: V) {
+    pub fn set(&mut self, from: TypedUsize<K>, to: TypedUsize<K>, value: V) {
         self.0.get_mut(from).set(to, value);
     }
-    pub fn set_warn(&mut self, from: Index<K>, to: Index<K>, value: V) {
+    pub fn set_warn(&mut self, from: TypedUsize<K>, to: TypedUsize<K>, value: V) {
         self.0.get_mut(from).set_warn(to, value);
     }
     pub fn is_full(&self) -> bool {
@@ -109,8 +109,8 @@ where
     K: Behave,
 {
     type Item = (
-        Index<K>,
-        Index<K>,
+        TypedUsize<K>,
+        TypedUsize<K>,
         <std::vec::IntoIter<Option<V>> as Iterator>::Item,
     );
     type IntoIter =
@@ -124,7 +124,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::FillP2ps;
-    use crate::vecmap::{Behave, Index};
+    use crate::vecmap::{Behave, TypedUsize};
     use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -133,9 +133,9 @@ mod tests {
 
     #[test]
     fn basic_correctness() {
-        let zero = Index::from_usize(0);
-        let one = Index::from_usize(1);
-        let two = Index::from_usize(2);
+        let zero = TypedUsize::from_usize(0);
+        let one = TypedUsize::from_usize(1);
+        let two = TypedUsize::from_usize(2);
 
         let mut fill_p2ps: FillP2ps<TestIndex, usize> = FillP2ps::with_size(3);
         fill_p2ps.set(zero, one, 0);

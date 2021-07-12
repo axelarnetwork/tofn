@@ -9,7 +9,7 @@ use crate::{
         implementer_api::{bcast_only, serialize, ProtocolBuilder, RoundBuilder},
         keygen::r3,
     },
-    vecmap::{FillVecMap, Index, VecMap},
+    vecmap::{FillVecMap, TypedUsize, VecMap},
 };
 
 use super::{r1, KeygenPartyIndex, KeygenProtocolBuilder};
@@ -46,7 +46,7 @@ impl bcast_only::Executer for R2 {
     fn execute(
         self: Box<Self>,
         party_count: usize,
-        index: Index<Self::Index>,
+        index: TypedUsize<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
     ) -> KeygenProtocolBuilder {
         let mut faulters = FillVecMap::with_size(party_count);
@@ -114,7 +114,7 @@ pub mod malicious {
         paillier_k256::Ciphertext,
         protocol::gg20::vss_k256::Share,
         refactor::keygen::{self, KeygenPartyIndex},
-        vecmap::{HoleVecMap, Index},
+        vecmap::{HoleVecMap, TypedUsize},
     };
 
     use super::R2;
@@ -122,7 +122,7 @@ pub mod malicious {
     impl R2 {
         pub fn corrupt_share(
             &self,
-            my_index: Index<KeygenPartyIndex>,
+            my_index: TypedUsize<KeygenPartyIndex>,
             mut other_shares: HoleVecMap<KeygenPartyIndex, Share>,
         ) -> HoleVecMap<KeygenPartyIndex, Share> {
             #[cfg(feature = "malicious")]
@@ -136,8 +136,8 @@ pub mod malicious {
 
         pub fn corrupt_ciphertext(
             &self,
-            my_index: Index<KeygenPartyIndex>,
-            target_index: Index<KeygenPartyIndex>,
+            my_index: TypedUsize<KeygenPartyIndex>,
+            target_index: TypedUsize<KeygenPartyIndex>,
             mut ciphertext: Ciphertext,
         ) -> Ciphertext {
             #[cfg(feature = "malicious")]

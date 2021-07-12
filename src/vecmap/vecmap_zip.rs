@@ -1,4 +1,4 @@
-use super::{vecmap_iter::VecMapIter, Behave, Index, VecMap};
+use super::{vecmap_iter::VecMapIter, Behave, TypedUsize, VecMap};
 
 pub fn zip2<'a, K, V0, V1>(
     v0: &'a VecMap<K, V0>,
@@ -38,7 +38,11 @@ where
     I0: Iterator,
     I1: Iterator,
 {
-    type Item = (Index<K>, <I0 as Iterator>::Item, <I1 as Iterator>::Item);
+    type Item = (
+        TypedUsize<K>,
+        <I0 as Iterator>::Item,
+        <I1 as Iterator>::Item,
+    );
 
     fn next(&mut self) -> Option<Self::Item> {
         let (i, a0) = self.iter0.next()?;

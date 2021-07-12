@@ -6,7 +6,7 @@ use crate::{
         api::{BytesVec, Fault},
         implementer_api::ProtocolBuilder,
     },
-    vecmap::{Behave, FillVecMap, Index, VecMap},
+    vecmap::{Behave, FillVecMap, TypedUsize, VecMap},
 };
 
 pub trait Executer: Send + Sync {
@@ -16,7 +16,7 @@ pub trait Executer: Send + Sync {
     fn execute(
         self: Box<Self>,
         party_count: usize,
-        index: Index<Self::Index>,
+        index: TypedUsize<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index>;
 
@@ -33,7 +33,7 @@ pub trait ExecuterRaw: Send + Sync {
     fn execute_raw(
         self: Box<Self>,
         party_count: usize,
-        index: Index<Self::Index>,
+        index: TypedUsize<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, BytesVec>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index>;
 
@@ -50,7 +50,7 @@ impl<T: Executer> ExecuterRaw for T {
     fn execute_raw(
         self: Box<Self>,
         party_count: usize,
-        index: Index<Self::Index>,
+        index: TypedUsize<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, BytesVec>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
         let mut faulters = FillVecMap::with_size(party_count);
@@ -100,7 +100,7 @@ where
 {
     pub round: Box<dyn ExecuterRaw<FinalOutput = F, Index = K>>,
     pub party_count: usize,
-    pub index: Index<K>,
+    pub index: TypedUsize<K>,
     pub bcast_out: BytesVec,
     pub bcasts_in: FillVecMap<K, BytesVec>,
 }

@@ -6,7 +6,7 @@ use crate::{
         api::{BytesVec, Fault},
         implementer_api::ProtocolBuilder,
     },
-    vecmap::{Behave, FillP2ps, FillVecMap, HoleVecMap, Index, P2ps, VecMap},
+    vecmap::{Behave, FillP2ps, FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
 };
 
 pub trait Executer: Send + Sync {
@@ -17,7 +17,7 @@ pub trait Executer: Send + Sync {
     fn execute(
         self: Box<Self>,
         party_count: usize,
-        index: Index<Self::Index>,
+        index: TypedUsize<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index>;
@@ -35,7 +35,7 @@ pub trait ExecuterRaw: Send + Sync {
     fn execute_raw(
         self: Box<Self>,
         party_count: usize,
-        index: Index<Self::Index>,
+        index: TypedUsize<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, BytesVec>,
         p2ps_in: FillP2ps<Self::Index, BytesVec>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index>;
@@ -53,7 +53,7 @@ impl<T: Executer> ExecuterRaw for T {
     fn execute_raw(
         self: Box<Self>,
         party_count: usize,
-        index: Index<Self::Index>,
+        index: TypedUsize<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, BytesVec>,
         p2ps_in: FillP2ps<Self::Index, BytesVec>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
@@ -122,7 +122,7 @@ where
 {
     pub round: Box<dyn ExecuterRaw<FinalOutput = F, Index = K>>,
     pub party_count: usize,
-    pub index: Index<K>,
+    pub index: TypedUsize<K>,
     pub bcast_out: BytesVec,
     pub p2ps_out: HoleVecMap<K, BytesVec>,
     pub bcasts_in: FillVecMap<K, BytesVec>,

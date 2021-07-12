@@ -1,4 +1,4 @@
-use super::{holevecmap_iter::HoleVecMapIter, vecmap_iter::VecMapIter, Behave, Index};
+use super::{holevecmap_iter::HoleVecMapIter, vecmap_iter::VecMapIter, Behave, TypedUsize};
 
 // follow the example of std::iter::Flatten: https://doc.rust-lang.org/src/core/iter/adapters/flatten.rs.html#251-278
 pub struct P2psIter<K, I0, I1>
@@ -7,7 +7,7 @@ where
 {
     iter0: VecMapIter<K, I0>,
     iter1: Option<HoleVecMapIter<K, I1>>,
-    from: Index<K>,
+    from: TypedUsize<K>,
 }
 
 impl<K, I0, I1> P2psIter<K, I0, I1>
@@ -18,7 +18,7 @@ where
         Self {
             iter0: iter,
             iter1: None,
-            from: Index::from_usize(0),
+            from: TypedUsize::from_usize(0),
         }
     }
 }
@@ -30,7 +30,7 @@ where
     <I0 as Iterator>::Item: IntoIterator<IntoIter = HoleVecMapIter<K, I1>>,
     I1: Iterator,
 {
-    type Item = (Index<K>, Index<K>, <I1 as Iterator>::Item);
+    type Item = (TypedUsize<K>, TypedUsize<K>, <I1 as Iterator>::Item);
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {

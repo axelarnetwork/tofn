@@ -2,7 +2,7 @@
 // use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::{holevecmap_iter::HoleVecMapIter, Behave, HoleVecMap, Index, VecMap};
+use super::{holevecmap_iter::HoleVecMapIter, Behave, HoleVecMap, TypedUsize, VecMap};
 
 // #[derive(Debug, Clone, Serialize, Deserialize)]
 #[derive(Debug, Clone, PartialEq)]
@@ -19,7 +19,7 @@ where
     K: Behave,
 {
     /// if hole >= len-1 then use hole = len-1
-    pub fn with_size(len: usize, hole: Index<K>) -> Self {
+    pub fn with_size(len: usize, hole: TypedUsize<K>) -> Self {
         Self {
             hole_vec: HoleVecMap::from_vecmap(
                 VecMap::from_vec((0..len - 1).map(|_| None).collect()),
@@ -28,13 +28,13 @@ where
             some_count: 0,
         }
     }
-    pub fn set(&mut self, index: Index<K>, value: V) {
+    pub fn set(&mut self, index: TypedUsize<K>, value: V) {
         self.set_impl(index, value, false)
     }
-    pub fn set_warn(&mut self, index: Index<K>, value: V) {
+    pub fn set_warn(&mut self, index: TypedUsize<K>, value: V) {
         self.set_impl(index, value, true)
     }
-    fn set_impl(&mut self, index: Index<K>, value: V, warn: bool) {
+    fn set_impl(&mut self, index: TypedUsize<K>, value: V, warn: bool) {
         let stored = self.hole_vec.get_mut(index);
         if stored.is_none() {
             self.some_count += 1;
@@ -81,7 +81,7 @@ where
     K: Behave,
 {
     type Item = (
-        Index<K>,
+        TypedUsize<K>,
         <std::slice::Iter<'a, Option<V>> as Iterator>::Item,
     );
     type IntoIter = HoleVecMapIter<K, std::slice::Iter<'a, Option<V>>>;

@@ -2,7 +2,7 @@
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::{vecmap_iter::VecMapIter, Behave, Index, VecMap};
+use super::{vecmap_iter::VecMapIter, Behave, TypedUsize, VecMap};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FillVecMap<K, V>
@@ -29,13 +29,13 @@ where
     // pub fn get(&self, index: Index<K>) -> &Option<V> {
     //     self.vec.get(index)
     // }
-    pub fn set(&mut self, index: Index<K>, value: V) {
+    pub fn set(&mut self, index: TypedUsize<K>, value: V) {
         self.set_impl(index, value, false)
     }
-    pub fn set_warn(&mut self, index: Index<K>, value: V) {
+    pub fn set_warn(&mut self, index: TypedUsize<K>, value: V) {
         self.set_impl(index, value, true)
     }
-    fn set_impl(&mut self, index: Index<K>, value: V, warn: bool) {
+    fn set_impl(&mut self, index: TypedUsize<K>, value: V, warn: bool) {
         let stored = self.vec.get_mut(index);
         if stored.is_none() {
             self.some_count += 1;
@@ -46,7 +46,7 @@ where
         }
         *stored = Some(value);
     }
-    pub fn is_none(&self, index: Index<K>) -> bool {
+    pub fn is_none(&self, index: TypedUsize<K>) -> bool {
         self.vec.get(index).is_none()
     }
     // /// Returns `true` if all items are `Some`, except possibly the `index`th item.
@@ -66,12 +66,12 @@ where
     }
 
     /// Iterate only over items that are `Some`
-    pub fn iter_some(&self) -> impl Iterator<Item = (Index<K>, &V)> + '_ {
+    pub fn iter_some(&self) -> impl Iterator<Item = (TypedUsize<K>, &V)> + '_ {
         self.vec
             .iter()
             .filter_map(|(i, x)| if let Some(y) = x { Some((i, y)) } else { None })
     }
-    pub fn into_iter_some(self) -> impl Iterator<Item = (Index<K>, V)> {
+    pub fn into_iter_some(self) -> impl Iterator<Item = (TypedUsize<K>, V)> {
         self.into_iter()
             .filter_map(|(i, x)| if let Some(y) = x { Some((i, y)) } else { None })
     }

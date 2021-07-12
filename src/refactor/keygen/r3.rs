@@ -13,7 +13,7 @@ use crate::{
         },
         keygen::r4,
     },
-    vecmap::{FillVecMap, Index, P2ps, VecMap},
+    vecmap::{FillVecMap, P2ps, TypedUsize, VecMap},
     zkp::schnorr_k256,
 };
 
@@ -64,7 +64,7 @@ impl bcast_and_p2p::Executer for R3 {
     fn execute(
         self: Box<Self>,
         party_count: usize,
-        index: Index<Self::Index>,
+        index: TypedUsize<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
@@ -204,7 +204,7 @@ impl bcast_and_p2p::Executer for R3 {
 
 pub mod malicious {
     use super::R3;
-    use crate::{refactor::keygen::KeygenPartyIndex, vecmap::Index};
+    use crate::{refactor::keygen::KeygenPartyIndex, vecmap::TypedUsize};
 
     #[cfg(feature = "malicious")]
     use super::super::malicious::{log_confess_info, Behaviour};
@@ -212,7 +212,7 @@ pub mod malicious {
     impl R3 {
         pub fn corrupt_scalar(
             &self,
-            my_index: Index<KeygenPartyIndex>,
+            my_index: TypedUsize<KeygenPartyIndex>,
             mut x_i: k256::Scalar,
         ) -> k256::Scalar {
             #[cfg(feature = "malicious")]

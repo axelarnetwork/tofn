@@ -1,6 +1,6 @@
 use crate::{
     refactor::api::BytesVec,
-    vecmap::{Behave, FillP2ps, FillVecMap, HoleVecMap, Index},
+    vecmap::{Behave, FillP2ps, FillVecMap, HoleVecMap, TypedUsize},
 };
 
 use super::{
@@ -25,7 +25,7 @@ where
     pub fn new_bcast_and_p2p(
         round: Box<dyn bcast_and_p2p::ExecuterRaw<FinalOutput = F, Index = K>>,
         party_count: usize,
-        index: Index<K>,
+        index: TypedUsize<K>,
         bcast_out: BytesVec,
         p2ps_out: HoleVecMap<K, BytesVec>,
     ) -> Self {
@@ -48,7 +48,7 @@ where
     pub fn new_bcast_only(
         round: Box<dyn bcast_only::ExecuterRaw<FinalOutput = F, Index = K>>,
         party_count: usize,
-        index: Index<K>,
+        index: TypedUsize<K>,
         bcast_out: BytesVec,
     ) -> Self {
         // validate args
@@ -67,7 +67,7 @@ where
     pub fn new_no_messages(
         round: Box<dyn no_messages::Executer<FinalOutput = F, Index = K>>,
         party_count: usize,
-        index: Index<K>,
+        index: TypedUsize<K>,
     ) -> Self {
         assert!(index.as_usize() < party_count);
 
