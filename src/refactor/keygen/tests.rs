@@ -1,8 +1,8 @@
 use super::*;
 use crate::{
+    collections::{HoleVecMap, VecMap},
     protocol::gg20::vss_k256,
     refactor::api::{BytesVec, Protocol},
-    vecmap::{HoleVecMap, VecMap},
 };
 use rand::RngCore;
 use tracing_test::traced_test;

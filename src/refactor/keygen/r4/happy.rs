@@ -1,6 +1,7 @@
 use tracing::warn;
 
 use crate::{
+    collections::{FillVecMap, P2ps, TypedUsize, VecMap},
     paillier_k256,
     protocol::gg20::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo},
     refactor::{
@@ -8,7 +9,6 @@ use crate::{
         implementer_api::{bcast_only, log_fault_warn, ProtocolBuilder},
         keygen::{r1, r2, r3, r4::sad::R4Sad, KeygenPartyIndex, KeygenProtocolBuilder},
     },
-    vecmap::{FillVecMap, P2ps, TypedUsize, VecMap},
     zkp::schnorr_k256,
 };
 

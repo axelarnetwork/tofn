@@ -39,11 +39,10 @@ impl<T> FillVec<T> {
         let stored = &mut self.vec[index];
         if stored.is_none() {
             self.some_count += 1;
-        } else {
-            if warn {
-                warn!("overwrite existing value at index {}", index);
-            }
+        } else if warn {
+            warn!("overwrite existing value at index {}", index);
         }
+
         *stored = Some(value);
     }
     pub fn len(&self) -> usize {

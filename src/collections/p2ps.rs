@@ -1,8 +1,8 @@
 use tracing::error;
 
 use crate::{
+    collections::{Behave, FillHoleVecMap, HoleVecMap, TypedUsize, VecMap},
     refactor::api::TofnResult,
-    vecmap::{Behave, FillHoleVecMap, HoleVecMap, TypedUsize, VecMap},
 };
 
 use super::p2ps_iter::P2psIter;
@@ -141,7 +141,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::FillP2ps;
-    use crate::vecmap::{Behave, TypedUsize};
+    use crate::collections::{Behave, TypedUsize};
     use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]

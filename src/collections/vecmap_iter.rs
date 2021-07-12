@@ -46,7 +46,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::vecmap::{vecmap::VecMap, Behave};
+    use crate::collections::{vecmap::VecMap, Behave};
     use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]

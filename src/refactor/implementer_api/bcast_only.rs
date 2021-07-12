@@ -2,11 +2,11 @@ use serde::de::DeserializeOwned;
 use tracing::warn;
 
 use crate::{
+    collections::{Behave, FillVecMap, TypedUsize, VecMap},
     refactor::{
         api::{BytesVec, Fault, TofnResult},
         implementer_api::ProtocolBuilder,
     },
-    vecmap::{Behave, FillVecMap, TypedUsize, VecMap},
 };
 
 pub trait Executer: Send + Sync {

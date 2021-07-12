@@ -2,7 +2,7 @@ use tracing::error;
 
 use crate::{
     refactor::api::{BytesVec, TofnResult},
-    vecmap::{Behave, FillP2ps, FillVecMap, HoleVecMap, TypedUsize},
+    collections::{Behave, FillP2ps, FillVecMap, HoleVecMap, TypedUsize},
 };
 
 use super::{

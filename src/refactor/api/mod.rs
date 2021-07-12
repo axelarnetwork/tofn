@@ -1,5 +1,5 @@
 //! TODO traits only here, rename to `api` or `traits` or something.
-use crate::vecmap::{Behave, FillVecMap, HoleVecMap, TypedUsize};
+use crate::collections::{Behave, FillVecMap, HoleVecMap, TypedUsize};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 

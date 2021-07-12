@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 use crate::{
+    collections::{FillVecMap, P2ps, TypedUsize, VecMap},
     hash,
     k256_serde::to_bytes,
     paillier_k256,
@@ -13,7 +14,6 @@ use crate::{
         },
         keygen::r4,
     },
-    vecmap::{FillVecMap, P2ps, TypedUsize, VecMap},
     zkp::schnorr_k256,
 };
 
@@ -206,7 +206,7 @@ pub mod malicious {
     #![allow(unused_variables)]
     #![allow(unused_mut)]
     use super::R3;
-    use crate::{refactor::keygen::KeygenPartyIndex, vecmap::TypedUsize};
+    use crate::{collections::TypedUsize, refactor::keygen::KeygenPartyIndex};
 
     #[cfg(feature = "malicious")]
     use super::super::malicious::{log_confess_info, Behaviour};

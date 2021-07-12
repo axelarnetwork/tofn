@@ -1,13 +1,13 @@
 use tracing::error;
 
 use crate::{
+    collections::{FillVecMap, P2ps, TypedUsize, VecMap},
     protocol::gg20::SecretKeyShare,
     refactor::{
         api::{Fault::ProtocolFault, TofnResult},
         implementer_api::{bcast_only, log_fault_info, ProtocolBuilder},
         keygen::{r1, r2, r3, KeygenPartyIndex, KeygenProtocolBuilder},
     },
-    vecmap::{FillVecMap, P2ps, TypedUsize, VecMap},
 };
 
 #[allow(non_snake_case)]

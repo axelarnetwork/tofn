@@ -5,7 +5,7 @@ pub mod no_messages;
 pub mod round;
 pub use round::Round;
 
-use crate::vecmap::{Behave, HoleVecMap, TypedUsize};
+use crate::collections::{Behave, HoleVecMap, TypedUsize};
 
 use super::api::{BytesVec, Protocol, ProtocolOutput, TofnResult};
 

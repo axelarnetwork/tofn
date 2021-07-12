@@ -1,12 +1,12 @@
 use execute::*;
 use rand::RngCore;
 use tofn::{
+    collections::{TypedUsize, VecMap},
     protocol::gg20::SecretKeyShare,
     refactor::{
         api::Protocol,
         keygen::{new_keygen, KeygenPartyIndex, KeygenProtocol},
     },
-    vecmap::{TypedUsize, VecMap},
 };
 // use tracing::{error, info};
 use tracing_test::traced_test; // enable logs in tests

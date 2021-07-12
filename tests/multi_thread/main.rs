@@ -2,9 +2,9 @@ use broadcaster::Broadcaster;
 use rand::RngCore;
 use std::{sync::mpsc, thread};
 use tofn::{
+    collections::TypedUsize,
     protocol::gg20::SecretKeyShare,
     refactor::keygen::{new_keygen, KeygenProtocol},
-    vecmap::TypedUsize,
 };
 
 /// TODO rename parent dir to `example`

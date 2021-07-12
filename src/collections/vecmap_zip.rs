@@ -61,7 +61,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::vecmap::{vecmap::VecMap, Behave};
+    use crate::collections::{vecmap::VecMap, Behave};
     use serde::{Deserialize, Serialize};
 
     use super::zip2;
