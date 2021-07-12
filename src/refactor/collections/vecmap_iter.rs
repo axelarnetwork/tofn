@@ -34,29 +34,4 @@ where
         self.count = TypedUsize::from_usize(self.count.as_usize() + 1);
         Some((i, a))
     }
-
-    /// forbid use of `enumerate` because this functionality is already provided by this iterator
-    fn enumerate(self) -> std::iter::Enumerate<Self>
-    where
-        Self: Sized,
-    {
-        unimplemented!("iterator already returns a type-safe (index,value) pair");
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::refactor::collections::{vecmap::VecMap, Behave};
-    use serde::{Deserialize, Serialize};
-
-    #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-    struct TestIndex;
-    impl Behave for TestIndex {}
-
-    #[test]
-    #[should_panic]
-    fn override_enumerate() {
-        let vecmap: VecMap<TestIndex, _> = (0..4).collect();
-        let _ = vecmap.into_iter().enumerate();
-    }
 }

@@ -50,12 +50,4 @@ where
             }
         }
     }
-
-    /// forbid use of `enumerate` because this functionality is already provided by this iterator
-    fn enumerate(self) -> std::iter::Enumerate<Self>
-    where
-        Self: Sized,
-    {
-        unimplemented!("iterator already returns a type-safe (index,value) pair");
-    }
 }

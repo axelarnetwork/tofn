@@ -49,14 +49,6 @@ where
         let (_, a1) = self.iter1.next()?;
         Some((i, a0, a1))
     }
-
-    /// forbid use of `enumerate` because this functionality is already provided by this iterator
-    fn enumerate(self) -> std::iter::Enumerate<Self>
-    where
-        Self: Sized,
-    {
-        unimplemented!("iterator already returns a type-safe (index,value) pair");
-    }
 }
 
 #[cfg(test)]
@@ -76,13 +68,10 @@ mod tests {
         let v0: VecMap<TestIndex, _> = (0..test_size).collect();
         let v1: VecMap<TestIndex, _> = (test_size..2 * test_size).collect();
 
-        // can't use `enumerate` because we disabled it
-        let mut counter = 0;
-        for (i, a0, a1) in zip2(&v0, &v1) {
+        for (counter, (i, a0, a1)) in zip2(&v0, &v1).enumerate() {
             assert_eq!(i.as_usize(), counter);
             assert_eq!(*a0, counter);
             assert_eq!(*a1, counter + test_size);
-            counter += 1;
         }
     }
 }
