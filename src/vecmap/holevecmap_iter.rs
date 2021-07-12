@@ -27,8 +27,8 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         let (mut i, a) = self.iter.next()?;
-        if i.0 >= self.hole.0 {
-            i.0 += 1; // skip hole
+        if i.as_usize() >= self.hole.as_usize() {
+            i = TypedUsize::from_usize(i.as_usize() + 1); // skip hole
         }
         Some((i, a))
     }

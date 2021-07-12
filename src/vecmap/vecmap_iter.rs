@@ -31,7 +31,7 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         let a = self.iter.next()?;
         let i = self.count;
-        self.count.0 += 1;
+        self.count = TypedUsize::from_usize(self.count.as_usize() + 1);
         Some((i, a))
     }
 

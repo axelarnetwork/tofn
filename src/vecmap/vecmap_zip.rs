@@ -79,7 +79,7 @@ mod tests {
         // can't use `enumerate` because we disabled it
         let mut counter = 0;
         for (i, a0, a1) in zip2(&v0, &v1) {
-            assert_eq!(i.0, counter);
+            assert_eq!(i.as_usize(), counter);
             assert_eq!(*a0, counter);
             assert_eq!(*a1, counter + test_size);
             counter += 1;

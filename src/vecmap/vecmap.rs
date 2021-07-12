@@ -20,18 +20,18 @@ where
     }
     pub fn get(&self, index: TypedUsize<K>) -> &V {
         // TODO range check?
-        &self.0[index.0]
+        &self.0[index.as_usize()]
     }
     pub fn get_mut(&mut self, index: TypedUsize<K>) -> &mut V {
         // TODO range check?
-        &mut self.0[index.0]
+        &mut self.0[index.as_usize()]
     }
     pub fn len(&self) -> usize {
         self.0.len()
     }
     pub fn puncture_hole(mut self, hole: TypedUsize<K>) -> (HoleVecMap<K, V>, V) {
         // TODO range check?
-        let hole_val = self.0.remove(hole.0);
+        let hole_val = self.0.remove(hole.as_usize());
         (HoleVecMap::from_vecmap(self, hole), hole_val)
     }
     pub fn iter(&self) -> VecMapIter<K, std::slice::Iter<V>> {

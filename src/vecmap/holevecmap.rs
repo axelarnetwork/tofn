@@ -32,17 +32,19 @@ where
     }
     pub fn plug_hole(self, val: V) -> VecMap<K, V> {
         let mut vec = self.vec.into_vec();
-        vec.insert(self.hole.0, val);
+        vec.insert(self.hole.as_usize(), val);
         VecMap::from_vec(vec)
     }
     pub fn iter(&self) -> HoleVecMapIter<K, std::slice::Iter<V>> {
         HoleVecMapIter::new(self.vec.iter(), self.hole)
     }
     fn map_index(&self, index: TypedUsize<K>) -> Result<TypedUsize<K>, &'static str> {
-        match index.0 {
-            i if i < self.hole.0 => Ok(index),
-            i if i > self.hole.0 && i <= self.vec.len() => Ok(TypedUsize::from_usize(i - 1)),
-            i if i == self.hole.0 => Err("index == hole"),
+        match index.as_usize() {
+            i if i < self.hole.as_usize() => Ok(index),
+            i if i > self.hole.as_usize() && i <= self.vec.len() => {
+                Ok(TypedUsize::from_usize(i - 1))
+            }
+            i if i == self.hole.as_usize() => Err("index == hole"),
             _ => Err("index out of range"),
         }
     }
