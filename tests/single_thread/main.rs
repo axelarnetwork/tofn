@@ -1,3 +1,4 @@
+#![allow(clippy::result_unit_err)] // TODO idiomatic solution?
 use execute::*;
 use rand::RngCore;
 use tofn::{

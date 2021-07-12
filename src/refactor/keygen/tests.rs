@@ -107,13 +107,12 @@ pub(crate) fn execute_keygen_from_recovery(
     let all_u_secrets: Vec<k256::Scalar> = r1_parties
         .iter()
         .map(|party| {
-            party
+            *party
                 .round_as_any()
                 .downcast_ref::<r2::R2>()
                 .unwrap()
                 .u_i_vss
                 .get_secret()
-                .clone()
         })
         .collect();
 
