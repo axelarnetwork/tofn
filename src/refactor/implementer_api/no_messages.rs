@@ -1,6 +1,6 @@
 use crate::{
     refactor::api::TofnResult,
-    collections::{Behave, TypedUsize},
+    refactor::collections::{Behave, TypedUsize},
 };
 
 use super::ProtocolBuilder;

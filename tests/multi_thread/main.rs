@@ -2,8 +2,8 @@ use broadcaster::Broadcaster;
 use rand::RngCore;
 use std::{sync::mpsc, thread};
 use tofn::{
-    collections::TypedUsize,
     protocol::gg20::SecretKeyShare,
+    refactor::collections::TypedUsize,
     refactor::keygen::{new_keygen, KeygenProtocol},
 };
 

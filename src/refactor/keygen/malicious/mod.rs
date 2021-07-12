@@ -2,7 +2,7 @@
 
 use tracing::info;
 
-use crate::vecmap::{Behave, TypedUsize};
+use crate::refactor::collections::{Behave, TypedUsize};
 
 use super::KeygenPartyIndex;
 

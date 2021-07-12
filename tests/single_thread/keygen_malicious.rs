@@ -2,12 +2,12 @@ use tofn::{
     protocol::gg20::SecretKeyShare,
     refactor::{
         api::{Fault, Protocol::*, ProtocolOutput},
+        collections::{Behave, FillVecMap, TypedUsize, VecMap},
         keygen::{
             malicious::Behaviour::{self, *},
             new_keygen_with_behaviour, KeygenPartyIndex, KeygenProtocol, SecretRecoveryKey,
         },
     },
-    vecmap::{Behave, FillVecMap, TypedUsize, VecMap},
 };
 use tracing::info;
 use tracing_test::traced_test;

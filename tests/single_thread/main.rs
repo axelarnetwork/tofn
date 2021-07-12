@@ -1,8 +1,8 @@
 use execute::*;
 use rand::RngCore;
 use tofn::{
-    collections::{TypedUsize, VecMap},
     protocol::gg20::SecretKeyShare,
+    refactor::collections::{TypedUsize, VecMap},
     refactor::{
         api::Protocol,
         keygen::{new_keygen, KeygenPartyIndex, KeygenProtocol},

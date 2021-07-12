@@ -1,9 +1,9 @@
 use tracing::warn;
 
 use crate::{
-    collections::{FillVecMap, P2ps, TypedUsize, VecMap},
     paillier_k256,
     protocol::gg20::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo},
+    refactor::collections::{FillVecMap, P2ps, TypedUsize, VecMap},
     refactor::{
         api::{Fault::ProtocolFault, TofnResult},
         implementer_api::{bcast_only, log_fault_warn, ProtocolBuilder},

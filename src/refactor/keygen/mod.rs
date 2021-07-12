@@ -1,6 +1,6 @@
 use crate::protocol::gg20::SecretKeyShare;
 use crate::refactor::api::{Protocol, TofnResult};
-use crate::collections::{Behave, TypedUsize};
+use crate::refactor::collections::{Behave, TypedUsize};
 use serde::{Deserialize, Serialize};
 use tracing::error;
 

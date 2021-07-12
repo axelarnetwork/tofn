@@ -1,8 +1,8 @@
 use tracing::error;
 
 use crate::{
-    collections::{FillVecMap, P2ps, TypedUsize, VecMap},
     protocol::gg20::SecretKeyShare,
+    refactor::collections::{FillVecMap, P2ps, TypedUsize, VecMap},
     refactor::{
         api::{Fault::ProtocolFault, TofnResult},
         implementer_api::{bcast_only, log_fault_info, ProtocolBuilder},

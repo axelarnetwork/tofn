@@ -1,7 +1,7 @@
 use crate::{
-    collections::TypedUsize,
     hash, k256_serde, paillier_k256,
     protocol::gg20::{vss_k256, SecretKeyShare},
+    refactor::collections::TypedUsize,
     refactor::{
         api::TofnResult,
         implementer_api::{no_messages, serialize, ProtocolBuilder::*, RoundBuilder},
@@ -84,9 +84,9 @@ pub mod malicious {
     #![allow(unreachable_code)]
     use super::R1;
     use crate::{
-        collections::TypedUsize,
         hash::Output,
         paillier_k256::zk::{EncryptionKeyProof, ZkSetupProof},
+        refactor::collections::TypedUsize,
         refactor::keygen::KeygenPartyIndex,
     };
 
