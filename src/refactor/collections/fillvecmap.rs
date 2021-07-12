@@ -41,11 +41,10 @@ where
         let stored = self.vec.get_mut(index)?;
         if stored.is_none() {
             self.some_count += 1;
-        } else {
-            if warn {
-                warn!("overwrite existing value at index {}", index);
-            }
+        } else if warn {
+            warn!("overwrite existing value at index {}", index);
         }
+
         *stored = Some(value);
         Ok(())
     }
@@ -72,11 +71,10 @@ where
     pub fn iter_some(&self) -> impl Iterator<Item = (TypedUsize<K>, &V)> + '_ {
         self.vec
             .iter()
-            .filter_map(|(i, x)| if let Some(y) = x { Some((i, y)) } else { None })
+            .filter_map(|(i, x)| x.as_ref().map(|y| (i, y)))
     }
     pub fn into_iter_some(self) -> impl Iterator<Item = (TypedUsize<K>, V)> {
-        self.into_iter()
-            .filter_map(|(i, x)| if let Some(y) = x { Some((i, y)) } else { None })
+        self.into_iter().filter_map(|(i, x)| x.map(|y| (i, y)))
     }
 
     // pub fn from_vec(vec: Vec<Option<T>>) -> Self {

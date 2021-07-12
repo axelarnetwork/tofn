@@ -40,11 +40,10 @@ where
         let stored = self.hole_vec.get_mut(index)?;
         if stored.is_none() {
             self.some_count += 1;
-        } else {
-            if warn {
-                warn!("overwrite existing value at index {}", index);
-            }
+        } else if warn {
+            warn!("overwrite existing value at index {}", index);
         }
+
         *stored = Some(value);
         Ok(())
     }

@@ -32,8 +32,12 @@ where
     pub fn get_mut(&mut self, index: TypedUsize<K>) -> TofnResult<&mut V> {
         self.vec.get_mut(self.map_index(index)?)
     }
+    /// never returns 0. is_empty returns true even when len==1
     pub fn len(&self) -> usize {
         self.vec.len() + 1
+    }
+    pub fn is_empty(&self) -> bool {
+        self.vec.is_empty()
     }
     pub fn plug_hole(self, val: V) -> VecMap<K, V> {
         let mut vec = self.vec.into_vec();
