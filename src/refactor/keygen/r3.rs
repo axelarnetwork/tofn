@@ -203,6 +203,8 @@ impl bcast_and_p2p::Executer for R3 {
 }
 
 pub mod malicious {
+    #![allow(unused_variables)]
+    #![allow(unused_mut)]
     use super::R3;
     use crate::{refactor::keygen::KeygenPartyIndex, vecmap::TypedUsize};
 

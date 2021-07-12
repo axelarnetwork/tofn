@@ -8,7 +8,6 @@ use crate::{
     vecmap::TypedUsize,
 };
 use serde::{Deserialize, Serialize};
-use tracing::info;
 
 use super::{r2, rng, KeygenPartyIndex, KeygenProtocolBuilder};
 
@@ -46,34 +45,15 @@ impl no_messages::Executer for R1 {
             &(k256::ProjectivePoint::generator() * u_i_vss.get_secret()),
         ));
 
-        #[cfg(feature = "malicious")]
-        let y_i_commit = if matches!(self.behaviour, Behaviour::R1BadCommit) {
-            info!("malicious party {} do {:?}", index, self.behaviour);
-            y_i_commit.corrupt()
-        } else {
-            y_i_commit
-        };
+        let y_i_commit = self.corrupt_commit(index, y_i_commit);
 
         let mut rng = rng::rng_from_seed(self.rng_seed);
         let (ek, dk) = paillier_k256::keygen_unsafe(&mut rng);
         let (zkp, zkp_proof) = paillier_k256::zk::ZkSetup::new_unsafe(&mut rng);
         let ek_proof = dk.correctness_proof();
 
-        #[cfg(feature = "malicious")]
-        let ek_proof = if matches!(self.behaviour, Behaviour::R1BadEncryptionKeyProof) {
-            info!("malicious party {} do {:?}", index, self.behaviour);
-            paillier_k256::zk::malicious::corrupt_ek_proof(ek_proof)
-        } else {
-            ek_proof
-        };
-
-        #[cfg(feature = "malicious")]
-        let zkp_proof = if matches!(self.behaviour, Behaviour::R1BadZkSetupProof) {
-            info!("malicious party {} do {:?}", index, self.behaviour);
-            paillier_k256::zk::malicious::corrupt_zksetup_proof(zkp_proof)
-        } else {
-            zkp_proof
-        };
+        let ek_proof = self.corrupt_ek_proof(index, ek_proof);
+        let zkp_proof = self.corrupt_zkp_proof(index, zkp_proof);
 
         let bcast_out = serialize(&Bcast {
             y_i_commit,
@@ -94,5 +74,75 @@ impl no_messages::Executer for R1 {
             }),
             bcast_out,
         }))
+    }
+}
+
+pub mod malicious {
+    // TODO need a better way to squelch build warnings with and without feature = "malicious"
+    #![allow(unused_variables)]
+    #![allow(unused_mut)]
+    #![allow(unreachable_code)]
+    use super::R1;
+    use crate::{
+        hash::Output,
+        paillier_k256::zk::{EncryptionKeyProof, ZkSetupProof},
+        refactor::keygen::KeygenPartyIndex,
+        vecmap::TypedUsize,
+    };
+
+    #[cfg(feature = "malicious")]
+    use tracing::info;
+
+    #[cfg(feature = "malicious")]
+    use crate::{paillier_k256, refactor::keygen};
+
+    impl R1 {
+        pub fn corrupt_commit(
+            &self,
+            my_index: TypedUsize<KeygenPartyIndex>,
+            mut commit: Output,
+        ) -> Output {
+            #[cfg(feature = "malicious")]
+            if let keygen::Behaviour::R1BadCommit = self.behaviour {
+                info!("malicious party {} do {:?}", my_index, self.behaviour);
+                return commit.corrupt();
+            } else {
+                return commit;
+            }
+
+            commit
+        }
+
+        pub fn corrupt_ek_proof(
+            &self,
+            my_index: TypedUsize<KeygenPartyIndex>,
+            mut ek_proof: EncryptionKeyProof,
+        ) -> EncryptionKeyProof {
+            #[cfg(feature = "malicious")]
+            if let keygen::Behaviour::R1BadEncryptionKeyProof = self.behaviour {
+                info!("malicious party {} do {:?}", my_index, self.behaviour);
+                return paillier_k256::zk::malicious::corrupt_ek_proof(ek_proof);
+            } else {
+                return ek_proof;
+            }
+
+            ek_proof
+        }
+
+        pub fn corrupt_zkp_proof(
+            &self,
+            my_index: TypedUsize<KeygenPartyIndex>,
+            mut zkp_proof: ZkSetupProof,
+        ) -> ZkSetupProof {
+            #[cfg(feature = "malicious")]
+            if let keygen::Behaviour::R1BadZkSetupProof = self.behaviour {
+                info!("malicious party {} do {:?}", my_index, self.behaviour);
+                return paillier_k256::zk::malicious::corrupt_zksetup_proof(zkp_proof);
+            } else {
+                return zkp_proof;
+            }
+
+            zkp_proof
+        }
     }
 }

@@ -109,19 +109,22 @@ impl bcast_only::Executer for R2 {
 }
 
 pub mod malicious {
-    use tracing::info;
-
+    #![allow(unused_variables)]
+    #![allow(unused_mut)]
     use crate::{
         paillier_k256::Ciphertext,
         protocol::gg20::vss_k256::Share,
-        refactor::{
-            api::TofnResult,
-            keygen::{self, KeygenPartyIndex},
-        },
+        refactor::{api::TofnResult, keygen::KeygenPartyIndex},
         vecmap::{HoleVecMap, TypedUsize},
     };
 
     use super::R2;
+
+    #[cfg(feature = "malicious")]
+    use crate::refactor::keygen;
+
+    #[cfg(feature = "malicious")]
+    use tracing::info;
 
     impl R2 {
         pub fn corrupt_share(
