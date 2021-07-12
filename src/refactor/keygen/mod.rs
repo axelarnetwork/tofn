@@ -2,6 +2,7 @@ use crate::protocol::gg20::SecretKeyShare;
 use crate::refactor::api::{Protocol, TofnResult};
 use crate::vecmap::{Behave, TypedUsize};
 use serde::{Deserialize, Serialize};
+use tracing::error;
 
 use super::implementer_api::{ProtocolBuilder, Round};
 
@@ -50,16 +51,15 @@ fn new_keygen_impl(
     // validate args
     if share_count <= threshold || share_count <= index.as_usize() || share_count > MAX_SHARE_COUNT
     {
-        return Err(format!(
+        error!(
             "invalid (share_count,threshold,index): ({},{},{})",
             share_count, threshold, index
-        ));
+        );
+        return Err(());
     }
     if session_nonce.is_empty() {
-        return Err(format!(
-            "invalid session_nonce length: {}",
-            session_nonce.len()
-        ));
+        error!("invalid session_nonce length: {}", session_nonce.len());
+        return Err(());
     }
 
     // compute the RNG seed now so as to minimize copying of `secret_recovery_key`

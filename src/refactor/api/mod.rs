@@ -5,7 +5,7 @@ use tracing::warn;
 
 use super::implementer_api::round::Round;
 
-pub type TofnResult<T> = Result<T, String>;
+pub type TofnResult<T> = Result<T, ()>;
 pub type BytesVec = Vec<u8>;
 
 pub enum Protocol<F, K>
