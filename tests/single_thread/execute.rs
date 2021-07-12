@@ -1,19 +1,21 @@
 //! Single-threaded generic protocol execution
 
 use tofn::{
-    refactor::api::{BytesVec, Protocol},
+    refactor::api::{BytesVec, Protocol, TofnResult},
     vecmap::{Behave, HoleVecMap, VecMap},
 };
 use tracing::warn;
 
-pub fn execute_protocol<F, K>(mut parties: VecMap<K, Protocol<F, K>>) -> VecMap<K, Protocol<F, K>>
+pub fn execute_protocol<F, K>(
+    mut parties: VecMap<K, Protocol<F, K>>,
+) -> TofnResult<VecMap<K, Protocol<F, K>>>
 where
     K: Behave,
 {
     while nobody_done(&parties) {
-        parties = next_round(parties);
+        parties = next_round(parties)?;
     }
-    parties
+    Ok(parties)
 }
 
 fn nobody_done<F, K>(parties: &VecMap<K, Protocol<F, K>>) -> bool
@@ -41,7 +43,7 @@ where
     done.is_empty()
 }
 
-fn next_round<F, K>(parties: VecMap<K, Protocol<F, K>>) -> VecMap<K, Protocol<F, K>>
+fn next_round<F, K>(parties: VecMap<K, Protocol<F, K>>) -> TofnResult<VecMap<K, Protocol<F, K>>>
 where
     K: Behave,
 {
@@ -62,7 +64,7 @@ where
     for (from, bcast) in bcasts.into_iter() {
         if let Some(bytes) = bcast {
             for (_, round) in rounds.iter_mut() {
-                round.bcast_in(from, &bytes);
+                round.bcast_in(from, &bytes)?;
             }
         }
     }
@@ -76,7 +78,7 @@ where
         if let Some(p2ps) = p2ps {
             for (to, bytes) in p2ps {
                 for (_, round) in rounds.iter_mut() {
-                    round.p2p_in(from, to, &bytes);
+                    round.p2p_in(from, to, &bytes)?;
                 }
             }
         }
@@ -94,5 +96,5 @@ where
             }
             round.execute_next_round()
         })
-        .collect()
+        .collect::<TofnResult<_>>()
 }

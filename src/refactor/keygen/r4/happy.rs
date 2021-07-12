@@ -4,9 +4,9 @@ use crate::{
     paillier_k256,
     protocol::gg20::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo},
     refactor::{
-        api::Fault::ProtocolFault,
+        api::{Fault::ProtocolFault, TofnResult},
         implementer_api::{bcast_only, log_fault_warn, ProtocolBuilder},
-        keygen::{r1, r2, r3, r4::sad::R4Sad, KeygenPartyIndex},
+        keygen::{r1, r2, r3, r4::sad::R4Sad, KeygenPartyIndex, KeygenProtocolBuilder},
     },
     vecmap::{FillVecMap, P2ps, TypedUsize, VecMap},
     zkp::schnorr_k256,
@@ -41,7 +41,7 @@ impl bcast_only::Executer for R4 {
         party_count: usize,
         index: TypedUsize<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
-    ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
+    ) -> TofnResult<KeygenProtocolBuilder> {
         // move to sad path if necessary
         if bcasts_in
             .iter()
@@ -74,32 +74,34 @@ impl bcast_only::Executer for R4 {
             if schnorr_k256::verify(
                 &schnorr_k256::Statement {
                     base: &k256::ProjectivePoint::generator(),
-                    target: &self.all_X_i.get(from),
+                    target: self.all_X_i.get(from)?,
                 },
                 &bcast.x_i_proof,
             )
             .is_err()
             {
                 log_fault_warn(index, from, "bad DL proof");
-                faulters.set(from, ProtocolFault);
+                faulters.set(from, ProtocolFault)?;
             }
         }
         if !faulters.is_empty() {
-            return ProtocolBuilder::Done(Err(faulters));
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
         // prepare data for final output
         let all_shares: Vec<SharePublicInfo> = self
             .r1bcasts
             .iter()
-            .map(|(i, r1bcast)| SharePublicInfo {
-                X_i: self.all_X_i.get(i).into(),
-                ek: r1bcast.ek.clone(),
-                zkp: r1bcast.zkp.clone(),
+            .map(|(i, r1bcast)| {
+                Ok(SharePublicInfo {
+                    X_i: self.all_X_i.get(i)?.into(),
+                    ek: r1bcast.ek.clone(),
+                    zkp: r1bcast.zkp.clone(),
+                })
             })
-            .collect();
+            .collect::<TofnResult<Vec<_>>>()?;
 
-        ProtocolBuilder::Done(Ok(SecretKeyShare {
+        Ok(ProtocolBuilder::Done(Ok(SecretKeyShare {
             group: GroupPublicInfo {
                 threshold: self.threshold,
                 y: self.y.into(),
@@ -110,7 +112,7 @@ impl bcast_only::Executer for R4 {
                 dk: self.dk,
                 x_i: self.x_i.into(),
             },
-        }))
+        })))
     }
 
     #[cfg(test)]

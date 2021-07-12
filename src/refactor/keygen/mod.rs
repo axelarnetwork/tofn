@@ -74,7 +74,7 @@ fn new_keygen_impl(
         }),
         share_count,
         index,
-    )))
+    )?))
 }
 
 #[cfg(feature = "malicious")]

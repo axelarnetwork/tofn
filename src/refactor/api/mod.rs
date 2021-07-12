@@ -42,24 +42,27 @@ where
             Round::BcastOnly(_) | Round::NoMessages(_) => None,
         }
     }
-    pub fn bcast_in(&mut self, from: TypedUsize<K>, bytes: &[u8]) {
+    pub fn bcast_in(&mut self, from: TypedUsize<K>, bytes: &[u8]) -> TofnResult<()> {
         match self {
-            Round::BcastAndP2p(r) => {
-                r.bcasts_in.set_warn(from, bytes.to_vec());
-            }
+            Round::BcastAndP2p(r) => r.bcasts_in.set_warn(from, bytes.to_vec()),
             Round::BcastOnly(r) => r.bcasts_in.set_warn(from, bytes.to_vec()),
             Round::NoMessages(_) => {
-                warn!("`bcast_in` called but no bcasts expected; discarding `bytes`")
+                warn!("`bcast_in` called but no bcasts expected; ignoring `bytes`");
+                Ok(())
             }
         }
     }
-    pub fn p2p_in(&mut self, from: TypedUsize<K>, to: TypedUsize<K>, bytes: &[u8]) {
+    pub fn p2p_in(
+        &mut self,
+        from: TypedUsize<K>,
+        to: TypedUsize<K>,
+        bytes: &[u8],
+    ) -> TofnResult<()> {
         match self {
-            Round::BcastAndP2p(r) => {
-                r.p2ps_in.set_warn(from, to, bytes.to_vec());
-            }
+            Round::BcastAndP2p(r) => r.p2ps_in.set_warn(from, to, bytes.to_vec()),
             Round::BcastOnly(_) | Round::NoMessages(_) => {
-                warn!("`p2p_in` called but no p2ps expected; discaring `bytes`")
+                warn!("`p2p_in` called but no p2ps expected; ignoring `bytes`");
+                Ok(())
             }
         }
     }
@@ -70,19 +73,19 @@ where
             Round::NoMessages(_) => false,
         }
     }
-    pub fn execute_next_round(self) -> Protocol<F, K> {
+    pub fn execute_next_round(self) -> TofnResult<Protocol<F, K>> {
         match self {
             Round::BcastAndP2p(r) => r
                 .round
-                .execute_raw(r.party_count, r.index, r.bcasts_in, r.p2ps_in)
+                .execute_raw(r.party_count, r.index, r.bcasts_in, r.p2ps_in)?
                 .build(r.party_count, r.index),
             Round::BcastOnly(r) => r
                 .round
-                .execute_raw(r.party_count, r.index, r.bcasts_in)
+                .execute_raw(r.party_count, r.index, r.bcasts_in)?
                 .build(r.party_count, r.index),
             Round::NoMessages(r) => r
                 .round
-                .execute(r.party_count, r.index)
+                .execute(r.party_count, r.index)?
                 .build(r.party_count, r.index),
         }
     }

@@ -82,7 +82,9 @@ fn single_fault_test_case(behaviour: Behaviour) -> TestCase {
     // party 1 is malicious
     // honest parties should identify party 1 as faulter
     let mut faulters = FillVecMap::with_size(3);
-    faulters.set(TypedUsize::from_usize(1), Fault::ProtocolFault);
+    faulters
+        .set(TypedUsize::from_usize(1), Fault::ProtocolFault)
+        .unwrap();
     TestCase {
         threshold: 1,
         behaviours: VecMap::from_vec(vec![Honest, behaviour, Honest]),
@@ -122,12 +124,12 @@ fn execute_test_case(test_case: &TestCase) {
         })
         .collect();
 
-    parties = execute_protocol(parties);
+    parties = execute_protocol(parties).expect("internal tofn error");
 
     // TEST: honest parties finished and produced the expected output
     for (index, behaviour) in test_case.behaviours.iter() {
         if behaviour.is_honest() {
-            match parties.get(index) {
+            match parties.get(index).unwrap() {
                 NotDone(_) => panic!("honest party {} not done yet", index),
                 Done(output) => test_case.assert_expected_output(output),
             }

@@ -3,9 +3,9 @@ use tracing::error;
 use crate::{
     protocol::gg20::SecretKeyShare,
     refactor::{
-        api::Fault::ProtocolFault,
+        api::{Fault::ProtocolFault, TofnResult},
         implementer_api::{bcast_only, log_fault_info, ProtocolBuilder},
-        keygen::{r1, r2, r3, KeygenPartyIndex},
+        keygen::{r1, r2, r3, KeygenPartyIndex, KeygenProtocolBuilder},
     },
     vecmap::{FillVecMap, P2ps, TypedUsize, VecMap},
 };
@@ -28,14 +28,14 @@ impl bcast_only::Executer for R4Sad {
         party_count: usize,
         index: TypedUsize<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
-    ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
+    ) -> TofnResult<KeygenProtocolBuilder> {
         // check for no complaints
         if bcasts_in
             .iter()
             .all(|(_, bcast)| matches!(bcast, r3::Bcast::Happy(_)))
         {
             error!("party {} entered r4 sad path with no complaints", index);
-            return ProtocolBuilder::Done(Err(FillVecMap::with_size(party_count)));
+            return Err(());
         }
 
         let mut faulters = FillVecMap::with_size(party_count);
@@ -51,38 +51,39 @@ impl bcast_only::Executer for R4Sad {
             for (accused, accusation) in accusations.vss_complaints.into_iter_some() {
                 if accuser == accused {
                     log_fault_info(index, accuser, "self accusation");
-                    faulters.set(accuser, ProtocolFault);
+                    faulters.set(accuser, ProtocolFault)?;
                     continue;
                 }
 
                 // verify encryption
-                let accuser_ek = &self.r1bcasts.get(accuser).ek;
+                let accuser_ek = &self.r1bcasts.get(accuser)?.ek;
                 let share_ciphertext = accuser_ek.encrypt_with_randomness(
                     &accusation.share.get_scalar().into(),
                     &accusation.randomness,
                 );
-                if share_ciphertext != self.r2p2ps.get(accused, accuser).u_i_share_ciphertext {
+                if share_ciphertext != self.r2p2ps.get(accused, accuser)?.u_i_share_ciphertext {
                     log_fault_info(index, accused, "bad encryption");
-                    faulters.set(accused, ProtocolFault);
+                    faulters.set(accused, ProtocolFault)?;
                     continue;
                 }
 
                 // verify share commitment
-                let accused_vss_commit = &self.r2bcasts.get(accused).u_i_vss_commit;
+                let accused_vss_commit = &self.r2bcasts.get(accused)?.u_i_vss_commit;
                 if accused_vss_commit.validate_share(&accusation.share) {
                     log_fault_info(index, accuser, "false accusation");
-                    faulters.set(accuser, ProtocolFault);
+                    faulters.set(accuser, ProtocolFault)?;
                 } else {
                     log_fault_info(index, accused, "invalid vss share");
-                    faulters.set(accused, ProtocolFault);
+                    faulters.set(accused, ProtocolFault)?;
                 }
             }
         }
 
         if faulters.is_empty() {
-            error!("party {} r4 sad found no faulters", index);
+            error!("party {} r4 sad path found no faulters", index);
+            return Err(());
         }
-        return ProtocolBuilder::Done(Err(faulters));
+        Ok(ProtocolBuilder::Done(Err(faulters)))
     }
 
     #[cfg(test)]

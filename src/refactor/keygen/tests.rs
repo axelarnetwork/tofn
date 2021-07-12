@@ -85,7 +85,7 @@ pub(crate) fn execute_keygen_from_recovery(
             assert!(party.bcast_out().is_none());
             assert!(party.p2ps_out().is_none());
             assert!(!party.expecting_more_msgs_this_round());
-            match party.execute_next_round() {
+            match party.execute_next_round().unwrap() {
                 Protocol::NotDone(next_round) => next_round,
                 Protocol::Done(_) => panic!("party {} done, expect not done", i),
             }
@@ -99,7 +99,7 @@ pub(crate) fn execute_keygen_from_recovery(
         .collect();
     for party in r1_parties.iter_mut() {
         for (from, bytes) in r1_bcasts.iter() {
-            party.bcast_in(from, bytes);
+            party.bcast_in(from, bytes).unwrap();
         }
     }
 
@@ -125,7 +125,7 @@ pub(crate) fn execute_keygen_from_recovery(
             assert!(party.bcast_out().is_some());
             assert!(party.p2ps_out().is_none());
             assert!(!party.expecting_more_msgs_this_round());
-            match party.execute_next_round() {
+            match party.execute_next_round().unwrap() {
                 Protocol::NotDone(next_round) => next_round,
                 Protocol::Done(_) => panic!("party {} done, expect not done", i),
             }
@@ -139,7 +139,7 @@ pub(crate) fn execute_keygen_from_recovery(
         .collect();
     for party in r2_parties.iter_mut() {
         for (from, bytes) in r2_bcasts.iter() {
-            party.bcast_in(from, bytes);
+            party.bcast_in(from, bytes).unwrap();
         }
     }
     let r2_p2ps: VecMap<KeygenPartyIndex, HoleVecMap<KeygenPartyIndex, BytesVec>> = r2_parties
@@ -149,7 +149,7 @@ pub(crate) fn execute_keygen_from_recovery(
     for party in r2_parties.iter_mut() {
         for (from, p2ps) in r2_p2ps.iter() {
             for (to, msg) in p2ps.iter() {
-                party.p2p_in(from, to, msg);
+                party.p2p_in(from, to, msg).unwrap();
             }
         }
     }
@@ -162,7 +162,7 @@ pub(crate) fn execute_keygen_from_recovery(
             assert!(party.bcast_out().is_some());
             assert!(party.p2ps_out().as_ref().unwrap().len() == share_count);
             assert!(!party.expecting_more_msgs_this_round());
-            match party.execute_next_round() {
+            match party.execute_next_round().unwrap() {
                 Protocol::NotDone(next_round) => next_round,
                 Protocol::Done(_) => panic!("party {} done, expect not done", i),
             }
@@ -176,7 +176,7 @@ pub(crate) fn execute_keygen_from_recovery(
         .collect();
     for party in r3_parties.iter_mut() {
         for (from, bytes) in r3_bcasts.iter() {
-            party.bcast_in(from, bytes);
+            party.bcast_in(from, bytes).unwrap();
         }
     }
 
@@ -188,7 +188,7 @@ pub(crate) fn execute_keygen_from_recovery(
             assert!(party.bcast_out().is_some());
             assert!(party.p2ps_out().is_none());
             assert!(!party.expecting_more_msgs_this_round());
-            match party.execute_next_round() {
+            match party.execute_next_round().unwrap() {
                 Protocol::NotDone(_) => panic!("party {} not done, expect done", i),
                 Protocol::Done(Ok(secret_key_share)) => secret_key_share,
                 Protocol::Done(Err(criminals)) => panic!(

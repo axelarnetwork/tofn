@@ -1,4 +1,7 @@
-use crate::vecmap::{Behave, TypedUsize};
+use crate::{
+    refactor::api::TofnResult,
+    vecmap::{Behave, TypedUsize},
+};
 
 use super::ProtocolBuilder;
 
@@ -9,7 +12,7 @@ pub trait Executer: Send + Sync {
         self: Box<Self>,
         party_count: usize,
         index: TypedUsize<Self::Index>,
-    ) -> ProtocolBuilder<Self::FinalOutput, Self::Index>;
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>>;
 
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {

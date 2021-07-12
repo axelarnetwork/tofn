@@ -35,7 +35,7 @@ fn main() {
         })
         .collect();
 
-    parties = execute_protocol(parties);
+    parties = execute_protocol(parties).expect("internal tofn error");
 
     let results: Vec<SecretKeyShare> = parties
         .into_iter()

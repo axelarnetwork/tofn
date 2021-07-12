@@ -2,6 +2,8 @@
 // use serde::{Deserialize, Serialize};
 use tracing::warn;
 
+use crate::refactor::api::TofnResult;
+
 use super::{holevecmap_iter::HoleVecMapIter, Behave, HoleVecMap, TypedUsize, VecMap};
 
 // #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,14 +30,14 @@ where
             some_count: 0,
         }
     }
-    pub fn set(&mut self, index: TypedUsize<K>, value: V) {
+    pub fn set(&mut self, index: TypedUsize<K>, value: V) -> TofnResult<()> {
         self.set_impl(index, value, false)
     }
-    pub fn set_warn(&mut self, index: TypedUsize<K>, value: V) {
+    pub fn set_warn(&mut self, index: TypedUsize<K>, value: V) -> TofnResult<()> {
         self.set_impl(index, value, true)
     }
-    fn set_impl(&mut self, index: TypedUsize<K>, value: V, warn: bool) {
-        let stored = self.hole_vec.get_mut(index);
+    fn set_impl(&mut self, index: TypedUsize<K>, value: V, warn: bool) -> TofnResult<()> {
+        let stored = self.hole_vec.get_mut(index)?;
         if stored.is_none() {
             self.some_count += 1;
         } else {
@@ -44,6 +46,7 @@ where
             }
         }
         *stored = Some(value);
+        Ok(())
     }
     pub fn is_full(&self) -> bool {
         self.some_count == self.hole_vec.len() - 1

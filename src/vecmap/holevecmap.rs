@@ -1,3 +1,7 @@
+use tracing::error;
+
+use crate::refactor::api::TofnResult;
+
 use super::{holevecmap_iter::HoleVecMapIter, Behave, TypedUsize, VecMap};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -15,17 +19,18 @@ where
     K: Behave,
 {
     pub fn from_vecmap(vec: VecMap<K, V>, hole: TypedUsize<K>) -> Self {
+        // TODO range check `hole`
         HoleVecMap {
             vec,
             hole,
             phantom: std::marker::PhantomData,
         }
     }
-    pub fn get(&self, index: TypedUsize<K>) -> &V {
-        self.vec.get(self.map_index(index).expect("bad index"))
+    pub fn get(&self, index: TypedUsize<K>) -> TofnResult<&V> {
+        self.vec.get(self.map_index(index)?)
     }
-    pub fn get_mut(&mut self, index: TypedUsize<K>) -> &mut V {
-        self.vec.get_mut(self.map_index(index).expect("bad index"))
+    pub fn get_mut(&mut self, index: TypedUsize<K>) -> TofnResult<&mut V> {
+        self.vec.get_mut(self.map_index(index)?)
     }
     pub fn len(&self) -> usize {
         self.vec.len() + 1
@@ -38,14 +43,20 @@ where
     pub fn iter(&self) -> HoleVecMapIter<K, std::slice::Iter<V>> {
         HoleVecMapIter::new(self.vec.iter(), self.hole)
     }
-    fn map_index(&self, index: TypedUsize<K>) -> Result<TypedUsize<K>, &'static str> {
+    fn map_index(&self, index: TypedUsize<K>) -> TofnResult<TypedUsize<K>> {
         match index.as_usize() {
             i if i < self.hole.as_usize() => Ok(index),
             i if i > self.hole.as_usize() && i <= self.vec.len() => {
                 Ok(TypedUsize::from_usize(i - 1))
             }
-            i if i == self.hole.as_usize() => Err("index == hole"),
-            _ => Err("index out of range"),
+            i if i == self.hole.as_usize() => {
+                error!("attempt to index hole {}", i);
+                Err(())
+            }
+            i => {
+                error!("index {} out of bounds {}", i, self.len());
+                Err(())
+            }
         }
     }
     pub fn map<W, F>(self, f: F) -> HoleVecMap<K, W>
@@ -54,12 +65,17 @@ where
     {
         HoleVecMap::<K, W>::from_vecmap(self.vec.map(f), self.hole)
     }
-    pub fn map2<W, F>(self, f: F) -> HoleVecMap<K, W>
+    pub fn map2<W, F>(self, f: F) -> TofnResult<HoleVecMap<K, W>>
     where
-        F: FnMut((TypedUsize<K>, V)) -> W,
+        F: FnMut((TypedUsize<K>, V)) -> TofnResult<W>,
     {
         let hole = self.hole;
-        HoleVecMap::<K, W>::from_vecmap(self.into_iter().map(f).collect(), hole)
+        Ok(HoleVecMap::<K, W>::from_vecmap(
+            self.into_iter()
+                .map(f)
+                .collect::<TofnResult<VecMap<K, W>>>()?,
+            hole,
+        ))
     }
 }
 

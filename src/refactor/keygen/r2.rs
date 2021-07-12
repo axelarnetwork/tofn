@@ -5,7 +5,7 @@ use crate::{
     hash, paillier_k256,
     protocol::gg20::{vss_k256, SecretKeyShare},
     refactor::{
-        api::Fault::ProtocolFault,
+        api::{Fault::ProtocolFault, TofnResult},
         implementer_api::{bcast_only, serialize, ProtocolBuilder, RoundBuilder},
         keygen::r3,
     },
@@ -48,46 +48,47 @@ impl bcast_only::Executer for R2 {
         party_count: usize,
         index: TypedUsize<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
-    ) -> KeygenProtocolBuilder {
+    ) -> TofnResult<KeygenProtocolBuilder> {
         let mut faulters = FillVecMap::with_size(party_count);
 
         // check Paillier proofs
         for (from, bcast) in bcasts_in.iter() {
             if !bcast.ek.verify(&bcast.ek_proof) {
                 warn!("party {} detect bad ek proof by {}", index, from);
-                faulters.set(from, ProtocolFault);
+                faulters.set(from, ProtocolFault)?;
             }
             if !bcast.zkp.verify(&bcast.zkp_proof) {
                 warn!("party {} detect bad zk setup proof by {}", index, from);
-                faulters.set(from, ProtocolFault);
+                faulters.set(from, ProtocolFault)?;
             }
         }
         if !faulters.is_empty() {
-            return ProtocolBuilder::Done(Err(faulters));
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
         let (u_i_other_shares, u_i_my_share) =
             VecMap::from_vec(self.u_i_vss.shares(party_count)).puncture_hole(index);
 
-        let u_i_other_shares = self.corrupt_share(index, u_i_other_shares);
+        let u_i_other_shares = self.corrupt_share(index, u_i_other_shares)?;
 
         let p2ps_out = u_i_other_shares.map2(|(i, share)| {
             // encrypt the share for party i
-            let (u_i_share_ciphertext, _) = bcasts_in.get(i).ek.encrypt(&share.get_scalar().into());
+            let (u_i_share_ciphertext, _) =
+                bcasts_in.get(i)?.ek.encrypt(&share.get_scalar().into());
 
             let u_i_share_ciphertext = self.corrupt_ciphertext(index, i, u_i_share_ciphertext);
 
             serialize(&P2p {
                 u_i_share_ciphertext,
             })
-        });
+        })?;
 
         let bcast_out = serialize(&Bcast {
             y_i_reveal: self.y_i_reveal.clone(),
             u_i_vss_commit: self.u_i_vss.commit(),
-        });
+        })?;
 
-        ProtocolBuilder::NotDone(RoundBuilder::BcastAndP2p {
+        Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastAndP2p {
             round: Box::new(r3::R3 {
                 threshold: self.threshold,
                 dk: self.dk,
@@ -98,7 +99,7 @@ impl bcast_only::Executer for R2 {
             }),
             bcast_out,
             p2ps_out,
-        })
+        }))
     }
 
     #[cfg(test)]
@@ -113,7 +114,10 @@ pub mod malicious {
     use crate::{
         paillier_k256::Ciphertext,
         protocol::gg20::vss_k256::Share,
-        refactor::keygen::{self, KeygenPartyIndex},
+        refactor::{
+            api::TofnResult,
+            keygen::{self, KeygenPartyIndex},
+        },
         vecmap::{HoleVecMap, TypedUsize},
     };
 
@@ -124,14 +128,14 @@ pub mod malicious {
             &self,
             my_index: TypedUsize<KeygenPartyIndex>,
             mut other_shares: HoleVecMap<KeygenPartyIndex, Share>,
-        ) -> HoleVecMap<KeygenPartyIndex, Share> {
+        ) -> TofnResult<HoleVecMap<KeygenPartyIndex, Share>> {
             #[cfg(feature = "malicious")]
             if let keygen::Behaviour::R2BadShare { victim } = self.behaviour {
                 info!("malicious party {} do {:?}", my_index, self.behaviour);
-                other_shares.get_mut(victim).corrupt();
+                other_shares.get_mut(victim)?.corrupt();
             }
 
-            other_shares
+            Ok(other_shares)
         }
 
         pub fn corrupt_ciphertext(

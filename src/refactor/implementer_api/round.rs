@@ -1,5 +1,7 @@
+use tracing::error;
+
 use crate::{
-    refactor::api::BytesVec,
+    refactor::api::{BytesVec, TofnResult},
     vecmap::{Behave, FillP2ps, FillVecMap, HoleVecMap, TypedUsize},
 };
 
@@ -28,13 +30,13 @@ where
         index: TypedUsize<K>,
         bcast_out: BytesVec,
         p2ps_out: HoleVecMap<K, BytesVec>,
-    ) -> Self {
+    ) -> TofnResult<Self> {
         // validate args
         // TODO return error instead of panic?
         assert!(index.as_usize() < party_count);
         assert_eq!(p2ps_out.len(), party_count);
 
-        Round::BcastAndP2p(BcastAndP2pRound {
+        Ok(Round::BcastAndP2p(BcastAndP2pRound {
             round,
             party_count,
             index,
@@ -42,7 +44,7 @@ where
             p2ps_out,
             bcasts_in: FillVecMap::with_size(party_count),
             p2ps_in: FillP2ps::with_size(party_count),
-        })
+        }))
     }
 
     pub fn new_bcast_only(
@@ -50,32 +52,33 @@ where
         party_count: usize,
         index: TypedUsize<K>,
         bcast_out: BytesVec,
-    ) -> Self {
-        // validate args
-        // TODO return error instead of panic?
-        assert!(index.as_usize() < party_count);
+    ) -> TofnResult<Self> {
+        if index.as_usize() >= party_count {
+            error!("index {} out of bounds {}", index.as_usize(), party_count);
+            return Err(());
+        }
 
-        Round::BcastOnly(BcastOnlyRound {
+        Ok(Round::BcastOnly(BcastOnlyRound {
             round,
             party_count,
             index,
             bcast_out,
             bcasts_in: FillVecMap::with_size(party_count),
-        })
+        }))
     }
 
     pub fn new_no_messages(
         round: Box<dyn no_messages::Executer<FinalOutput = F, Index = K>>,
         party_count: usize,
         index: TypedUsize<K>,
-    ) -> Self {
+    ) -> TofnResult<Self> {
         assert!(index.as_usize() < party_count);
 
-        Round::NoMessages(NoMessagesRound {
+        Ok(Round::NoMessages(NoMessagesRound {
             round,
             party_count,
             index,
-        })
+        }))
     }
 
     #[cfg(test)]

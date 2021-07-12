@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::iter::FromIterator;
+use tracing::error;
+
+use crate::refactor::api::TofnResult;
 
 use super::{vecmap_iter::VecMapIter, Behave, HoleVecMap, TypedUsize};
 
@@ -18,13 +21,18 @@ where
     pub fn into_vec(self) -> Vec<V> {
         self.0
     }
-    pub fn get(&self, index: TypedUsize<K>) -> &V {
-        // TODO range check?
-        &self.0[index.as_usize()]
+    pub fn get(&self, index: TypedUsize<K>) -> TofnResult<&V> {
+        self.0.get(index.as_usize()).ok_or_else(|| {
+            error!("index {} out of bounds {}", index, self.0.len());
+            ()
+        })
     }
-    pub fn get_mut(&mut self, index: TypedUsize<K>) -> &mut V {
-        // TODO range check?
-        &mut self.0[index.as_usize()]
+    pub fn get_mut(&mut self, index: TypedUsize<K>) -> TofnResult<&mut V> {
+        let len = self.0.len(); // fight the borrow checker
+        self.0.get_mut(index.as_usize()).ok_or_else(|| {
+            error!("index {} out of bounds {}", index, len);
+            ()
+        })
     }
     pub fn len(&self) -> usize {
         self.0.len()

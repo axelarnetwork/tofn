@@ -7,7 +7,7 @@ use crate::{
     paillier_k256,
     protocol::gg20::{vss_k256, SecretKeyShare},
     refactor::{
-        api::Fault::ProtocolFault,
+        api::{Fault::ProtocolFault, TofnResult},
         implementer_api::{
             bcast_and_p2p, log_accuse_warn, serialize, ProtocolBuilder, RoundBuilder,
         },
@@ -17,7 +17,7 @@ use crate::{
     zkp::schnorr_k256,
 };
 
-use super::{r1, r2, KeygenPartyIndex};
+use super::{r1, r2, KeygenPartyIndex, KeygenProtocolBuilder};
 
 #[cfg(feature = "malicious")]
 use super::malicious::{log_confess_info, Behaviour};
@@ -67,20 +67,20 @@ impl bcast_and_p2p::Executer for R3 {
         index: TypedUsize<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
-    ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
+    ) -> TofnResult<KeygenProtocolBuilder> {
         let mut faulters = FillVecMap::with_size(party_count);
 
         // check y_i commits
         for (from, bcast) in bcasts_in.iter() {
             let y_i = bcast.u_i_vss_commit.secret_commit();
             let y_i_commit = hash::commit_with_randomness(to_bytes(y_i), &bcast.y_i_reveal);
-            if y_i_commit != self.r1bcasts.get(from).y_i_commit {
+            if y_i_commit != self.r1bcasts.get(from)?.y_i_commit {
                 warn!("party {} detect bad reveal by {}", index, from);
-                faulters.set(from, ProtocolFault);
+                faulters.set(from, ProtocolFault)?;
             }
         }
         if !faulters.is_empty() {
-            return ProtocolBuilder::Done(Err(faulters));
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
         // decrypt shares
@@ -93,13 +93,13 @@ impl bcast_and_p2p::Executer for R3 {
                 share: u_i_share,
                 randomness: u_i_share_randomness,
             }
-        });
+        })?;
 
         // validate shares
         let mut vss_complaints = FillVecMap::with_size(party_count);
         for (from, info) in share_infos.iter() {
             if !bcasts_in
-                .get(from)
+                .get(from)?
                 .u_i_vss_commit
                 .validate_share(&info.share)
             {
@@ -110,13 +110,13 @@ impl bcast_and_p2p::Executer for R3 {
                         share: info.share.clone(),
                         randomness: info.randomness.clone(),
                     },
-                );
+                )?;
             }
         }
 
         #[cfg(feature = "malicious")]
         if let Behaviour::R3FalseAccusation { victim } = self.behaviour {
-            if !vss_complaints.is_none(victim) {
+            if !vss_complaints.is_none(victim)? {
                 log_confess_info(index, &self.behaviour, "but the accusation is true");
             } else if victim == index {
                 log_confess_info(index, &self.behaviour, "self accusation");
@@ -124,24 +124,24 @@ impl bcast_and_p2p::Executer for R3 {
                     victim,
                     ShareInfo {
                         share: vss_k256::Share::from_scalar(k256::Scalar::one(), 1), // junk data
-                        randomness: self.r1bcasts.get(index).ek.sample_randomness(), // junk data
+                        randomness: self.r1bcasts.get(index)?.ek.sample_randomness(), // junk data
                     },
-                );
+                )?;
             } else {
                 log_confess_info(index, &self.behaviour, "");
-                vss_complaints.set(victim, share_infos.get(victim).clone());
+                vss_complaints.set(victim, share_infos.get(victim)?.clone())?;
             }
         }
 
         if !vss_complaints.is_empty() {
-            return ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
+            return Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
                 round: Box::new(r4::sad::R4Sad {
                     r1bcasts: self.r1bcasts,
                     r2bcasts: bcasts_in,
                     r2p2ps: p2ps_in,
                 }),
-                bcast_out: serialize(&Bcast::Sad(BcastSad { vss_complaints })),
-            });
+                bcast_out: serialize(&Bcast::Sad(BcastSad { vss_complaints }))?,
+            }));
         }
 
         // compute x_i
@@ -174,12 +174,12 @@ impl bcast_and_p2p::Executer for R3 {
         let x_i_proof = schnorr_k256::prove(
             &schnorr_k256::Statement {
                 base: &k256::ProjectivePoint::generator(),
-                target: &all_X_i.get(index),
+                target: all_X_i.get(index)?,
             },
             &schnorr_k256::Witness { scalar: &x_i },
         );
 
-        ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
+        Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
             round: Box::new(r4::happy::R4 {
                 threshold: self.threshold,
                 dk: self.dk,
@@ -192,8 +192,8 @@ impl bcast_and_p2p::Executer for R3 {
                 #[cfg(feature = "malicious")]
                 behaviour: self.behaviour,
             }),
-            bcast_out: serialize(&Bcast::Happy(BcastHappy { x_i_proof })),
-        })
+            bcast_out: serialize(&Bcast::Happy(BcastHappy { x_i_proof }))?,
+        }))
     }
 
     #[cfg(test)]

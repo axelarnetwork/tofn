@@ -46,7 +46,10 @@ fn main() {
 
     let results: Vec<SecretKeyShare> = result_receiver
         .into_iter()
-        .map(|res| res.expect("party finished with error"))
+        .map(|res| {
+            res.expect("internal tofn error")
+                .expect("party finished in sad path")
+        })
         .collect();
 
     println!("group info: {:?}", results[0].group);

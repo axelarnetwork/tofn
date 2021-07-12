@@ -2,6 +2,8 @@
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
+use crate::refactor::api::TofnResult;
+
 use super::{vecmap_iter::VecMapIter, Behave, TypedUsize, VecMap};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -10,7 +12,7 @@ where
     K: Behave,
 {
     vec: VecMap<K, Option<V>>,
-    some_count: usize, // TODO eliminate `some_count`?
+    some_count: usize,
 }
 
 impl<K, V> FillVecMap<K, V>
@@ -29,14 +31,14 @@ where
     // pub fn get(&self, index: Index<K>) -> &Option<V> {
     //     self.vec.get(index)
     // }
-    pub fn set(&mut self, index: TypedUsize<K>, value: V) {
+    pub fn set(&mut self, index: TypedUsize<K>, value: V) -> TofnResult<()> {
         self.set_impl(index, value, false)
     }
-    pub fn set_warn(&mut self, index: TypedUsize<K>, value: V) {
+    pub fn set_warn(&mut self, index: TypedUsize<K>, value: V) -> TofnResult<()> {
         self.set_impl(index, value, true)
     }
-    fn set_impl(&mut self, index: TypedUsize<K>, value: V, warn: bool) {
-        let stored = self.vec.get_mut(index);
+    fn set_impl(&mut self, index: TypedUsize<K>, value: V, warn: bool) -> TofnResult<()> {
+        let stored = self.vec.get_mut(index)?;
         if stored.is_none() {
             self.some_count += 1;
         } else {
@@ -45,9 +47,10 @@ where
             }
         }
         *stored = Some(value);
+        Ok(())
     }
-    pub fn is_none(&self, index: TypedUsize<K>) -> bool {
-        self.vec.get(index).is_none()
+    pub fn is_none(&self, index: TypedUsize<K>) -> TofnResult<bool> {
+        Ok(self.vec.get(index)?.is_none())
     }
     // /// Returns `true` if all items are `Some`, except possibly the `index`th item.
     // pub fn is_full_except(&self, index: usize) -> bool {

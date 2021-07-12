@@ -1,17 +1,16 @@
 use crate::{
     hash, k256_serde, paillier_k256,
     protocol::gg20::{vss_k256, SecretKeyShare},
-    refactor::implementer_api::{
-        no_messages, serialize,
-        ProtocolBuilder::{self, *},
-        RoundBuilder,
+    refactor::{
+        api::TofnResult,
+        implementer_api::{no_messages, serialize, ProtocolBuilder::*, RoundBuilder},
     },
     vecmap::TypedUsize,
 };
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
-use super::{r2, rng, KeygenPartyIndex};
+use super::{r2, rng, KeygenPartyIndex, KeygenProtocolBuilder};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -41,7 +40,7 @@ impl no_messages::Executer for R1 {
         self: Box<Self>,
         _party_count: usize,
         index: TypedUsize<Self::Index>,
-    ) -> ProtocolBuilder<Self::FinalOutput, Self::Index> {
+    ) -> TofnResult<KeygenProtocolBuilder> {
         let u_i_vss = vss_k256::Vss::new(self.threshold);
         let (y_i_commit, y_i_reveal) = hash::commit(k256_serde::to_bytes(
             &(k256::ProjectivePoint::generator() * u_i_vss.get_secret()),
@@ -82,9 +81,9 @@ impl no_messages::Executer for R1 {
             ek_proof,
             zkp,
             zkp_proof,
-        });
+        })?;
 
-        NotDone(RoundBuilder::BcastOnly {
+        Ok(NotDone(RoundBuilder::BcastOnly {
             round: Box::new(r2::R2 {
                 threshold: self.threshold,
                 dk,
@@ -94,6 +93,6 @@ impl no_messages::Executer for R1 {
                 behaviour: self.behaviour,
             }),
             bcast_out,
-        })
+        }))
     }
 }

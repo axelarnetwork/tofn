@@ -5,7 +5,7 @@ use std::sync::mpsc::Receiver;
 // `use` statements for type aliased enums :(
 // https://github.com/rust-lang/rust/issues/83248
 use tofn::{
-    refactor::api::{BytesVec, Protocol, ProtocolOutput},
+    refactor::api::{BytesVec, Protocol, ProtocolOutput, TofnResult},
     vecmap::{Behave, TypedUsize},
 };
 
@@ -25,29 +25,11 @@ where
     },
 }
 
-// /// Manually impl `Clone` because https://stackoverflow.com/a/31371094
-// impl<K> Clone for Message<K> {
-//     fn clone(&self) -> Self {
-//         use Message::*;
-//         match self {
-//             Bcast { from, bytes } => Bcast {
-//                 from: from.clone(),
-//                 bytes: bytes.clone(),
-//             },
-//             P2p { from, to, bytes } => P2p {
-//                 from: *from,
-//                 to: *to,
-//                 bytes: bytes.clone(),
-//             },
-//         }
-//     }
-// }
-
 pub fn execute_protocol<F, K>(
     mut party: Protocol<F, K>,
     input: Receiver<Message<K>>,
     broadcaster: Broadcaster<Message<K>>,
-) -> ProtocolOutput<F, K>
+) -> TofnResult<ProtocolOutput<F, K>>
 where
     K: Behave,
 {
@@ -71,15 +53,15 @@ where
         // collect incoming messages
         while round.expecting_more_msgs_this_round() {
             match input.recv().expect("recv fail") {
-                Message::Bcast { from, bytes } => round.bcast_in(from, &bytes),
-                Message::P2p { from, to, bytes } => round.p2p_in(from, to, &bytes),
+                Message::Bcast { from, bytes } => round.bcast_in(from, &bytes)?,
+                Message::P2p { from, to, bytes } => round.p2p_in(from, to, &bytes)?,
             }
         }
 
-        party = round.execute_next_round();
+        party = round.execute_next_round()?;
     }
     match party {
         Protocol::NotDone(_) => unreachable!(),
-        Protocol::Done(result) => result,
+        Protocol::Done(result) => Ok(result),
     }
 }

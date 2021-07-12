@@ -7,7 +7,7 @@ pub use round::Round;
 
 use crate::vecmap::{Behave, HoleVecMap, TypedUsize};
 
-use super::api::{BytesVec, Protocol, ProtocolOutput};
+use super::api::{BytesVec, Protocol, ProtocolOutput, TofnResult};
 
 pub enum ProtocolBuilder<F, K>
 where
@@ -21,23 +21,23 @@ impl<F, K> ProtocolBuilder<F, K>
 where
     K: Behave,
 {
-    pub fn build(self, party_count: usize, index: TypedUsize<K>) -> Protocol<F, K> {
-        match self {
+    pub fn build(self, party_count: usize, index: TypedUsize<K>) -> TofnResult<Protocol<F, K>> {
+        Ok(match self {
             Self::NotDone(builder) => Protocol::NotDone(match builder {
                 RoundBuilder::BcastAndP2p {
                     round,
                     bcast_out,
                     p2ps_out,
-                } => Round::new_bcast_and_p2p(round, party_count, index, bcast_out, p2ps_out),
+                } => Round::new_bcast_and_p2p(round, party_count, index, bcast_out, p2ps_out)?,
                 RoundBuilder::BcastOnly { round, bcast_out } => {
-                    Round::new_bcast_only(round, party_count, index, bcast_out)
+                    Round::new_bcast_only(round, party_count, index, bcast_out)?
                 }
                 RoundBuilder::NoMessages { round } => {
-                    Round::new_no_messages(round, party_count, index)
+                    Round::new_no_messages(round, party_count, index)?
                 }
             }),
             Self::Done(output) => Protocol::Done(output),
-        }
+        })
     }
 }
 
@@ -63,15 +63,17 @@ where
 
 use tracing::{error, info, warn};
 
-pub(crate) fn serialize<T: ?Sized>(value: &T) -> BytesVec
+pub(crate) fn serialize<T: ?Sized>(value: &T) -> TofnResult<BytesVec>
 where
     T: serde::Serialize,
 {
-    let result = bincode::serialize(value).map_err(|err| err.to_string());
-    if let Err(ref err_msg) = result {
-        error!("serialization failure: {}", err_msg);
+    match bincode::serialize(value) {
+        Ok(bytes) => Ok(bytes),
+        Err(err) => {
+            error!("serialization failure: {}", err.to_string());
+            Err(())
+        }
     }
-    result.unwrap()
 }
 
 pub(crate) fn log_fault_info<K>(me: TypedUsize<K>, faulter: TypedUsize<K>, fault: &str)
