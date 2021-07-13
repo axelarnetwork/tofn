@@ -58,13 +58,13 @@ pub fn new_keygen(
     )?))
 }
 
+mod api;
 mod r1;
 mod r2;
 mod r3;
 mod r4;
 mod rng;
-mod secret_key_share;
-pub use secret_key_share::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo};
+pub use api::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo};
 
 #[cfg(test)]
 pub(super) mod tests; // pub(super) so that sign module can see tests::execute_keygen
