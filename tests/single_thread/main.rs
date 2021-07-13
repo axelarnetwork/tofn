@@ -2,11 +2,10 @@
 use execute::*;
 use rand::RngCore;
 use tofn::{
-    protocol::gg20::SecretKeyShare,
     refactor::collections::{TypedUsize, VecMap},
     refactor::{
         api::Protocol,
-        keygen::{new_keygen, KeygenPartyIndex, KeygenProtocol},
+        keygen::{new_keygen, KeygenPartyIndex, KeygenProtocol, SecretKeyShare},
     },
 };
 // use tracing::{error, info};

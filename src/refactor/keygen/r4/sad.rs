@@ -1,12 +1,11 @@
 use tracing::error;
 
 use crate::{
-    protocol::gg20::SecretKeyShare,
     refactor::collections::{FillVecMap, P2ps, TypedUsize, VecMap},
     refactor::{
         api::{Fault::ProtocolFault, TofnResult},
         implementer_api::{bcast_only, log_fault_info, ProtocolBuilder},
-        keygen::{r1, r2, r3, KeygenPartyIndex, KeygenProtocolBuilder},
+        keygen::{r1, r2, r3, KeygenPartyIndex, KeygenProtocolBuilder, SecretKeyShare},
     },
 };
 

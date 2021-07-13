@@ -220,10 +220,17 @@ pub(crate) fn execute_keygen_from_recovery(
     }
 
     // test: everyone computed everyone else's public key share correctly
+    // TODO why not use VecMap?
     for (i, secret_key_share) in all_secret_key_shares.iter().enumerate() {
         for (j, other_secret_key_share) in all_secret_key_shares.iter().enumerate() {
             assert_eq!(
-                *secret_key_share.group.all_shares[j].X_i.unwrap(),
+                *secret_key_share
+                    .group
+                    .all_shares
+                    .get(TypedUsize::from_usize(j))
+                    .unwrap()
+                    .X_i
+                    .unwrap(),
                 k256::ProjectivePoint::generator() * other_secret_key_share.share.x_i.unwrap(),
                 "party {} got party {} key wrong",
                 i,

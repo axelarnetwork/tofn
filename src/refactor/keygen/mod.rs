@@ -1,4 +1,3 @@
-use crate::protocol::gg20::SecretKeyShare;
 use crate::refactor::api::{Protocol, TofnResult};
 use crate::refactor::collections::{Behave, TypedUsize};
 use serde::{Deserialize, Serialize};
@@ -102,6 +101,8 @@ mod r2;
 mod r3;
 mod r4;
 mod rng;
+mod secret_key_share;
+pub use secret_key_share::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo};
 
 #[cfg(test)]
 pub(super) mod tests; // pub(super) so that sign module can see tests::execute_keygen

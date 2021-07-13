@@ -2,12 +2,14 @@ use tracing::warn;
 
 use crate::{
     paillier_k256,
-    protocol::gg20::{GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo},
     refactor::collections::{FillVecMap, P2ps, TypedUsize, VecMap},
     refactor::{
         api::{Fault::ProtocolFault, TofnResult},
         implementer_api::{bcast_only, log_fault_warn, ProtocolBuilder},
-        keygen::{r1, r2, r3, r4::sad::R4Sad, KeygenPartyIndex, KeygenProtocolBuilder},
+        keygen::{
+            r1, r2, r3, r4::sad::R4Sad, GroupPublicInfo, KeygenPartyIndex, KeygenProtocolBuilder,
+            SecretKeyShare, SharePublicInfo, ShareSecretInfo,
+        },
     },
     zkp::schnorr_k256,
 };
@@ -89,7 +91,7 @@ impl bcast_only::Executer for R4 {
         }
 
         // prepare data for final output
-        let all_shares: Vec<SharePublicInfo> = self
+        let all_shares = self
             .r1bcasts
             .iter()
             .map(|(i, r1bcast)| {
@@ -99,7 +101,7 @@ impl bcast_only::Executer for R4 {
                     zkp: r1bcast.zkp.clone(),
                 })
             })
-            .collect::<TofnResult<Vec<_>>>()?;
+            .collect::<TofnResult<VecMap<_, _>>>()?;
 
         Ok(ProtocolBuilder::Done(Ok(SecretKeyShare {
             group: GroupPublicInfo {

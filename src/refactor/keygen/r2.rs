@@ -3,12 +3,12 @@ use tracing::warn;
 
 use crate::{
     hash, paillier_k256,
-    protocol::gg20::{vss_k256, SecretKeyShare},
+    protocol::gg20::vss_k256,
     refactor::collections::{FillVecMap, TypedUsize, VecMap},
     refactor::{
         api::{Fault::ProtocolFault, TofnResult},
         implementer_api::{bcast_only, serialize, ProtocolBuilder, RoundBuilder},
-        keygen::r3,
+        keygen::{r3, SecretKeyShare},
     },
 };
 

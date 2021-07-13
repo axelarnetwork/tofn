@@ -5,14 +5,14 @@ use crate::{
     hash,
     k256_serde::to_bytes,
     paillier_k256,
-    protocol::gg20::{vss_k256, SecretKeyShare},
+    protocol::gg20::vss_k256,
     refactor::collections::{FillVecMap, P2ps, TypedUsize, VecMap},
     refactor::{
         api::{Fault::ProtocolFault, TofnResult},
         implementer_api::{
             bcast_and_p2p, log_accuse_warn, serialize, ProtocolBuilder, RoundBuilder,
         },
-        keygen::r4,
+        keygen::{r4, SecretKeyShare},
     },
     zkp::schnorr_k256,
 };

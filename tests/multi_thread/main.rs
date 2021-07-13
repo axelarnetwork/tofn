@@ -2,13 +2,10 @@ use broadcaster::Broadcaster;
 use rand::RngCore;
 use std::{sync::mpsc, thread};
 use tofn::{
-    protocol::gg20::SecretKeyShare,
     refactor::collections::TypedUsize,
-    refactor::keygen::{new_keygen, KeygenProtocol},
+    refactor::keygen::{new_keygen, KeygenProtocol, SecretKeyShare},
 };
 
-/// TODO rename parent dir to `example`
-/// TODO clean up
 // TODO generic over final output F
 
 #[test]

@@ -1,10 +1,11 @@
 use crate::{
     hash, k256_serde, paillier_k256,
-    protocol::gg20::{vss_k256, SecretKeyShare},
+    protocol::gg20::vss_k256,
     refactor::collections::TypedUsize,
     refactor::{
         api::TofnResult,
         implementer_api::{no_messages, serialize, ProtocolBuilder::*, RoundBuilder},
+        keygen::SecretKeyShare,
     },
 };
 use serde::{Deserialize, Serialize};
