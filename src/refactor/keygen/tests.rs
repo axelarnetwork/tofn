@@ -211,7 +211,7 @@ pub(crate) fn execute_keygen_from_recovery(
 
     let all_shares: Vec<vss_k256::Share> = all_secret_key_shares
         .iter()
-        .map(|k| vss_k256::Share::from_scalar(*k.share.x_i.unwrap(), k.share.index))
+        .map(|k| vss_k256::Share::from_scalar(*k.share.x_i.unwrap(), k.share.index.as_usize()))
         .collect();
     let secret_key_recovered = vss_k256::recover_secret(&all_shares, threshold);
 

@@ -110,7 +110,7 @@ impl bcast_only::Executer for R4 {
                 all_shares,
             },
             share: ShareSecretInfo {
-                index: index.as_usize(),
+                index,
                 dk: self.dk,
                 x_i: self.x_i.into(),
             },

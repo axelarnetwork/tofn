@@ -105,13 +105,13 @@ pub struct SharePublicInfo {
 /// `index` is not secret; it's just convenient to put it here
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ShareSecretInfo {
-    pub(crate) index: usize,
+    pub(crate) index: TypedUsize<KeygenPartyIndex>,
     pub(crate) dk: paillier_k256::DecryptionKey,
     pub(crate) x_i: k256_serde::Scalar,
 }
 
 impl ShareSecretInfo {
-    pub fn index(&self) -> usize {
+    pub fn index(&self) -> TypedUsize<KeygenPartyIndex> {
         self.index
     }
 }
