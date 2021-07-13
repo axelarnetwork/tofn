@@ -1,6 +1,6 @@
 use super::{r1, rng};
 use crate::refactor::collections::{Behave, TypedUsize};
-use crate::refactor::protocol::api::{Protocol, RoundContainer, TofnResult};
+use crate::refactor::protocol::api::{Protocol, Round, TofnResult};
 use crate::refactor::protocol::implementer_api::ProtocolBuilder;
 use crate::{k256_serde, paillier_k256, refactor::collections::VecMap};
 use serde::{Deserialize, Serialize};
@@ -51,7 +51,7 @@ pub fn new_keygen(
     // compute the RNG seed now so as to minimize copying of `secret_recovery_key`
     let rng_seed = rng::seed(secret_recovery_key, session_nonce);
 
-    Ok(Protocol::NotDone(RoundContainer::new_no_messages(
+    Ok(Protocol::NotDone(Round::new_no_messages(
         Box::new(r1::R1 {
             threshold,
             rng_seed,

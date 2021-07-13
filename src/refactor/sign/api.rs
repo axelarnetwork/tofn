@@ -7,7 +7,7 @@ use crate::refactor::{
     collections::{Behave, TypedUsize, VecMap},
     keygen::{GroupPublicInfo, KeygenPartyIndex, SecretKeyShare, ShareSecretInfo},
     protocol::{
-        api::{BytesVec, Protocol, RoundContainer, TofnResult},
+        api::{BytesVec, Protocol, Round, TofnResult},
         implementer_api::ProtocolBuilder,
     },
 };
@@ -37,7 +37,7 @@ pub fn new_sign(
 ) -> TofnResult<SignProtocol> {
     let index = validate_args(group, share, participants)?;
 
-    Ok(Protocol::NotDone(RoundContainer::new_no_messages(
+    Ok(Protocol::NotDone(Round::new_no_messages(
         Box::new(r1::R1 {
             secret_key_share: SecretKeyShare {
                 group: group.clone(),

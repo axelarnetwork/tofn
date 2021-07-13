@@ -2,7 +2,7 @@ use crate::refactor::collections::{Behave, FillP2ps, FillVecMap, HoleVecMap, Typ
 
 use super::{api::BytesVec, bcast_and_p2p, bcast_only, no_messages};
 
-pub enum Round<F, K>
+pub enum RoundType<F, K>
 where
     K: Behave,
 {

@@ -1,5 +1,5 @@
 use crate::refactor::collections::{Behave, FillVecMap, HoleVecMap, TypedUsize};
-use crate::refactor::protocol::round::Round;
+use crate::refactor::protocol::round::RoundType;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
@@ -10,17 +10,17 @@ pub enum Protocol<F, K>
 where
     K: Behave,
 {
-    NotDone(RoundContainer<F, K>),
+    NotDone(Round<F, K>),
     Done(ProtocolOutput<F, K>),
 }
 
 // need RoundContainer because we don't want to expose all the variants of Round
-pub struct RoundContainer<F, K>
+pub struct Round<F, K>
 where
     K: Behave,
 {
     // party_count, index?
-    pub round_type: Round<F, K>,
+    pub round_type: RoundType<F, K>,
 }
 
 pub type ProtocolOutput<F, K> = Result<F, FillVecMap<K, Fault>>;
@@ -32,28 +32,28 @@ pub enum Fault {
     ProtocolFault,
 }
 
-impl<F, K> RoundContainer<F, K>
+impl<F, K> Round<F, K>
 where
     K: Behave,
 {
     pub fn bcast_out(&self) -> Option<&BytesVec> {
         match &self.round_type {
-            Round::BcastAndP2p(r) => Some(&r.bcast_out),
-            Round::BcastOnly(r) => Some(&r.bcast_out),
-            Round::NoMessages(_) => None,
+            RoundType::BcastAndP2p(r) => Some(&r.bcast_out),
+            RoundType::BcastOnly(r) => Some(&r.bcast_out),
+            RoundType::NoMessages(_) => None,
         }
     }
     pub fn p2ps_out(&self) -> Option<&HoleVecMap<K, BytesVec>> {
         match &self.round_type {
-            Round::BcastAndP2p(r) => Some(&r.p2ps_out),
-            Round::BcastOnly(_) | Round::NoMessages(_) => None,
+            RoundType::BcastAndP2p(r) => Some(&r.p2ps_out),
+            RoundType::BcastOnly(_) | RoundType::NoMessages(_) => None,
         }
     }
     pub fn bcast_in(&mut self, from: TypedUsize<K>, bytes: &[u8]) -> TofnResult<()> {
         match &mut self.round_type {
-            Round::BcastAndP2p(r) => r.bcasts_in.set_warn(from, bytes.to_vec()),
-            Round::BcastOnly(r) => r.bcasts_in.set_warn(from, bytes.to_vec()),
-            Round::NoMessages(_) => {
+            RoundType::BcastAndP2p(r) => r.bcasts_in.set_warn(from, bytes.to_vec()),
+            RoundType::BcastOnly(r) => r.bcasts_in.set_warn(from, bytes.to_vec()),
+            RoundType::NoMessages(_) => {
                 warn!("`bcast_in` called but no bcasts expected; ignoring `bytes`");
                 Ok(())
             }
@@ -66,8 +66,8 @@ where
         bytes: &[u8],
     ) -> TofnResult<()> {
         match &mut self.round_type {
-            Round::BcastAndP2p(r) => r.p2ps_in.set_warn(from, to, bytes.to_vec()),
-            Round::BcastOnly(_) | Round::NoMessages(_) => {
+            RoundType::BcastAndP2p(r) => r.p2ps_in.set_warn(from, to, bytes.to_vec()),
+            RoundType::BcastOnly(_) | RoundType::NoMessages(_) => {
                 warn!("`p2p_in` called but no p2ps expected; ignoring `bytes`");
                 Ok(())
             }
@@ -75,22 +75,22 @@ where
     }
     pub fn expecting_more_msgs_this_round(&self) -> bool {
         match &self.round_type {
-            Round::BcastAndP2p(r) => !r.bcasts_in.is_full() || !r.p2ps_in.is_full(),
-            Round::BcastOnly(r) => !r.bcasts_in.is_full(),
-            Round::NoMessages(_) => false,
+            RoundType::BcastAndP2p(r) => !r.bcasts_in.is_full() || !r.p2ps_in.is_full(),
+            RoundType::BcastOnly(r) => !r.bcasts_in.is_full(),
+            RoundType::NoMessages(_) => false,
         }
     }
     pub fn execute_next_round(self) -> TofnResult<Protocol<F, K>> {
         match self.round_type {
-            Round::BcastAndP2p(r) => r
+            RoundType::BcastAndP2p(r) => r
                 .round
                 .execute_raw(r.party_count, r.index, r.bcasts_in, r.p2ps_in)?
                 .build(r.party_count, r.index),
-            Round::BcastOnly(r) => r
+            RoundType::BcastOnly(r) => r
                 .round
                 .execute_raw(r.party_count, r.index, r.bcasts_in)?
                 .build(r.party_count, r.index),
-            Round::NoMessages(r) => r
+            RoundType::NoMessages(r) => r
                 .round
                 .execute(r.party_count, r.index)?
                 .build(r.party_count, r.index),
@@ -98,16 +98,16 @@ where
     }
     pub fn party_count(&self) -> usize {
         match &self.round_type {
-            Round::BcastAndP2p(r) => r.party_count,
-            Round::BcastOnly(r) => r.party_count,
-            Round::NoMessages(r) => r.party_count,
+            RoundType::BcastAndP2p(r) => r.party_count,
+            RoundType::BcastOnly(r) => r.party_count,
+            RoundType::NoMessages(r) => r.party_count,
         }
     }
     pub fn index(&self) -> TypedUsize<K> {
         match &self.round_type {
-            Round::BcastAndP2p(r) => r.index,
-            Round::BcastOnly(r) => r.index,
-            Round::NoMessages(r) => r.index,
+            RoundType::BcastAndP2p(r) => r.index,
+            RoundType::BcastOnly(r) => r.index,
+            RoundType::NoMessages(r) => r.index,
         }
     }
 }

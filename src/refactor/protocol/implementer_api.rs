@@ -1,8 +1,8 @@
-use super::api::{BytesVec, Protocol, ProtocolOutput, RoundContainer, TofnResult};
+use super::api::{BytesVec, Protocol, ProtocolOutput, Round, TofnResult};
 use super::round::{BcastAndP2pRound, BcastOnlyRound, NoMessagesRound};
 use crate::refactor::collections::{Behave, HoleVecMap, TypedUsize};
 use crate::refactor::collections::{FillP2ps, FillVecMap};
-use crate::refactor::protocol::{bcast_and_p2p, bcast_only, no_messages, round::Round};
+use crate::refactor::protocol::{bcast_and_p2p, bcast_only, no_messages, round::RoundType};
 
 pub enum ProtocolBuilder<F, K>
 where
@@ -23,18 +23,12 @@ where
                     round,
                     bcast_out,
                     p2ps_out,
-                } => RoundContainer::new_bcast_and_p2p(
-                    round,
-                    party_count,
-                    index,
-                    bcast_out,
-                    p2ps_out,
-                )?,
+                } => Round::new_bcast_and_p2p(round, party_count, index, bcast_out, p2ps_out)?,
                 RoundBuilder::BcastOnly { round, bcast_out } => {
-                    RoundContainer::new_bcast_only(round, party_count, index, bcast_out)?
+                    Round::new_bcast_only(round, party_count, index, bcast_out)?
                 }
                 RoundBuilder::NoMessages { round } => {
-                    RoundContainer::new_no_messages(round, party_count, index)?
+                    Round::new_no_messages(round, party_count, index)?
                 }
             }),
             Self::Done(output) => Protocol::Done(output),
@@ -60,7 +54,7 @@ where
     },
 }
 
-impl<F, K> RoundContainer<F, K>
+impl<F, K> Round<F, K>
 where
     K: Behave,
 {
@@ -85,7 +79,7 @@ where
         }
 
         Ok(Self {
-            round_type: Round::BcastAndP2p(BcastAndP2pRound {
+            round_type: RoundType::BcastAndP2p(BcastAndP2pRound {
                 round,
                 party_count,
                 index,
@@ -109,7 +103,7 @@ where
         }
 
         Ok(Self {
-            round_type: Round::BcastOnly(BcastOnlyRound {
+            round_type: RoundType::BcastOnly(BcastOnlyRound {
                 round,
                 party_count,
                 index,
@@ -130,7 +124,7 @@ where
         }
 
         Ok(Self {
-            round_type: Round::NoMessages(NoMessagesRound {
+            round_type: RoundType::NoMessages(NoMessagesRound {
                 round,
                 party_count,
                 index,
@@ -141,9 +135,9 @@ where
     #[cfg(test)]
     pub fn round_as_any(&self) -> &dyn std::any::Any {
         match &self.round_type {
-            Round::BcastAndP2p(r) => r.round.as_any(),
-            Round::BcastOnly(r) => r.round.as_any(),
-            Round::NoMessages(r) => r.round.as_any(),
+            RoundType::BcastAndP2p(r) => r.round.as_any(),
+            RoundType::BcastOnly(r) => r.round.as_any(),
+            RoundType::NoMessages(r) => r.round.as_any(),
         }
     }
 }
