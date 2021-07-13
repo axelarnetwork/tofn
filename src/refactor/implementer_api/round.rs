@@ -31,10 +31,18 @@ where
         bcast_out: BytesVec,
         p2ps_out: HoleVecMap<K, BytesVec>,
     ) -> TofnResult<Self> {
-        // validate args
-        // TODO return error instead of panic?
-        assert!(index.as_usize() < party_count);
-        assert_eq!(p2ps_out.len(), party_count);
+        if index.as_usize() >= party_count {
+            error!("index {} out of bounds {}", index.as_usize(), party_count);
+            return Err(());
+        }
+        if p2ps_out.len() != party_count {
+            error!(
+                "p2ps_out length {} differs from party_count {}",
+                p2ps_out.len(),
+                party_count
+            );
+            return Err(());
+        }
 
         Ok(Round::BcastAndP2p(BcastAndP2pRound {
             round,
@@ -72,7 +80,10 @@ where
         party_count: usize,
         index: TypedUsize<K>,
     ) -> TofnResult<Self> {
-        assert!(index.as_usize() < party_count);
+        if index.as_usize() >= party_count {
+            error!("index {} out of bounds {}", index.as_usize(), party_count);
+            return Err(());
+        }
 
         Ok(Round::NoMessages(NoMessagesRound {
             round,
