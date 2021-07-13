@@ -1,14 +1,15 @@
 use serde::de::DeserializeOwned;
 use tracing::warn;
 
-use crate::{
-    refactor::collections::{Behave, FillP2ps, FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
-    refactor::{
-        api::{BytesVec, Fault, TofnResult},
-        implementer_api::ProtocolBuilder,
-    },
+use crate::refactor::{
+    collections::{Behave, FillP2ps, FillVecMap, P2ps, TypedUsize, VecMap},
+    protocol::api::Fault,
 };
 
+use super::{
+    api::{BytesVec, TofnResult},
+    implementer_api::ProtocolBuilder,
+};
 pub trait Executer: Send + Sync {
     type FinalOutput;
     type Index: Behave;
@@ -114,17 +115,4 @@ impl<T: Executer> ExecuterRaw for T {
     fn as_any(&self) -> &dyn std::any::Any {
         self.as_any()
     }
-}
-
-pub struct BcastAndP2pRound<F, K>
-where
-    K: Behave,
-{
-    pub round: Box<dyn ExecuterRaw<FinalOutput = F, Index = K>>,
-    pub party_count: usize,
-    pub index: TypedUsize<K>,
-    pub bcast_out: BytesVec,
-    pub p2ps_out: HoleVecMap<K, BytesVec>,
-    pub bcasts_in: FillVecMap<K, BytesVec>,
-    pub p2ps_in: FillP2ps<K, BytesVec>,
 }

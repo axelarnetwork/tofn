@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use tracing::error;
 
 use crate::refactor::{
-    api::TofnResult,
     collections::{Behave, FillHoleVecMap, HoleVecMap, TypedUsize, VecMap},
+    protocol::api::TofnResult,
 };
 
 use super::p2ps_iter::P2psIter;

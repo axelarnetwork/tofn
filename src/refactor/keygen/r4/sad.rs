@@ -3,9 +3,12 @@ use tracing::error;
 use crate::{
     refactor::collections::{FillVecMap, P2ps, TypedUsize, VecMap},
     refactor::{
-        api::{Fault::ProtocolFault, TofnResult},
-        implementer_api::{bcast_only, log_fault_info, ProtocolBuilder},
         keygen::{r1, r2, r3, KeygenPartyIndex, KeygenProtocolBuilder, SecretKeyShare},
+        protocol::{
+            api::{Fault::ProtocolFault, TofnResult},
+            bcast_only,
+            implementer_api::{log_fault_info, ProtocolBuilder},
+        },
     },
 };
 

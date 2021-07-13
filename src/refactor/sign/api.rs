@@ -4,10 +4,12 @@ use std::{
 };
 
 use crate::refactor::{
-    api::{BytesVec, Protocol, TofnResult},
     collections::{Behave, TypedUsize, VecMap},
-    implementer_api::{ProtocolBuilder, Round},
     keygen::{GroupPublicInfo, KeygenPartyIndex, SecretKeyShare, ShareSecretInfo},
+    protocol::{
+        api::{BytesVec, Protocol, RoundContainer, TofnResult},
+        implementer_api::ProtocolBuilder,
+    },
 };
 use serde::{Deserialize, Serialize};
 use tracing::error;
@@ -35,7 +37,7 @@ pub fn new_sign(
 ) -> TofnResult<SignProtocol> {
     let index = validate_args(group, share, participants)?;
 
-    Ok(Protocol::NotDone(Round::new_no_messages(
+    Ok(Protocol::NotDone(RoundContainer::new_no_messages(
         Box::new(r1::R1 {
             secret_key_share: SecretKeyShare {
                 group: group.clone(),

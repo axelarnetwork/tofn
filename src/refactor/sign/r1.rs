@@ -1,10 +1,13 @@
 use crate::{
     hash, paillier_k256,
     refactor::{
-        api::{BytesVec, TofnResult},
-        implementer_api::no_messages,
+        collections::TypedUsize,
+        keygen::SecretKeyShare,
+        protocol::{
+            api::{BytesVec, TofnResult},
+            no_messages,
+        },
     },
-    refactor::{collections::TypedUsize, keygen::SecretKeyShare},
 };
 use serde::{Deserialize, Serialize};
 

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use tracing::error;
 
-use crate::refactor::api::TofnResult;
+use crate::refactor::protocol::api::TofnResult;
 
 use super::{holevecmap_iter::HoleVecMapIter, Behave, TypedUsize, VecMap};
 
