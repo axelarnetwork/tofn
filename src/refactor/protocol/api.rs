@@ -14,15 +14,7 @@ where
     Done(ProtocolOutput<F, K>),
 }
 
-// need RoundContainer because we don't want to expose all the variants of Round
-pub struct Round<F, K>
-where
-    K: Behave,
-{
-    // party_count, index?
-    pub round_type: RoundType<F, K>,
-}
-
+pub use super::round::Round;
 pub type ProtocolOutput<F, K> = Result<F, FillVecMap<K, Fault>>;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -84,30 +76,22 @@ where
         match self.round_type {
             RoundType::BcastAndP2p(r) => r
                 .round
-                .execute_raw(r.party_count, r.index, r.bcasts_in, r.p2ps_in)?
-                .build(r.party_count, r.index),
+                .execute_raw(self.party_count, self.index, r.bcasts_in, r.p2ps_in)?
+                .build(self.party_count, self.index),
             RoundType::BcastOnly(r) => r
                 .round
-                .execute_raw(r.party_count, r.index, r.bcasts_in)?
-                .build(r.party_count, r.index),
+                .execute_raw(self.party_count, self.index, r.bcasts_in)?
+                .build(self.party_count, self.index),
             RoundType::NoMessages(r) => r
                 .round
-                .execute(r.party_count, r.index)?
-                .build(r.party_count, r.index),
+                .execute(self.party_count, self.index)?
+                .build(self.party_count, self.index),
         }
     }
     pub fn party_count(&self) -> usize {
-        match &self.round_type {
-            RoundType::BcastAndP2p(r) => r.party_count,
-            RoundType::BcastOnly(r) => r.party_count,
-            RoundType::NoMessages(r) => r.party_count,
-        }
+        self.party_count
     }
     pub fn index(&self) -> TypedUsize<K> {
-        match &self.round_type {
-            RoundType::BcastAndP2p(r) => r.index,
-            RoundType::BcastOnly(r) => r.index,
-            RoundType::NoMessages(r) => r.index,
-        }
+        self.index
     }
 }

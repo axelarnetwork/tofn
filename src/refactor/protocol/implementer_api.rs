@@ -1,8 +1,11 @@
-use super::api::{BytesVec, Protocol, ProtocolOutput, Round, TofnResult};
+use super::api::{BytesVec, Protocol, ProtocolOutput, TofnResult};
 use super::round::{BcastAndP2pRound, BcastOnlyRound, NoMessagesRound};
 use crate::refactor::collections::{Behave, HoleVecMap, TypedUsize};
 use crate::refactor::collections::{FillP2ps, FillVecMap};
-use crate::refactor::protocol::{bcast_and_p2p, bcast_only, no_messages, round::RoundType};
+use crate::refactor::protocol::{
+    bcast_and_p2p, bcast_only, no_messages,
+    round::{Round, RoundType},
+};
 
 pub enum ProtocolBuilder<F, K>
 where
@@ -79,10 +82,10 @@ where
         }
 
         Ok(Self {
+            party_count,
+            index,
             round_type: RoundType::BcastAndP2p(BcastAndP2pRound {
                 round,
-                party_count,
-                index,
                 bcast_out,
                 p2ps_out,
                 bcasts_in: FillVecMap::with_size(party_count),
@@ -103,10 +106,10 @@ where
         }
 
         Ok(Self {
+            party_count,
+            index,
             round_type: RoundType::BcastOnly(BcastOnlyRound {
                 round,
-                party_count,
-                index,
                 bcast_out,
                 bcasts_in: FillVecMap::with_size(party_count),
             }),
@@ -124,11 +127,9 @@ where
         }
 
         Ok(Self {
-            round_type: RoundType::NoMessages(NoMessagesRound {
-                round,
-                party_count,
-                index,
-            }),
+            party_count,
+            index,
+            round_type: RoundType::NoMessages(NoMessagesRound { round }),
         })
     }
 
