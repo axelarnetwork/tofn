@@ -95,7 +95,7 @@ pub mod malicious {
     use tracing::info;
 
     #[cfg(feature = "malicious")]
-    use crate::{paillier_k256, refactor::keygen};
+    use crate::{paillier_k256, refactor::keygen::malicious::Behaviour};
 
     impl R1 {
         pub fn corrupt_commit(
@@ -104,7 +104,7 @@ pub mod malicious {
             mut commit: Output,
         ) -> Output {
             #[cfg(feature = "malicious")]
-            if let keygen::Behaviour::R1BadCommit = self.behaviour {
+            if let Behaviour::R1BadCommit = self.behaviour {
                 info!("malicious party {} do {:?}", my_index, self.behaviour);
                 return commit.corrupt();
             } else {
@@ -120,7 +120,7 @@ pub mod malicious {
             mut ek_proof: EncryptionKeyProof,
         ) -> EncryptionKeyProof {
             #[cfg(feature = "malicious")]
-            if let keygen::Behaviour::R1BadEncryptionKeyProof = self.behaviour {
+            if let Behaviour::R1BadEncryptionKeyProof = self.behaviour {
                 info!("malicious party {} do {:?}", my_index, self.behaviour);
                 return paillier_k256::zk::malicious::corrupt_ek_proof(ek_proof);
             } else {
@@ -136,7 +136,7 @@ pub mod malicious {
             mut zkp_proof: ZkSetupProof,
         ) -> ZkSetupProof {
             #[cfg(feature = "malicious")]
-            if let keygen::Behaviour::R1BadZkSetupProof = self.behaviour {
+            if let Behaviour::R1BadZkSetupProof = self.behaviour {
                 info!("malicious party {} do {:?}", my_index, self.behaviour);
                 return paillier_k256::zk::malicious::corrupt_zksetup_proof(zkp_proof);
             } else {

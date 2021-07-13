@@ -121,7 +121,7 @@ pub mod malicious {
     use super::R2;
 
     #[cfg(feature = "malicious")]
-    use crate::refactor::keygen;
+    use crate::refactor::keygen::malicious::Behaviour;
 
     #[cfg(feature = "malicious")]
     use tracing::info;
@@ -133,7 +133,7 @@ pub mod malicious {
             mut other_shares: HoleVecMap<KeygenPartyIndex, Share>,
         ) -> TofnResult<HoleVecMap<KeygenPartyIndex, Share>> {
             #[cfg(feature = "malicious")]
-            if let keygen::Behaviour::R2BadShare { victim } = self.behaviour {
+            if let Behaviour::R2BadShare { victim } = self.behaviour {
                 info!("malicious party {} do {:?}", my_index, self.behaviour);
                 other_shares.get_mut(victim)?.corrupt();
             }
@@ -148,7 +148,7 @@ pub mod malicious {
             mut ciphertext: Ciphertext,
         ) -> Ciphertext {
             #[cfg(feature = "malicious")]
-            if let keygen::Behaviour::R2BadEncryption { victim } = self.behaviour {
+            if let Behaviour::R2BadEncryption { victim } = self.behaviour {
                 if victim == target_index {
                     info!("malicious party {} do {:?}", my_index, self.behaviour);
                     ciphertext.corrupt();
