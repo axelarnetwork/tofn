@@ -165,6 +165,16 @@ pub fn lagrange_coefficient(i: usize, indices: &[usize]) -> k256::Scalar {
     numerator * denominator.invert().unwrap()
 }
 
+#[cfg(feature = "malicious")]
+pub mod malicious {
+    use super::*;
+    impl Share {
+        pub fn corrupt(&mut self) {
+            *self.scalar.unwrap_mut() += k256::Scalar::one();
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

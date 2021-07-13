@@ -105,7 +105,7 @@ impl Keygen {
                         "(k256) malicious party {} do {:?}",
                         self.my_index, self.behaviour
                     );
-                    u_i_share_ciphertext_k256.corrupt()
+                    u_i_share_ciphertext_k256.corrupt_owned()
                 }
                 _ => u_i_share_ciphertext_k256,
             };

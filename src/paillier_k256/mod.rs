@@ -171,8 +171,11 @@ pub mod malicious {
         }
     }
     impl Ciphertext {
-        pub fn corrupt(mut self) -> Self {
+        pub fn corrupt(&mut self) {
             self.0 += BigInt::one();
+        }
+        pub fn corrupt_owned(mut self) -> Self {
+            self.corrupt();
             self
         }
     }
