@@ -86,7 +86,6 @@ where
     }
 }
 
-// TODO don't impl IntoIterator for FillVecMap?
 impl<K, V> IntoIterator for FillVecMap<K, V>
 where
     K: Behave,
@@ -96,5 +95,22 @@ where
 
     fn into_iter(self) -> Self::IntoIter {
         self.vec.into_iter()
+    }
+}
+
+/// impl IntoIterator for &FillVecMap as suggested here: https://doc.rust-lang.org/std/iter/index.html#iterating-by-reference
+/// follow the template of Vec: https://doc.rust-lang.org/src/alloc/vec/mod.rs.html#2451-2458
+impl<'a, K, V> IntoIterator for &'a FillVecMap<K, V>
+where
+    K: Behave,
+{
+    type Item = (
+        TypedUsize<K>,
+        <std::slice::Iter<'a, Option<V>> as Iterator>::Item,
+    );
+    type IntoIter = VecMapIter<K, std::slice::Iter<'a, Option<V>>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
