@@ -1,6 +1,6 @@
-//! A fillable Vec
+//! A fillable VecMap
 use serde::{Deserialize, Serialize};
-use tracing::warn;
+use tracing::{error, warn};
 
 use crate::refactor::api::TofnResult;
 
@@ -51,12 +51,6 @@ where
     pub fn is_none(&self, index: TypedUsize<K>) -> TofnResult<bool> {
         Ok(self.vec.get(index)?.is_none())
     }
-    // /// Returns `true` if all items are `Some`, except possibly the `index`th item.
-    // pub fn is_full_except(&self, index: usize) -> bool {
-    //     (self.is_none(index) && self.some_count() >= self.vec.len() - 1)
-    //         || self.some_count() >= self.vec.len()
-    // }
-
     pub fn is_full(&self) -> bool {
         self.some_count == self.vec.len()
     }
@@ -77,19 +71,17 @@ where
         self.into_iter().filter_map(|(i, x)| x.map(|y| (i, y)))
     }
 
-    // pub fn from_vec(vec: Vec<Option<T>>) -> Self {
-    //     Self {
-    //         some_count: vec.iter().filter(|x| x.is_some()).count(),
-    //         vec,
-    //     }
-    // }
-    pub fn unwrap_all_map<W, F>(self, mut f: F) -> VecMap<K, W>
+    pub fn unwrap_all_map<W, F>(self, mut f: F) -> TofnResult<VecMap<K, W>>
     where
         F: FnMut(V) -> W,
     {
-        self.vec.map(|x| f(x.unwrap()))
+        if !self.is_full() {
+            error!("self is not full");
+            return Err(());
+        }
+        Ok(self.vec.map(|x| f(x.unwrap())))
     }
-    pub fn unwrap_all(self) -> VecMap<K, V> {
+    pub fn unwrap_all(self) -> TofnResult<VecMap<K, V>> {
         self.unwrap_all_map(std::convert::identity)
     }
 }

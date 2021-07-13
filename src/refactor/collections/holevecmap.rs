@@ -1,10 +1,11 @@
+use serde::{Deserialize, Serialize};
 use tracing::error;
 
 use crate::refactor::api::TofnResult;
 
 use super::{holevecmap_iter::HoleVecMapIter, Behave, TypedUsize, VecMap};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HoleVecMap<K, V>
 where
     K: Behave,

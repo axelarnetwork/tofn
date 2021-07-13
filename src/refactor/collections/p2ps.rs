@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use tracing::error;
 
 use crate::refactor::{
@@ -7,6 +8,7 @@ use crate::refactor::{
 
 use super::p2ps_iter::P2psIter;
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct P2ps<K, V>(VecMap<K, HoleVecMap<K, V>>)
 where
     K: Behave;
@@ -105,13 +107,18 @@ where
     pub fn is_full(&self) -> bool {
         self.0.iter().all(|(_, v)| v.is_full())
     }
-    pub fn unwrap_all_map<W, F>(self, f: F) -> P2ps<K, W>
+    pub fn unwrap_all_map<W, F>(self, f: F) -> TofnResult<P2ps<K, W>>
     where
         F: FnMut(V) -> W + Clone,
     {
-        P2ps::<K, W>(self.0.map(|v| v.unwrap_all_map(f.clone())))
+        Ok(P2ps::<K, W>(
+            self.0
+                .into_iter()
+                .map(|(_, v)| v.unwrap_all_map(f.clone()))
+                .collect::<TofnResult<VecMap<_, _>>>()?,
+        ))
     }
-    pub fn unwrap_all(self) -> P2ps<K, V> {
+    pub fn unwrap_all(self) -> TofnResult<P2ps<K, V>> {
         self.unwrap_all_map(std::convert::identity)
     }
     pub fn iter(
@@ -162,7 +169,7 @@ mod tests {
         fill_p2ps.set(two, zero, 4).unwrap();
         fill_p2ps.set(two, one, 5).unwrap();
         assert!(fill_p2ps.is_full());
-        let p2ps = fill_p2ps.unwrap_all();
+        let p2ps = fill_p2ps.unwrap_all().unwrap();
 
         let expects: Vec<(_, _, &usize)> = vec![
             (zero, one, &0),

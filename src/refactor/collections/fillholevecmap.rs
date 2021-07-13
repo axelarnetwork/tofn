@@ -1,6 +1,6 @@
 //! A fillable Vec
 // use serde::{Deserialize, Serialize};
-use tracing::warn;
+use tracing::{error, warn};
 
 use crate::refactor::api::TofnResult;
 
@@ -53,13 +53,17 @@ where
     pub fn iter(&self) -> HoleVecMapIter<K, std::slice::Iter<Option<V>>> {
         self.hole_vec.iter()
     }
-    pub fn unwrap_all_map<W, F>(self, mut f: F) -> HoleVecMap<K, W>
+    pub fn unwrap_all_map<W, F>(self, mut f: F) -> TofnResult<HoleVecMap<K, W>>
     where
         F: FnMut(V) -> W,
     {
-        self.hole_vec.map(|x| f(x.unwrap()))
+        if !self.is_full() {
+            error!("self is not full");
+            return Err(());
+        }
+        Ok(self.hole_vec.map(|x| f(x.unwrap())))
     }
-    pub fn unwrap_all(self) -> HoleVecMap<K, V> {
+    pub fn unwrap_all(self) -> TofnResult<HoleVecMap<K, V>> {
         self.unwrap_all_map(std::convert::identity)
     }
 }

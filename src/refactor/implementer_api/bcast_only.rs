@@ -68,7 +68,7 @@ impl<T: Executer> ExecuterRaw for T {
 
         // attempt to deserialize bcasts, p2ps
         let bcasts_deserialized: VecMap<_, Result<_, _>> =
-            bcasts_in.unwrap_all_map(|bytes| bincode::deserialize(&bytes));
+            bcasts_in.unwrap_all_map(|bytes| bincode::deserialize(&bytes))?;
 
         // check for deserialization faults
         for (from, bcast) in bcasts_deserialized.iter() {
