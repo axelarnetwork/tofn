@@ -3,8 +3,7 @@ use tofn::refactor::{
     collections::{Behave, FillVecMap, TypedUsize, VecMap},
     keygen::{
         malicious::Behaviour::{self, *},
-        new_keygen_with_behaviour, KeygenPartyIndex, KeygenProtocol, SecretKeyShare,
-        SecretRecoveryKey,
+        new_keygen, KeygenPartyIndex, KeygenProtocol, SecretKeyShare, SecretRecoveryKey,
     },
 };
 use tracing::info;
@@ -110,7 +109,7 @@ fn execute_test_case(test_case: &TestCase) {
         .behaviours
         .iter()
         .map(|(index, behaviour)| {
-            new_keygen_with_behaviour(
+            new_keygen(
                 test_case.share_count(),
                 test_case.threshold,
                 index,

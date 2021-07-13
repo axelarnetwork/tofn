@@ -7,6 +7,8 @@ use crate::{
 use rand::RngCore;
 use tracing_test::traced_test;
 
+#[cfg(feature = "malicious")]
+use crate::refactor::keygen::malicious::Behaviour::Honest;
 pub struct TestCase {
     share_count: usize,
     threshold: usize,
@@ -68,6 +70,8 @@ pub(crate) fn execute_keygen_from_recovery(
                 TypedUsize::from_usize(i),
                 &secret_recovery_keys[i],
                 session_nonce,
+                #[cfg(feature = "malicious")]
+                Honest,
             )
             .unwrap()
             {

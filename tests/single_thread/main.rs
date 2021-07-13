@@ -8,6 +8,7 @@ use tofn::{
         keygen::{new_keygen, KeygenPartyIndex, KeygenProtocol, SecretKeyShare},
     },
 };
+
 // use tracing::{error, info};
 use tracing_test::traced_test; // enable logs in tests
 
@@ -16,6 +17,7 @@ use tracing_test::traced_test; // enable logs in tests
 
 #[test]
 #[traced_test]
+#[cfg(feature = "malicious")]
 fn main() {
     let (share_count, threshold) = (5, 2);
     let session_nonce = b"foobar";
@@ -30,6 +32,7 @@ fn main() {
                 TypedUsize::from_usize(index),
                 &secret_recovery_key,
                 session_nonce,
+                tofn::refactor::keygen::malicious::Behaviour::Honest,
             )
             .expect("`new_keygen` failure")
         })

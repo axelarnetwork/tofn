@@ -27,6 +27,7 @@ pub fn new_keygen(
     index: TypedUsize<KeygenPartyIndex>,
     secret_recovery_key: &SecretRecoveryKey,
     session_nonce: &[u8],
+    #[cfg(feature = "malicious")] behaviour: Behaviour,
 ) -> TofnResult<KeygenProtocol> {
     new_keygen_impl(
         share_count,
@@ -35,7 +36,7 @@ pub fn new_keygen(
         secret_recovery_key,
         session_nonce,
         #[cfg(feature = "malicious")]
-        Behaviour::Honest,
+        behaviour,
     )
 }
 
@@ -74,26 +75,6 @@ fn new_keygen_impl(
         share_count,
         index,
     )?))
-}
-
-#[cfg(feature = "malicious")]
-pub fn new_keygen_with_behaviour(
-    share_count: usize,
-    threshold: usize,
-    index: TypedUsize<KeygenPartyIndex>,
-    secret_recovery_key: &SecretRecoveryKey,
-    session_nonce: &[u8],
-    behaviour: Behaviour,
-) -> TofnResult<KeygenProtocol> {
-    new_keygen_impl(
-        share_count,
-        threshold,
-        index,
-        secret_recovery_key,
-        session_nonce,
-        #[cfg(feature = "malicious")]
-        behaviour,
-    )
 }
 
 mod r1;

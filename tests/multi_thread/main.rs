@@ -6,6 +6,9 @@ use tofn::{
     refactor::keygen::{new_keygen, KeygenProtocol, SecretKeyShare},
 };
 
+#[cfg(feature = "malicious")]
+use tofn::refactor::keygen::malicious::Behaviour::Honest;
+
 // TODO generic over final output F
 
 #[test]
@@ -23,6 +26,8 @@ fn main() {
                 TypedUsize::from_usize(index),
                 &secret_recovery_key,
                 session_nonce,
+                #[cfg(feature = "malicious")]
+                Honest,
             )
             .expect("`new_keygen` failure")
         })
