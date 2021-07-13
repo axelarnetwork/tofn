@@ -98,6 +98,8 @@ where
     }
 }
 
+// `FillP2ps` is a `(VecMap<_,_>)` instead of `(P2ps<_,_>)` because `P2ps` has no public constructor.
+// Can't put `FillP2ps` in a separate module because `FillP2ps` has methods that construct a `P2ps`.
 pub struct FillP2ps<K, V>(VecMap<K, FillHoleVecMap<K, V>>)
 where
     K: Behave;
