@@ -9,15 +9,13 @@ use tofn::{
     },
 };
 
-// use tracing::{error, info};
+use tracing::info;
 use tracing_test::traced_test; // enable logs in tests
 
 /// A simple test to illustrate use of the library
 /// TODO change file hierarchy
-
 #[test]
 #[traced_test]
-#[cfg(feature = "malicious")]
 fn main() {
     let (share_count, threshold) = (5, 2);
     let session_nonce = b"foobar";
@@ -32,6 +30,7 @@ fn main() {
                 TypedUsize::from_usize(index),
                 &secret_recovery_key,
                 session_nonce,
+                #[cfg(feature = "malicious")]
                 tofn::refactor::keygen::malicious::Behaviour::Honest,
             )
             .expect("`new_keygen` failure")
@@ -48,9 +47,9 @@ fn main() {
         })
         .collect();
 
-    println!("group info: {:?}", results[0].group);
+    info!("group info: {:?}", results[0].group);
     for (i, result) in results.iter().enumerate() {
-        println!("party {} secret info: {:?}", i, result.share);
+        info!("party {} secret info: {:?}", i, result.share);
     }
 }
 

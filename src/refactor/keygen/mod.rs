@@ -29,25 +29,6 @@ pub fn new_keygen(
     session_nonce: &[u8],
     #[cfg(feature = "malicious")] behaviour: Behaviour,
 ) -> TofnResult<KeygenProtocol> {
-    new_keygen_impl(
-        share_count,
-        threshold,
-        index,
-        secret_recovery_key,
-        session_nonce,
-        #[cfg(feature = "malicious")]
-        behaviour,
-    )
-}
-
-fn new_keygen_impl(
-    share_count: usize,
-    threshold: usize,
-    index: TypedUsize<KeygenPartyIndex>,
-    secret_recovery_key: &SecretRecoveryKey,
-    session_nonce: &[u8],
-    #[cfg(feature = "malicious")] behaviour: Behaviour,
-) -> TofnResult<KeygenProtocol> {
     // validate args
     if share_count <= threshold || share_count <= index.as_usize() || share_count > MAX_SHARE_COUNT
     {
