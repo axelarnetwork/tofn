@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 use crate::{
-    hash, paillier_k256,
+    corrupt, hash, paillier_k256,
     protocol::gg20::vss_k256,
     refactor::collections::{FillVecMap, TypedUsize, VecMap},
     refactor::{
@@ -72,14 +72,14 @@ impl bcast_only::Executer for R2 {
         let (u_i_other_shares, u_i_my_share) =
             VecMap::from_vec(self.u_i_vss.shares(party_count)).puncture_hole(index)?;
 
-        let u_i_other_shares = self.corrupt_share(index, u_i_other_shares)?;
+        corrupt!(u_i_other_shares, self.corrupt_share(index, u_i_other_shares)?);
 
         let p2ps_out = u_i_other_shares.map2(|(i, share)| {
             // encrypt the share for party i
             let (u_i_share_ciphertext, _) =
                 bcasts_in.get(i)?.ek.encrypt(&share.get_scalar().into());
 
-            let u_i_share_ciphertext = self.corrupt_ciphertext(index, i, u_i_share_ciphertext);
+            corrupt!(u_i_share_ciphertext, self.corrupt_ciphertext(index, i, u_i_share_ciphertext));
 
             serialize(&P2p {
                 u_i_share_ciphertext,
@@ -111,25 +111,21 @@ impl bcast_only::Executer for R2 {
     }
 }
 
-pub mod malicious {
-    #![allow(unused_variables)]
-    #![allow(unused_mut)]
+#[cfg(feature = "malicious")]
+mod malicious {
     use crate::{
         paillier_k256::Ciphertext,
         protocol::gg20::vss_k256::Share,
         refactor::keygen::KeygenPartyIndex,
         refactor::{
             collections::{HoleVecMap, TypedUsize},
+            keygen::malicious::Behaviour,
             protocol::api::TofnResult,
         },
     };
 
     use super::R2;
 
-    #[cfg(feature = "malicious")]
-    use crate::refactor::keygen::malicious::Behaviour;
-
-    #[cfg(feature = "malicious")]
     use tracing::info;
 
     impl R2 {
@@ -138,7 +134,6 @@ pub mod malicious {
             my_index: TypedUsize<KeygenPartyIndex>,
             mut other_shares: HoleVecMap<KeygenPartyIndex, Share>,
         ) -> TofnResult<HoleVecMap<KeygenPartyIndex, Share>> {
-            #[cfg(feature = "malicious")]
             if let Behaviour::R2BadShare { victim } = self.behaviour {
                 info!("malicious party {} do {:?}", my_index, self.behaviour);
                 other_shares.get_mut(victim)?.corrupt();
@@ -153,7 +148,6 @@ pub mod malicious {
             target_index: TypedUsize<KeygenPartyIndex>,
             mut ciphertext: Ciphertext,
         ) -> Ciphertext {
-            #[cfg(feature = "malicious")]
             if let Behaviour::R2BadEncryption { victim } = self.behaviour {
                 if victim == target_index {
                     info!("malicious party {} do {:?}", my_index, self.behaviour);
