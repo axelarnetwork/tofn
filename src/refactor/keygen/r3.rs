@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 use crate::{
-    hash,
+    corrupt, hash,
     k256_serde::to_bytes,
     paillier_k256,
     protocol::gg20::vss_k256,
@@ -21,7 +21,7 @@ use crate::{
 use super::{r1, r2, KeygenPartyIndex, KeygenProtocolBuilder};
 
 #[cfg(feature = "malicious")]
-use super::malicious::{log_confess_info, Behaviour};
+use super::malicious::Behaviour;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Bcast {
@@ -115,24 +115,10 @@ impl bcast_and_p2p::Executer for R3 {
             }
         }
 
-        #[cfg(feature = "malicious")]
-        if let Behaviour::R3FalseAccusation { victim } = self.behaviour {
-            if !vss_complaints.is_none(victim)? {
-                log_confess_info(index, &self.behaviour, "but the accusation is true");
-            } else if victim == index {
-                log_confess_info(index, &self.behaviour, "self accusation");
-                vss_complaints.set(
-                    victim,
-                    ShareInfo {
-                        share: vss_k256::Share::from_scalar(k256::Scalar::one(), 1), // junk data
-                        randomness: self.r1bcasts.get(index)?.ek.sample_randomness(), // junk data
-                    },
-                )?;
-            } else {
-                log_confess_info(index, &self.behaviour, "");
-                vss_complaints.set(victim, share_infos.get(victim)?.clone())?;
-            }
-        }
+        corrupt!(
+            vss_complaints,
+            self.corrupt_complaint(index, &share_infos, vss_complaints)?
+        );
 
         if !vss_complaints.is_empty() {
             return Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
@@ -170,7 +156,7 @@ impl bcast_and_p2p::Executer for R3 {
             })
             .collect();
 
-        let x_i = self.corrupt_scalar(index, x_i);
+        corrupt!(x_i, self.corrupt_scalar(index, x_i));
 
         let x_i_proof = schnorr_k256::prove(
             &schnorr_k256::Statement {
@@ -203,13 +189,18 @@ impl bcast_and_p2p::Executer for R3 {
     }
 }
 
-pub mod malicious {
-    #![allow(unused_variables)]
-    #![allow(unused_mut)]
-    use super::R3;
-    use crate::{refactor::collections::TypedUsize, refactor::keygen::KeygenPartyIndex};
+#[cfg(feature = "malicious")]
+mod malicious {
+    use super::{ShareInfo, R3};
+    use crate::{
+        protocol::gg20::vss_k256,
+        refactor::{
+            collections::{FillVecMap, HoleVecMap, TypedUsize},
+            keygen::KeygenPartyIndex,
+            protocol::api::TofnResult,
+        },
+    };
 
-    #[cfg(feature = "malicious")]
     use super::super::malicious::{log_confess_info, Behaviour};
 
     impl R3 {
@@ -218,12 +209,38 @@ pub mod malicious {
             my_index: TypedUsize<KeygenPartyIndex>,
             mut x_i: k256::Scalar,
         ) -> k256::Scalar {
-            #[cfg(feature = "malicious")]
             if let Behaviour::R3BadXIWitness = self.behaviour {
                 log_confess_info(my_index, &self.behaviour, "");
                 x_i += k256::Scalar::one();
             }
             x_i
+        }
+
+        pub fn corrupt_complaint(
+            &self,
+            index: TypedUsize<KeygenPartyIndex>,
+            share_infos: &HoleVecMap<KeygenPartyIndex, ShareInfo>,
+            mut vss_complaints: FillVecMap<KeygenPartyIndex, ShareInfo>,
+        ) -> TofnResult<FillVecMap<KeygenPartyIndex, ShareInfo>> {
+            if let Behaviour::R3FalseAccusation { victim } = self.behaviour {
+                if !vss_complaints.is_none(victim)? {
+                    log_confess_info(index, &self.behaviour, "but the accusation is true");
+                } else if victim == index {
+                    log_confess_info(index, &self.behaviour, "self accusation");
+                    vss_complaints.set(
+                        victim,
+                        ShareInfo {
+                            share: vss_k256::Share::from_scalar(k256::Scalar::one(), 1), // junk data
+                            randomness: self.r1bcasts.get(index)?.ek.sample_randomness(), // junk data
+                        },
+                    )?;
+                } else {
+                    log_confess_info(index, &self.behaviour, "");
+                    vss_complaints.set(victim, share_infos.get(victim)?.clone())?;
+                }
+            }
+
+            Ok(vss_complaints)
         }
     }
 }

@@ -1,3 +1,13 @@
+// TODO: Rust 2018 doesn't allow importing a macro from another module
+// in the same crate without a crate level export.
+#[macro_export]
+macro_rules! corrupt {
+    ($sym:ident, $e:expr) => {
+        #[cfg(feature = "malicious")]
+        let $sym = $e;
+    };
+}
+
 mod api;
 mod r1;
 mod r2;

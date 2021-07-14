@@ -27,7 +27,7 @@ pub fn commit_with_randomness(msg: impl AsRef<[u8]>, randomness: &Randomness) ->
 }
 
 #[cfg(feature = "malicious")]
-pub mod malicious {
+mod malicious {
     use super::*;
     impl Output {
         pub fn corrupt(mut self) -> Self {

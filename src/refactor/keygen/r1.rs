@@ -1,5 +1,5 @@
 use crate::{
-    hash, k256_serde, paillier_k256,
+    corrupt, hash, k256_serde, paillier_k256,
     protocol::gg20::vss_k256,
     refactor::collections::TypedUsize,
     refactor::{
@@ -49,15 +49,15 @@ impl no_messages::Executer for R1 {
             &(k256::ProjectivePoint::generator() * u_i_vss.get_secret()),
         ));
 
-        let y_i_commit = self.corrupt_commit(index, y_i_commit);
+        corrupt!(y_i_commit, self.corrupt_commit(index, y_i_commit));
 
         let mut rng = rng::rng_from_seed(self.rng_seed);
         let (ek, dk) = paillier_k256::keygen_unsafe(&mut rng);
         let (zkp, zkp_proof) = paillier_k256::zk::ZkSetup::new_unsafe(&mut rng);
         let ek_proof = dk.correctness_proof();
 
-        let ek_proof = self.corrupt_ek_proof(index, ek_proof);
-        let zkp_proof = self.corrupt_zkp_proof(index, zkp_proof);
+        corrupt!(ek_proof, self.corrupt_ek_proof(index, ek_proof));
+        corrupt!(zkp_proof, self.corrupt_zkp_proof(index, zkp_proof));
 
         let bcast_out = serialize(&Bcast {
             y_i_commit,
@@ -81,72 +81,57 @@ impl no_messages::Executer for R1 {
     }
 }
 
-pub mod malicious {
-    // TODO need a better way to squelch build warnings with and without feature = "malicious"
-    #![allow(unused_variables)]
-    #![allow(unused_mut)]
-    #![allow(unreachable_code)]
+#[cfg(feature = "malicious")]
+mod malicious {
     use super::R1;
     use crate::{
         hash::Output,
+        paillier_k256,
         paillier_k256::zk::{EncryptionKeyProof, ZkSetupProof},
         refactor::collections::TypedUsize,
+        refactor::keygen::malicious::Behaviour,
         refactor::keygen::KeygenPartyIndex,
     };
-
-    #[cfg(feature = "malicious")]
     use tracing::info;
-
-    #[cfg(feature = "malicious")]
-    use crate::{paillier_k256, refactor::keygen::malicious::Behaviour};
 
     impl R1 {
         pub fn corrupt_commit(
             &self,
             my_index: TypedUsize<KeygenPartyIndex>,
-            mut commit: Output,
+            commit: Output,
         ) -> Output {
-            #[cfg(feature = "malicious")]
             if let Behaviour::R1BadCommit = self.behaviour {
                 info!("malicious party {} do {:?}", my_index, self.behaviour);
-                return commit.corrupt();
+                commit.corrupt()
             } else {
-                return commit;
+                commit
             }
-
-            commit
         }
 
         pub fn corrupt_ek_proof(
             &self,
             my_index: TypedUsize<KeygenPartyIndex>,
-            mut ek_proof: EncryptionKeyProof,
+            ek_proof: EncryptionKeyProof,
         ) -> EncryptionKeyProof {
-            #[cfg(feature = "malicious")]
             if let Behaviour::R1BadEncryptionKeyProof = self.behaviour {
                 info!("malicious party {} do {:?}", my_index, self.behaviour);
-                return paillier_k256::zk::malicious::corrupt_ek_proof(ek_proof);
+                paillier_k256::zk::malicious::corrupt_ek_proof(ek_proof)
             } else {
-                return ek_proof;
+                ek_proof
             }
-
-            ek_proof
         }
 
         pub fn corrupt_zkp_proof(
             &self,
             my_index: TypedUsize<KeygenPartyIndex>,
-            mut zkp_proof: ZkSetupProof,
+            zkp_proof: ZkSetupProof,
         ) -> ZkSetupProof {
-            #[cfg(feature = "malicious")]
             if let Behaviour::R1BadZkSetupProof = self.behaviour {
                 info!("malicious party {} do {:?}", my_index, self.behaviour);
-                return paillier_k256::zk::malicious::corrupt_zksetup_proof(zkp_proof);
+                paillier_k256::zk::malicious::corrupt_zksetup_proof(zkp_proof)
             } else {
-                return zkp_proof;
+                zkp_proof
             }
-
-            zkp_proof
         }
     }
 }
