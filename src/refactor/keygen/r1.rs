@@ -83,15 +83,15 @@ impl no_messages::Executer for R1 {
 
 #[cfg(feature = "malicious")]
 mod malicious {
+    use super::R1;
     use crate::{
         hash::Output,
         paillier_k256,
         paillier_k256::zk::{EncryptionKeyProof, ZkSetupProof},
         refactor::collections::TypedUsize,
-        refactor::keygen::KeygenPartyIndex,
         refactor::keygen::malicious::Behaviour,
+        refactor::keygen::KeygenPartyIndex,
     };
-    use super::R1;
     use tracing::info;
 
     impl R1 {

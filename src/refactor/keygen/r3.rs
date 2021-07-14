@@ -2,8 +2,7 @@ use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 use crate::{
-    corrupt,
-    hash,
+    corrupt, hash,
     k256_serde::to_bytes,
     paillier_k256,
     protocol::gg20::vss_k256,
@@ -116,7 +115,10 @@ impl bcast_and_p2p::Executer for R3 {
             }
         }
 
-        corrupt!(vss_complaints, self.corrupt_complaint(index, &share_infos, vss_complaints)?);
+        corrupt!(
+            vss_complaints,
+            self.corrupt_complaint(index, &share_infos, vss_complaints)?
+        );
 
         if !vss_complaints.is_empty() {
             return Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
@@ -189,14 +191,14 @@ impl bcast_and_p2p::Executer for R3 {
 
 #[cfg(feature = "malicious")]
 mod malicious {
-    use super::{R3, ShareInfo};
+    use super::{ShareInfo, R3};
     use crate::{
         protocol::gg20::vss_k256,
         refactor::{
             collections::{FillVecMap, HoleVecMap, TypedUsize},
             keygen::KeygenPartyIndex,
             protocol::api::TofnResult,
-        }
+        },
     };
 
     use super::super::malicious::{log_confess_info, Behaviour};
@@ -219,8 +221,7 @@ mod malicious {
             index: TypedUsize<KeygenPartyIndex>,
             share_infos: &HoleVecMap<KeygenPartyIndex, ShareInfo>,
             mut vss_complaints: FillVecMap<KeygenPartyIndex, ShareInfo>,
-        ) -> TofnResult<FillVecMap<KeygenPartyIndex, ShareInfo>>
-        {
+        ) -> TofnResult<FillVecMap<KeygenPartyIndex, ShareInfo>> {
             if let Behaviour::R3FalseAccusation { victim } = self.behaviour {
                 if !vss_complaints.is_none(victim)? {
                     log_confess_info(index, &self.behaviour, "but the accusation is true");

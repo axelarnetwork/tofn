@@ -72,14 +72,20 @@ impl bcast_only::Executer for R2 {
         let (u_i_other_shares, u_i_my_share) =
             VecMap::from_vec(self.u_i_vss.shares(party_count)).puncture_hole(index)?;
 
-        corrupt!(u_i_other_shares, self.corrupt_share(index, u_i_other_shares)?);
+        corrupt!(
+            u_i_other_shares,
+            self.corrupt_share(index, u_i_other_shares)?
+        );
 
         let p2ps_out = u_i_other_shares.map2(|(i, share)| {
             // encrypt the share for party i
             let (u_i_share_ciphertext, _) =
                 bcasts_in.get(i)?.ek.encrypt(&share.get_scalar().into());
 
-            corrupt!(u_i_share_ciphertext, self.corrupt_ciphertext(index, i, u_i_share_ciphertext));
+            corrupt!(
+                u_i_share_ciphertext,
+                self.corrupt_ciphertext(index, i, u_i_share_ciphertext)
+            );
 
             serialize(&P2p {
                 u_i_share_ciphertext,
