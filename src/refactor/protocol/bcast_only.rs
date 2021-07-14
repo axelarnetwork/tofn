@@ -1,25 +1,25 @@
 use serde::de::DeserializeOwned;
 use tracing::warn;
 
-use crate::{
-    refactor::collections::{Behave, FillP2ps, FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
-    refactor::{
-        api::{BytesVec, Fault, TofnResult},
-        implementer_api::ProtocolBuilder,
-    },
+use crate::refactor::{
+    collections::{Behave, FillVecMap, TypedUsize, VecMap},
+    protocol::api::Fault,
+};
+
+use super::{
+    api::{BytesVec, TofnResult},
+    implementer_api::ProtocolBuilder,
 };
 
 pub trait Executer: Send + Sync {
     type FinalOutput;
     type Index: Behave;
     type Bcast: DeserializeOwned;
-    type P2p: DeserializeOwned;
     fn execute(
         self: Box<Self>,
         party_count: usize,
         index: TypedUsize<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
-        p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>>;
 
     #[cfg(test)]
@@ -37,7 +37,6 @@ pub trait ExecuterRaw: Send + Sync {
         party_count: usize,
         index: TypedUsize<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, BytesVec>,
-        p2ps_in: FillP2ps<Self::Index, BytesVec>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>>;
 
     #[cfg(test)]
@@ -55,7 +54,6 @@ impl<T: Executer> ExecuterRaw for T {
         party_count: usize,
         index: TypedUsize<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, BytesVec>,
-        p2ps_in: FillP2ps<Self::Index, BytesVec>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
         let mut faulters = FillVecMap::with_size(party_count);
 
@@ -66,35 +64,18 @@ impl<T: Executer> ExecuterRaw for T {
                 faulters.set(from, Fault::MissingMessage)?;
             }
         }
-        for (from, to, p2p) in p2ps_in.iter() {
-            if p2p.is_none() {
-                warn!("party {} detect missing p2p from {} to {}", index, from, to);
-                faulters.set(from, Fault::MissingMessage)?;
-            }
-        }
         if !faulters.is_empty() {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
         // attempt to deserialize bcasts, p2ps
         let bcasts_deserialized: VecMap<_, Result<_, _>> =
-            bcasts_in.unwrap_all_map(|bytes| bincode::deserialize(&bytes));
-        let p2ps_deserialized: P2ps<_, Result<_, _>> =
-            p2ps_in.unwrap_all_map(|bytes| bincode::deserialize(&bytes));
+            bcasts_in.unwrap_all_map(|bytes| bincode::deserialize(&bytes))?;
 
         // check for deserialization faults
         for (from, bcast) in bcasts_deserialized.iter() {
             if bcast.is_err() {
                 warn!("party {} detect corrupted bcast from {}", index, from);
-                faulters.set(from, Fault::CorruptedMessage)?;
-            }
-        }
-        for (from, to, p2p) in p2ps_deserialized.iter() {
-            if p2p.is_err() {
-                warn!(
-                    "party {} detect corrupted p2p from {} to {}",
-                    index, from, to
-                );
                 faulters.set(from, Fault::CorruptedMessage)?;
             }
         }
@@ -104,9 +85,8 @@ impl<T: Executer> ExecuterRaw for T {
 
         // unwrap deserialized bcasts, p2ps
         let bcasts_in = bcasts_deserialized.map(Result::unwrap);
-        let p2ps_in = p2ps_deserialized.map(Result::unwrap);
 
-        self.execute(party_count, index, bcasts_in, p2ps_in)
+        self.execute(party_count, index, bcasts_in)
     }
 
     #[cfg(test)]
@@ -114,17 +94,4 @@ impl<T: Executer> ExecuterRaw for T {
     fn as_any(&self) -> &dyn std::any::Any {
         self.as_any()
     }
-}
-
-pub struct BcastAndP2pRound<F, K>
-where
-    K: Behave,
-{
-    pub round: Box<dyn ExecuterRaw<FinalOutput = F, Index = K>>,
-    pub party_count: usize,
-    pub index: TypedUsize<K>,
-    pub bcast_out: BytesVec,
-    pub p2ps_out: HoleVecMap<K, BytesVec>,
-    pub bcasts_in: FillVecMap<K, BytesVec>,
-    pub p2ps_in: FillP2ps<K, BytesVec>,
 }

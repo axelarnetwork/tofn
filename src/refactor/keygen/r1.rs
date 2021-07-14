@@ -3,9 +3,12 @@ use crate::{
     protocol::gg20::vss_k256,
     refactor::collections::TypedUsize,
     refactor::{
-        api::TofnResult,
-        implementer_api::{no_messages, serialize, ProtocolBuilder::*, RoundBuilder},
         keygen::SecretKeyShare,
+        protocol::{
+            api::TofnResult,
+            implementer_api::{serialize, ProtocolBuilder::*, RoundBuilder},
+            no_messages,
+        },
     },
 };
 use serde::{Deserialize, Serialize};

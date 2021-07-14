@@ -6,9 +6,12 @@ use crate::{
     protocol::gg20::vss_k256,
     refactor::collections::{FillVecMap, TypedUsize, VecMap},
     refactor::{
-        api::{Fault::ProtocolFault, TofnResult},
-        implementer_api::{bcast_only, serialize, ProtocolBuilder, RoundBuilder},
         keygen::{r3, SecretKeyShare},
+        protocol::{
+            api::{Fault::ProtocolFault, TofnResult},
+            bcast_only,
+            implementer_api::{serialize, ProtocolBuilder, RoundBuilder},
+        },
     },
 };
 
@@ -114,8 +117,11 @@ pub mod malicious {
     use crate::{
         paillier_k256::Ciphertext,
         protocol::gg20::vss_k256::Share,
-        refactor::collections::{HoleVecMap, TypedUsize},
-        refactor::{api::TofnResult, keygen::KeygenPartyIndex},
+        refactor::keygen::KeygenPartyIndex,
+        refactor::{
+            collections::{HoleVecMap, TypedUsize},
+            protocol::api::TofnResult,
+        },
     };
 
     use super::R2;

@@ -1,12 +1,14 @@
+use serde::{Deserialize, Serialize};
 use tracing::error;
 
 use crate::refactor::{
-    api::TofnResult,
     collections::{Behave, FillHoleVecMap, HoleVecMap, TypedUsize, VecMap},
+    protocol::api::TofnResult,
 };
 
 use super::p2ps_iter::P2psIter;
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct P2ps<K, V>(VecMap<K, HoleVecMap<K, V>>)
 where
     K: Behave;
@@ -78,6 +80,26 @@ where
     }
 }
 
+/// impl IntoIterator for &P2ps as suggested here: https://doc.rust-lang.org/std/iter/index.html#iterating-by-reference
+/// follow the template of Vec: https://doc.rust-lang.org/src/alloc/vec/mod.rs.html#2451-2458
+impl<'a, K, V> IntoIterator for &'a P2ps<K, V>
+where
+    K: Behave,
+{
+    type Item = (
+        TypedUsize<K>,
+        TypedUsize<K>,
+        <std::slice::Iter<'a, V> as Iterator>::Item,
+    );
+    type IntoIter = P2psIter<K, std::slice::Iter<'a, HoleVecMap<K, V>>, std::slice::Iter<'a, V>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+// `FillP2ps` is a `(VecMap<_,_>)` instead of `(P2ps<_,_>)` because `P2ps` has no public constructor.
+// Can't put `FillP2ps` in a separate module because `FillP2ps` has methods that construct a `P2ps`.
 pub struct FillP2ps<K, V>(VecMap<K, FillHoleVecMap<K, V>>)
 where
     K: Behave;
@@ -105,13 +127,18 @@ where
     pub fn is_full(&self) -> bool {
         self.0.iter().all(|(_, v)| v.is_full())
     }
-    pub fn unwrap_all_map<W, F>(self, f: F) -> P2ps<K, W>
+    pub fn unwrap_all_map<W, F>(self, f: F) -> TofnResult<P2ps<K, W>>
     where
         F: FnMut(V) -> W + Clone,
     {
-        P2ps::<K, W>(self.0.map(|v| v.unwrap_all_map(f.clone())))
+        Ok(P2ps::<K, W>(
+            self.0
+                .into_iter()
+                .map(|(_, v)| v.unwrap_all_map(f.clone()))
+                .collect::<TofnResult<VecMap<_, _>>>()?,
+        ))
     }
-    pub fn unwrap_all(self) -> P2ps<K, V> {
+    pub fn unwrap_all(self) -> TofnResult<P2ps<K, V>> {
         self.unwrap_all_map(std::convert::identity)
     }
     pub fn iter(
@@ -135,6 +162,25 @@ where
 
     fn into_iter(self) -> Self::IntoIter {
         P2psIter::new(self.0.into_iter())
+    }
+}
+
+/// impl IntoIterator for &FillP2ps as suggested here: https://doc.rust-lang.org/std/iter/index.html#iterating-by-reference
+/// follow the template of Vec: https://doc.rust-lang.org/src/alloc/vec/mod.rs.html#2451-2458
+impl<'a, K, V> IntoIterator for &'a FillP2ps<K, V>
+where
+    K: Behave,
+{
+    type Item = (
+        TypedUsize<K>,
+        TypedUsize<K>,
+        <std::slice::Iter<'a, Option<V>> as Iterator>::Item,
+    );
+    type IntoIter =
+        P2psIter<K, std::slice::Iter<'a, FillHoleVecMap<K, V>>, std::slice::Iter<'a, Option<V>>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 
@@ -162,7 +208,7 @@ mod tests {
         fill_p2ps.set(two, zero, 4).unwrap();
         fill_p2ps.set(two, one, 5).unwrap();
         assert!(fill_p2ps.is_full());
-        let p2ps = fill_p2ps.unwrap_all();
+        let p2ps = fill_p2ps.unwrap_all().unwrap();
 
         let expects: Vec<(_, _, &usize)> = vec![
             (zero, one, &0),

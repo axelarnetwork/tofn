@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::iter::FromIterator;
 use tracing::error;
 
-use crate::refactor::api::TofnResult;
+use crate::refactor::protocol::api::TofnResult;
 
 use super::{vecmap_iter::VecMapIter, Behave, HoleVecMap, TypedUsize};
 

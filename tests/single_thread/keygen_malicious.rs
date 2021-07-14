@@ -1,10 +1,10 @@
 use tofn::refactor::{
-    api::{Fault, Protocol::*, ProtocolOutput},
     collections::{Behave, FillVecMap, TypedUsize, VecMap},
     keygen::{
         malicious::Behaviour::{self, *},
         new_keygen, KeygenPartyIndex, KeygenProtocol, SecretKeyShare, SecretRecoveryKey,
     },
+    protocol::api::{Fault, Protocol::*, ProtocolOutput},
 };
 use tracing::info;
 use tracing_test::traced_test;

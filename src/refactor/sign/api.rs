@@ -4,10 +4,12 @@ use std::{
 };
 
 use crate::refactor::{
-    api::{BytesVec, Protocol, TofnResult},
     collections::{Behave, TypedUsize, VecMap},
-    implementer_api::{ProtocolBuilder, Round},
     keygen::{GroupPublicInfo, KeygenPartyIndex, SecretKeyShare, ShareSecretInfo},
+    protocol::{
+        api::{BytesVec, Protocol, Round, TofnResult},
+        implementer_api::ProtocolBuilder,
+    },
 };
 use serde::{Deserialize, Serialize};
 use tracing::error;

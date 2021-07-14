@@ -4,8 +4,8 @@ use rand::RngCore;
 use tofn::{
     refactor::collections::{TypedUsize, VecMap},
     refactor::{
-        api::Protocol,
         keygen::{new_keygen, KeygenPartyIndex, KeygenProtocol, SecretKeyShare},
+        protocol::api::Protocol,
     },
 };
 
