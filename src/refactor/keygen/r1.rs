@@ -42,22 +42,22 @@ impl no_messages::Executer for R1 {
     fn execute(
         self: Box<Self>,
         _party_count: usize,
-        index: TypedUsize<Self::Index>,
+        _index: TypedUsize<Self::Index>,
     ) -> TofnResult<KeygenProtocolBuilder> {
         let u_i_vss = vss_k256::Vss::new(self.threshold);
         let (y_i_commit, y_i_reveal) = hash::commit(k256_serde::to_bytes(
             &(k256::ProjectivePoint::generator() * u_i_vss.get_secret()),
         ));
 
-        corrupt!(y_i_commit, self.corrupt_commit(index, y_i_commit));
+        corrupt!(y_i_commit, self.corrupt_commit(_index, y_i_commit));
 
         let mut rng = rng::rng_from_seed(self.rng_seed);
         let (ek, dk) = paillier_k256::keygen_unsafe(&mut rng);
         let (zkp, zkp_proof) = paillier_k256::zk::ZkSetup::new_unsafe(&mut rng);
         let ek_proof = dk.correctness_proof();
 
-        corrupt!(ek_proof, self.corrupt_ek_proof(index, ek_proof));
-        corrupt!(zkp_proof, self.corrupt_zkp_proof(index, zkp_proof));
+        corrupt!(ek_proof, self.corrupt_ek_proof(_index, ek_proof));
+        corrupt!(zkp_proof, self.corrupt_zkp_proof(_index, zkp_proof));
 
         let bcast_out = serialize(&Bcast {
             y_i_commit,

@@ -148,23 +148,24 @@ where
     if let Some(bcasts) = bcasts {
         for (from, mut bytes) in bcasts.into_iter() {
             // inject fault
-            if current_round == test_case.round && matches!(test_case.msg, RoundMessage::Bcast) {
-                if test_case.faulter == from {
-                    match test_case.fault_type {
-                        FaultType::Timeout => {
-                            info!(
-                                "drop bcast from party {} in round {}",
-                                test_case.faulter, test_case.round
-                            );
-                            continue;
-                        }
-                        FaultType::Corruption => {
-                            info!(
-                                "corrupt bcast from party {} in round {}",
-                                test_case.faulter, test_case.round
-                            );
-                            bytes = b"these bytes are corrupted 1234".to_vec()
-                        }
+            if current_round == test_case.round
+                && matches!(test_case.msg, RoundMessage::Bcast)
+                && test_case.faulter == from
+            {
+                match test_case.fault_type {
+                    FaultType::Timeout => {
+                        info!(
+                            "drop bcast from party {} in round {}",
+                            test_case.faulter, test_case.round
+                        );
+                        continue;
+                    }
+                    FaultType::Corruption => {
+                        info!(
+                            "corrupt bcast from party {} in round {}",
+                            test_case.faulter, test_case.round
+                        );
+                        bytes = b"these bytes are corrupted 1234".to_vec()
                     }
                 }
             }

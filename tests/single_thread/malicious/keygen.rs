@@ -142,7 +142,6 @@ pub fn initialize_parties(
                 index,
                 &dummy_secret_recovery_key(index),
                 session_nonce,
-                #[cfg(feature = "malicious")]
                 behaviour.clone(),
             )
             .expect("`new_keygen` failure")

@@ -33,19 +33,32 @@ fn main() {
 mod keygen {
     use tofn::{
         refactor::collections::{Behave, TypedUsize, VecMap},
-        refactor::keygen::{
-            malicious::Behaviour, KeygenPartyIndex, KeygenProtocol, SecretRecoveryKey,
-        },
+        refactor::keygen::{new_keygen, KeygenPartyIndex, KeygenProtocol, SecretRecoveryKey},
     };
 
-    use crate::malicious::keygen::initialize_parties;
+    #[cfg(feature = "malicious")]
+    use tofn::refactor::keygen::malicious::Behaviour;
 
     pub fn initialize_honest_parties(
         share_count: usize,
         threshold: usize,
     ) -> VecMap<KeygenPartyIndex, KeygenProtocol> {
-        let behaviours = (0..share_count).map(|_| Behaviour::Honest).collect();
-        initialize_parties(&behaviours, threshold)
+        let session_nonce = b"foobar";
+        (0..share_count)
+            .map(|index| {
+                let index = TypedUsize::from_usize(index);
+                new_keygen(
+                    share_count,
+                    threshold,
+                    index,
+                    &dummy_secret_recovery_key(index),
+                    session_nonce,
+                    #[cfg(feature = "malicious")]
+                    Behaviour::Honest,
+                )
+                .expect("`new_keygen` failure")
+            })
+            .collect()
     }
 
     /// return the all-zero array with the first bytes set to the bytes of `index`
