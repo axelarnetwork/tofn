@@ -58,10 +58,7 @@ pub fn new_keygen(
             #[cfg(feature = "malicious")]
             behaviour,
         }),
-        RoundInfo {
-            party_count: share_count,
-            index,
-        },
+        RoundInfo::new(share_count, index),
     )?))
 }
 /// final output of keygen

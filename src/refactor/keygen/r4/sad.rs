@@ -37,12 +37,12 @@ impl bcast_only::Executer for R4Sad {
         {
             error!(
                 "party {} entered r4 sad path with no complaints",
-                info.index
+                info.index()
             );
             return Err(());
         }
 
-        let mut faulters = FillVecMap::with_size(info.party_count);
+        let mut faulters = FillVecMap::with_size(info.party_count());
         let accusations_iter = bcasts_in
             .into_iter()
             .filter_map(|(from, bcast)| match bcast {
@@ -54,7 +54,7 @@ impl bcast_only::Executer for R4Sad {
         for (accuser, accusations) in accusations_iter {
             for (accused, accusation) in accusations.vss_complaints.into_iter_some() {
                 if accuser == accused {
-                    log_fault_info(info.index, accuser, "self accusation");
+                    log_fault_info(info.index(), accuser, "self accusation");
                     faulters.set(accuser, ProtocolFault)?;
                     continue;
                 }
@@ -66,7 +66,7 @@ impl bcast_only::Executer for R4Sad {
                     &accusation.randomness,
                 );
                 if share_ciphertext != self.r2p2ps.get(accused, accuser)?.u_i_share_ciphertext {
-                    log_fault_info(info.index, accused, "bad encryption");
+                    log_fault_info(info.index(), accused, "bad encryption");
                     faulters.set(accused, ProtocolFault)?;
                     continue;
                 }
@@ -74,17 +74,17 @@ impl bcast_only::Executer for R4Sad {
                 // verify share commitment
                 let accused_vss_commit = &self.r2bcasts.get(accused)?.u_i_vss_commit;
                 if accused_vss_commit.validate_share(&accusation.share) {
-                    log_fault_info(info.index, accuser, "false accusation");
+                    log_fault_info(info.index(), accuser, "false accusation");
                     faulters.set(accuser, ProtocolFault)?;
                 } else {
-                    log_fault_info(info.index, accused, "invalid vss share");
+                    log_fault_info(info.index(), accused, "invalid vss share");
                     faulters.set(accused, ProtocolFault)?;
                 }
             }
         }
 
         if faulters.is_empty() {
-            error!("party {} r4 sad path found no faulters", info.index);
+            error!("party {} r4 sad path found no faulters", info.index());
             return Err(());
         }
         Ok(ProtocolBuilder::Done(Err(faulters)))

@@ -46,10 +46,7 @@ pub fn new_sign(
             msg_to_sign: msg_to_sign.into(),
             participants: participants.clone(),
         }),
-        RoundInfo {
-            party_count: participants.len(),
-            index,
-        },
+        RoundInfo::new(participants.len(), index),
     )?))
 }
 

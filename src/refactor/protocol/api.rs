@@ -86,9 +86,9 @@ where
         }
     }
     pub fn party_count(&self) -> usize {
-        self.info.party_count
+        self.info.party_count()
     }
     pub fn index(&self) -> TypedUsize<K> {
-        self.info.index
+        self.info.index()
     }
 }

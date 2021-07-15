@@ -52,12 +52,12 @@ impl<T: Executer> ExecuterRaw for T {
         info: &RoundInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, BytesVec>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
-        let mut faulters = FillVecMap::with_size(info.party_count);
+        let mut faulters = FillVecMap::with_size(info.party_count());
 
         // check for timeout faults
         for (from, bcast) in bcasts_in.iter() {
             if bcast.is_none() {
-                warn!("party {} detect missing bcast from {}", info.index, from);
+                warn!("party {} detect missing bcast from {}", info.index(), from);
                 faulters.set(from, Fault::MissingMessage)?;
             }
         }
@@ -72,7 +72,11 @@ impl<T: Executer> ExecuterRaw for T {
         // check for deserialization faults
         for (from, bcast) in bcasts_deserialized.iter() {
             if bcast.is_err() {
-                warn!("party {} detect corrupted bcast from {}", info.index, from);
+                warn!(
+                    "party {} detect corrupted bcast from {}",
+                    info.index(),
+                    from
+                );
                 faulters.set(from, Fault::CorruptedMessage)?;
             }
         }

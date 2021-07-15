@@ -51,16 +51,20 @@ impl bcast_only::Executer for R2 {
         info: &RoundInfo<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
     ) -> TofnResult<KeygenProtocolBuilder> {
-        let mut faulters = FillVecMap::with_size(info.party_count);
+        let mut faulters = FillVecMap::with_size(info.party_count());
 
         // check Paillier proofs
         for (from, bcast) in bcasts_in.iter() {
             if !bcast.ek.verify(&bcast.ek_proof) {
-                warn!("party {} detect bad ek proof by {}", info.index, from);
+                warn!("party {} detect bad ek proof by {}", info.index(), from);
                 faulters.set(from, ProtocolFault)?;
             }
             if !bcast.zkp.verify(&bcast.zkp_proof) {
-                warn!("party {} detect bad zk setup proof by {}", info.index, from);
+                warn!(
+                    "party {} detect bad zk setup proof by {}",
+                    info.index(),
+                    from
+                );
                 faulters.set(from, ProtocolFault)?;
             }
         }
@@ -69,11 +73,12 @@ impl bcast_only::Executer for R2 {
         }
 
         let (u_i_other_shares, u_i_my_share) =
-            VecMap::from_vec(self.u_i_vss.shares(info.party_count)).puncture_hole(info.index)?;
+            VecMap::from_vec(self.u_i_vss.shares(info.party_count()))
+                .puncture_hole(info.index())?;
 
         corrupt!(
             u_i_other_shares,
-            self.corrupt_share(info.index, u_i_other_shares)?
+            self.corrupt_share(info.index(), u_i_other_shares)?
         );
 
         let p2ps_out = u_i_other_shares.map2(|(i, share)| {
@@ -83,7 +88,7 @@ impl bcast_only::Executer for R2 {
 
             corrupt!(
                 u_i_share_ciphertext,
-                self.corrupt_ciphertext(info.index, i, u_i_share_ciphertext)
+                self.corrupt_ciphertext(info.index(), i, u_i_share_ciphertext)
             );
 
             serialize(&P2p {

@@ -1,7 +1,7 @@
 use super::api::{BytesVec, Protocol, ProtocolOutput, TofnResult};
+pub use super::round::RoundInfo;
 use super::round::{BcastAndP2pRound, BcastOnlyRound, NoMessagesRound};
-use crate::refactor::collections::{Behave, HoleVecMap, TypedUsize};
-use crate::refactor::collections::{FillP2ps, FillVecMap};
+use crate::refactor::collections::{Behave, FillP2ps, FillVecMap, HoleVecMap, TypedUsize};
 use crate::refactor::protocol::{
     bcast_and_p2p, bcast_only, no_messages,
     round::{Round, RoundType},
@@ -37,14 +37,6 @@ where
     }
 }
 
-pub struct RoundInfo<K>
-where
-    K: Behave,
-{
-    pub party_count: usize,
-    pub index: TypedUsize<K>,
-}
-
 pub enum RoundBuilder<F, K>
 where
     K: Behave,
@@ -73,24 +65,24 @@ where
         bcast_out: BytesVec,
         p2ps_out: HoleVecMap<K, BytesVec>,
     ) -> TofnResult<Self> {
-        if info.index.as_usize() >= info.party_count {
+        if info.index().as_usize() >= info.party_count() {
             error!(
                 "index {} out of bounds {}",
-                info.index.as_usize(),
-                info.party_count
+                info.index().as_usize(),
+                info.party_count()
             );
             return Err(());
         }
-        if p2ps_out.len() != info.party_count {
+        if p2ps_out.len() != info.party_count() {
             error!(
                 "p2ps_out length {} differs from party_count {}",
                 p2ps_out.len(),
-                info.party_count
+                info.party_count()
             );
             return Err(());
         }
 
-        let len = info.party_count; // squelch build error
+        let len = info.party_count(); // squelch build error
         Ok(Self {
             info,
             round_type: RoundType::BcastAndP2p(BcastAndP2pRound {
@@ -108,16 +100,16 @@ where
         info: RoundInfo<K>,
         bcast_out: BytesVec,
     ) -> TofnResult<Self> {
-        if info.index.as_usize() >= info.party_count {
+        if info.index().as_usize() >= info.party_count() {
             error!(
                 "index {} out of bounds {}",
-                info.index.as_usize(),
-                info.party_count
+                info.index().as_usize(),
+                info.party_count()
             );
             return Err(());
         }
 
-        let len = info.party_count; // squelch build error
+        let len = info.party_count(); // squelch build error
         Ok(Self {
             info,
             round_type: RoundType::BcastOnly(BcastOnlyRound {
@@ -132,11 +124,11 @@ where
         round: Box<dyn no_messages::Executer<FinalOutput = F, Index = K>>,
         info: RoundInfo<K>,
     ) -> TofnResult<Self> {
-        if info.index.as_usize() >= info.party_count {
+        if info.index().as_usize() >= info.party_count() {
             error!(
                 "index {} out of bounds {}",
-                info.index.as_usize(),
-                info.party_count
+                info.index().as_usize(),
+                info.party_count()
             );
             return Err(());
         }
