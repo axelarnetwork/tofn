@@ -56,4 +56,4 @@ fn main() {
 pub mod execute;
 
 #[cfg(feature = "malicious")]
-mod keygen_malicious;
+mod malicious;
