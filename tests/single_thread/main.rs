@@ -1,14 +1,11 @@
 #![allow(clippy::result_unit_err)] // TODO idiomatic solution?
 use execute::*;
-use tofn::{
-    refactor::collections::{TypedUsize, VecMap},
-    refactor::{
-        keygen::{new_keygen, KeygenPartyIndex, KeygenProtocol, SecretKeyShare, SecretRecoveryKey},
-        protocol::api::Protocol,
-    },
+use tofn::refactor::{
+    collections::VecMap,
+    keygen::{KeygenPartyIndex, SecretKeyShare},
+    protocol::api::Protocol,
 };
 
-use tracing::info;
 use tracing_test::traced_test; // enable logs in tests
 
 /// A simple test to illustrate use of the library
@@ -17,28 +14,12 @@ use tracing_test::traced_test; // enable logs in tests
 #[traced_test]
 fn main() {
     let (share_count, threshold) = (5, 2);
-    let session_nonce = b"foobar";
 
-    let mut parties: VecMap<KeygenPartyIndex, KeygenProtocol> = (0..share_count)
-        .map(|index| {
-            let secret_recovery_key: SecretRecoveryKey =
-                *b"super secret recovery key whose size measures 64 bytes long, foo";
-            new_keygen(
-                share_count,
-                threshold,
-                TypedUsize::from_usize(index),
-                &secret_recovery_key,
-                session_nonce,
-                #[cfg(feature = "malicious")]
-                tofn::refactor::keygen::malicious::Behaviour::Honest,
-            )
-            .expect("`new_keygen` failure")
-        })
-        .collect();
+    let mut parties = keygen::initialize_honest_parties(share_count, threshold);
 
     parties = execute_protocol(parties).expect("internal tofn error");
 
-    let results: Vec<SecretKeyShare> = parties
+    let _results: VecMap<KeygenPartyIndex, SecretKeyShare> = parties
         .into_iter()
         .map(|(i, party)| match party {
             Protocol::NotDone(_) => panic!("party {} not done yet", i),
@@ -46,9 +27,38 @@ fn main() {
         })
         .collect();
 
-    info!("group info: {:?}", results[0].group);
-    for (i, result) in results.iter().enumerate() {
-        info!("party {} secret info: {:?}", i, result.share);
+    // TODO sign something
+}
+
+mod keygen {
+    use tofn::{
+        refactor::collections::{Behave, TypedUsize, VecMap},
+        refactor::keygen::{
+            malicious::Behaviour, KeygenPartyIndex, KeygenProtocol, SecretRecoveryKey,
+        },
+    };
+
+    use crate::malicious::keygen::initialize_parties;
+
+    pub fn initialize_honest_parties(
+        share_count: usize,
+        threshold: usize,
+    ) -> VecMap<KeygenPartyIndex, KeygenProtocol> {
+        let behaviours = (0..share_count).map(|_| Behaviour::Honest).collect();
+        initialize_parties(&behaviours, threshold)
+    }
+
+    /// return the all-zero array with the first bytes set to the bytes of `index`
+    pub fn dummy_secret_recovery_key<K>(index: TypedUsize<K>) -> SecretRecoveryKey
+    where
+        K: Behave,
+    {
+        let index_bytes = index.as_usize().to_be_bytes();
+        let mut result = [0; 64];
+        for (i, &b) in index_bytes.iter().enumerate() {
+            result[i] = b;
+        }
+        result
     }
 }
 
