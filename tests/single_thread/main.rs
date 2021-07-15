@@ -1,10 +1,9 @@
 #![allow(clippy::result_unit_err)] // TODO idiomatic solution?
 use execute::*;
-use rand::RngCore;
 use tofn::{
     refactor::collections::{TypedUsize, VecMap},
     refactor::{
-        keygen::{new_keygen, KeygenPartyIndex, KeygenProtocol, SecretKeyShare},
+        keygen::{new_keygen, KeygenPartyIndex, KeygenProtocol, SecretKeyShare, SecretRecoveryKey},
         protocol::api::Protocol,
     },
 };
@@ -22,8 +21,8 @@ fn main() {
 
     let mut parties: VecMap<KeygenPartyIndex, KeygenProtocol> = (0..share_count)
         .map(|index| {
-            let mut secret_recovery_key = [0; 64];
-            rand::thread_rng().fill_bytes(&mut secret_recovery_key);
+            let secret_recovery_key: SecretRecoveryKey =
+                *b"super secret recovery key whose size measures 64 bytes long, foo";
             new_keygen(
                 share_count,
                 threshold,
@@ -53,7 +52,7 @@ fn main() {
     }
 }
 
-pub mod execute;
+mod execute;
 
 #[cfg(feature = "malicious")]
 mod malicious;
