@@ -35,6 +35,8 @@ pub fn single_fault_test_case_list<K: Behave>() -> Vec<SingleFaulterTestCase<K>>
     vec![
         single_fault_test_case(Bcast, Timeout),
         single_fault_test_case(P2p { victim: zero }, Timeout),
+        single_fault_test_case(Bcast, Corruption),
+        single_fault_test_case(P2p { victim: zero }, Corruption),
     ]
 }
 
@@ -45,7 +47,11 @@ fn single_fault_test_case<K: Behave>(
     // 5 parties, faulter: 3, round: 2
     let faulter = TypedUsize::from_usize(3);
     let mut faulters = FillVecMap::with_size(5);
-    faulters.set(faulter, Fault::MissingMessage).unwrap();
+    let fault = match fault_type {
+        FaultType::Timeout => Fault::MissingMessage,
+        FaultType::Corruption => Fault::CorruptedMessage,
+    };
+    faulters.set(faulter, fault).unwrap();
     SingleFaulterTestCase {
         faulter,
         round: 2,
