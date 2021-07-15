@@ -18,7 +18,7 @@ where
     Ok(parties)
 }
 
-fn nobody_done<F, K>(parties: &VecMap<K, Protocol<F, K>>) -> bool
+pub fn nobody_done<F, K>(parties: &VecMap<K, Protocol<F, K>>) -> bool
 where
     K: Behave,
 {
