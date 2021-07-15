@@ -1,14 +1,16 @@
-use crate::refactor::collections::{Behave, TypedUsize};
+use crate::refactor::collections::Behave;
 
-use super::{api::TofnResult, implementer_api::ProtocolBuilder};
+use super::{
+    api::TofnResult,
+    implementer_api::{ProtocolBuilder, RoundInfo},
+};
 
 pub trait Executer: Send + Sync {
     type FinalOutput;
     type Index: Behave;
     fn execute(
         self: Box<Self>,
-        party_count: usize,
-        index: TypedUsize<Self::Index>,
+        info: &RoundInfo<Self::Index>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>>;
 
     #[cfg(test)]

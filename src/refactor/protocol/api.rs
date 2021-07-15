@@ -76,22 +76,19 @@ where
         match self.round_type {
             RoundType::BcastAndP2p(r) => r
                 .round
-                .execute_raw(self.party_count, self.index, r.bcasts_in, r.p2ps_in)?
-                .build(self.party_count, self.index),
+                .execute_raw(&self.info, r.bcasts_in, r.p2ps_in)?
+                .build(self.info),
             RoundType::BcastOnly(r) => r
                 .round
-                .execute_raw(self.party_count, self.index, r.bcasts_in)?
-                .build(self.party_count, self.index),
-            RoundType::NoMessages(r) => r
-                .round
-                .execute(self.party_count, self.index)?
-                .build(self.party_count, self.index),
+                .execute_raw(&self.info, r.bcasts_in)?
+                .build(self.info),
+            RoundType::NoMessages(r) => r.round.execute(&self.info)?.build(self.info),
         }
     }
     pub fn party_count(&self) -> usize {
-        self.party_count
+        self.info.party_count
     }
     pub fn index(&self) -> TypedUsize<K> {
-        self.index
+        self.info.index
     }
 }

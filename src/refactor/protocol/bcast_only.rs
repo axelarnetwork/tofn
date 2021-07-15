@@ -2,13 +2,13 @@ use serde::de::DeserializeOwned;
 use tracing::warn;
 
 use crate::refactor::{
-    collections::{Behave, FillVecMap, TypedUsize, VecMap},
+    collections::{Behave, FillVecMap, VecMap},
     protocol::api::Fault,
 };
 
 use super::{
     api::{BytesVec, TofnResult},
-    implementer_api::ProtocolBuilder,
+    implementer_api::{ProtocolBuilder, RoundInfo},
 };
 
 pub trait Executer: Send + Sync {
@@ -17,8 +17,7 @@ pub trait Executer: Send + Sync {
     type Bcast: DeserializeOwned;
     fn execute(
         self: Box<Self>,
-        party_count: usize,
-        index: TypedUsize<Self::Index>,
+        info: &RoundInfo<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>>;
 
@@ -34,8 +33,7 @@ pub trait ExecuterRaw: Send + Sync {
     type Index: Behave;
     fn execute_raw(
         self: Box<Self>,
-        party_count: usize,
-        index: TypedUsize<Self::Index>,
+        info: &RoundInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, BytesVec>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>>;
 
@@ -51,16 +49,15 @@ impl<T: Executer> ExecuterRaw for T {
 
     fn execute_raw(
         self: Box<Self>,
-        party_count: usize,
-        index: TypedUsize<Self::Index>,
+        info: &RoundInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, BytesVec>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
-        let mut faulters = FillVecMap::with_size(party_count);
+        let mut faulters = FillVecMap::with_size(info.party_count);
 
         // check for timeout faults
         for (from, bcast) in bcasts_in.iter() {
             if bcast.is_none() {
-                warn!("party {} detect missing bcast from {}", index, from);
+                warn!("party {} detect missing bcast from {}", info.index, from);
                 faulters.set(from, Fault::MissingMessage)?;
             }
         }
@@ -75,7 +72,7 @@ impl<T: Executer> ExecuterRaw for T {
         // check for deserialization faults
         for (from, bcast) in bcasts_deserialized.iter() {
             if bcast.is_err() {
-                warn!("party {} detect corrupted bcast from {}", index, from);
+                warn!("party {} detect corrupted bcast from {}", info.index, from);
                 faulters.set(from, Fault::CorruptedMessage)?;
             }
         }
@@ -86,7 +83,7 @@ impl<T: Executer> ExecuterRaw for T {
         // unwrap deserialized bcasts, p2ps
         let bcasts_in = bcasts_deserialized.map(Result::unwrap);
 
-        self.execute(party_count, index, bcasts_in)
+        self.execute(info, bcasts_in)
     }
 
     #[cfg(test)]

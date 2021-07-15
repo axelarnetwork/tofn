@@ -19,24 +19,30 @@ impl<F, K> ProtocolBuilder<F, K>
 where
     K: Behave,
 {
-    pub fn build(self, party_count: usize, index: TypedUsize<K>) -> TofnResult<Protocol<F, K>> {
+    pub fn build(self, info: RoundInfo<K>) -> TofnResult<Protocol<F, K>> {
         Ok(match self {
             Self::NotDone(builder) => Protocol::NotDone(match builder {
                 RoundBuilder::BcastAndP2p {
                     round,
                     bcast_out,
                     p2ps_out,
-                } => Round::new_bcast_and_p2p(round, party_count, index, bcast_out, p2ps_out)?,
+                } => Round::new_bcast_and_p2p(round, info, bcast_out, p2ps_out)?,
                 RoundBuilder::BcastOnly { round, bcast_out } => {
-                    Round::new_bcast_only(round, party_count, index, bcast_out)?
+                    Round::new_bcast_only(round, info, bcast_out)?
                 }
-                RoundBuilder::NoMessages { round } => {
-                    Round::new_no_messages(round, party_count, index)?
-                }
+                RoundBuilder::NoMessages { round } => Round::new_no_messages(round, info)?,
             }),
             Self::Done(output) => Protocol::Done(output),
         })
     }
+}
+
+pub struct RoundInfo<K>
+where
+    K: Behave,
+{
+    pub party_count: usize,
+    pub index: TypedUsize<K>,
 }
 
 pub enum RoundBuilder<F, K>
@@ -63,72 +69,80 @@ where
 {
     pub fn new_bcast_and_p2p(
         round: Box<dyn bcast_and_p2p::ExecuterRaw<FinalOutput = F, Index = K>>,
-        party_count: usize,
-        index: TypedUsize<K>,
+        info: RoundInfo<K>,
         bcast_out: BytesVec,
         p2ps_out: HoleVecMap<K, BytesVec>,
     ) -> TofnResult<Self> {
-        if index.as_usize() >= party_count {
-            error!("index {} out of bounds {}", index.as_usize(), party_count);
+        if info.index.as_usize() >= info.party_count {
+            error!(
+                "index {} out of bounds {}",
+                info.index.as_usize(),
+                info.party_count
+            );
             return Err(());
         }
-        if p2ps_out.len() != party_count {
+        if p2ps_out.len() != info.party_count {
             error!(
                 "p2ps_out length {} differs from party_count {}",
                 p2ps_out.len(),
-                party_count
+                info.party_count
             );
             return Err(());
         }
 
+        let len = info.party_count; // squelch build error
         Ok(Self {
-            party_count,
-            index,
+            info,
             round_type: RoundType::BcastAndP2p(BcastAndP2pRound {
                 round,
                 bcast_out,
                 p2ps_out,
-                bcasts_in: FillVecMap::with_size(party_count),
-                p2ps_in: FillP2ps::with_size(party_count),
+                bcasts_in: FillVecMap::with_size(len),
+                p2ps_in: FillP2ps::with_size(len),
             }),
         })
     }
 
     pub fn new_bcast_only(
         round: Box<dyn bcast_only::ExecuterRaw<FinalOutput = F, Index = K>>,
-        party_count: usize,
-        index: TypedUsize<K>,
+        info: RoundInfo<K>,
         bcast_out: BytesVec,
     ) -> TofnResult<Self> {
-        if index.as_usize() >= party_count {
-            error!("index {} out of bounds {}", index.as_usize(), party_count);
+        if info.index.as_usize() >= info.party_count {
+            error!(
+                "index {} out of bounds {}",
+                info.index.as_usize(),
+                info.party_count
+            );
             return Err(());
         }
 
+        let len = info.party_count; // squelch build error
         Ok(Self {
-            party_count,
-            index,
+            info,
             round_type: RoundType::BcastOnly(BcastOnlyRound {
                 round,
                 bcast_out,
-                bcasts_in: FillVecMap::with_size(party_count),
+                bcasts_in: FillVecMap::with_size(len),
             }),
         })
     }
 
     pub fn new_no_messages(
         round: Box<dyn no_messages::Executer<FinalOutput = F, Index = K>>,
-        party_count: usize,
-        index: TypedUsize<K>,
+        info: RoundInfo<K>,
     ) -> TofnResult<Self> {
-        if index.as_usize() >= party_count {
-            error!("index {} out of bounds {}", index.as_usize(), party_count);
+        if info.index.as_usize() >= info.party_count {
+            error!(
+                "index {} out of bounds {}",
+                info.index.as_usize(),
+                info.party_count
+            );
             return Err(());
         }
 
         Ok(Self {
-            party_count,
-            index,
+            info,
             round_type: RoundType::NoMessages(NoMessagesRound { round }),
         })
     }

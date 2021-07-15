@@ -1,7 +1,7 @@
 use super::{r1, rng};
 use crate::refactor::collections::{Behave, TypedUsize};
 use crate::refactor::protocol::api::{Protocol, Round, TofnResult};
-use crate::refactor::protocol::implementer_api::ProtocolBuilder;
+use crate::refactor::protocol::implementer_api::{ProtocolBuilder, RoundInfo};
 use crate::{k256_serde, paillier_k256, refactor::collections::VecMap};
 use serde::{Deserialize, Serialize};
 use tracing::error;
@@ -58,8 +58,10 @@ pub fn new_keygen(
             #[cfg(feature = "malicious")]
             behaviour,
         }),
-        share_count,
-        index,
+        RoundInfo {
+            party_count: share_count,
+            index,
+        },
     )?))
 }
 /// final output of keygen

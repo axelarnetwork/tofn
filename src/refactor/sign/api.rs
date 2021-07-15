@@ -8,7 +8,7 @@ use crate::refactor::{
     keygen::{GroupPublicInfo, KeygenPartyIndex, SecretKeyShare, ShareSecretInfo},
     protocol::{
         api::{BytesVec, Protocol, Round, TofnResult},
-        implementer_api::ProtocolBuilder,
+        implementer_api::{ProtocolBuilder, RoundInfo},
     },
 };
 use serde::{Deserialize, Serialize};
@@ -46,8 +46,10 @@ pub fn new_sign(
             msg_to_sign: msg_to_sign.into(),
             participants: participants.clone(),
         }),
-        participants.len(),
-        index,
+        RoundInfo {
+            party_count: participants.len(),
+            index,
+        },
     )?))
 }
 

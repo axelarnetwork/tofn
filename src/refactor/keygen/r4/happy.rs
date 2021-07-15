@@ -2,7 +2,7 @@ use tracing::warn;
 
 use crate::{
     paillier_k256,
-    refactor::collections::{FillVecMap, P2ps, TypedUsize, VecMap},
+    refactor::collections::{FillVecMap, P2ps, VecMap},
     refactor::{
         keygen::{
             r1, r2, r3, r4::sad::R4Sad, GroupPublicInfo, KeygenPartyIndex, KeygenProtocolBuilder,
@@ -11,7 +11,7 @@ use crate::{
         protocol::{
             api::{Fault::ProtocolFault, TofnResult},
             bcast_only,
-            implementer_api::{log_fault_warn, ProtocolBuilder},
+            implementer_api::{log_fault_warn, ProtocolBuilder, RoundInfo},
         },
     },
     zkp::schnorr_k256,
@@ -43,8 +43,7 @@ impl bcast_only::Executer for R4 {
     #[allow(non_snake_case)]
     fn execute(
         self: Box<Self>,
-        party_count: usize,
-        index: TypedUsize<Self::Index>,
+        info: &RoundInfo<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
     ) -> TofnResult<KeygenProtocolBuilder> {
         // move to sad path if necessary
@@ -54,14 +53,14 @@ impl bcast_only::Executer for R4 {
         {
             warn!(
                 "party {} r4 received complaints from others; move to sad path",
-                index
+                info.index
             );
             return Box::new(R4Sad {
                 r1bcasts: self.r1bcasts,
                 r2bcasts: self.r2bcasts,
                 r2p2ps: self.r2p2ps,
             })
-            .execute(party_count, index, bcasts_in);
+            .execute(info, bcasts_in);
         }
 
         // unwrap BcastHappy msgs
@@ -74,7 +73,7 @@ impl bcast_only::Executer for R4 {
             .collect();
 
         // verify proofs
-        let mut faulters = FillVecMap::with_size(party_count);
+        let mut faulters = FillVecMap::with_size(info.party_count);
         for (from, bcast) in bcasts_in.iter() {
             if schnorr_k256::verify(
                 &schnorr_k256::Statement {
@@ -85,7 +84,7 @@ impl bcast_only::Executer for R4 {
             )
             .is_err()
             {
-                log_fault_warn(index, from, "bad DL proof");
+                log_fault_warn(info.index, from, "bad DL proof");
                 faulters.set(from, ProtocolFault)?;
             }
         }
@@ -113,7 +112,7 @@ impl bcast_only::Executer for R4 {
                 all_shares,
             },
             share: ShareSecretInfo {
-                index,
+                index: info.index,
                 dk: self.dk,
                 x_i: self.x_i.into(),
             },

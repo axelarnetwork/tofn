@@ -1,14 +1,13 @@
-use crate::refactor::collections::{Behave, FillP2ps, FillVecMap, HoleVecMap, TypedUsize};
+use crate::refactor::collections::{Behave, FillP2ps, FillVecMap, HoleVecMap};
 
-use super::{api::BytesVec, bcast_and_p2p, bcast_only, no_messages};
+use super::{api::BytesVec, bcast_and_p2p, bcast_only, implementer_api::RoundInfo, no_messages};
 
 // need RoundContainer because we don't want to expose all the variants of Round
 pub struct Round<F, K>
 where
     K: Behave,
 {
-    pub party_count: usize,
-    pub index: TypedUsize<K>,
+    pub info: RoundInfo<K>,
     pub round_type: RoundType<F, K>,
 }
 
