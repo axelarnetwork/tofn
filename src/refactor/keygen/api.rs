@@ -11,12 +11,18 @@ use super::malicious;
 
 // need to derive all this crap for each new marker struct
 // in order to avoid this problem: https://stackoverflow.com/a/31371094
+// TODO macro?
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct KeygenPartyIndex;
+pub struct KeygenPartyIndex; // TODO actually a keygen subshare index
 impl Behave for KeygenPartyIndex {}
 
-pub type KeygenProtocol = Protocol<SecretKeyShare, KeygenPartyIndex>;
-pub type KeygenProtocolBuilder = ProtocolBuilder<SecretKeyShare, KeygenPartyIndex>;
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct RealKeygenPartyIndex; // TODO the real keygen party index
+impl Behave for RealKeygenPartyIndex {}
+
+pub type KeygenProtocol = Protocol<SecretKeyShare, KeygenPartyIndex, RealKeygenPartyIndex>;
+pub type KeygenProtocolBuilder =
+    ProtocolBuilder<SecretKeyShare, KeygenPartyIndex, RealKeygenPartyIndex>;
 pub type SecretRecoveryKey = [u8; 64];
 
 // Can't define a keygen-specific alias for `RoundExecuter` that sets
@@ -51,6 +57,9 @@ pub fn new_keygen(
     // compute the RNG seed now so as to minimize copying of `secret_recovery_key`
     let rng_seed = rng::seed(secret_recovery_key, session_nonce);
 
+    // TODO TEMPORARY one share per party
+    let party_share_counts = (0..share_count).map(|_| 1).collect();
+
     Ok(Protocol::NotDone(Round::new_no_messages(
         Box::new(r1::R1 {
             threshold,
@@ -58,7 +67,7 @@ pub fn new_keygen(
             #[cfg(feature = "malicious")]
             behaviour,
         }),
-        RoundInfo::new(share_count, index),
+        RoundInfo::new(party_share_counts, index),
     )?))
 }
 /// final output of keygen

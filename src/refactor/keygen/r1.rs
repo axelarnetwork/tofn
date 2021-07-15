@@ -13,7 +13,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::{r2, rng, KeygenPartyIndex, KeygenProtocolBuilder};
+use super::{r2, rng, KeygenPartyIndex, KeygenProtocolBuilder, RealKeygenPartyIndex};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -38,10 +38,11 @@ pub struct Bcast {
 impl no_messages::Executer for R1 {
     type FinalOutput = SecretKeyShare;
     type Index = KeygenPartyIndex;
+    type PartyIndex = RealKeygenPartyIndex;
 
     fn execute(
         self: Box<Self>,
-        _info: &RoundInfo<Self::Index>,
+        _info: &RoundInfo<Self::Index, Self::PartyIndex>,
     ) -> TofnResult<KeygenProtocolBuilder> {
         let u_i_vss = vss_k256::Vss::new(self.threshold);
         let (y_i_commit, y_i_reveal) = hash::commit(k256_serde::to_bytes(

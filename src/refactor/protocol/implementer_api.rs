@@ -7,19 +7,21 @@ use crate::refactor::protocol::{
     round::{Round, RoundType},
 };
 
-pub enum ProtocolBuilder<F, K>
+pub enum ProtocolBuilder<F, K, P>
 where
     K: Behave,
+    P: Behave,
 {
-    NotDone(RoundBuilder<F, K>),
+    NotDone(RoundBuilder<F, K, P>),
     Done(ProtocolOutput<F, K>),
 }
 
-impl<F, K> ProtocolBuilder<F, K>
+impl<F, K, P> ProtocolBuilder<F, K, P>
 where
     K: Behave,
+    P: Behave,
 {
-    pub fn build(self, info: RoundInfo<K>) -> TofnResult<Protocol<F, K>> {
+    pub fn build(self, info: RoundInfo<K, P>) -> TofnResult<Protocol<F, K, P>> {
         Ok(match self {
             Self::NotDone(builder) => Protocol::NotDone(match builder {
                 RoundBuilder::BcastAndP2p {
@@ -37,31 +39,33 @@ where
     }
 }
 
-pub enum RoundBuilder<F, K>
+pub enum RoundBuilder<F, K, P>
 where
     K: Behave,
+    P: Behave,
 {
     BcastAndP2p {
-        round: Box<dyn bcast_and_p2p::ExecuterRaw<FinalOutput = F, Index = K>>,
+        round: Box<dyn bcast_and_p2p::ExecuterRaw<FinalOutput = F, Index = K, PartyIndex = P>>,
         bcast_out: BytesVec,
         p2ps_out: HoleVecMap<K, BytesVec>,
     },
     BcastOnly {
-        round: Box<dyn bcast_only::ExecuterRaw<FinalOutput = F, Index = K>>,
+        round: Box<dyn bcast_only::ExecuterRaw<FinalOutput = F, Index = K, PartyIndex = P>>,
         bcast_out: BytesVec,
     },
     NoMessages {
-        round: Box<dyn no_messages::Executer<FinalOutput = F, Index = K>>,
+        round: Box<dyn no_messages::Executer<FinalOutput = F, Index = K, PartyIndex = P>>,
     },
 }
 
-impl<F, K> Round<F, K>
+impl<F, K, P> Round<F, K, P>
 where
     K: Behave,
+    P: Behave,
 {
     pub fn new_bcast_and_p2p(
-        round: Box<dyn bcast_and_p2p::ExecuterRaw<FinalOutput = F, Index = K>>,
-        info: RoundInfo<K>,
+        round: Box<dyn bcast_and_p2p::ExecuterRaw<FinalOutput = F, Index = K, PartyIndex = P>>,
+        info: RoundInfo<K, P>,
         bcast_out: BytesVec,
         p2ps_out: HoleVecMap<K, BytesVec>,
     ) -> TofnResult<Self> {
@@ -96,8 +100,8 @@ where
     }
 
     pub fn new_bcast_only(
-        round: Box<dyn bcast_only::ExecuterRaw<FinalOutput = F, Index = K>>,
-        info: RoundInfo<K>,
+        round: Box<dyn bcast_only::ExecuterRaw<FinalOutput = F, Index = K, PartyIndex = P>>,
+        info: RoundInfo<K, P>,
         bcast_out: BytesVec,
     ) -> TofnResult<Self> {
         if info.index().as_usize() >= info.party_count() {
@@ -121,8 +125,8 @@ where
     }
 
     pub fn new_no_messages(
-        round: Box<dyn no_messages::Executer<FinalOutput = F, Index = K>>,
-        info: RoundInfo<K>,
+        round: Box<dyn no_messages::Executer<FinalOutput = F, Index = K, PartyIndex = P>>,
+        info: RoundInfo<K, P>,
     ) -> TofnResult<Self> {
         if info.index().as_usize() >= info.party_count() {
             error!(

@@ -85,13 +85,15 @@ where
 
 pub enum FaultType {
     Timeout,
-    #[allow(dead_code)]
-    Corruption, // TODO
+    Corruption,
 }
 
-fn execute_test_case<F, K>(parties: VecMap<K, Protocol<F, K>>, test_case: SingleFaulterTestCase<K>)
-where
+fn execute_test_case<F, K, P>(
+    parties: VecMap<K, Protocol<F, K, P>>,
+    test_case: SingleFaulterTestCase<K>,
+) where
     K: Behave,
+    P: Behave,
 {
     let parties = execute_protocol(parties, &test_case).expect("internal tofn error");
 
@@ -112,12 +114,13 @@ where
     }
 }
 
-pub fn execute_protocol<F, K>(
-    mut parties: VecMap<K, Protocol<F, K>>,
+pub fn execute_protocol<F, K, P>(
+    mut parties: VecMap<K, Protocol<F, K, P>>,
     test_case: &SingleFaulterTestCase<K>,
-) -> TofnResult<VecMap<K, Protocol<F, K>>>
+) -> TofnResult<VecMap<K, Protocol<F, K, P>>>
 where
     K: Behave,
+    P: Behave,
 {
     let mut current_round = 0;
     while nobody_done(&parties) {
@@ -127,13 +130,14 @@ where
     Ok(parties)
 }
 
-fn next_round<F, K>(
-    parties: VecMap<K, Protocol<F, K>>,
+fn next_round<F, K, P>(
+    parties: VecMap<K, Protocol<F, K, P>>,
     test_case: &SingleFaulterTestCase<K>,
     current_round: usize,
-) -> TofnResult<VecMap<K, Protocol<F, K>>>
+) -> TofnResult<VecMap<K, Protocol<F, K, P>>>
 where
     K: Behave,
+    P: Behave,
 {
     // extract current round from parties
     let mut rounds: VecMap<K, _> = parties

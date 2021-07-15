@@ -6,11 +6,12 @@ use tracing::warn;
 pub type TofnResult<T> = Result<T, ()>;
 pub type BytesVec = Vec<u8>;
 
-pub enum Protocol<F, K>
+pub enum Protocol<F, K, P>
 where
     K: Behave,
+    P: Behave,
 {
-    NotDone(Round<F, K>),
+    NotDone(Round<F, K, P>),
     Done(ProtocolOutput<F, K>),
 }
 
@@ -24,9 +25,10 @@ pub enum Fault {
     ProtocolFault,
 }
 
-impl<F, K> Round<F, K>
+impl<F, K, P> Round<F, K, P>
 where
     K: Behave,
+    P: Behave,
 {
     pub fn bcast_out(&self) -> Option<&BytesVec> {
         match &self.round_type {
@@ -72,7 +74,7 @@ where
             RoundType::NoMessages(_) => false,
         }
     }
-    pub fn execute_next_round(self) -> TofnResult<Protocol<F, K>> {
+    pub fn execute_next_round(self) -> TofnResult<Protocol<F, K, P>> {
         match self.round_type {
             RoundType::BcastAndP2p(r) => r
                 .round

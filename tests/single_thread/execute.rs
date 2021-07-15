@@ -6,11 +6,12 @@ use tofn::{
 };
 use tracing::warn;
 
-pub fn execute_protocol<F, K>(
-    mut parties: VecMap<K, Protocol<F, K>>,
-) -> TofnResult<VecMap<K, Protocol<F, K>>>
+pub fn execute_protocol<F, K, P>(
+    mut parties: VecMap<K, Protocol<F, K, P>>,
+) -> TofnResult<VecMap<K, Protocol<F, K, P>>>
 where
     K: Behave,
+    P: Behave,
 {
     while nobody_done(&parties) {
         parties = next_round(parties)?;
@@ -18,9 +19,10 @@ where
     Ok(parties)
 }
 
-pub fn nobody_done<F, K>(parties: &VecMap<K, Protocol<F, K>>) -> bool
+pub fn nobody_done<F, K, P>(parties: &VecMap<K, Protocol<F, K, P>>) -> bool
 where
     K: Behave,
+    P: Behave,
 {
     // warn if there's disagreement
     let (mut done, mut not_done) = (
@@ -43,9 +45,12 @@ where
     done.is_empty()
 }
 
-fn next_round<F, K>(parties: VecMap<K, Protocol<F, K>>) -> TofnResult<VecMap<K, Protocol<F, K>>>
+fn next_round<F, K, P>(
+    parties: VecMap<K, Protocol<F, K, P>>,
+) -> TofnResult<VecMap<K, Protocol<F, K, P>>>
 where
     K: Behave,
+    P: Behave,
 {
     // extract current round from parties
     let mut rounds: VecMap<K, _> = parties

@@ -13,14 +13,15 @@ use super::{
 pub trait Executer: Send + Sync {
     type FinalOutput;
     type Index: Behave;
+    type PartyIndex: Behave;
     type Bcast: DeserializeOwned;
     type P2p: DeserializeOwned;
     fn execute(
         self: Box<Self>,
-        info: &RoundInfo<Self::Index>,
+        info: &RoundInfo<Self::Index, Self::PartyIndex>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
-    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>>;
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index, Self::PartyIndex>>;
 
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
@@ -32,12 +33,13 @@ pub trait Executer: Send + Sync {
 pub trait ExecuterRaw: Send + Sync {
     type FinalOutput;
     type Index: Behave;
+    type PartyIndex: Behave;
     fn execute_raw(
         self: Box<Self>,
-        info: &RoundInfo<Self::Index>,
+        info: &RoundInfo<Self::Index, Self::PartyIndex>,
         bcasts_in: FillVecMap<Self::Index, BytesVec>,
         p2ps_in: FillP2ps<Self::Index, BytesVec>,
-    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>>;
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index, Self::PartyIndex>>;
 
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
@@ -48,13 +50,14 @@ pub trait ExecuterRaw: Send + Sync {
 impl<T: Executer> ExecuterRaw for T {
     type FinalOutput = T::FinalOutput;
     type Index = T::Index;
+    type PartyIndex = T::PartyIndex;
 
     fn execute_raw(
         self: Box<Self>,
-        info: &RoundInfo<Self::Index>,
+        info: &RoundInfo<Self::Index, Self::PartyIndex>,
         bcasts_in: FillVecMap<Self::Index, BytesVec>,
         p2ps_in: FillP2ps<Self::Index, BytesVec>,
-    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index, Self::PartyIndex>> {
         let mut faulters = FillVecMap::with_size(info.party_count());
 
         // check for timeout faults

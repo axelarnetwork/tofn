@@ -16,13 +16,18 @@ use tracing::error;
 
 use super::r1;
 
-pub type SignProtocol = Protocol<BytesVec, SignParticipantIndex>;
-pub type SignProtocolBuilder = ProtocolBuilder<BytesVec, SignParticipantIndex>;
+pub type SignProtocol = Protocol<BytesVec, SignParticipantIndex, RealSignParticipantIndex>;
+pub type SignProtocolBuilder =
+    ProtocolBuilder<BytesVec, SignParticipantIndex, RealSignParticipantIndex>;
 pub type ParticipantsList = VecMap<SignParticipantIndex, TypedUsize<KeygenPartyIndex>>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct SignParticipantIndex;
 impl Behave for SignParticipantIndex {}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct RealSignParticipantIndex;
+impl Behave for RealSignParticipantIndex {}
 
 /// sign only 32-byte hash digests
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -37,6 +42,9 @@ pub fn new_sign(
 ) -> TofnResult<SignProtocol> {
     let index = validate_args(group, share, participants)?;
 
+    // TODO TEMPORARY one share per party
+    let party_share_counts = (0..participants.len()).map(|_| 1).collect();
+
     Ok(Protocol::NotDone(Round::new_no_messages(
         Box::new(r1::R1 {
             secret_key_share: SecretKeyShare {
@@ -46,7 +54,7 @@ pub fn new_sign(
             msg_to_sign: msg_to_sign.into(),
             participants: participants.clone(),
         }),
-        RoundInfo::new(participants.len(), index),
+        RoundInfo::new(party_share_counts, index),
     )?))
 }
 

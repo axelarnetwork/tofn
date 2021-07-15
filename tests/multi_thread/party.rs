@@ -25,13 +25,14 @@ where
     },
 }
 
-pub fn execute_protocol<F, K>(
-    mut party: Protocol<F, K>,
+pub fn execute_protocol<F, K, P>(
+    mut party: Protocol<F, K, P>,
     input: Receiver<Message<K>>,
     broadcaster: Broadcaster<Message<K>>,
 ) -> TofnResult<ProtocolOutput<F, K>>
 where
     K: Behave,
+    P: Behave,
 {
     while let Protocol::NotDone(mut round) = party {
         // send outgoing messages

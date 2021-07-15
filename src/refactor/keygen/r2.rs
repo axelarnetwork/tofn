@@ -15,7 +15,7 @@ use crate::{
     },
 };
 
-use super::{r1, KeygenPartyIndex, KeygenProtocolBuilder};
+use super::{r1, KeygenPartyIndex, KeygenProtocolBuilder, RealKeygenPartyIndex};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -44,11 +44,12 @@ pub struct R2 {
 impl bcast_only::Executer for R2 {
     type FinalOutput = SecretKeyShare;
     type Index = KeygenPartyIndex;
+    type PartyIndex = RealKeygenPartyIndex;
     type Bcast = r1::Bcast;
 
     fn execute(
         self: Box<Self>,
-        info: &RoundInfo<Self::Index>,
+        info: &RoundInfo<Self::Index, Self::PartyIndex>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
     ) -> TofnResult<KeygenProtocolBuilder> {
         let mut faulters = FillVecMap::with_size(info.party_count());

@@ -6,7 +6,7 @@ use crate::{
     refactor::{
         keygen::{
             r1, r2, r3, r4::sad::R4Sad, GroupPublicInfo, KeygenPartyIndex, KeygenProtocolBuilder,
-            SecretKeyShare, SharePublicInfo, ShareSecretInfo,
+            RealKeygenPartyIndex, SecretKeyShare, SharePublicInfo, ShareSecretInfo,
         },
         protocol::{
             api::{Fault::ProtocolFault, TofnResult},
@@ -38,12 +38,13 @@ pub struct R4 {
 impl bcast_only::Executer for R4 {
     type FinalOutput = SecretKeyShare;
     type Index = KeygenPartyIndex;
+    type PartyIndex = RealKeygenPartyIndex;
     type Bcast = r3::Bcast;
 
     #[allow(non_snake_case)]
     fn execute(
         self: Box<Self>,
-        info: &RoundInfo<Self::Index>,
+        info: &RoundInfo<Self::Index, Self::PartyIndex>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
     ) -> TofnResult<KeygenProtocolBuilder> {
         // move to sad path if necessary

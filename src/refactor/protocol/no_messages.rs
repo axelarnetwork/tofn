@@ -8,10 +8,11 @@ use super::{
 pub trait Executer: Send + Sync {
     type FinalOutput;
     type Index: Behave;
+    type PartyIndex: Behave;
     fn execute(
         self: Box<Self>,
-        info: &RoundInfo<Self::Index>,
-    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>>;
+        info: &RoundInfo<Self::Index, Self::PartyIndex>,
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index, Self::PartyIndex>>;
 
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {

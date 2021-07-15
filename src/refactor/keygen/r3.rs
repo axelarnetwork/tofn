@@ -20,7 +20,7 @@ use crate::{
     zkp::schnorr_k256,
 };
 
-use super::{r1, r2, KeygenPartyIndex, KeygenProtocolBuilder};
+use super::{r1, r2, KeygenPartyIndex, KeygenProtocolBuilder, RealKeygenPartyIndex};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -60,13 +60,14 @@ pub struct R3 {
 impl bcast_and_p2p::Executer for R3 {
     type FinalOutput = SecretKeyShare;
     type Index = KeygenPartyIndex;
+    type PartyIndex = RealKeygenPartyIndex;
     type Bcast = r2::Bcast;
     type P2p = r2::P2p;
 
     #[allow(non_snake_case)]
     fn execute(
         self: Box<Self>,
-        info: &RoundInfo<Self::Index>,
+        info: &RoundInfo<Self::Index, Self::PartyIndex>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<KeygenProtocolBuilder> {

@@ -11,7 +11,9 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::{ParticipantsList, SignParticipantIndex, SignProtocolBuilder};
+use super::{
+    ParticipantsList, RealSignParticipantIndex, SignParticipantIndex, SignProtocolBuilder,
+};
 
 #[allow(non_snake_case)]
 pub struct R1 {
@@ -34,8 +36,12 @@ pub struct P2p {
 impl no_messages::Executer for R1 {
     type FinalOutput = BytesVec;
     type Index = SignParticipantIndex;
+    type PartyIndex = RealSignParticipantIndex;
 
-    fn execute(self: Box<Self>, _info: &RoundInfo<Self::Index>) -> TofnResult<SignProtocolBuilder> {
+    fn execute(
+        self: Box<Self>,
+        _info: &RoundInfo<Self::Index, Self::PartyIndex>,
+    ) -> TofnResult<SignProtocolBuilder> {
         todo!()
     }
 }
