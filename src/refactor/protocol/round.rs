@@ -1,6 +1,13 @@
+use tracing::error;
+
 use crate::refactor::collections::{FillP2ps, FillVecMap, HoleVecMap, TypedUsize, VecMap};
 
-use super::{api::BytesVec, bcast_and_p2p, bcast_only, no_messages};
+use super::{
+    api::{BytesVec, ProtocolOutput, TofnResult},
+    bcast_and_p2p, bcast_only,
+    implementer_api::ProtocolBuilderOutput,
+    no_messages,
+};
 
 pub struct Round<F, K, P> {
     pub info: RoundInfo<K, P>,
@@ -27,6 +34,37 @@ impl<K, P> RoundInfo<K, P> {
     }
     pub fn index(&self) -> TypedUsize<K> {
         self.index
+    }
+
+    // TODO don't expose the following methods in the api
+    pub fn into_party_faults<F>(
+        &self,
+        output: ProtocolBuilderOutput<F, K>,
+    ) -> TofnResult<ProtocolOutput<F, P>> {
+        Ok(match output {
+            Ok(happy) => Ok(happy),
+            Err(share_faulters) => {
+                let mut party_faulters =
+                    FillVecMap::<P, _>::with_size(self.party_share_counts.len());
+                // TODO how to choose among multiple faults by one party?
+                // For now just overwrite and use the final fault
+                for (share_id, share_fault) in share_faulters.into_iter_some() {
+                    party_faulters.set(self.to_party_id(share_id)?, share_fault)?;
+                }
+                Err(party_faulters)
+            }
+        })
+    }
+    fn to_party_id(&self, share_id: TypedUsize<K>) -> TofnResult<TypedUsize<P>> {
+        let mut sum = 0;
+        for (party_id, &share_count) in self.party_share_counts.iter() {
+            sum += share_count;
+            if share_id.as_usize() < sum {
+                return Ok(party_id);
+            }
+        }
+        error!("share_id {} out of bounds {}", share_id, sum);
+        Err(())
     }
 }
 

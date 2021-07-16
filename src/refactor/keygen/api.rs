@@ -9,8 +9,10 @@ use tracing::error;
 #[cfg(feature = "malicious")]
 use super::malicious;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct KeygenPartyIndex; // TODO actually a keygen subshare index
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct RealKeygenPartyIndex; // TODO the real keygen party index
 
 pub type KeygenProtocol = Protocol<SecretKeyShare, KeygenPartyIndex, RealKeygenPartyIndex>;

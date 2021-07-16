@@ -1,4 +1,4 @@
-use super::api::{BytesVec, Protocol, ProtocolOutput, TofnResult};
+use super::api::{BytesVec, Fault, Protocol, TofnResult};
 pub use super::round::RoundInfo;
 use super::round::{BcastAndP2pRound, BcastOnlyRound, NoMessagesRound};
 use super::wire_bytes::{self, MsgType::*};
@@ -10,7 +10,7 @@ use crate::refactor::protocol::{
 
 pub enum ProtocolBuilder<F, K, P> {
     NotDone(RoundBuilder<F, K, P>),
-    Done(ProtocolOutput<F, K>),
+    Done(ProtocolBuilderOutput<F, K>),
 }
 
 impl<F, K, P> ProtocolBuilder<F, K, P> {
@@ -27,10 +27,12 @@ impl<F, K, P> ProtocolBuilder<F, K, P> {
                 }
                 RoundBuilder::NoMessages { round } => Round::new_no_messages(round, info)?,
             }),
-            Self::Done(output) => Protocol::Done(output),
+            Self::Done(output) => Protocol::Done(info.into_party_faults(output)?),
         })
     }
 }
+
+pub type ProtocolBuilderOutput<F, K> = Result<F, FillVecMap<K, Fault>>; // subshare faults
 
 pub enum RoundBuilder<F, K, P> {
     BcastAndP2p {

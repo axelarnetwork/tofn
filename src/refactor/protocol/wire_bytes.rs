@@ -48,7 +48,7 @@ pub struct WireBytes<K> {
 // TODO serde can derive Serialize for structs with a type parameter.
 // But I cannot derive Debug for these types.
 // How does serde do it?
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 // disable serde trait bounds on `K`: https://serde.rs/attr-bound.html
 #[serde(bound(serialize = "", deserialize = ""))]
 pub enum MsgType<K> {
@@ -60,4 +60,20 @@ pub enum MsgType<K> {
 struct BytesVecVersioned {
     version: u16,
     payload: BytesVec,
+}
+
+#[cfg(feature = "malicious")]
+pub mod malicious {
+    use crate::refactor::protocol::api::{BytesVec, TofnResult};
+
+    use super::{unwrap, wrap};
+
+    pub fn corrupt_payload<K>(bytes: &[u8]) -> TofnResult<BytesVec> {
+        let wire_bytes = unwrap::<K>(bytes)?;
+        wrap(
+            b"these bytes are corrupted 1234".to_vec(),
+            wire_bytes.from,
+            wire_bytes.msg_type,
+        )
+    }
 }

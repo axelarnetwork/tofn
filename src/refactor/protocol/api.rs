@@ -1,19 +1,19 @@
 use crate::refactor::collections::{FillVecMap, HoleVecMap, TypedUsize};
 use crate::refactor::protocol::round::RoundType;
 use serde::{Deserialize, Serialize};
-use tracing::{error, warn};
+use tracing::error;
 
 pub type TofnResult<T> = Result<T, ()>;
 pub type BytesVec = Vec<u8>;
 
 pub enum Protocol<F, K, P> {
     NotDone(Round<F, K, P>),
-    Done(ProtocolOutput<F, K>),
+    Done(ProtocolOutput<F, P>),
 }
 
 pub use super::round::Round;
 use super::wire_bytes::{self, MsgType::*, WireBytes};
-pub type ProtocolOutput<F, K> = Result<F, FillVecMap<K, Fault>>;
+pub type ProtocolOutput<F, P> = Result<F, FillVecMap<P, Fault>>; // party (not subhsare) faults
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Fault {
@@ -64,30 +64,6 @@ impl<F, K, P> Round<F, K, P> {
             }
         }
     }
-    // pub fn bcast_in(&mut self, from: TypedUsize<K>, bytes: &[u8]) -> TofnResult<()> {
-    //     match &mut self.round_type {
-    //         RoundType::BcastAndP2p(r) => r.bcasts_in.set_warn(from, bytes.to_vec()),
-    //         RoundType::BcastOnly(r) => r.bcasts_in.set_warn(from, bytes.to_vec()),
-    //         RoundType::NoMessages(_) => {
-    //             warn!("`bcast_in` called but no bcasts expected; ignoring `bytes`");
-    //             Ok(())
-    //         }
-    //     }
-    // }
-    // pub fn p2p_in(
-    //     &mut self,
-    //     from: TypedUsize<K>,
-    //     to: TypedUsize<K>,
-    //     bytes: &[u8],
-    // ) -> TofnResult<()> {
-    //     match &mut self.round_type {
-    //         RoundType::BcastAndP2p(r) => r.p2ps_in.set_warn(from, to, bytes.to_vec()),
-    //         RoundType::BcastOnly(_) | RoundType::NoMessages(_) => {
-    //             warn!("`p2p_in` called but no p2ps expected; ignoring `bytes`");
-    //             Ok(())
-    //         }
-    //     }
-    // }
     pub fn expecting_more_msgs_this_round(&self) -> bool {
         match &self.round_type {
             RoundType::BcastAndP2p(r) => !r.bcasts_in.is_full() || !r.p2ps_in.is_full(),
@@ -113,5 +89,45 @@ impl<F, K, P> Round<F, K, P> {
     }
     pub fn index(&self) -> TypedUsize<K> {
         self.info.index()
+    }
+}
+
+#[cfg(feature = "malicious")]
+pub mod malicious {
+    use tracing::{error, info};
+
+    use crate::refactor::protocol::{
+        round::RoundType,
+        wire_bytes::{malicious::corrupt_payload, MsgType::*},
+    };
+
+    use super::{Round, TofnResult};
+
+    pub use crate::refactor::protocol::wire_bytes::MsgType;
+
+    impl<F, K, P> Round<F, K, P> {
+        pub fn corrupt_msg_payload(&mut self, msg_type: MsgType<K>) -> TofnResult<()> {
+            info!("malicious party {} corrupt msg", self.index(),);
+            Ok(match &mut self.round_type {
+                RoundType::BcastAndP2p(r) => match msg_type {
+                    Bcast => r.bcast_out = corrupt_payload::<K>(&r.bcast_out)?,
+                    P2p { to } => {
+                        let p2p_out = r.p2ps_out.get_mut(to)?;
+                        *p2p_out = corrupt_payload::<K>(p2p_out)?
+                    }
+                },
+                RoundType::BcastOnly(r) => match msg_type {
+                    Bcast => r.bcast_out = corrupt_payload::<K>(&r.bcast_out)?,
+                    P2p { to: _ } => {
+                        error!("no p2ps expected this round, can't corrupt msg bytes",);
+                        return Err(());
+                    }
+                },
+                RoundType::NoMessages(_) => {
+                    error!("no messages expected this round, can't corrupt msg bytes",);
+                    return Err(());
+                }
+            })
+        }
     }
 }

@@ -2,7 +2,7 @@ use tofn::refactor::{
     collections::{FillVecMap, TypedUsize, VecMap},
     keygen::{
         malicious::Behaviour::{self, *},
-        new_keygen, KeygenPartyIndex, KeygenProtocol, SecretKeyShare,
+        new_keygen, KeygenPartyIndex, KeygenProtocol, RealKeygenPartyIndex, SecretKeyShare,
     },
     protocol::api::{Fault, Protocol::*, ProtocolOutput},
 };
@@ -50,13 +50,13 @@ fn single_fault_test_case(behaviour: Behaviour) -> TestCase {
 pub struct TestCase {
     pub threshold: usize,
     pub behaviours: VecMap<KeygenPartyIndex, Behaviour>,
-    pub expected_honest_output: ProtocolOutput<SecretKeyShare, KeygenPartyIndex>,
+    pub expected_honest_output: ProtocolOutput<SecretKeyShare, RealKeygenPartyIndex>,
 }
 
 impl TestCase {
     pub fn assert_expected_output(
         &self,
-        output: &ProtocolOutput<SecretKeyShare, KeygenPartyIndex>,
+        output: &ProtocolOutput<SecretKeyShare, RealKeygenPartyIndex>,
     ) {
         match output {
             Ok(_) => assert!(

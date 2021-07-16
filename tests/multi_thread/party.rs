@@ -26,7 +26,7 @@ pub fn execute_protocol<F, K, P>(
     mut party: Protocol<F, K, P>,
     input: Receiver<Message<K>>,
     broadcaster: Broadcaster<Message<K>>,
-) -> TofnResult<ProtocolOutput<F, K>>
+) -> TofnResult<ProtocolOutput<F, P>>
 where
     K: Clone,
 {
