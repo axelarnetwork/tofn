@@ -24,8 +24,8 @@ pub fn wrap<K>(
     })
 }
 
-pub fn unwrap<K>(bytes: BytesVec) -> TofnResult<WireBytes<K>> {
-    let bytes_versioned: BytesVecVersioned = deserialize(&bytes)?;
+pub fn unwrap<K>(bytes: &[u8]) -> TofnResult<WireBytes<K>> {
+    let bytes_versioned: BytesVecVersioned = deserialize(bytes)?;
     if bytes_versioned.version != TOFN_SERIALIZATION_VERSION {
         error!(
             "encoding version {}, expected {}",
@@ -45,6 +45,9 @@ pub struct WireBytes<K> {
     pub payload: BytesVec,
 }
 
+// TODO serde can derive Serialize for structs with a type parameter.
+// But I cannot derive Debug for these types.
+// How does serde do it?
 #[derive(Serialize, Deserialize)]
 // disable serde trait bounds on `K`: https://serde.rs/attr-bound.html
 #[serde(bound(serialize = "", deserialize = ""))]

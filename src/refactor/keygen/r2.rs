@@ -82,7 +82,7 @@ impl bcast_only::Executer for R2 {
             self.corrupt_share(info.index(), u_i_other_shares)?
         );
 
-        let p2ps_out = u_i_other_shares.map2(|(i, share)| {
+        let p2ps_out = u_i_other_shares.map2_result(|(i, share)| {
             // encrypt the share for party i
             let (u_i_share_ciphertext, _) =
                 bcasts_in.get(i)?.ek.encrypt(&share.get_scalar().into());

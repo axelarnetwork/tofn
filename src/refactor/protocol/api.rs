@@ -1,7 +1,7 @@
 use crate::refactor::collections::{FillVecMap, HoleVecMap, TypedUsize};
 use crate::refactor::protocol::round::RoundType;
 use serde::{Deserialize, Serialize};
-use tracing::warn;
+use tracing::{error, warn};
 
 pub type TofnResult<T> = Result<T, ()>;
 pub type BytesVec = Vec<u8>;
@@ -12,6 +12,7 @@ pub enum Protocol<F, K, P> {
 }
 
 pub use super::round::Round;
+use super::wire_bytes::{self, MsgType::*, WireBytes};
 pub type ProtocolOutput<F, K> = Result<F, FillVecMap<K, Fault>>;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -35,30 +36,58 @@ impl<F, K, P> Round<F, K, P> {
             RoundType::BcastOnly(_) | RoundType::NoMessages(_) => None,
         }
     }
-    pub fn bcast_in(&mut self, from: TypedUsize<K>, bytes: &[u8]) -> TofnResult<()> {
+    // TODO add from_party arg, do not return TofnResult
+    // instead blame all errors on from_party
+    pub fn msg_in(&mut self, bytes: &[u8]) -> TofnResult<()> {
+        let bytes_meta: WireBytes<K> = wire_bytes::unwrap(bytes)?;
         match &mut self.round_type {
-            RoundType::BcastAndP2p(r) => r.bcasts_in.set_warn(from, bytes.to_vec()),
-            RoundType::BcastOnly(r) => r.bcasts_in.set_warn(from, bytes.to_vec()),
+            RoundType::BcastAndP2p(r) => match bytes_meta.msg_type {
+                Bcast => r.bcasts_in.set_warn(bytes_meta.from, bytes_meta.payload),
+                P2p { to } => r.p2ps_in.set_warn(bytes_meta.from, to, bytes_meta.payload),
+            },
+            RoundType::BcastOnly(r) => match bytes_meta.msg_type {
+                Bcast => r.bcasts_in.set_warn(bytes_meta.from, bytes_meta.payload),
+                P2p { to } => {
+                    error!(
+                        "no p2ps expected this round, received p2p from {} to {}",
+                        bytes_meta.from, to
+                    );
+                    Err(())
+                }
+            },
             RoundType::NoMessages(_) => {
-                warn!("`bcast_in` called but no bcasts expected; ignoring `bytes`");
-                Ok(())
+                error!(
+                    "no messages expected this round, received msg from {}",
+                    bytes_meta.from
+                );
+                Err(())
             }
         }
     }
-    pub fn p2p_in(
-        &mut self,
-        from: TypedUsize<K>,
-        to: TypedUsize<K>,
-        bytes: &[u8],
-    ) -> TofnResult<()> {
-        match &mut self.round_type {
-            RoundType::BcastAndP2p(r) => r.p2ps_in.set_warn(from, to, bytes.to_vec()),
-            RoundType::BcastOnly(_) | RoundType::NoMessages(_) => {
-                warn!("`p2p_in` called but no p2ps expected; ignoring `bytes`");
-                Ok(())
-            }
-        }
-    }
+    // pub fn bcast_in(&mut self, from: TypedUsize<K>, bytes: &[u8]) -> TofnResult<()> {
+    //     match &mut self.round_type {
+    //         RoundType::BcastAndP2p(r) => r.bcasts_in.set_warn(from, bytes.to_vec()),
+    //         RoundType::BcastOnly(r) => r.bcasts_in.set_warn(from, bytes.to_vec()),
+    //         RoundType::NoMessages(_) => {
+    //             warn!("`bcast_in` called but no bcasts expected; ignoring `bytes`");
+    //             Ok(())
+    //         }
+    //     }
+    // }
+    // pub fn p2p_in(
+    //     &mut self,
+    //     from: TypedUsize<K>,
+    //     to: TypedUsize<K>,
+    //     bytes: &[u8],
+    // ) -> TofnResult<()> {
+    //     match &mut self.round_type {
+    //         RoundType::BcastAndP2p(r) => r.p2ps_in.set_warn(from, to, bytes.to_vec()),
+    //         RoundType::BcastOnly(_) | RoundType::NoMessages(_) => {
+    //             warn!("`p2p_in` called but no p2ps expected; ignoring `bytes`");
+    //             Ok(())
+    //         }
+    //     }
+    // }
     pub fn expecting_more_msgs_this_round(&self) -> bool {
         match &self.round_type {
             RoundType::BcastAndP2p(r) => !r.bcasts_in.is_full() || !r.p2ps_in.is_full(),

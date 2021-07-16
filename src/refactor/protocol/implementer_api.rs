@@ -1,6 +1,7 @@
 use super::api::{BytesVec, Protocol, ProtocolOutput, TofnResult};
 pub use super::round::RoundInfo;
 use super::round::{BcastAndP2pRound, BcastOnlyRound, NoMessagesRound};
+use super::wire_bytes::{self, MsgType::*};
 use crate::refactor::collections::{FillP2ps, FillVecMap, HoleVecMap, TypedUsize};
 use crate::refactor::protocol::{
     bcast_and_p2p, bcast_only, no_messages,
@@ -71,7 +72,9 @@ impl<F, K, P> Round<F, K, P> {
             return Err(());
         }
 
-        // TODO wrap in another layer of serialization
+        let bcast_out = wire_bytes::wrap(bcast_out, info.index(), Bcast)?;
+        let p2ps_out = p2ps_out
+            .map2_result(|(to, payload)| wire_bytes::wrap(payload, info.index(), P2p { to }))?;
 
         let len = info.party_count(); // squelch build error
         Ok(Self {
@@ -101,7 +104,7 @@ impl<F, K, P> Round<F, K, P> {
             return Err(());
         }
 
-        // TODO wrap
+        let bcast_out = wire_bytes::wrap(bcast_out, info.index(), Bcast)?;
 
         let len = info.party_count(); // squelch build error
         Ok(Self {

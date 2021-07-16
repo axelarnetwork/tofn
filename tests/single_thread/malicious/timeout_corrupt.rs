@@ -172,7 +172,7 @@ where
             }
 
             for (_, round) in rounds.iter_mut() {
-                round.bcast_in(from, &bytes)?;
+                round.msg_in(&bytes)?;
             }
         }
     } else if current_round == test_case.round && matches!(test_case.msg, RoundMessage::Bcast) {
@@ -214,7 +214,7 @@ where
                 }
 
                 for (_, round) in rounds.iter_mut() {
-                    round.p2p_in(from, to, &bytes)?;
+                    round.msg_in(&bytes)?;
                 }
             }
         }

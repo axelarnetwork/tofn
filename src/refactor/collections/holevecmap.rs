@@ -69,7 +69,7 @@ impl<K, V> HoleVecMap<K, V> {
     {
         HoleVecMap::<K, W>::from_vecmap(self.vec.map(f), self.hole).expect("hole out of bounds")
     }
-    pub fn map2<W, F>(self, f: F) -> TofnResult<HoleVecMap<K, W>>
+    pub fn map2_result<W, F>(self, f: F) -> TofnResult<HoleVecMap<K, W>>
     where
         F: FnMut((TypedUsize<K>, V)) -> TofnResult<W>,
     {
