@@ -4,7 +4,7 @@ use crate::{
     paillier_k256,
     protocol::gg20::vss_k256,
     refactor::{
-        collections::{HoleVecMap, TypedUsize, VecMap},
+        collections::TypedUsize,
         keygen::{KeygenPartyIndex, SecretKeyShare},
         protocol::{
             api::{BytesVec, TofnResult},
@@ -54,7 +54,7 @@ impl no_messages::Executer for R1 {
                 &self
                     .peers
                     .iter()
-                    .map(|(_, k)| k.as_usize())
+                    .map(|(_, keygen_peer_id)| keygen_peer_id.as_usize())
                     .collect::<Vec<_>>(),
             );
 
@@ -78,15 +78,14 @@ impl no_messages::Executer for R1 {
             .ek;
         let (k_i_ciphertext, k_i_randomness) = ek.encrypt(&(&k_i).into());
 
-        let mut p2ps_out = Vec::with_capacity(self.peers.len());
-
-        for (_, &keygen_peer_id) in &self.peers {
+        let p2ps_out = self.peers.map_ref(|(_, &keygen_peer_id)| {
             let peer_zkp = &self
                 .secret_key_share
                 .group
                 .all_shares
                 .get(keygen_peer_id)?
                 .zkp;
+
             let range_proof = peer_zkp.range_proof(
                 &paillier_k256::zk::range::Statement {
                     ciphertext: &k_i_ciphertext,
@@ -98,31 +97,8 @@ impl no_messages::Executer for R1 {
                 },
             );
 
-            let p2p_out = serialize(&P2p { range_proof })?;
-
-            p2ps_out.push(p2p_out);
-        }
-
-        let p2ps_out = HoleVecMap::from_vecmap(VecMap::from_vec(p2ps_out), sign_id)?;
-
-        // Alternative approach
-        // let p2ps_out = self.other_participants.map_ref(|(_, keygen_peer_id)| {
-        //     let peer_zkp = &self.secret_key_share.group.all_shares.get(keygen_peer_id)?.zkp;
-        //     let range_proof = peer_zkp.range_proof(
-        //         &paillier_k256::zk::range::Statement {
-        //             ciphertext: &k_i_ciphertext,
-        //             ek: ek,
-        //         },
-        //         &paillier_k256::zk::range::Witness {
-        //             msg: &k_i,
-        //             randomness: &k_i_randomness,
-        //         },
-        //     );
-
-        //     serialize(&P2p {
-        //         range_proof,
-        //     })
-        // })?;
+            serialize(&P2p { range_proof })
+        })?;
 
         let bcast_out = serialize(&Bcast {
             Gamma_i_commit,

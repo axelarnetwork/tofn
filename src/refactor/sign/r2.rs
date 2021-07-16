@@ -3,7 +3,7 @@ use crate::{
     mta,
     paillier_k256::{self, Ciphertext},
     refactor::{
-        collections::{FillHoleVecMap, FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
+        collections::{FillHoleVecMap, FillVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
         protocol::{
             api::{BytesVec, Fault::ProtocolFault, TofnResult},
@@ -57,8 +57,7 @@ impl bcast_and_p2p::Executer for R2 {
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<SignProtocolBuilder> {
-        // let mut out_p2ps = FillVec::with_len(self.participant_indices.len());
-        let mut faulters = FillVecMap::with_size(participants_count); // Vec::new();
+        let mut faulters = FillVecMap::with_size(participants_count);
 
         let mut beta_secrets = FillHoleVecMap::with_size(participants_count, sign_id)?;
         let mut nu_secrets = FillHoleVecMap::with_size(participants_count, sign_id)?;
@@ -92,7 +91,7 @@ impl bcast_and_p2p::Executer for R2 {
 
             if let Err(err) = zkp.verify_range_proof(peer_stmt, peer_proof) {
                 warn!(
-                    "participant {} says: range proof from {} failed to verify because [{}]",
+                    "peer {} says: range proof from peer {} failed to verify because [{}]",
                     sign_id, sign_peer_id, err
                 );
 
@@ -104,7 +103,7 @@ impl bcast_and_p2p::Executer for R2 {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
-        let mut p2ps_out = Vec::with_capacity(self.other_participants.len());
+        let mut p2ps_out = FillHoleVecMap::with_size(participants_count, sign_id)?;
 
         for (sign_peer_id, &keygen_peer_id) in &self.other_participants {
             // k256: MtA step 2 for k_i * gamma_j
@@ -139,12 +138,14 @@ impl bcast_and_p2p::Executer for R2 {
                 mu_proof,
             })?;
 
-            p2ps_out.push(p2p);
+            p2ps_out.set(sign_peer_id, p2p)?;
         }
 
-        let p2ps_out = HoleVecMap::from_vecmap(VecMap::from_vec(p2ps_out), sign_id)?;
+        let beta_secrets = beta_secrets.unwrap_all()?;
+        let nu_secrets = nu_secrets.unwrap_all()?;
+        let p2ps_out = p2ps_out.unwrap_all()?;
 
-        let _ = p2ps_out;
+        let _ = (p2ps_out, beta_secrets, nu_secrets);
 
         Err(())
     }
