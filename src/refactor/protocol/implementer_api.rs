@@ -53,6 +53,7 @@ impl<F, K, P> Round<F, K, P> {
         bcast_out: BytesVec,
         p2ps_out: HoleVecMap<K, BytesVec>,
     ) -> TofnResult<Self> {
+        // validate args
         if info.index().as_usize() >= info.party_count() {
             error!(
                 "index {} out of bounds {}",
@@ -90,6 +91,7 @@ impl<F, K, P> Round<F, K, P> {
         info: RoundInfo<K, P>,
         bcast_out: BytesVec,
     ) -> TofnResult<Self> {
+        // validate args
         if info.index().as_usize() >= info.party_count() {
             error!(
                 "index {} out of bounds {}",
@@ -98,6 +100,8 @@ impl<F, K, P> Round<F, K, P> {
             );
             return Err(());
         }
+
+        // TODO wrap
 
         let len = info.party_count(); // squelch build error
         Ok(Self {
