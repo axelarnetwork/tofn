@@ -1,110 +1,76 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::marker::PhantomData;
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct TypedUsize<K>(usize, SerdePhantom<K>);
-// where
-//     K: Behave;
+pub struct TypedUsize<K>(usize, PhantomData<K>);
 
 /// Alias for all the trait bounds on `K` in order to work around https://stackoverflow.com/a/31371094
 pub trait Behave: std::fmt::Debug + Clone + Copy + PartialEq + Send + Sync {}
 
-impl<K> TypedUsize<K>
-// where
-//     K: Behave,
-{
+impl<K> TypedUsize<K> {
     pub fn from_usize(index: usize) -> Self {
-        TypedUsize(index, SerdePhantom(PhantomData))
+        TypedUsize(index, PhantomData)
     }
     pub fn as_usize(&self) -> usize {
         self.0
     }
 }
 
-impl<K> std::fmt::Display for TypedUsize<K>
-// where
-//     K: Behave,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+// Manual blanket impls for common traits.
+// Can't use `#[derive(...)]` because:
+// * https://stackoverflow.com/a/31371094
+// * https://github.com/serde-rs/serde/issues/183#issuecomment-157348366
+
+impl<K> Copy for TypedUsize<K> {}
+
+impl<K> Clone for TypedUsize<K> {
+    fn clone(&self) -> Self {
+        Self::from_usize(self.0)
     }
 }
 
-/// `PhantomData` does not impl `Serialize`, `Deserialize`
-/// https://github.com/serde-rs/serde/issues/183
-/// The solution is to wrap `PhantomData` in a newtype `SerdePhantom`
-/// and manually impl these traits for `SerdePhantom`.
-use serde::{de, de::Visitor, Deserializer, Serializer};
+impl<K> std::fmt::Debug for TypedUsize<K> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
 
-// `PhantomData` derives the following traits, so we can, too.
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    Hash,
-    Ord,
-    PartialEq,
-    PartialOrd,
-    // StructuralEq,        // unstable
-    // StructuralPartialEq, // unstable
-)]
-pub struct SerdePhantom<K>(PhantomData<K>);
+impl<K> std::fmt::Display for TypedUsize<K> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
 
-impl<K> Serialize for SerdePhantom<K> {
+impl<K> PartialEq for TypedUsize<K> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl<K> Serialize for TypedUsize<K> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        serializer.serialize_unit()
+        self.0.serialize(serializer)
     }
 }
 
-impl<'de, K> Deserialize<'de> for SerdePhantom<K> {
+impl<'de, K> Deserialize<'de> for TypedUsize<K> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_unit(MyPhantomVisitor(PhantomData))
-    }
-}
-
-struct MyPhantomVisitor<K>(PhantomData<K>); // need to use `K` somewhere
-
-impl<'de, K> Visitor<'de> for MyPhantomVisitor<K> {
-    type Value = SerdePhantom<K>;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("unit type `()`")
-    }
-
-    fn visit_unit<E>(self) -> Result<Self::Value, E>
-    where
-        E: de::Error,
-    {
-        Ok(SerdePhantom(PhantomData))
+        Ok(Self::from_usize(usize::deserialize(deserializer)?))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Behave, SerdePhantom, TypedUsize};
-    use serde::{Deserialize, Serialize};
-    use std::marker::PhantomData;
+    use super::TypedUsize;
 
-    #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
     struct TestMarker;
-    impl Behave for TestMarker {}
 
     #[test]
     fn serde_bincode() {
-        // test: `MyPhantom` serializes to a zero-length byte vec
-        let phantom = SerdePhantom::<TestMarker>(PhantomData);
-        let bytes = bincode::serialize(&phantom).unwrap();
-        assert_eq!(bytes, Vec::<u8>::new());
-        let phantom_deserialized: SerdePhantom<TestMarker> = bincode::deserialize(&bytes).unwrap();
-        assert_eq!(phantom_deserialized, phantom);
-
         // test: `TypedUsize` and `usize` serialize to the same bytes
         let untyped: usize = 12345678;
         let typed = TypedUsize::<TestMarker>::from_usize(untyped);
