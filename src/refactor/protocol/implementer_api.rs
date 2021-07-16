@@ -86,6 +86,8 @@ where
             return Err(());
         }
 
+        // TODO wrap in another layer of serialization
+
         let len = info.party_count(); // squelch build error
         Ok(Self {
             info,
