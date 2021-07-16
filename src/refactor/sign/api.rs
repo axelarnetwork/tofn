@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::refactor::{
-    collections::{Behave, TypedUsize, VecMap},
+    collections::{TypedUsize, VecMap},
     keygen::{GroupPublicInfo, KeygenPartyIndex, SecretKeyShare, ShareSecretInfo},
     protocol::{
         api::{BytesVec, Protocol, Round, TofnResult},
@@ -21,13 +21,9 @@ pub type SignProtocolBuilder =
     ProtocolBuilder<BytesVec, SignParticipantIndex, RealSignParticipantIndex>;
 pub type ParticipantsList = VecMap<SignParticipantIndex, TypedUsize<KeygenPartyIndex>>;
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SignParticipantIndex;
-impl Behave for SignParticipantIndex {}
-
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct RealSignParticipantIndex;
-impl Behave for RealSignParticipantIndex {}
 
 /// sign only 32-byte hash digests
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

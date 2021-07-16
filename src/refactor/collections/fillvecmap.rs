@@ -4,21 +4,15 @@ use tracing::{error, warn};
 
 use crate::refactor::protocol::api::TofnResult;
 
-use super::{vecmap_iter::VecMapIter, Behave, TypedUsize, VecMap};
+use super::{vecmap_iter::VecMapIter, TypedUsize, VecMap};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct FillVecMap<K, V>
-where
-    K: Behave,
-{
+pub struct FillVecMap<K, V> {
     vec: VecMap<K, Option<V>>,
     some_count: usize,
 }
 
-impl<K, V> FillVecMap<K, V>
-where
-    K: Behave,
-{
+impl<K, V> FillVecMap<K, V> {
     pub fn with_size(len: usize) -> Self {
         Self {
             vec: (0..len).map(|_| None).collect(),
@@ -86,10 +80,7 @@ where
     }
 }
 
-impl<K, V> IntoIterator for FillVecMap<K, V>
-where
-    K: Behave,
-{
+impl<K, V> IntoIterator for FillVecMap<K, V> {
     type Item = <VecMapIter<K, std::vec::IntoIter<Option<V>>> as Iterator>::Item;
     type IntoIter = VecMapIter<K, std::vec::IntoIter<Option<V>>>;
 
@@ -100,10 +91,7 @@ where
 
 /// impl IntoIterator for &FillVecMap as suggested here: https://doc.rust-lang.org/std/iter/index.html#iterating-by-reference
 /// follow the template of Vec: https://doc.rust-lang.org/src/alloc/vec/mod.rs.html#2451-2458
-impl<'a, K, V> IntoIterator for &'a FillVecMap<K, V>
-where
-    K: Behave,
-{
+impl<'a, K, V> IntoIterator for &'a FillVecMap<K, V> {
     type Item = (
         TypedUsize<K>,
         <std::slice::Iter<'a, Option<V>> as Iterator>::Item,

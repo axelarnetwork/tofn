@@ -1,26 +1,18 @@
 use super::api::{BytesVec, Protocol, ProtocolOutput, TofnResult};
 pub use super::round::RoundInfo;
 use super::round::{BcastAndP2pRound, BcastOnlyRound, NoMessagesRound};
-use crate::refactor::collections::{Behave, FillP2ps, FillVecMap, HoleVecMap, TypedUsize};
+use crate::refactor::collections::{FillP2ps, FillVecMap, HoleVecMap, TypedUsize};
 use crate::refactor::protocol::{
     bcast_and_p2p, bcast_only, no_messages,
     round::{Round, RoundType},
 };
 
-pub enum ProtocolBuilder<F, K, P>
-where
-    K: Behave,
-    P: Behave,
-{
+pub enum ProtocolBuilder<F, K, P> {
     NotDone(RoundBuilder<F, K, P>),
     Done(ProtocolOutput<F, K>),
 }
 
-impl<F, K, P> ProtocolBuilder<F, K, P>
-where
-    K: Behave,
-    P: Behave,
-{
+impl<F, K, P> ProtocolBuilder<F, K, P> {
     pub fn build(self, info: RoundInfo<K, P>) -> TofnResult<Protocol<F, K, P>> {
         Ok(match self {
             Self::NotDone(builder) => Protocol::NotDone(match builder {
@@ -39,11 +31,7 @@ where
     }
 }
 
-pub enum RoundBuilder<F, K, P>
-where
-    K: Behave,
-    P: Behave,
-{
+pub enum RoundBuilder<F, K, P> {
     BcastAndP2p {
         round: Box<dyn bcast_and_p2p::ExecuterRaw<FinalOutput = F, Index = K, PartyIndex = P>>,
         bcast_out: BytesVec,
@@ -58,11 +46,7 @@ where
     },
 }
 
-impl<F, K, P> Round<F, K, P>
-where
-    K: Behave,
-    P: Behave,
-{
+impl<F, K, P> Round<F, K, P> {
     pub fn new_bcast_and_p2p(
         round: Box<dyn bcast_and_p2p::ExecuterRaw<FinalOutput = F, Index = K, PartyIndex = P>>,
         info: RoundInfo<K, P>,
@@ -170,23 +154,14 @@ where
     }
 }
 
-pub(crate) fn log_fault_info<K>(me: TypedUsize<K>, faulter: TypedUsize<K>, fault: &str)
-where
-    K: Behave,
-{
+pub(crate) fn log_fault_info<K>(me: TypedUsize<K>, faulter: TypedUsize<K>, fault: &str) {
     info!("party {} detect [{}] by {}", me, fault, faulter,);
 }
 
-pub(crate) fn log_fault_warn<K>(me: TypedUsize<K>, faulter: TypedUsize<K>, fault: &str)
-where
-    K: Behave,
-{
+pub(crate) fn log_fault_warn<K>(me: TypedUsize<K>, faulter: TypedUsize<K>, fault: &str) {
     warn!("party {} detect [{}] by {}", me, fault, faulter,);
 }
 
-pub(crate) fn log_accuse_warn<K>(me: TypedUsize<K>, faulter: TypedUsize<K>, fault: &str)
-where
-    K: Behave,
-{
+pub(crate) fn log_accuse_warn<K>(me: TypedUsize<K>, faulter: TypedUsize<K>, fault: &str) {
     warn!("party {} accuse {} of [{}]", me, faulter, fault);
 }

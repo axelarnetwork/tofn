@@ -2,7 +2,7 @@ use serde::de::DeserializeOwned;
 use tracing::warn;
 
 use crate::refactor::{
-    collections::{Behave, FillVecMap, VecMap},
+    collections::{FillVecMap, VecMap},
     protocol::api::Fault,
 };
 
@@ -13,8 +13,8 @@ use super::{
 
 pub trait Executer: Send + Sync {
     type FinalOutput;
-    type Index: Behave;
-    type PartyIndex: Behave;
+    type Index;
+    type PartyIndex;
     type Bcast: DeserializeOwned;
     fn execute(
         self: Box<Self>,
@@ -31,8 +31,8 @@ pub trait Executer: Send + Sync {
 /// "raw" means we haven't yet checked for timeouts or deserialization failure
 pub trait ExecuterRaw: Send + Sync {
     type FinalOutput;
-    type Index: Behave;
-    type PartyIndex: Behave;
+    type Index;
+    type PartyIndex;
     fn execute_raw(
         self: Box<Self>,
         info: &RoundInfo<Self::Index, Self::PartyIndex>,

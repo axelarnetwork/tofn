@@ -1,7 +1,7 @@
 //! Single-threaded generic protocol execution
 
 use tofn::{
-    refactor::collections::{Behave, HoleVecMap, VecMap},
+    refactor::collections::{HoleVecMap, VecMap},
     refactor::protocol::api::{BytesVec, Protocol, TofnResult},
 };
 use tracing::warn;
@@ -10,8 +10,7 @@ pub fn execute_protocol<F, K, P>(
     mut parties: VecMap<K, Protocol<F, K, P>>,
 ) -> TofnResult<VecMap<K, Protocol<F, K, P>>>
 where
-    K: Behave,
-    P: Behave,
+    K: Clone,
 {
     while nobody_done(&parties) {
         parties = next_round(parties)?;
@@ -19,11 +18,7 @@ where
     Ok(parties)
 }
 
-pub fn nobody_done<F, K, P>(parties: &VecMap<K, Protocol<F, K, P>>) -> bool
-where
-    K: Behave,
-    P: Behave,
-{
+pub fn nobody_done<F, K, P>(parties: &VecMap<K, Protocol<F, K, P>>) -> bool {
     // warn if there's disagreement
     let (mut done, mut not_done) = (
         Vec::with_capacity(parties.len()),
@@ -49,8 +44,7 @@ fn next_round<F, K, P>(
     parties: VecMap<K, Protocol<F, K, P>>,
 ) -> TofnResult<VecMap<K, Protocol<F, K, P>>>
 where
-    K: Behave,
-    P: Behave,
+    K: Clone,
 {
     // extract current round from parties
     let mut rounds: VecMap<K, _> = parties

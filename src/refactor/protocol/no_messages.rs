@@ -1,5 +1,3 @@
-use crate::refactor::collections::Behave;
-
 use super::{
     api::TofnResult,
     implementer_api::{ProtocolBuilder, RoundInfo},
@@ -7,8 +5,8 @@ use super::{
 
 pub trait Executer: Send + Sync {
     type FinalOutput;
-    type Index: Behave;
-    type PartyIndex: Behave;
+    type Index;
+    type PartyIndex;
     fn execute(
         self: Box<Self>,
         info: &RoundInfo<Self::Index, Self::PartyIndex>,

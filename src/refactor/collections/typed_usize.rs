@@ -1,9 +1,7 @@
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::marker::PhantomData;
-pub struct TypedUsize<K>(usize, PhantomData<K>);
 
-/// Alias for all the trait bounds on `K` in order to work around https://stackoverflow.com/a/31371094
-pub trait Behave: std::fmt::Debug + Clone + Copy + PartialEq + Send + Sync {}
+pub struct TypedUsize<K>(usize, PhantomData<K>);
 
 impl<K> TypedUsize<K> {
     pub fn from_usize(index: usize) -> Self {

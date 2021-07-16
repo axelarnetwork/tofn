@@ -3,22 +3,16 @@ use tracing::error;
 
 use crate::refactor::protocol::api::TofnResult;
 
-use super::{holevecmap_iter::HoleVecMapIter, Behave, TypedUsize, VecMap};
+use super::{holevecmap_iter::HoleVecMapIter, TypedUsize, VecMap};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct HoleVecMap<K, V>
-where
-    K: Behave,
-{
+pub struct HoleVecMap<K, V> {
     vec: VecMap<K, V>,
     hole: TypedUsize<K>,
     phantom: std::marker::PhantomData<TypedUsize<K>>,
 }
 
-impl<K, V> HoleVecMap<K, V>
-where
-    K: Behave,
-{
+impl<K, V> HoleVecMap<K, V> {
     pub fn from_vecmap(vec: VecMap<K, V>, hole: TypedUsize<K>) -> TofnResult<Self> {
         if hole.as_usize() > vec.len() {
             error!("hole {} out of bounds {}", hole.as_usize(), vec.len());
@@ -90,10 +84,7 @@ where
     }
 }
 
-impl<K, V> IntoIterator for HoleVecMap<K, V>
-where
-    K: Behave,
-{
+impl<K, V> IntoIterator for HoleVecMap<K, V> {
     type Item = (TypedUsize<K>, <std::vec::IntoIter<V> as Iterator>::Item);
     type IntoIter = HoleVecMapIter<K, std::vec::IntoIter<V>>;
 
@@ -104,10 +95,7 @@ where
 
 /// impl IntoIterator for &HoleVecMap as suggested here: https://doc.rust-lang.org/std/iter/index.html#iterating-by-reference
 /// follow the template of Vec: https://doc.rust-lang.org/src/alloc/vec/mod.rs.html#2451-2458
-impl<'a, K, V> IntoIterator for &'a HoleVecMap<K, V>
-where
-    K: Behave,
-{
+impl<'a, K, V> IntoIterator for &'a HoleVecMap<K, V> {
     type Item = (TypedUsize<K>, <std::slice::Iter<'a, V> as Iterator>::Item);
     type IntoIter = HoleVecMapIter<K, std::slice::Iter<'a, V>>;
 

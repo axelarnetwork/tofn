@@ -32,7 +32,7 @@ fn main() {
 
 mod keygen {
     use tofn::{
-        refactor::collections::{Behave, TypedUsize, VecMap},
+        refactor::collections::{TypedUsize, VecMap},
         refactor::keygen::{new_keygen, KeygenPartyIndex, KeygenProtocol, SecretRecoveryKey},
     };
 
@@ -62,10 +62,7 @@ mod keygen {
     }
 
     /// return the all-zero array with the first bytes set to the bytes of `index`
-    pub fn dummy_secret_recovery_key<K>(index: TypedUsize<K>) -> SecretRecoveryKey
-    where
-        K: Behave,
-    {
+    pub fn dummy_secret_recovery_key<K>(index: TypedUsize<K>) -> SecretRecoveryKey {
         let index_bytes = index.as_usize().to_be_bytes();
         let mut result = [0; 64];
         for (i, &b) in index_bytes.iter().enumerate() {

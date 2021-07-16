@@ -1,5 +1,5 @@
 use super::{r1, rng};
-use crate::refactor::collections::{Behave, TypedUsize};
+use crate::refactor::collections::TypedUsize;
 use crate::refactor::protocol::api::{Protocol, Round, TofnResult};
 use crate::refactor::protocol::implementer_api::{ProtocolBuilder, RoundInfo};
 use crate::{k256_serde, paillier_k256, refactor::collections::VecMap};
@@ -9,16 +9,9 @@ use tracing::error;
 #[cfg(feature = "malicious")]
 use super::malicious;
 
-// need to derive all this crap for each new marker struct
-// in order to avoid this problem: https://stackoverflow.com/a/31371094
-// TODO macro?
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct KeygenPartyIndex; // TODO actually a keygen subshare index
-impl Behave for KeygenPartyIndex {}
-
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct RealKeygenPartyIndex; // TODO the real keygen party index
-impl Behave for RealKeygenPartyIndex {}
 
 pub type KeygenProtocol = Protocol<SecretKeyShare, KeygenPartyIndex, RealKeygenPartyIndex>;
 pub type KeygenProtocolBuilder =

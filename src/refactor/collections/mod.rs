@@ -1,5 +1,5 @@
 mod typed_usize;
-pub use typed_usize::{Behave, TypedUsize};
+pub use typed_usize::TypedUsize;
 
 mod vecmap;
 mod vecmap_iter;

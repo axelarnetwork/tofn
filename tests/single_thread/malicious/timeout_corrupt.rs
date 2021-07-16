@@ -2,7 +2,7 @@
 //! with a missing or corrupted message
 
 use tofn::refactor::{
-    collections::{Behave, FillVecMap, HoleVecMap, TypedUsize, VecMap},
+    collections::{FillVecMap, HoleVecMap, TypedUsize, VecMap},
     protocol::api::{BytesVec, Fault, Protocol, TofnResult},
 };
 use tracing::{info, warn};
@@ -29,7 +29,7 @@ fn single_faults_keygen() {
     }
 }
 
-pub fn single_fault_test_case_list<K: Behave>() -> Vec<SingleFaulterTestCase<K>> {
+pub fn single_fault_test_case_list<K>() -> Vec<SingleFaulterTestCase<K>> {
     use self::{FaultType::*, RoundMessage::*};
     let zero = TypedUsize::from_usize(0);
     vec![
@@ -40,7 +40,7 @@ pub fn single_fault_test_case_list<K: Behave>() -> Vec<SingleFaulterTestCase<K>>
     ]
 }
 
-fn single_fault_test_case<K: Behave>(
+fn single_fault_test_case<K>(
     msg: RoundMessage<K>,
     fault_type: FaultType,
 ) -> SingleFaulterTestCase<K> {
@@ -61,10 +61,7 @@ fn single_fault_test_case<K: Behave>(
     }
 }
 
-pub struct SingleFaulterTestCase<K>
-where
-    K: Behave,
-{
+pub struct SingleFaulterTestCase<K> {
     pub faulter: TypedUsize<K>, // faulter party index
     pub round: usize,           // round in which fault occurs, index starts at 1
     pub msg: RoundMessage<K>,   // which message is faulty
@@ -73,10 +70,7 @@ where
 }
 
 #[derive(Debug)]
-pub enum RoundMessage<K>
-where
-    K: Behave,
-{
+pub enum RoundMessage<K> {
     Bcast,
     P2p { victim: TypedUsize<K> },
 }
@@ -92,8 +86,7 @@ fn execute_test_case<F, K, P>(
     parties: VecMap<K, Protocol<F, K, P>>,
     test_case: SingleFaulterTestCase<K>,
 ) where
-    K: Behave,
-    P: Behave,
+    K: PartialEq + std::fmt::Debug + Clone, // TODO can't quite escape ugly trait bounds :(
 {
     let parties = execute_protocol(parties, &test_case).expect("internal tofn error");
 
@@ -119,8 +112,7 @@ pub fn execute_protocol<F, K, P>(
     test_case: &SingleFaulterTestCase<K>,
 ) -> TofnResult<VecMap<K, Protocol<F, K, P>>>
 where
-    K: Behave,
-    P: Behave,
+    K: Clone,
 {
     let mut current_round = 0;
     while nobody_done(&parties) {
@@ -136,8 +128,7 @@ fn next_round<F, K, P>(
     current_round: usize,
 ) -> TofnResult<VecMap<K, Protocol<F, K, P>>>
 where
-    K: Behave,
-    P: Behave,
+    K: Clone,
 {
     // extract current round from parties
     let mut rounds: VecMap<K, _> = parties

@@ -1,31 +1,19 @@
-use crate::refactor::collections::{Behave, FillP2ps, FillVecMap, HoleVecMap, TypedUsize, VecMap};
+use crate::refactor::collections::{FillP2ps, FillVecMap, HoleVecMap, TypedUsize, VecMap};
 
 use super::{api::BytesVec, bcast_and_p2p, bcast_only, no_messages};
 
-pub struct Round<F, K, P>
-where
-    K: Behave,
-    P: Behave,
-{
+pub struct Round<F, K, P> {
     pub info: RoundInfo<K, P>,
     pub round_type: RoundType<F, K, P>,
 }
 
-pub struct RoundInfo<K, P>
-where
-    K: Behave,
-    P: Behave,
-{
+pub struct RoundInfo<K, P> {
     party_share_counts: VecMap<P, usize>,
     party_count: usize, // sum of party_share_counts
     index: TypedUsize<K>,
 }
 
-impl<K, P> RoundInfo<K, P>
-where
-    K: Behave,
-    P: Behave,
-{
+impl<K, P> RoundInfo<K, P> {
     pub fn new(party_share_counts: VecMap<P, usize>, index: TypedUsize<K>) -> Self {
         let party_count = party_share_counts.iter().map(|(_, n)| n).sum();
         Self {
@@ -42,39 +30,23 @@ where
     }
 }
 
-pub enum RoundType<F, K, P>
-where
-    K: Behave,
-    P: Behave,
-{
+pub enum RoundType<F, K, P> {
     BcastAndP2p(BcastAndP2pRound<F, K, P>),
     BcastOnly(BcastOnlyRound<F, K, P>),
     NoMessages(NoMessagesRound<F, K, P>),
 }
 
-pub struct NoMessagesRound<F, K, P>
-where
-    K: Behave,
-    P: Behave,
-{
+pub struct NoMessagesRound<F, K, P> {
     pub round: Box<dyn no_messages::Executer<FinalOutput = F, Index = K, PartyIndex = P>>,
 }
 
-pub struct BcastOnlyRound<F, K, P>
-where
-    K: Behave,
-    P: Behave,
-{
+pub struct BcastOnlyRound<F, K, P> {
     pub round: Box<dyn bcast_only::ExecuterRaw<FinalOutput = F, Index = K, PartyIndex = P>>,
     pub bcast_out: BytesVec,
     pub bcasts_in: FillVecMap<K, BytesVec>,
 }
 
-pub struct BcastAndP2pRound<F, K, P>
-where
-    K: Behave,
-    P: Behave,
-{
+pub struct BcastAndP2pRound<F, K, P> {
     pub round: Box<dyn bcast_and_p2p::ExecuterRaw<FinalOutput = F, Index = K, PartyIndex = P>>,
     pub bcast_out: BytesVec,
     pub p2ps_out: HoleVecMap<K, BytesVec>,

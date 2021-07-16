@@ -1,4 +1,4 @@
-use crate::refactor::collections::{Behave, FillVecMap, HoleVecMap, TypedUsize};
+use crate::refactor::collections::{FillVecMap, HoleVecMap, TypedUsize};
 use crate::refactor::protocol::round::RoundType;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
@@ -6,11 +6,7 @@ use tracing::warn;
 pub type TofnResult<T> = Result<T, ()>;
 pub type BytesVec = Vec<u8>;
 
-pub enum Protocol<F, K, P>
-where
-    K: Behave,
-    P: Behave,
-{
+pub enum Protocol<F, K, P> {
     NotDone(Round<F, K, P>),
     Done(ProtocolOutput<F, K>),
 }
@@ -25,11 +21,7 @@ pub enum Fault {
     ProtocolFault,
 }
 
-impl<F, K, P> Round<F, K, P>
-where
-    K: Behave,
-    P: Behave,
-{
+impl<F, K, P> Round<F, K, P> {
     pub fn bcast_out(&self) -> Option<&BytesVec> {
         match &self.round_type {
             RoundType::BcastAndP2p(r) => Some(&r.bcast_out),

@@ -5,15 +5,12 @@ use std::sync::mpsc::Receiver;
 // `use` statements for type aliased enums :(
 // https://github.com/rust-lang/rust/issues/83248
 use tofn::{
-    refactor::collections::{Behave, TypedUsize},
+    refactor::collections::TypedUsize,
     refactor::protocol::api::{BytesVec, Protocol, ProtocolOutput, TofnResult},
 };
 
 #[derive(Clone)]
-pub enum Message<K>
-where
-    K: Behave,
-{
+pub enum Message<K> {
     Bcast {
         from: TypedUsize<K>,
         bytes: BytesVec,
@@ -31,8 +28,7 @@ pub fn execute_protocol<F, K, P>(
     broadcaster: Broadcaster<Message<K>>,
 ) -> TofnResult<ProtocolOutput<F, K>>
 where
-    K: Behave,
-    P: Behave,
+    K: Clone,
 {
     while let Protocol::NotDone(mut round) = party {
         // send outgoing messages
