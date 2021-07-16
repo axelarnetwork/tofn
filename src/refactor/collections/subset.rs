@@ -1,5 +1,5 @@
 //! A subset of typed indices
-use super::{FillVecMap, TypedUsize};
+use super::{FillVecMap, TypedUsize, VecMapIter};
 use crate::refactor::sdk::api::TofnResult;
 use serde::{Deserialize, Serialize};
 
@@ -36,3 +36,15 @@ impl<K> Subset<K> {
 }
 
 // TODO don't know how to impl IntoIterator because don't know `IntoIter` type
+
+
+/// impl IntoIterator for &Subset as suggested here: https://doc.rust-lang.org/std/iter/index.html#iterating-by-reference
+/// follow the template of Vec: https://doc.rust-lang.org/src/alloc/vec/mod.rs.html#2451-2458
+impl<'a, K> IntoIterator for &'a Subset<K> {
+    type Item = TypedUsize<K>;
+    type IntoIter = VecMapIter<K, std::slice::Iter<'a, Option<()>>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}

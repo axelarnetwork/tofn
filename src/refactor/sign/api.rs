@@ -22,6 +22,7 @@ pub type SignProtocol = Protocol<BytesVec, SignParticipantIndex, RealSignPartici
 pub type SignProtocolBuilder = ProtocolBuilder<BytesVec, SignParticipantIndex>;
 pub type ParticipantsList = VecMap<SignParticipantIndex, TypedUsize<KeygenPartyIndex>>;
 pub type SignParties = Subset<RealKeygenPartyIndex>;
+// TODO: pub type Peers = HoleVecMap<SignParticipantIndex, TypedUsize<KeygenPartyIndex>>;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SignParticipantIndex;
@@ -83,7 +84,8 @@ pub fn new_sign(
         Box::new(r1::R1 {
             secret_key_share: SecretKeyShare::new(group.clone(), share.clone()),
             msg_to_sign: msg_to_sign.into(),
-            participants,
+            keygen_id: participants[index],
+            sign_parties,
         }),
     )
 }
