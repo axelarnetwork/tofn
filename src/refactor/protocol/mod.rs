@@ -5,3 +5,4 @@ pub mod bcast_only;
 pub mod implementer_api;
 pub mod no_messages;
 mod round;
+mod serde;

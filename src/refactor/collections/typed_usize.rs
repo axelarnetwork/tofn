@@ -13,7 +13,7 @@ impl<K> TypedUsize<K> {
 }
 
 // Manual blanket impls for common traits.
-// Can't use `#[derive(...)]` because:
+// `#[derive(...)]` doesn't work for all `K`:
 // * https://stackoverflow.com/a/31371094
 // * https://github.com/serde-rs/serde/issues/183#issuecomment-157348366
 

@@ -154,6 +154,19 @@ where
     }
 }
 
+pub(crate) fn deserialize<'a, T>(bytes: &'a [u8]) -> TofnResult<T>
+where
+    T: serde::de::Deserialize<'a>,
+{
+    match bincode::deserialize(bytes) {
+        Ok(value) => Ok(value),
+        Err(err) => {
+            error!("deserialization failure: {}", err.to_string());
+            Err(())
+        }
+    }
+}
+
 pub(crate) fn log_fault_info<K>(me: TypedUsize<K>, faulter: TypedUsize<K>, fault: &str) {
     info!("party {} detect [{}] by {}", me, fault, faulter,);
 }
