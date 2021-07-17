@@ -4,7 +4,7 @@ use tracing::error;
 
 use super::{
     api::{BytesVec, TofnResult},
-    implementer_api::{deserialize, serialize},
+    implementer_api::serialize,
 };
 
 const TOFN_SERIALIZATION_VERSION: u16 = 0;
@@ -24,16 +24,21 @@ pub fn wrap<K>(
     })
 }
 
-pub fn unwrap<K>(bytes: &[u8]) -> TofnResult<WireBytes<K>> {
-    let bytes_versioned: BytesVecVersioned = deserialize(bytes)?;
+/// Do not return TofnResult---that's for fatal errors only.
+/// Deserialization failures are a party fault.
+#[derive(Debug)]
+pub struct DeserializationFailure;
+pub fn unwrap<K>(bytes: &[u8]) -> Result<WireBytes<K>, DeserializationFailure> {
+    let bytes_versioned: BytesVecVersioned =
+        bincode::deserialize(bytes).map_err(|_| DeserializationFailure)?;
     if bytes_versioned.version != TOFN_SERIALIZATION_VERSION {
         error!(
             "encoding version {}, expected {}",
             bytes_versioned.version, TOFN_SERIALIZATION_VERSION
         );
-        return Err(());
+        return Err(DeserializationFailure);
     }
-    deserialize(&bytes_versioned.payload)
+    bincode::deserialize(&bytes_versioned.payload).map_err(|_| DeserializationFailure)
 }
 
 #[derive(Serialize, Deserialize)]
@@ -69,7 +74,9 @@ pub mod malicious {
     use super::{unwrap, wrap};
 
     pub fn corrupt_payload<K>(bytes: &[u8]) -> TofnResult<BytesVec> {
-        let wire_bytes = unwrap::<K>(bytes)?;
+        // for simplicity, deserialization error is treated as fatal
+        // (we're in a malicious module so who cares?)
+        let wire_bytes = unwrap::<K>(bytes).map_err(|_| ())?;
         wrap(
             b"these bytes are corrupted 1234".to_vec(),
             wire_bytes.from,

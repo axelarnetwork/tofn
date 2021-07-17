@@ -3,6 +3,7 @@ use crate::refactor::protocol::round::RoundType;
 use serde::{Deserialize, Serialize};
 use tracing::error;
 
+// TODO fatal error type wrapper for ()
 pub type TofnResult<T> = Result<T, ()>;
 pub type BytesVec = Vec<u8>;
 
@@ -39,7 +40,8 @@ impl<F, K, P> Round<F, K, P> {
     // TODO add from_party arg, do not return TofnResult
     // instead blame all errors on from_party
     pub fn msg_in(&mut self, bytes: &[u8]) -> TofnResult<()> {
-        let bytes_meta: WireBytes<K> = wire_bytes::unwrap(bytes)?;
+        let bytes_meta: WireBytes<K> =
+            wire_bytes::unwrap(bytes).expect("TODO deal with deserialization faults here");
         match &mut self.round_type {
             RoundType::BcastAndP2p(r) => match bytes_meta.msg_type {
                 Bcast => r.bcasts_in.set_warn(bytes_meta.from, bytes_meta.payload),

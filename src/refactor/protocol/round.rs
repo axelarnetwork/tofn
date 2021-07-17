@@ -12,6 +12,7 @@ use super::{
 pub struct Round<F, K, P> {
     pub info: ProtocolInfoDeluxe<K, P>,
     pub round_type: RoundType<F, K>,
+    // TODO faulters party list
 }
 
 // info persisted throughout the protocol
