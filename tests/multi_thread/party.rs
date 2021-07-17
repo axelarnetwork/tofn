@@ -50,8 +50,12 @@ where
         // collect incoming messages
         while round.expecting_more_msgs_this_round() {
             match input.recv().expect("recv fail") {
-                Message::Bcast { from, bytes } => round.msg_in(&bytes)?,
-                Message::P2p { from, to, bytes } => round.msg_in(&bytes)?,
+                Message::Bcast { from, bytes } => {
+                    round.msg_in(round.share_to_party_id(from).unwrap(), &bytes)?
+                }
+                Message::P2p { from, to: _, bytes } => {
+                    round.msg_in(round.share_to_party_id(from).unwrap(), &bytes)?
+                }
             }
         }
 

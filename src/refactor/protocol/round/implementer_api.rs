@@ -30,16 +30,16 @@ impl<F, K, P> Round<F, K, P> {
             .map2_result(|(to, payload)| wire_bytes::wrap(payload, info.index(), P2p { to }))?;
 
         let len = info.party_count(); // squelch build error
-        Ok(Self {
+        Ok(Self::new(
             info,
-            round_type: RoundType::BcastAndP2p(BcastAndP2pRound {
+            RoundType::BcastAndP2p(BcastAndP2pRound {
                 round,
                 bcast_out,
                 p2ps_out,
                 bcasts_in: FillVecMap::with_size(len),
                 p2ps_in: FillP2ps::with_size(len),
             }),
-        })
+        ))
     }
 
     pub fn new_bcast_only(
@@ -60,14 +60,14 @@ impl<F, K, P> Round<F, K, P> {
         let bcast_out = wire_bytes::wrap(bcast_out, info.index(), Bcast)?;
 
         let len = info.party_count(); // squelch build error
-        Ok(Self {
+        Ok(Self::new(
             info,
-            round_type: RoundType::BcastOnly(BcastOnlyRound {
+            RoundType::BcastOnly(BcastOnlyRound {
                 round,
                 bcast_out,
                 bcasts_in: FillVecMap::with_size(len),
             }),
-        })
+        ))
     }
 
     pub fn new_no_messages(
@@ -83,10 +83,10 @@ impl<F, K, P> Round<F, K, P> {
             return Err(TofnFatal);
         }
 
-        Ok(Self {
+        Ok(Self::new(
             info,
-            round_type: RoundType::NoMessages(NoMessagesRound { round }),
-        })
+            RoundType::NoMessages(NoMessagesRound { round }),
+        ))
     }
 
     #[cfg(test)]

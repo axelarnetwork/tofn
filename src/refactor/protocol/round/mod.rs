@@ -2,7 +2,10 @@ use tracing::error;
 
 use crate::refactor::{
     collections::{FillP2ps, FillVecMap, HoleVecMap, TypedUsize, VecMap},
-    protocol::api::TofnFatal,
+    protocol::{
+        api::{BytesVec, ProtocolOutput, TofnFatal, TofnResult},
+        implementer_api::ProtocolBuilderOutput,
+    },
 };
 
 // TODO is there a way to restrict visibility of struct methods?
@@ -14,22 +17,17 @@ pub mod bcast_and_p2p;
 pub mod bcast_only;
 pub mod no_messages;
 
-use super::{
-    api::{BytesVec, ProtocolOutput, TofnResult},
-    implementer_api::ProtocolBuilderOutput,
-};
-
 pub struct Round<F, K, P> {
-    pub info: ProtocolInfoDeluxe<K, P>,
-    pub round_type: RoundType<F, K>,
-    // TODO faulters party list
+    info: ProtocolInfoDeluxe<K, P>,
+    round_type: RoundType<F, K>,
+    msg_in_faulters: FillVecMap<P, MsgInFault>,
 }
 
 // info persisted throughout the protocol
 // "deluxe" depends on `P`
 pub struct ProtocolInfoDeluxe<K, P> {
-    pub party_share_counts: VecMap<P, usize>,
-    pub core: ProtocolInfo<K>,
+    party_share_counts: VecMap<P, usize>,
+    core: ProtocolInfo<K>,
 }
 
 // info persisted throughout the protocol
@@ -37,6 +35,44 @@ pub struct ProtocolInfoDeluxe<K, P> {
 pub struct ProtocolInfo<K> {
     party_count: usize,
     index: TypedUsize<K>,
+}
+
+pub enum RoundType<F, K> {
+    BcastAndP2p(BcastAndP2pRound<F, K>),
+    BcastOnly(BcastOnlyRound<F, K>),
+    NoMessages(NoMessagesRound<F, K>),
+}
+
+pub struct NoMessagesRound<F, K> {
+    pub round: Box<dyn no_messages::Executer<FinalOutput = F, Index = K>>,
+}
+
+pub struct BcastOnlyRound<F, K> {
+    pub round: Box<dyn bcast_only::ExecuterRaw<FinalOutput = F, Index = K>>,
+    pub bcast_out: BytesVec,
+    pub bcasts_in: FillVecMap<K, BytesVec>,
+}
+
+pub struct BcastAndP2pRound<F, K> {
+    pub round: Box<dyn bcast_and_p2p::ExecuterRaw<FinalOutput = F, Index = K>>,
+    pub bcast_out: BytesVec,
+    pub p2ps_out: HoleVecMap<K, BytesVec>,
+    pub bcasts_in: FillVecMap<K, BytesVec>,
+    pub p2ps_in: FillP2ps<K, BytesVec>,
+}
+
+#[derive(Debug)]
+struct MsgInFault;
+
+impl<F, K, P> Round<F, K, P> {
+    pub fn new(info: ProtocolInfoDeluxe<K, P>, round_type: RoundType<F, K>) -> Self {
+        let party_count = info.party_share_counts.len();
+        Self {
+            info,
+            round_type,
+            msg_in_faulters: FillVecMap::with_size(party_count),
+        }
+    }
 }
 
 impl<K> ProtocolInfo<K> {
@@ -82,39 +118,23 @@ impl<K, P> ProtocolInfoDeluxe<K, P> {
             }
         })
     }
-    fn share_to_party_id(&self, share_id: TypedUsize<K>) -> TofnResult<TypedUsize<P>> {
+
+    /// non-fatal out of bounds
+    fn share_to_party_id_nonfatal(&self, share_id: TypedUsize<K>) -> Option<TypedUsize<P>> {
         let mut sum = 0;
         for (party_id, &share_count) in self.party_share_counts.iter() {
             sum += share_count;
             if share_id.as_usize() < sum {
-                return Ok(party_id);
+                return Some(party_id);
             }
         }
-        error!("share_id {} out of bounds {}", share_id, sum);
-        Err(TofnFatal)
+        None
     }
-}
-
-pub enum RoundType<F, K> {
-    BcastAndP2p(BcastAndP2pRound<F, K>),
-    BcastOnly(BcastOnlyRound<F, K>),
-    NoMessages(NoMessagesRound<F, K>),
-}
-
-pub struct NoMessagesRound<F, K> {
-    pub round: Box<dyn no_messages::Executer<FinalOutput = F, Index = K>>,
-}
-
-pub struct BcastOnlyRound<F, K> {
-    pub round: Box<dyn bcast_only::ExecuterRaw<FinalOutput = F, Index = K>>,
-    pub bcast_out: BytesVec,
-    pub bcasts_in: FillVecMap<K, BytesVec>,
-}
-
-pub struct BcastAndP2pRound<F, K> {
-    pub round: Box<dyn bcast_and_p2p::ExecuterRaw<FinalOutput = F, Index = K>>,
-    pub bcast_out: BytesVec,
-    pub p2ps_out: HoleVecMap<K, BytesVec>,
-    pub bcasts_in: FillVecMap<K, BytesVec>,
-    pub p2ps_in: FillP2ps<K, BytesVec>,
+    /// fatal out of bounds
+    fn share_to_party_id(&self, share_id: TypedUsize<K>) -> TofnResult<TypedUsize<P>> {
+        self.share_to_party_id_nonfatal(share_id).ok_or_else(|| {
+            error!("share_id {} out of bounds {}", share_id, self.party_count());
+            TofnFatal
+        })
+    }
 }

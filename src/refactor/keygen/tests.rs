@@ -103,7 +103,9 @@ pub(crate) fn execute_keygen_from_recovery(
         .collect();
     for party in r1_parties.iter_mut() {
         for (from, bytes) in r1_bcasts.iter() {
-            party.msg_in(bytes).unwrap();
+            party
+                .msg_in(party.share_to_party_id(from).unwrap(), bytes)
+                .unwrap();
         }
     }
 
@@ -142,7 +144,9 @@ pub(crate) fn execute_keygen_from_recovery(
         .collect();
     for party in r2_parties.iter_mut() {
         for (from, bytes) in r2_bcasts.iter() {
-            party.msg_in(bytes).unwrap();
+            party
+                .msg_in(party.share_to_party_id(from).unwrap(), bytes)
+                .unwrap();
         }
     }
     let r2_p2ps: VecMap<KeygenPartyIndex, HoleVecMap<KeygenPartyIndex, BytesVec>> = r2_parties
@@ -151,8 +155,10 @@ pub(crate) fn execute_keygen_from_recovery(
         .collect();
     for party in r2_parties.iter_mut() {
         for (from, p2ps) in r2_p2ps.iter() {
-            for (to, bytes) in p2ps.iter() {
-                party.msg_in(bytes).unwrap();
+            for (_, bytes) in p2ps.iter() {
+                party
+                    .msg_in(party.share_to_party_id(from).unwrap(), bytes)
+                    .unwrap();
             }
         }
     }
@@ -179,7 +185,9 @@ pub(crate) fn execute_keygen_from_recovery(
         .collect();
     for party in r3_parties.iter_mut() {
         for (from, bytes) in r3_bcasts.iter() {
-            party.msg_in(bytes).unwrap();
+            party
+                .msg_in(party.share_to_party_id(from).unwrap(), bytes)
+                .unwrap();
         }
     }
 

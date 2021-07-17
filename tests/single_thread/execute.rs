@@ -63,7 +63,7 @@ where
     for (from, bcast) in bcasts.into_iter() {
         if let Some(bytes) = bcast {
             for (_, round) in rounds.iter_mut() {
-                round.msg_in(&bytes)?;
+                round.msg_in(round.share_to_party_id(from).unwrap(), &bytes)?;
             }
         }
     }
@@ -75,9 +75,9 @@ where
         .collect();
     for (from, p2ps) in all_p2ps.into_iter() {
         if let Some(p2ps) = p2ps {
-            for (to, bytes) in p2ps {
+            for (_, bytes) in p2ps {
                 for (_, round) in rounds.iter_mut() {
-                    round.msg_in(&bytes)?;
+                    round.msg_in(round.share_to_party_id(from).unwrap(), &bytes)?;
                 }
             }
         }

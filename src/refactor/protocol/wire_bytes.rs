@@ -1,6 +1,6 @@
 use crate::refactor::collections::TypedUsize;
 use serde::{Deserialize, Serialize};
-use tracing::error;
+use tracing::warn;
 
 use super::{
     api::{BytesVec, TofnResult},
@@ -24,21 +24,25 @@ pub fn wrap<K>(
     })
 }
 
-/// Do not return TofnResult---that's for fatal errors only.
-/// Deserialization failures are a party fault.
-#[derive(Debug)]
-pub struct DeserializationFailure;
-pub fn unwrap<K>(bytes: &[u8]) -> Result<WireBytes<K>, DeserializationFailure> {
-    let bytes_versioned: BytesVecVersioned =
-        bincode::deserialize(bytes).map_err(|_| DeserializationFailure)?;
+/// deserialization failures are non-fatal: do not return TofnResult
+pub fn unwrap<K>(bytes: &[u8]) -> Option<WireBytes<K>> {
+    let bytes_versioned: BytesVecVersioned = bincode::deserialize(bytes)
+        .map_err(|err| {
+            warn!("outer deserialization failure: {}", err.to_string());
+        })
+        .ok()?;
     if bytes_versioned.version != TOFN_SERIALIZATION_VERSION {
-        error!(
+        warn!(
             "encoding version {}, expected {}",
             bytes_versioned.version, TOFN_SERIALIZATION_VERSION
         );
-        return Err(DeserializationFailure);
+        return None;
     }
-    bincode::deserialize(&bytes_versioned.payload).map_err(|_| DeserializationFailure)
+    bincode::deserialize(&bytes_versioned.payload)
+        .map_err(|err| {
+            warn!("inner deserialization failure: {}", err.to_string());
+        })
+        .ok()
 }
 
 #[derive(Serialize, Deserialize)]
@@ -76,7 +80,7 @@ pub mod malicious {
     pub fn corrupt_payload<K>(bytes: &[u8]) -> TofnResult<BytesVec> {
         // for simplicity, deserialization error is treated as fatal
         // (we're in a malicious module so who cares?)
-        let wire_bytes = unwrap::<K>(bytes).map_err(|_| {
+        let wire_bytes = unwrap::<K>(bytes).ok_or_else(|| {
             error!("can't corrupt payload: deserialization failure");
             TofnFatal
         })?;

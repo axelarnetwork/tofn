@@ -1,3 +1,5 @@
+use tracing::warn;
+
 use crate::refactor::protocol::api::Protocol;
 
 use super::super::wire_bytes::{self, MsgType::*, WireBytes};
@@ -17,34 +19,88 @@ impl<F, K, P> Round<F, K, P> {
             RoundType::BcastOnly(_) | RoundType::NoMessages(_) => None,
         }
     }
-    // TODO add from_party arg, do not return TofnResult
-    // instead blame all errors on from_party
-    pub fn msg_in(&mut self, bytes: &[u8]) -> TofnResult<()> {
-        let bytes_meta: WireBytes<K> =
-            wire_bytes::unwrap(bytes).expect("TODO deal with deserialization faults here");
+
+    /// we assume message autenticity
+    /// thus, it's a fatal error if `from` is out of bounds
+    pub fn msg_in(&mut self, from: TypedUsize<P>, bytes: &[u8]) -> TofnResult<()> {
+        // unwrap metadata
+        let bytes_meta: WireBytes<K> = match wire_bytes::unwrap(bytes) {
+            Some(w) => w,
+            None => {
+                warn!("msg_in fault from party {}: fail deserialization", from);
+                self.msg_in_faulters.set(from, MsgInFault)?; // fatal error if `from` is out of bounds
+                return Ok(());
+            }
+        };
+
+        // verify share_id belongs to this party
+        match self.info.share_to_party_id_nonfatal(bytes_meta.from) {
+            Some(party_id) if party_id == from => (),
+            _ => {
+                warn!(
+                    "msg_in fault: share_id {} does not belong to party {}",
+                    bytes_meta.from, from
+                );
+                self.msg_in_faulters.set(from, MsgInFault)?;
+                return Ok(());
+            }
+        }
+
+        // store message payload according to round type (bcast and/or p2p)
         match &mut self.round_type {
             RoundType::BcastAndP2p(r) => match bytes_meta.msg_type {
-                Bcast => r.bcasts_in.set_warn(bytes_meta.from, bytes_meta.payload),
-                P2p { to } => r.p2ps_in.set_warn(bytes_meta.from, to, bytes_meta.payload),
+                Bcast => {
+                    if r.bcasts_in.is_none(bytes_meta.from)? {
+                        r.bcasts_in.set(bytes_meta.from, bytes_meta.payload)?;
+                    } else {
+                        warn!(
+                            "msg_in fault from share_id {}: duplicate message",
+                            bytes_meta.from
+                        );
+                        self.msg_in_faulters.set(from, MsgInFault)?;
+                    }
+                }
+                P2p { to } => {
+                    if r.p2ps_in.is_none(bytes_meta.from, to)? {
+                        r.p2ps_in.set(bytes_meta.from, to, bytes_meta.payload)?;
+                    } else {
+                        warn!(
+                            "msg_in fault from share_id {}: duplicate message",
+                            bytes_meta.from
+                        );
+                        self.msg_in_faulters.set(from, MsgInFault)?;
+                    }
+                }
             },
             RoundType::BcastOnly(r) => match bytes_meta.msg_type {
-                Bcast => r.bcasts_in.set_warn(bytes_meta.from, bytes_meta.payload),
+                Bcast => {
+                    if r.bcasts_in.is_none(bytes_meta.from)? {
+                        r.bcasts_in.set(bytes_meta.from, bytes_meta.payload)?;
+                    } else {
+                        warn!(
+                            "msg_in fault from share_id {}: duplicate message",
+                            bytes_meta.from
+                        );
+                        self.msg_in_faulters.set(from, MsgInFault)?;
+                    }
+                }
                 P2p { to } => {
-                    error!(
-                        "no p2ps expected this round, received p2p from {} to {}",
+                    warn!(
+                        "msg_in fault from share_id {}: no p2ps expected this round, received p2p to {}",
                         bytes_meta.from, to
                     );
-                    Err(TofnFatal)
+                    self.msg_in_faulters.set(from, MsgInFault)?;
                 }
             },
             RoundType::NoMessages(_) => {
-                error!(
-                    "no messages expected this round, received msg from {}",
+                warn!(
+                    "msg_in fault from share_id {}: no messages expected this round, received bcast",
                     bytes_meta.from
                 );
-                Err(TofnFatal)
+                self.msg_in_faulters.set(from, MsgInFault)?;
             }
         }
+        Ok(())
     }
     pub fn expecting_more_msgs_this_round(&self) -> bool {
         match &self.round_type {
@@ -72,6 +128,12 @@ impl<F, K, P> Round<F, K, P> {
     pub fn index(&self) -> TypedUsize<K> {
         self.info.core.index()
     }
+    pub fn share_to_party_id(&self, share_id: TypedUsize<K>) -> TofnResult<TypedUsize<P>> {
+        self.info.share_to_party_id(share_id)
+    }
+    pub fn share_to_party_id_nonfatal(&self, share_id: TypedUsize<K>) -> Option<TypedUsize<P>> {
+        self.info.share_to_party_id_nonfatal(share_id)
+    }
 }
 
 #[cfg(feature = "malicious")]
@@ -88,8 +150,6 @@ pub mod malicious {
     };
 
     use super::{Round, TofnResult};
-
-    // pub use crate::refactor::protocol::wire_bytes::MsgType;
 
     impl<F, K, P> Round<F, K, P> {
         pub fn corrupt_msg_payload(&mut self, msg_type: MsgType<K>) -> TofnResult<()> {

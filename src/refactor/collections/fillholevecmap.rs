@@ -39,6 +39,9 @@ impl<K, V> FillHoleVecMap<K, V> {
         *stored = Some(value);
         Ok(())
     }
+    pub fn is_none(&self, index: TypedUsize<K>) -> TofnResult<bool> {
+        Ok(self.hole_vec.get(index)?.is_none())
+    }
     pub fn is_full(&self) -> bool {
         self.some_count == self.hole_vec.len() - 1
     }

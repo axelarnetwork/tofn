@@ -171,7 +171,7 @@ where
             }
 
             for (_, round) in rounds.iter_mut() {
-                round.msg_in(&bytes)?;
+                round.msg_in(round.share_to_party_id(from).unwrap(), &bytes)?;
             }
         }
     } else if current_round == test_case.round
@@ -208,7 +208,7 @@ where
                 }
 
                 for (_, round) in rounds.iter_mut() {
-                    round.msg_in(&bytes)?;
+                    round.msg_in(round.share_to_party_id(from).unwrap(), &bytes)?;
                 }
             }
         }
