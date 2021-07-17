@@ -5,7 +5,7 @@ use crate::{
     refactor::{
         keygen::{r1, r2, r3, KeygenPartyIndex, KeygenProtocolBuilder, SecretKeyShare},
         protocol::{
-            api::{Fault::ProtocolFault, TofnResult},
+            api::{Fault::ProtocolFault, TofnFatal, TofnResult},
             bcast_only,
             implementer_api::{log_fault_info, ProtocolBuilder, ProtocolInfo},
         },
@@ -39,7 +39,7 @@ impl bcast_only::Executer for R4Sad {
                 "party {} entered r4 sad path with no complaints",
                 info.index()
             );
-            return Err(());
+            return Err(TofnFatal);
         }
 
         let mut faulters = FillVecMap::with_size(info.party_count());
@@ -85,7 +85,7 @@ impl bcast_only::Executer for R4Sad {
 
         if faulters.is_empty() {
             error!("party {} r4 sad path found no faulters", info.index());
-            return Err(());
+            return Err(TofnFatal);
         }
         Ok(ProtocolBuilder::Done(Err(faulters)))
     }

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use tracing::error;
 
-use crate::refactor::protocol::api::TofnResult;
+use crate::refactor::protocol::api::{TofnFatal, TofnResult};
 
 use super::{holevecmap_iter::HoleVecMapIter, TypedUsize, VecMap};
 
@@ -16,7 +16,7 @@ impl<K, V> HoleVecMap<K, V> {
     pub fn from_vecmap(vec: VecMap<K, V>, hole: TypedUsize<K>) -> TofnResult<Self> {
         if hole.as_usize() > vec.len() {
             error!("hole {} out of bounds {}", hole.as_usize(), vec.len());
-            return Err(());
+            return Err(TofnFatal);
         }
         Ok(HoleVecMap {
             vec,
@@ -55,11 +55,11 @@ impl<K, V> HoleVecMap<K, V> {
             }
             i if i == self.hole.as_usize() => {
                 error!("attempt to index hole {}", i);
-                Err(())
+                Err(TofnFatal)
             }
             i => {
                 error!("index {} out of bounds {}", i, self.len());
-                Err(())
+                Err(TofnFatal)
             }
         }
     }

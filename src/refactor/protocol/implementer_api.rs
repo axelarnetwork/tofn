@@ -3,6 +3,7 @@ use super::round::{BcastAndP2pRound, BcastOnlyRound, NoMessagesRound};
 pub use super::round::{ProtocolInfo, ProtocolInfoDeluxe};
 use super::wire_bytes::{self, MsgType::*};
 use crate::refactor::collections::{FillP2ps, FillVecMap, HoleVecMap, TypedUsize};
+use crate::refactor::protocol::api::TofnFatal;
 use crate::refactor::protocol::{
     bcast_and_p2p, bcast_only, no_messages,
     round::{Round, RoundType},
@@ -64,7 +65,7 @@ impl<F, K, P> Round<F, K, P> {
                 info.index().as_usize(),
                 info.party_count()
             );
-            return Err(());
+            return Err(TofnFatal);
         }
         if p2ps_out.len() != info.party_count() {
             error!(
@@ -72,7 +73,7 @@ impl<F, K, P> Round<F, K, P> {
                 p2ps_out.len(),
                 info.party_count()
             );
-            return Err(());
+            return Err(TofnFatal);
         }
 
         let bcast_out = wire_bytes::wrap(bcast_out, info.index(), Bcast)?;
@@ -104,7 +105,7 @@ impl<F, K, P> Round<F, K, P> {
                 info.index().as_usize(),
                 info.party_count()
             );
-            return Err(());
+            return Err(TofnFatal);
         }
 
         let bcast_out = wire_bytes::wrap(bcast_out, info.index(), Bcast)?;
@@ -130,7 +131,7 @@ impl<F, K, P> Round<F, K, P> {
                 info.index().as_usize(),
                 info.party_count()
             );
-            return Err(());
+            return Err(TofnFatal);
         }
 
         Ok(Self {
@@ -159,7 +160,7 @@ where
         Ok(bytes) => Ok(bytes),
         Err(err) => {
             error!("serialization failure: {}", err.to_string());
-            Err(())
+            Err(TofnFatal)
         }
     }
 }

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::iter::FromIterator;
 use tracing::error;
 
-use crate::refactor::protocol::api::TofnResult;
+use crate::refactor::protocol::api::{TofnFatal, TofnResult};
 
 use super::{vecmap_iter::VecMapIter, HoleVecMap, TypedUsize};
 
@@ -19,12 +19,14 @@ impl<K, V> VecMap<K, V> {
     pub fn get(&self, index: TypedUsize<K>) -> TofnResult<&V> {
         self.0.get(index.as_usize()).ok_or_else(|| {
             error!("index {} out of bounds {}", index, self.0.len());
+            TofnFatal
         })
     }
     pub fn get_mut(&mut self, index: TypedUsize<K>) -> TofnResult<&mut V> {
         let len = self.0.len(); // fight the borrow checker
         self.0.get_mut(index.as_usize()).ok_or_else(|| {
             error!("index {} out of bounds {}", index, len);
+            TofnFatal
         })
     }
     pub fn len(&self) -> usize {
@@ -36,7 +38,7 @@ impl<K, V> VecMap<K, V> {
     pub fn puncture_hole(mut self, hole: TypedUsize<K>) -> TofnResult<(HoleVecMap<K, V>, V)> {
         if hole.as_usize() >= self.0.len() {
             error!("hole {} out of bounds {}", hole.as_usize(), self.0.len());
-            return Err(());
+            return Err(TofnFatal);
         }
         let hole_val = self.0.remove(hole.as_usize());
         Ok((HoleVecMap::from_vecmap(self, hole)?, hole_val))

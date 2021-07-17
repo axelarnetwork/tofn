@@ -7,7 +7,7 @@ use crate::refactor::{
     collections::{TypedUsize, VecMap},
     keygen::{GroupPublicInfo, KeygenPartyIndex, SecretKeyShare, ShareSecretInfo},
     protocol::{
-        api::{BytesVec, Protocol, Round, TofnResult},
+        api::{BytesVec, Protocol, Round, TofnFatal, TofnResult},
         implementer_api::{ProtocolBuilder, ProtocolInfoDeluxe},
     },
 };
@@ -69,7 +69,7 @@ fn validate_args(
             group.threshold,
             group.share_count()
         );
-        return Err(());
+        return Err(TofnFatal);
     }
 
     // check that my index is in the list
@@ -82,7 +82,7 @@ fn validate_args(
             "my keygen party index {} not found in `participants`",
             share.index
         );
-        return Err(());
+        return Err(TofnFatal);
     }
 
     // check for duplicate party ids, indices out of bounds
@@ -94,11 +94,11 @@ fn validate_args(
                 k,
                 group.share_count()
             );
-            return Err(());
+            return Err(TofnFatal);
         }
         if participants.iter().filter(|(_, kk)| k == *kk).count() > 1 {
             error!("duplicate keygen party index {} detected", k);
-            return Err(());
+            return Err(TofnFatal);
         }
     }
 

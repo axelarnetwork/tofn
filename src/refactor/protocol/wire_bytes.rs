@@ -69,14 +69,19 @@ struct BytesVecVersioned {
 
 #[cfg(feature = "malicious")]
 pub mod malicious {
-    use crate::refactor::protocol::api::{BytesVec, TofnResult};
+    use tracing::error;
+
+    use crate::refactor::protocol::api::{BytesVec, TofnFatal, TofnResult};
 
     use super::{unwrap, wrap};
 
     pub fn corrupt_payload<K>(bytes: &[u8]) -> TofnResult<BytesVec> {
         // for simplicity, deserialization error is treated as fatal
         // (we're in a malicious module so who cares?)
-        let wire_bytes = unwrap::<K>(bytes).map_err(|_| ())?;
+        let wire_bytes = unwrap::<K>(bytes).map_err(|_| {
+            error!("can't corrupt payload: deserialization failure");
+            TofnFatal
+        })?;
         wrap(
             b"these bytes are corrupted 1234".to_vec(),
             wire_bytes.from,

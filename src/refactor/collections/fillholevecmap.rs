@@ -1,7 +1,7 @@
 //! A fillable Vec
 use tracing::{error, warn};
 
-use crate::refactor::protocol::api::TofnResult;
+use crate::refactor::protocol::api::{TofnFatal, TofnResult};
 
 use super::{holevecmap_iter::HoleVecMapIter, HoleVecMap, TypedUsize, VecMap};
 
@@ -51,7 +51,7 @@ impl<K, V> FillHoleVecMap<K, V> {
     {
         if !self.is_full() {
             error!("self is not full");
-            return Err(());
+            return Err(TofnFatal);
         }
         Ok(self.hole_vec.map(|x| f(x.unwrap())))
     }

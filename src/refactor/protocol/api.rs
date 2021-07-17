@@ -3,8 +3,10 @@ use crate::refactor::protocol::round::RoundType;
 use serde::{Deserialize, Serialize};
 use tracing::error;
 
-// TODO fatal error type wrapper for ()
-pub type TofnResult<T> = Result<T, ()>;
+#[derive(Debug)]
+pub struct TofnFatal;
+pub type TofnResult<T> = Result<T, TofnFatal>;
+
 pub type BytesVec = Vec<u8>;
 
 pub enum Protocol<F, K, P> {
@@ -54,7 +56,7 @@ impl<F, K, P> Round<F, K, P> {
                         "no p2ps expected this round, received p2p from {} to {}",
                         bytes_meta.from, to
                     );
-                    Err(())
+                    Err(TofnFatal)
                 }
             },
             RoundType::NoMessages(_) => {
@@ -62,7 +64,7 @@ impl<F, K, P> Round<F, K, P> {
                     "no messages expected this round, received msg from {}",
                     bytes_meta.from
                 );
-                Err(())
+                Err(TofnFatal)
             }
         }
     }
@@ -99,6 +101,7 @@ pub mod malicious {
     use tracing::{error, info};
 
     use crate::refactor::protocol::{
+        api::TofnFatal,
         round::RoundType,
         wire_bytes::{malicious::corrupt_payload, MsgType::*},
     };
@@ -122,12 +125,12 @@ pub mod malicious {
                     Bcast => r.bcast_out = corrupt_payload::<K>(&r.bcast_out)?,
                     P2p { to: _ } => {
                         error!("no p2ps expected this round, can't corrupt msg bytes",);
-                        return Err(());
+                        return Err(TofnFatal);
                     }
                 },
                 RoundType::NoMessages(_) => {
                     error!("no messages expected this round, can't corrupt msg bytes",);
-                    return Err(());
+                    return Err(TofnFatal);
                 }
             }
             Ok(())

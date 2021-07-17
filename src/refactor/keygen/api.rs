@@ -1,6 +1,6 @@
 use super::{r1, rng};
 use crate::refactor::collections::TypedUsize;
-use crate::refactor::protocol::api::{Protocol, Round, TofnResult};
+use crate::refactor::protocol::api::{Protocol, Round, TofnFatal, TofnResult};
 use crate::refactor::protocol::implementer_api::{ProtocolBuilder, ProtocolInfoDeluxe};
 use crate::{k256_serde, paillier_k256, refactor::collections::VecMap};
 use serde::{Deserialize, Serialize};
@@ -41,11 +41,11 @@ pub fn new_keygen(
             "invalid (share_count,threshold,index): ({},{},{})",
             share_count, threshold, index
         );
-        return Err(());
+        return Err(TofnFatal);
     }
     if session_nonce.is_empty() {
         error!("invalid session_nonce length: {}", session_nonce.len());
-        return Err(());
+        return Err(TofnFatal);
     }
 
     // compute the RNG seed now so as to minimize copying of `secret_recovery_key`

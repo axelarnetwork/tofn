@@ -1,6 +1,9 @@
 use tracing::error;
 
-use crate::refactor::collections::{FillP2ps, FillVecMap, HoleVecMap, TypedUsize, VecMap};
+use crate::refactor::{
+    collections::{FillP2ps, FillVecMap, HoleVecMap, TypedUsize, VecMap},
+    protocol::api::TofnFatal,
+};
 
 use super::{
     api::{BytesVec, ProtocolOutput, TofnResult},
@@ -81,7 +84,7 @@ impl<K, P> ProtocolInfoDeluxe<K, P> {
             }
         }
         error!("share_id {} out of bounds {}", share_id, sum);
-        Err(())
+        Err(TofnFatal)
     }
 }
 

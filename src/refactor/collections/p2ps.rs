@@ -3,7 +3,7 @@ use tracing::error;
 
 use crate::refactor::{
     collections::{FillHoleVecMap, HoleVecMap, TypedUsize, VecMap},
-    protocol::api::TofnResult,
+    protocol::api::{TofnFatal, TofnResult},
 };
 
 use super::p2ps_iter::P2psIter;
@@ -19,11 +19,10 @@ impl<K, V> P2ps<K, V> {
         &self,
         me: TypedUsize<K>,
     ) -> TofnResult<impl Iterator<Item = (TypedUsize<K>, &V)> + '_> {
-        // check `me` manually now
-        // instead of using `?` inside closure
+        // check `me` manually now instead of using `?` inside closure
         if me.as_usize() >= self.0.len() {
             error!("index {} out of bounds {}", me, self.0.len());
-            return Err(());
+            return Err(TofnFatal);
         }
         Ok(self.0.iter().filter_map(move |(k, hole_vec)| {
             if k == me {
