@@ -51,11 +51,9 @@ pub struct WireBytes<K> {
 }
 
 // TODO serde can derive Serialize for structs with a type parameter.
-// But I cannot derive Debug for these types.
-// How does serde do it?
+// But I cannot derive Debug for these types unless `K: Debug`. How does serde do it?
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-// disable serde trait bounds on `K`: https://serde.rs/attr-bound.html
-#[serde(bound(serialize = "", deserialize = ""))]
+#[serde(bound(serialize = "", deserialize = ""))] // disable serde trait bounds on `K`: https://serde.rs/attr-bound.html
 pub enum MsgType<K> {
     Bcast,
     P2p { to: TypedUsize<K> },

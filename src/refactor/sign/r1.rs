@@ -4,8 +4,7 @@ use crate::{
         keygen::SecretKeyShare,
         protocol::{
             api::{BytesVec, TofnResult},
-            implementer_api::ProtocolInfo,
-            no_messages,
+            implementer_api::{no_messages, ProtocolInfo},
         },
     },
 };

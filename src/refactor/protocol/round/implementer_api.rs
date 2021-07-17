@@ -1,56 +1,5 @@
-use super::api::{BytesVec, Fault, Protocol, TofnResult};
-use super::round::{BcastAndP2pRound, BcastOnlyRound, NoMessagesRound};
-pub use super::round::{ProtocolInfo, ProtocolInfoDeluxe};
-use super::wire_bytes::{self, MsgType::*};
-use crate::refactor::collections::{FillP2ps, FillVecMap, HoleVecMap, TypedUsize};
-use crate::refactor::protocol::api::TofnFatal;
-use crate::refactor::protocol::{
-    bcast_and_p2p, bcast_only, no_messages,
-    round::{Round, RoundType},
-};
-
-pub enum ProtocolBuilder<F, K> {
-    NotDone(RoundBuilder<F, K>),
-    Done(ProtocolBuilderOutput<F, K>),
-}
-
-// TODO move this impl out of the api
-impl<F, K> ProtocolBuilder<F, K> {
-    pub fn build<P>(self, info: ProtocolInfoDeluxe<K, P>) -> TofnResult<Protocol<F, K, P>> {
-        Ok(match self {
-            Self::NotDone(builder) => Protocol::NotDone(match builder {
-                RoundBuilder::BcastAndP2p {
-                    round,
-                    bcast_out,
-                    p2ps_out,
-                } => Round::new_bcast_and_p2p(round, info, bcast_out, p2ps_out)?,
-                RoundBuilder::BcastOnly { round, bcast_out } => {
-                    Round::new_bcast_only(round, info, bcast_out)?
-                }
-                RoundBuilder::NoMessages { round } => Round::new_no_messages(round, info)?,
-            }),
-            Self::Done(output) => Protocol::Done(info.share_to_party_faults(output)?),
-        })
-    }
-}
-
-pub type ProtocolBuilderOutput<F, K> = Result<F, FillVecMap<K, Fault>>; // subshare faults
-
-pub enum RoundBuilder<F, K> {
-    BcastAndP2p {
-        round: Box<dyn bcast_and_p2p::ExecuterRaw<FinalOutput = F, Index = K>>,
-        bcast_out: BytesVec,
-        p2ps_out: HoleVecMap<K, BytesVec>,
-    },
-    BcastOnly {
-        round: Box<dyn bcast_only::ExecuterRaw<FinalOutput = F, Index = K>>,
-        bcast_out: BytesVec,
-    },
-    NoMessages {
-        round: Box<dyn no_messages::Executer<FinalOutput = F, Index = K>>,
-    },
-}
-
+use super::super::wire_bytes::{self, MsgType::*};
+use super::*;
 impl<F, K, P> Round<F, K, P> {
     pub fn new_bcast_and_p2p(
         round: Box<dyn bcast_and_p2p::ExecuterRaw<FinalOutput = F, Index = K>>,
@@ -148,31 +97,4 @@ impl<F, K, P> Round<F, K, P> {
             RoundType::NoMessages(r) => r.round.as_any(),
         }
     }
-}
-
-use tracing::{error, info, warn};
-
-pub(crate) fn serialize<T: ?Sized>(value: &T) -> TofnResult<BytesVec>
-where
-    T: serde::Serialize,
-{
-    match bincode::serialize(value) {
-        Ok(bytes) => Ok(bytes),
-        Err(err) => {
-            error!("serialization failure: {}", err.to_string());
-            Err(TofnFatal)
-        }
-    }
-}
-
-pub(crate) fn log_fault_info<K>(me: TypedUsize<K>, faulter: TypedUsize<K>, fault: &str) {
-    info!("party {} detect [{}] by {}", me, fault, faulter,);
-}
-
-pub(crate) fn log_fault_warn<K>(me: TypedUsize<K>, faulter: TypedUsize<K>, fault: &str) {
-    warn!("party {} detect [{}] by {}", me, fault, faulter,);
-}
-
-pub(crate) fn log_accuse_warn<K>(me: TypedUsize<K>, faulter: TypedUsize<K>, fault: &str) {
-    warn!("party {} accuse {} of [{}]", me, faulter, fault);
 }

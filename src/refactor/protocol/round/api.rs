@@ -1,29 +1,7 @@
-use crate::refactor::collections::{FillVecMap, HoleVecMap, TypedUsize};
-use crate::refactor::protocol::round::RoundType;
-use serde::{Deserialize, Serialize};
-use tracing::error;
+use crate::refactor::protocol::api::Protocol;
 
-#[derive(Debug)]
-pub struct TofnFatal;
-pub type TofnResult<T> = Result<T, TofnFatal>;
-
-pub type BytesVec = Vec<u8>;
-
-pub enum Protocol<F, K, P> {
-    NotDone(Round<F, K, P>),
-    Done(ProtocolOutput<F, P>),
-}
-
-pub use super::round::Round;
-use super::wire_bytes::{self, MsgType::*, WireBytes};
-pub type ProtocolOutput<F, P> = Result<F, FillVecMap<P, Fault>>; // party (not subhsare) faults
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum Fault {
-    MissingMessage,
-    CorruptedMessage,
-    ProtocolFault,
-}
+use super::super::wire_bytes::{self, MsgType::*, WireBytes};
+use super::*;
 
 impl<F, K, P> Round<F, K, P> {
     pub fn bcast_out(&self) -> Option<&BytesVec> {
@@ -103,12 +81,15 @@ pub mod malicious {
     use crate::refactor::protocol::{
         api::TofnFatal,
         round::RoundType,
-        wire_bytes::{malicious::corrupt_payload, MsgType::*},
+        wire_bytes::{
+            malicious::corrupt_payload,
+            MsgType::{self, *},
+        },
     };
 
     use super::{Round, TofnResult};
 
-    pub use crate::refactor::protocol::wire_bytes::MsgType;
+    // pub use crate::refactor::protocol::wire_bytes::MsgType;
 
     impl<F, K, P> Round<F, K, P> {
         pub fn corrupt_msg_payload(&mut self, msg_type: MsgType<K>) -> TofnResult<()> {

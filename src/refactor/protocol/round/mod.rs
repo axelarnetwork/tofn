@@ -5,11 +5,18 @@ use crate::refactor::{
     protocol::api::TofnFatal,
 };
 
+// TODO is there a way to restrict visibility of struct methods?
+// currently anyone with visibility of `Round` can use all its methods
+mod api; // Round methods for tofn users
+mod implementer_api; // Round methods for protocol implementers
+
+pub mod bcast_and_p2p;
+pub mod bcast_only;
+pub mod no_messages;
+
 use super::{
     api::{BytesVec, ProtocolOutput, TofnResult},
-    bcast_and_p2p, bcast_only,
     implementer_api::ProtocolBuilderOutput,
-    no_messages,
 };
 
 pub struct Round<F, K, P> {

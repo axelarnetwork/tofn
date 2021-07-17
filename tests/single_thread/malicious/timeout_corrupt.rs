@@ -4,7 +4,7 @@
 use self::{FaultType::*, MsgType::*};
 use tofn::refactor::{
     collections::{FillVecMap, HoleVecMap, TypedUsize, VecMap},
-    protocol::api::{malicious::MsgType, BytesVec, Fault, Protocol, TofnResult},
+    protocol::api::{BytesVec, Fault, MsgType, Protocol, TofnResult},
 };
 use tracing::{info, warn};
 use tracing_test::traced_test; // enable logs in tests

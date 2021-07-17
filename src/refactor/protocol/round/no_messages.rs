@@ -1,4 +1,4 @@
-use super::{
+use crate::refactor::protocol::{
     api::TofnResult,
     implementer_api::{ProtocolBuilder, ProtocolInfo},
 };

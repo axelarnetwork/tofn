@@ -9,8 +9,7 @@ use crate::{
         keygen::{r3, SecretKeyShare},
         protocol::{
             api::{Fault::ProtocolFault, TofnResult},
-            bcast_only,
-            implementer_api::{serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder},
+            implementer_api::{bcast_only, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder},
         },
     },
 };
