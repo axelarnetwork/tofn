@@ -10,12 +10,12 @@ use crate::{
         protocol::{
             api::{Fault::ProtocolFault, TofnResult},
             bcast_only,
-            implementer_api::{serialize, ProtocolBuilder, RoundBuilder, RoundInfo},
+            implementer_api::{serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder},
         },
     },
 };
 
-use super::{r1, KeygenPartyIndex, KeygenProtocolBuilder, RealKeygenPartyIndex};
+use super::{r1, KeygenPartyIndex, KeygenProtocolBuilder};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -44,12 +44,11 @@ pub struct R2 {
 impl bcast_only::Executer for R2 {
     type FinalOutput = SecretKeyShare;
     type Index = KeygenPartyIndex;
-    type PartyIndex = RealKeygenPartyIndex;
     type Bcast = r1::Bcast;
 
     fn execute(
         self: Box<Self>,
-        info: &RoundInfo<Self::Index, Self::PartyIndex>,
+        info: &ProtocolInfo<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
     ) -> TofnResult<KeygenProtocolBuilder> {
         let mut faulters = FillVecMap::with_size(info.party_count());

@@ -1,6 +1,6 @@
 use super::api::{BytesVec, Fault, Protocol, TofnResult};
-pub use super::round::RoundInfo;
 use super::round::{BcastAndP2pRound, BcastOnlyRound, NoMessagesRound};
+pub use super::round::{ProtocolInfo, ProtocolInfoDeluxe};
 use super::wire_bytes::{self, MsgType::*};
 use crate::refactor::collections::{FillP2ps, FillVecMap, HoleVecMap, TypedUsize};
 use crate::refactor::protocol::{
@@ -8,13 +8,14 @@ use crate::refactor::protocol::{
     round::{Round, RoundType},
 };
 
-pub enum ProtocolBuilder<F, K, P> {
-    NotDone(RoundBuilder<F, K, P>),
+pub enum ProtocolBuilder<F, K> {
+    NotDone(RoundBuilder<F, K>),
     Done(ProtocolBuilderOutput<F, K>),
 }
 
-impl<F, K, P> ProtocolBuilder<F, K, P> {
-    pub fn build(self, info: RoundInfo<K, P>) -> TofnResult<Protocol<F, K, P>> {
+// TODO move this impl out of the api
+impl<F, K> ProtocolBuilder<F, K> {
+    pub fn build<P>(self, info: ProtocolInfoDeluxe<K, P>) -> TofnResult<Protocol<F, K, P>> {
         Ok(match self {
             Self::NotDone(builder) => Protocol::NotDone(match builder {
                 RoundBuilder::BcastAndP2p {
@@ -34,25 +35,25 @@ impl<F, K, P> ProtocolBuilder<F, K, P> {
 
 pub type ProtocolBuilderOutput<F, K> = Result<F, FillVecMap<K, Fault>>; // subshare faults
 
-pub enum RoundBuilder<F, K, P> {
+pub enum RoundBuilder<F, K> {
     BcastAndP2p {
-        round: Box<dyn bcast_and_p2p::ExecuterRaw<FinalOutput = F, Index = K, PartyIndex = P>>,
+        round: Box<dyn bcast_and_p2p::ExecuterRaw<FinalOutput = F, Index = K>>,
         bcast_out: BytesVec,
         p2ps_out: HoleVecMap<K, BytesVec>,
     },
     BcastOnly {
-        round: Box<dyn bcast_only::ExecuterRaw<FinalOutput = F, Index = K, PartyIndex = P>>,
+        round: Box<dyn bcast_only::ExecuterRaw<FinalOutput = F, Index = K>>,
         bcast_out: BytesVec,
     },
     NoMessages {
-        round: Box<dyn no_messages::Executer<FinalOutput = F, Index = K, PartyIndex = P>>,
+        round: Box<dyn no_messages::Executer<FinalOutput = F, Index = K>>,
     },
 }
 
 impl<F, K, P> Round<F, K, P> {
     pub fn new_bcast_and_p2p(
-        round: Box<dyn bcast_and_p2p::ExecuterRaw<FinalOutput = F, Index = K, PartyIndex = P>>,
-        info: RoundInfo<K, P>,
+        round: Box<dyn bcast_and_p2p::ExecuterRaw<FinalOutput = F, Index = K>>,
+        info: ProtocolInfoDeluxe<K, P>,
         bcast_out: BytesVec,
         p2ps_out: HoleVecMap<K, BytesVec>,
     ) -> TofnResult<Self> {
@@ -92,8 +93,8 @@ impl<F, K, P> Round<F, K, P> {
     }
 
     pub fn new_bcast_only(
-        round: Box<dyn bcast_only::ExecuterRaw<FinalOutput = F, Index = K, PartyIndex = P>>,
-        info: RoundInfo<K, P>,
+        round: Box<dyn bcast_only::ExecuterRaw<FinalOutput = F, Index = K>>,
+        info: ProtocolInfoDeluxe<K, P>,
         bcast_out: BytesVec,
     ) -> TofnResult<Self> {
         // validate args
@@ -120,8 +121,8 @@ impl<F, K, P> Round<F, K, P> {
     }
 
     pub fn new_no_messages(
-        round: Box<dyn no_messages::Executer<FinalOutput = F, Index = K, PartyIndex = P>>,
-        info: RoundInfo<K, P>,
+        round: Box<dyn no_messages::Executer<FinalOutput = F, Index = K>>,
+        info: ProtocolInfoDeluxe<K, P>,
     ) -> TofnResult<Self> {
         if info.index().as_usize() >= info.party_count() {
             error!(

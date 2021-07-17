@@ -10,30 +10,46 @@ use super::{
 };
 
 pub struct Round<F, K, P> {
-    pub info: RoundInfo<K, P>,
-    pub round_type: RoundType<F, K, P>,
+    pub info: ProtocolInfoDeluxe<K, P>,
+    pub round_type: RoundType<F, K>,
 }
 
-pub struct RoundInfo<K, P> {
-    party_share_counts: VecMap<P, usize>,
-    party_count: usize, // sum of party_share_counts
+// info persisted throughout the protocol
+// "deluxe" depends on `P`
+pub struct ProtocolInfoDeluxe<K, P> {
+    pub party_share_counts: VecMap<P, usize>,
+    pub core: ProtocolInfo<K>,
+}
+
+// info persisted throughout the protocol
+// cannot depend on `P`
+pub struct ProtocolInfo<K> {
+    party_count: usize,
     index: TypedUsize<K>,
 }
 
-impl<K, P> RoundInfo<K, P> {
-    pub fn new(party_share_counts: VecMap<P, usize>, index: TypedUsize<K>) -> Self {
-        let party_count = party_share_counts.iter().map(|(_, n)| n).sum();
-        Self {
-            party_share_counts,
-            party_count,
-            index,
-        }
-    }
+impl<K> ProtocolInfo<K> {
     pub fn party_count(&self) -> usize {
         self.party_count
     }
     pub fn index(&self) -> TypedUsize<K> {
         self.index
+    }
+}
+
+impl<K, P> ProtocolInfoDeluxe<K, P> {
+    pub fn new(party_share_counts: VecMap<P, usize>, index: TypedUsize<K>) -> Self {
+        let party_count = party_share_counts.iter().map(|(_, n)| n).sum();
+        Self {
+            party_share_counts,
+            core: ProtocolInfo { party_count, index },
+        }
+    }
+    pub fn party_count(&self) -> usize {
+        self.core.party_count
+    }
+    pub fn index(&self) -> TypedUsize<K> {
+        self.core.index
     }
 
     // TODO don't expose the following methods in the api
@@ -68,24 +84,24 @@ impl<K, P> RoundInfo<K, P> {
     }
 }
 
-pub enum RoundType<F, K, P> {
-    BcastAndP2p(BcastAndP2pRound<F, K, P>),
-    BcastOnly(BcastOnlyRound<F, K, P>),
-    NoMessages(NoMessagesRound<F, K, P>),
+pub enum RoundType<F, K> {
+    BcastAndP2p(BcastAndP2pRound<F, K>),
+    BcastOnly(BcastOnlyRound<F, K>),
+    NoMessages(NoMessagesRound<F, K>),
 }
 
-pub struct NoMessagesRound<F, K, P> {
-    pub round: Box<dyn no_messages::Executer<FinalOutput = F, Index = K, PartyIndex = P>>,
+pub struct NoMessagesRound<F, K> {
+    pub round: Box<dyn no_messages::Executer<FinalOutput = F, Index = K>>,
 }
 
-pub struct BcastOnlyRound<F, K, P> {
-    pub round: Box<dyn bcast_only::ExecuterRaw<FinalOutput = F, Index = K, PartyIndex = P>>,
+pub struct BcastOnlyRound<F, K> {
+    pub round: Box<dyn bcast_only::ExecuterRaw<FinalOutput = F, Index = K>>,
     pub bcast_out: BytesVec,
     pub bcasts_in: FillVecMap<K, BytesVec>,
 }
 
-pub struct BcastAndP2pRound<F, K, P> {
-    pub round: Box<dyn bcast_and_p2p::ExecuterRaw<FinalOutput = F, Index = K, PartyIndex = P>>,
+pub struct BcastAndP2pRound<F, K> {
+    pub round: Box<dyn bcast_and_p2p::ExecuterRaw<FinalOutput = F, Index = K>>,
     pub bcast_out: BytesVec,
     pub p2ps_out: HoleVecMap<K, BytesVec>,
     pub bcasts_in: FillVecMap<K, BytesVec>,

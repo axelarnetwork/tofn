@@ -3,14 +3,11 @@ use tracing::error;
 use crate::{
     refactor::collections::{FillVecMap, P2ps, VecMap},
     refactor::{
-        keygen::{
-            r1, r2, r3, KeygenPartyIndex, KeygenProtocolBuilder, RealKeygenPartyIndex,
-            SecretKeyShare,
-        },
+        keygen::{r1, r2, r3, KeygenPartyIndex, KeygenProtocolBuilder, SecretKeyShare},
         protocol::{
             api::{Fault::ProtocolFault, TofnResult},
             bcast_only,
-            implementer_api::{log_fault_info, ProtocolBuilder, RoundInfo},
+            implementer_api::{log_fault_info, ProtocolBuilder, ProtocolInfo},
         },
     },
 };
@@ -25,13 +22,12 @@ pub struct R4Sad {
 impl bcast_only::Executer for R4Sad {
     type FinalOutput = SecretKeyShare;
     type Index = KeygenPartyIndex;
-    type PartyIndex = RealKeygenPartyIndex;
     type Bcast = r3::Bcast;
 
     #[allow(non_snake_case)]
     fn execute(
         self: Box<Self>,
-        info: &RoundInfo<Self::Index, Self::PartyIndex>,
+        info: &ProtocolInfo<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
     ) -> TofnResult<KeygenProtocolBuilder> {
         // check for no complaints

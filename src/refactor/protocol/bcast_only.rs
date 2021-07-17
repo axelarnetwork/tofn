@@ -8,19 +8,18 @@ use crate::refactor::{
 
 use super::{
     api::{BytesVec, TofnResult},
-    implementer_api::{ProtocolBuilder, RoundInfo},
+    implementer_api::{ProtocolBuilder, ProtocolInfo},
 };
 
 pub trait Executer: Send + Sync {
     type FinalOutput;
     type Index;
-    type PartyIndex;
     type Bcast: DeserializeOwned;
     fn execute(
         self: Box<Self>,
-        info: &RoundInfo<Self::Index, Self::PartyIndex>,
+        info: &ProtocolInfo<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
-    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index, Self::PartyIndex>>;
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>>;
 
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
@@ -32,12 +31,11 @@ pub trait Executer: Send + Sync {
 pub trait ExecuterRaw: Send + Sync {
     type FinalOutput;
     type Index;
-    type PartyIndex;
     fn execute_raw(
         self: Box<Self>,
-        info: &RoundInfo<Self::Index, Self::PartyIndex>,
+        info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, BytesVec>,
-    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index, Self::PartyIndex>>;
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>>;
 
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
@@ -48,13 +46,12 @@ pub trait ExecuterRaw: Send + Sync {
 impl<T: Executer> ExecuterRaw for T {
     type FinalOutput = T::FinalOutput;
     type Index = T::Index;
-    type PartyIndex = T::PartyIndex;
 
     fn execute_raw(
         self: Box<Self>,
-        info: &RoundInfo<Self::Index, Self::PartyIndex>,
+        info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, BytesVec>,
-    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index, Self::PartyIndex>> {
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
         let mut faulters = FillVecMap::with_size(info.party_count());
 
         // check for timeout faults

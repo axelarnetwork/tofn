@@ -1,7 +1,7 @@
 use super::{r1, rng};
 use crate::refactor::collections::TypedUsize;
 use crate::refactor::protocol::api::{Protocol, Round, TofnResult};
-use crate::refactor::protocol::implementer_api::{ProtocolBuilder, RoundInfo};
+use crate::refactor::protocol::implementer_api::{ProtocolBuilder, ProtocolInfoDeluxe};
 use crate::{k256_serde, paillier_k256, refactor::collections::VecMap};
 use serde::{Deserialize, Serialize};
 use tracing::error;
@@ -16,8 +16,7 @@ pub struct KeygenPartyIndex; // TODO actually a keygen subshare index
 pub struct RealKeygenPartyIndex; // TODO the real keygen party index
 
 pub type KeygenProtocol = Protocol<SecretKeyShare, KeygenPartyIndex, RealKeygenPartyIndex>;
-pub type KeygenProtocolBuilder =
-    ProtocolBuilder<SecretKeyShare, KeygenPartyIndex, RealKeygenPartyIndex>;
+pub type KeygenProtocolBuilder = ProtocolBuilder<SecretKeyShare, KeygenPartyIndex>;
 pub type SecretRecoveryKey = [u8; 64];
 
 // Can't define a keygen-specific alias for `RoundExecuter` that sets
@@ -62,7 +61,7 @@ pub fn new_keygen(
             #[cfg(feature = "malicious")]
             behaviour,
         }),
-        RoundInfo::new(party_share_counts, index),
+        ProtocolInfoDeluxe::new(party_share_counts, index),
     )?))
 }
 /// final output of keygen

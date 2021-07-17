@@ -1,7 +1,7 @@
 use crate::{
     corrupt, hash, k256_serde, paillier_k256,
     protocol::gg20::vss_k256,
-    refactor::protocol::implementer_api::RoundInfo,
+    refactor::protocol::implementer_api::ProtocolInfo,
     refactor::{
         keygen::SecretKeyShare,
         protocol::{
@@ -13,7 +13,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::{r2, rng, KeygenPartyIndex, KeygenProtocolBuilder, RealKeygenPartyIndex};
+use super::{r2, rng, KeygenPartyIndex, KeygenProtocolBuilder};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -38,11 +38,10 @@ pub struct Bcast {
 impl no_messages::Executer for R1 {
     type FinalOutput = SecretKeyShare;
     type Index = KeygenPartyIndex;
-    type PartyIndex = RealKeygenPartyIndex;
 
     fn execute(
         self: Box<Self>,
-        _info: &RoundInfo<Self::Index, Self::PartyIndex>,
+        _info: &ProtocolInfo<Self::Index>,
     ) -> TofnResult<KeygenProtocolBuilder> {
         let u_i_vss = vss_k256::Vss::new(self.threshold);
         let (y_i_commit, y_i_reveal) = hash::commit(k256_serde::to_bytes(

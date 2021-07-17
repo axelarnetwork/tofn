@@ -75,20 +75,20 @@ impl<F, K, P> Round<F, K, P> {
         match self.round_type {
             RoundType::BcastAndP2p(r) => r
                 .round
-                .execute_raw(&self.info, r.bcasts_in, r.p2ps_in)?
+                .execute_raw(&self.info.core, r.bcasts_in, r.p2ps_in)?
                 .build(self.info),
             RoundType::BcastOnly(r) => r
                 .round
-                .execute_raw(&self.info, r.bcasts_in)?
+                .execute_raw(&self.info.core, r.bcasts_in)?
                 .build(self.info),
-            RoundType::NoMessages(r) => r.round.execute(&self.info)?.build(self.info),
+            RoundType::NoMessages(r) => r.round.execute(&self.info.core)?.build(self.info),
         }
     }
     pub fn party_count(&self) -> usize {
-        self.info.party_count()
+        self.info.core.party_count()
     }
     pub fn index(&self) -> TypedUsize<K> {
-        self.info.index()
+        self.info.core.index()
     }
 }
 

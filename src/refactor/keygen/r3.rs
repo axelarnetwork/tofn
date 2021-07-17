@@ -13,14 +13,14 @@ use crate::{
             api::{Fault::ProtocolFault, TofnResult},
             bcast_and_p2p,
             implementer_api::{
-                log_accuse_warn, serialize, ProtocolBuilder, RoundBuilder, RoundInfo,
+                log_accuse_warn, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder,
             },
         },
     },
     zkp::schnorr_k256,
 };
 
-use super::{r1, r2, KeygenPartyIndex, KeygenProtocolBuilder, RealKeygenPartyIndex};
+use super::{r1, r2, KeygenPartyIndex, KeygenProtocolBuilder};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -60,14 +60,13 @@ pub struct R3 {
 impl bcast_and_p2p::Executer for R3 {
     type FinalOutput = SecretKeyShare;
     type Index = KeygenPartyIndex;
-    type PartyIndex = RealKeygenPartyIndex;
     type Bcast = r2::Bcast;
     type P2p = r2::P2p;
 
     #[allow(non_snake_case)]
     fn execute(
         self: Box<Self>,
-        info: &RoundInfo<Self::Index, Self::PartyIndex>,
+        info: &ProtocolInfo<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<KeygenProtocolBuilder> {

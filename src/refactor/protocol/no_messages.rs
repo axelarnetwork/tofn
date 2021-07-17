@@ -1,16 +1,15 @@
 use super::{
     api::TofnResult,
-    implementer_api::{ProtocolBuilder, RoundInfo},
+    implementer_api::{ProtocolBuilder, ProtocolInfo},
 };
 
 pub trait Executer: Send + Sync {
     type FinalOutput;
     type Index;
-    type PartyIndex;
     fn execute(
         self: Box<Self>,
-        info: &RoundInfo<Self::Index, Self::PartyIndex>,
-    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index, Self::PartyIndex>>;
+        info: &ProtocolInfo<Self::Index>,
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>>;
 
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {

@@ -4,16 +4,14 @@ use crate::{
         keygen::SecretKeyShare,
         protocol::{
             api::{BytesVec, TofnResult},
-            implementer_api::RoundInfo,
+            implementer_api::ProtocolInfo,
             no_messages,
         },
     },
 };
 use serde::{Deserialize, Serialize};
 
-use super::{
-    ParticipantsList, RealSignParticipantIndex, SignParticipantIndex, SignProtocolBuilder,
-};
+use super::{ParticipantsList, SignParticipantIndex, SignProtocolBuilder};
 
 #[allow(non_snake_case)]
 pub struct R1 {
@@ -36,11 +34,10 @@ pub struct P2p {
 impl no_messages::Executer for R1 {
     type FinalOutput = BytesVec;
     type Index = SignParticipantIndex;
-    type PartyIndex = RealSignParticipantIndex;
 
     fn execute(
         self: Box<Self>,
-        _info: &RoundInfo<Self::Index, Self::PartyIndex>,
+        _info: &ProtocolInfo<Self::Index>,
     ) -> TofnResult<SignProtocolBuilder> {
         todo!()
     }

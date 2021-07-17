@@ -8,7 +8,7 @@ use crate::refactor::{
     keygen::{GroupPublicInfo, KeygenPartyIndex, SecretKeyShare, ShareSecretInfo},
     protocol::{
         api::{BytesVec, Protocol, Round, TofnResult},
-        implementer_api::{ProtocolBuilder, RoundInfo},
+        implementer_api::{ProtocolBuilder, ProtocolInfoDeluxe},
     },
 };
 use serde::{Deserialize, Serialize};
@@ -17,8 +17,7 @@ use tracing::error;
 use super::r1;
 
 pub type SignProtocol = Protocol<BytesVec, SignParticipantIndex, RealSignParticipantIndex>;
-pub type SignProtocolBuilder =
-    ProtocolBuilder<BytesVec, SignParticipantIndex, RealSignParticipantIndex>;
+pub type SignProtocolBuilder = ProtocolBuilder<BytesVec, SignParticipantIndex>;
 pub type ParticipantsList = VecMap<SignParticipantIndex, TypedUsize<KeygenPartyIndex>>;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -50,7 +49,7 @@ pub fn new_sign(
             msg_to_sign: msg_to_sign.into(),
             participants: participants.clone(),
         }),
-        RoundInfo::new(party_share_counts, index),
+        ProtocolInfoDeluxe::new(party_share_counts, index),
     )?))
 }
 
