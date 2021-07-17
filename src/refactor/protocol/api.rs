@@ -107,8 +107,8 @@ pub mod malicious {
 
     impl<F, K, P> Round<F, K, P> {
         pub fn corrupt_msg_payload(&mut self, msg_type: MsgType<K>) -> TofnResult<()> {
-            info!("malicious party {} corrupt msg", self.index(),);
-            Ok(match &mut self.round_type {
+            info!("malicious party {} corrupt msg", self.index());
+            match &mut self.round_type {
                 RoundType::BcastAndP2p(r) => match msg_type {
                     Bcast => r.bcast_out = corrupt_payload::<K>(&r.bcast_out)?,
                     P2p { to } => {
@@ -127,7 +127,8 @@ pub mod malicious {
                     error!("no messages expected this round, can't corrupt msg bytes",);
                     return Err(());
                 }
-            })
+            }
+            Ok(())
         }
     }
 }

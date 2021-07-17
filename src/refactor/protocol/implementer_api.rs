@@ -27,7 +27,7 @@ impl<F, K, P> ProtocolBuilder<F, K, P> {
                 }
                 RoundBuilder::NoMessages { round } => Round::new_no_messages(round, info)?,
             }),
-            Self::Done(output) => Protocol::Done(info.into_party_faults(output)?),
+            Self::Done(output) => Protocol::Done(info.share_to_party_faults(output)?),
         })
     }
 }

@@ -37,7 +37,7 @@ impl<K, P> RoundInfo<K, P> {
     }
 
     // TODO don't expose the following methods in the api
-    pub fn into_party_faults<F>(
+    pub fn share_to_party_faults<F>(
         &self,
         output: ProtocolBuilderOutput<F, K>,
     ) -> TofnResult<ProtocolOutput<F, P>> {
@@ -49,13 +49,13 @@ impl<K, P> RoundInfo<K, P> {
                 // TODO how to choose among multiple faults by one party?
                 // For now just overwrite and use the final fault
                 for (share_id, share_fault) in share_faulters.into_iter_some() {
-                    party_faulters.set(self.to_party_id(share_id)?, share_fault)?;
+                    party_faulters.set(self.share_to_party_id(share_id)?, share_fault)?;
                 }
                 Err(party_faulters)
             }
         })
     }
-    fn to_party_id(&self, share_id: TypedUsize<K>) -> TofnResult<TypedUsize<P>> {
+    fn share_to_party_id(&self, share_id: TypedUsize<K>) -> TofnResult<TypedUsize<P>> {
         let mut sum = 0;
         for (party_id, &share_count) in self.party_share_counts.iter() {
             sum += share_count;
