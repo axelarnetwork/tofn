@@ -3,7 +3,7 @@ use crate::refactor::collections::{FillVecMap, HoleVecMap};
 use super::{
     api::{BytesVec, TofnResult},
     protocol::{Fault, Protocol},
-    round::{bcast_and_p2p, bcast_only, no_messages, ProtocolInfoDeluxe, Round},
+    round::{bcast_and_p2p, bcast_only, no_messages, p2p_only, ProtocolInfoDeluxe, Round},
 };
 
 pub enum ProtocolBuilder<F, K> {
@@ -20,6 +20,10 @@ pub enum RoundBuilder<F, K> {
     BcastOnly {
         round: Box<dyn bcast_only::ExecuterRaw<FinalOutput = F, Index = K>>,
         bcast_out: BytesVec,
+    },
+    P2pOnly {
+        round: Box<dyn p2p_only::ExecuterRaw<FinalOutput = F, Index = K>>,
+        p2ps_out: HoleVecMap<K, BytesVec>,
     },
     NoMessages {
         round: Box<dyn no_messages::Executer<FinalOutput = F, Index = K>>,
@@ -39,6 +43,9 @@ impl<F, K> ProtocolBuilder<F, K> {
                 } => Round::new_bcast_and_p2p(round, info, bcast_out, p2ps_out)?,
                 RoundBuilder::BcastOnly { round, bcast_out } => {
                     Round::new_bcast_only(round, info, bcast_out)?
+                }
+                RoundBuilder::P2pOnly { round, p2ps_out } => {
+                    Round::new_p2p_only(round, info, p2ps_out)?
                 }
                 RoundBuilder::NoMessages { round } => Round::new_no_messages(round, info)?,
             }),

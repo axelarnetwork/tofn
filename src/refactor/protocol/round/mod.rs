@@ -16,6 +16,7 @@ mod implementer_api; // Round methods for protocol implementers
 pub mod bcast_and_p2p;
 pub mod bcast_only;
 pub mod no_messages;
+pub mod p2p_only;
 
 pub struct Round<F, K, P> {
     info: ProtocolInfoDeluxe<K, P>,
@@ -40,6 +41,7 @@ pub struct ProtocolInfo<K> {
 pub enum RoundType<F, K> {
     BcastAndP2p(BcastAndP2pRound<F, K>),
     BcastOnly(BcastOnlyRound<F, K>),
+    P2pOnly(P2pOnlyRound<F, K>),
     NoMessages(NoMessagesRound<F, K>),
 }
 
@@ -51,6 +53,12 @@ pub struct BcastOnlyRound<F, K> {
     pub round: Box<dyn bcast_only::ExecuterRaw<FinalOutput = F, Index = K>>,
     pub bcast_out: BytesVec,
     pub bcasts_in: FillVecMap<K, BytesVec>,
+}
+
+pub struct P2pOnlyRound<F, K> {
+    pub round: Box<dyn p2p_only::ExecuterRaw<FinalOutput = F, Index = K>>,
+    pub p2ps_out: HoleVecMap<K, BytesVec>,
+    pub p2ps_in: FillP2ps<K, BytesVec>,
 }
 
 pub struct BcastAndP2pRound<F, K> {

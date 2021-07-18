@@ -8,12 +8,13 @@ impl<F, K, P> Round<F, K, P> {
         match &self.round_type {
             RoundType::BcastAndP2p(r) => Some(&r.bcast_out),
             RoundType::BcastOnly(r) => Some(&r.bcast_out),
-            RoundType::NoMessages(_) => None,
+            RoundType::NoMessages(_) | RoundType::P2pOnly(_) => None,
         }
     }
     pub fn p2ps_out(&self) -> Option<&HoleVecMap<K, BytesVec>> {
         match &self.round_type {
             RoundType::BcastAndP2p(r) => Some(&r.p2ps_out),
+            RoundType::P2pOnly(r) => Some(&r.p2ps_out),
             RoundType::BcastOnly(_) | RoundType::NoMessages(_) => None,
         }
     }
@@ -90,6 +91,26 @@ impl<F, K, P> Round<F, K, P> {
                     self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
                 }
             },
+            RoundType::P2pOnly(r) => match bytes_meta.msg_type {
+                Bcast => {
+                    warn!(
+                        "msg_in fault from share_id {}: no bcasts expected this round, received bcast",
+                        bytes_meta.from
+                    );
+                    self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
+                }
+                P2p { to } => {
+                    if r.p2ps_in.is_none(bytes_meta.from, to)? {
+                        r.p2ps_in.set(bytes_meta.from, to, bytes_meta.payload)?;
+                    } else {
+                        warn!(
+                            "msg_in fault from share_id {}: duplicate message",
+                            bytes_meta.from
+                        );
+                        self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
+                    }
+                }
+            },
             RoundType::NoMessages(_) => {
                 warn!(
                     "msg_in fault from share_id {}: no messages expected this round, received bcast",
@@ -104,6 +125,7 @@ impl<F, K, P> Round<F, K, P> {
         match &self.round_type {
             RoundType::BcastAndP2p(r) => !r.bcasts_in.is_full() || !r.p2ps_in.is_full(),
             RoundType::BcastOnly(r) => !r.bcasts_in.is_full(),
+            RoundType::P2pOnly(r) => !r.p2ps_in.is_full(),
             RoundType::NoMessages(_) => false,
         }
     }
@@ -121,6 +143,10 @@ impl<F, K, P> Round<F, K, P> {
             RoundType::BcastOnly(r) => r
                 .round
                 .execute_raw(&self.info.core, r.bcasts_in)?
+                .build(self.info),
+            RoundType::P2pOnly(r) => r
+                .round
+                .execute_raw(&self.info.core, r.p2ps_in)?
                 .build(self.info),
             RoundType::NoMessages(r) => r.round.execute(&self.info.core)?.build(self.info),
         }
@@ -170,6 +196,16 @@ pub mod malicious {
                     P2p { to: _ } => {
                         error!("no p2ps expected this round, can't corrupt msg bytes",);
                         return Err(TofnFatal);
+                    }
+                },
+                RoundType::P2pOnly(r) => match msg_type {
+                    Bcast => {
+                        error!("no bcasts expected this round, can't corrupt msg bytes",);
+                        return Err(TofnFatal);
+                    }
+                    P2p { to } => {
+                        let p2p_out = r.p2ps_out.get_mut(to)?;
+                        *p2p_out = corrupt_payload::<K>(p2p_out)?
                     }
                 },
                 RoundType::NoMessages(_) => {
