@@ -9,7 +9,7 @@ use tofn::refactor::{
 use tracing::{info, warn};
 use tracing_test::traced_test; // enable logs in tests
 
-use crate::{execute::nobody_done, keygen};
+use crate::{common::keygen, single_thread::execute::nobody_done};
 
 #[test]
 #[traced_test]

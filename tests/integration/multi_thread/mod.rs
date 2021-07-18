@@ -1,53 +1,24 @@
+use crate::common::keygen;
 use broadcaster::Broadcaster;
-use rand::RngCore;
 use std::{sync::mpsc, thread};
-use tofn::{
-    refactor::collections::TypedUsize,
-    refactor::{
-        collections::VecMap,
-        keygen::{new_keygen, KeygenProtocol, RealKeygenPartyIndex, SecretKeyShare},
-    },
-};
-
-#[cfg(feature = "malicious")]
-use tofn::refactor::keygen::malicious::Behaviour::Honest;
-
-// TODO generic over final output F
+use tofn::refactor::{collections::VecMap, keygen::SecretKeyShare};
 
 #[test]
-fn main() {
-    let (share_count, threshold) = (5, 2);
-    let session_nonce = b"foobar";
+fn basic_correctness() {
+    let party_share_counts = VecMap::from_vec(vec![1, 2, 3, 4]); // 10 total shares
+    let share_count = party_share_counts.iter().map(|(_, c)| c).sum();
+    let threshold = 5;
 
-    // TODO TEMPORARY one share per party
-    let party_share_counts: VecMap<RealKeygenPartyIndex, usize> =
-        (0..share_count).map(|_| 1).collect();
-
-    let parties: Vec<KeygenProtocol> = (0..share_count)
-        .map(|index| {
-            let mut secret_recovery_key = [0; 64];
-            rand::thread_rng().fill_bytes(&mut secret_recovery_key);
-            new_keygen(
-                party_share_counts.clone(),
-                threshold,
-                TypedUsize::from_usize(index),
-                &secret_recovery_key,
-                session_nonce,
-                #[cfg(feature = "malicious")]
-                Honest,
-            )
-            .expect("`new_keygen` failure")
-        })
-        .collect();
+    let shares = keygen::initialize_honest_parties(&party_share_counts, threshold);
 
     let (broadcaster, receivers) = Broadcaster::new(share_count);
     let (result_sender, result_receiver) = mpsc::channel();
 
-    for (party, receiver) in parties.into_iter().zip(receivers.into_iter()) {
+    for ((_, share), receiver) in shares.into_iter().zip(receivers.into_iter()) {
         let broadcaster = broadcaster.clone();
         let result_sender = result_sender.clone();
         thread::spawn(move || {
-            result_sender.send(party::execute_protocol(party, receiver, broadcaster))
+            result_sender.send(party::execute_protocol(share, receiver, broadcaster))
         });
     }
 

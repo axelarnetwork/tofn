@@ -9,7 +9,7 @@ use tofn::refactor::{
 use tracing::info;
 use tracing_test::traced_test;
 
-use crate::{execute::execute_protocol, keygen::dummy_secret_recovery_key};
+use crate::{common::keygen::dummy_secret_recovery_key, single_thread::execute::execute_protocol};
 
 #[test]
 #[traced_test]
@@ -113,7 +113,7 @@ fn execute_test_case_list(test_cases: &[TestCase]) {
 }
 
 fn execute_test_case(test_case: &TestCase) {
-    let mut parties = initialize_parties(&test_case.behaviours, test_case.threshold);
+    let mut parties = initialize_malicious_parties(&test_case.behaviours, test_case.threshold);
 
     parties = execute_protocol(parties).expect("internal tofn error");
 
@@ -128,7 +128,7 @@ fn execute_test_case(test_case: &TestCase) {
     }
 }
 
-pub fn initialize_parties(
+pub fn initialize_malicious_parties(
     behaviours: &VecMap<KeygenPartyIndex, Behaviour>,
     threshold: usize,
 ) -> VecMap<KeygenPartyIndex, KeygenProtocol> {

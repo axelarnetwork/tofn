@@ -1,36 +1,4 @@
-#![allow(clippy::result_unit_err)] // TODO idiomatic solution?
-use execute::*;
-use tofn::refactor::{
-    collections::VecMap,
-    keygen::{KeygenPartyIndex, SecretKeyShare},
-    protocol::api::Protocol,
-};
-
-use tracing_test::traced_test; // enable logs in tests
-
-/// A simple test to illustrate use of the library
-/// TODO change file hierarchy
-#[test]
-#[traced_test]
-fn main() {
-    let party_share_counts = VecMap::from_vec(vec![1, 2, 3, 4]); // 10 total shares
-    let threshold = 5;
-    let mut shares = keygen::initialize_honest_parties(&party_share_counts, threshold);
-
-    shares = execute_protocol(shares).expect("internal tofn error");
-
-    let _results: VecMap<KeygenPartyIndex, SecretKeyShare> = shares
-        .into_iter()
-        .map(|(i, party)| match party {
-            Protocol::NotDone(_) => panic!("share_id {} not done yet", i),
-            Protocol::Done(result) => result.expect("share finished with error"),
-        })
-        .collect();
-
-    // TODO sign something
-}
-
-mod keygen {
+pub mod keygen {
     use tofn::{
         refactor::collections::{TypedUsize, VecMap},
         refactor::keygen::{
@@ -74,8 +42,3 @@ mod keygen {
         result
     }
 }
-
-mod execute;
-
-#[cfg(feature = "malicious")]
-mod malicious;
