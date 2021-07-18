@@ -1,4 +1,3 @@
-#![allow(clippy::result_unit_err)] // TODO idiomatic solution?
 use crate::common::keygen;
 use execute::*;
 use tofn::refactor::{
