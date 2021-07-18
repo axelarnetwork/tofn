@@ -1,9 +1,7 @@
-use tracing::warn;
-
-use crate::refactor::protocol::api::Protocol;
-
 use super::super::wire_bytes::{self, MsgType::*, WireBytes};
 use super::*;
+use crate::refactor::protocol::api::{Fault, Protocol};
+use tracing::warn;
 
 impl<F, K, P> Round<F, K, P> {
     pub fn bcast_out(&self) -> Option<&BytesVec> {
@@ -28,20 +26,20 @@ impl<F, K, P> Round<F, K, P> {
             Some(w) => w,
             None => {
                 warn!("msg_in fault from party {}: fail deserialization", from);
-                self.msg_in_faulters.set(from, MsgInFault)?; // fatal error if `from` is out of bounds
+                self.msg_in_faulters.set(from, Fault::CorruptedMessage)?; // fatal error if `from` is out of bounds
                 return Ok(());
             }
         };
 
         // verify share_id belongs to this party
         match self.info.share_to_party_id_nonfatal(bytes_meta.from) {
-            Some(party_id) if party_id == from => (),
+            Some(party_id) if party_id == from => (), // happy path
             _ => {
                 warn!(
                     "msg_in fault: share_id {} does not belong to party {}",
                     bytes_meta.from, from
                 );
-                self.msg_in_faulters.set(from, MsgInFault)?;
+                self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
                 return Ok(());
             }
         }
@@ -57,7 +55,7 @@ impl<F, K, P> Round<F, K, P> {
                             "msg_in fault from share_id {}: duplicate message",
                             bytes_meta.from
                         );
-                        self.msg_in_faulters.set(from, MsgInFault)?;
+                        self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
                     }
                 }
                 P2p { to } => {
@@ -68,7 +66,7 @@ impl<F, K, P> Round<F, K, P> {
                             "msg_in fault from share_id {}: duplicate message",
                             bytes_meta.from
                         );
-                        self.msg_in_faulters.set(from, MsgInFault)?;
+                        self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
                     }
                 }
             },
@@ -81,7 +79,7 @@ impl<F, K, P> Round<F, K, P> {
                             "msg_in fault from share_id {}: duplicate message",
                             bytes_meta.from
                         );
-                        self.msg_in_faulters.set(from, MsgInFault)?;
+                        self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
                     }
                 }
                 P2p { to } => {
@@ -89,7 +87,7 @@ impl<F, K, P> Round<F, K, P> {
                         "msg_in fault from share_id {}: no p2ps expected this round, received p2p to {}",
                         bytes_meta.from, to
                     );
-                    self.msg_in_faulters.set(from, MsgInFault)?;
+                    self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
                 }
             },
             RoundType::NoMessages(_) => {
@@ -97,7 +95,7 @@ impl<F, K, P> Round<F, K, P> {
                     "msg_in fault from share_id {}: no messages expected this round, received bcast",
                     bytes_meta.from
                 );
-                self.msg_in_faulters.set(from, MsgInFault)?;
+                self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
             }
         }
         Ok(())
@@ -110,6 +108,11 @@ impl<F, K, P> Round<F, K, P> {
         }
     }
     pub fn execute_next_round(self) -> TofnResult<Protocol<F, K, P>> {
+        if !self.msg_in_faulters.is_empty() {
+            warn!("msg_in faulters detected: end protocol");
+            return Ok(Protocol::Done(Err(self.msg_in_faulters)));
+        }
+
         match self.round_type {
             RoundType::BcastAndP2p(r) => r
                 .round

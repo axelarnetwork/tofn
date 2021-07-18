@@ -3,7 +3,7 @@ use tracing::error;
 use crate::refactor::{
     collections::{FillP2ps, FillVecMap, HoleVecMap, TypedUsize, VecMap},
     protocol::{
-        api::{BytesVec, ProtocolOutput, TofnFatal, TofnResult},
+        api::{BytesVec, ProtocolFaulters, ProtocolOutput, TofnFatal, TofnResult},
         implementer_api::ProtocolBuilderOutput,
     },
 };
@@ -20,7 +20,7 @@ pub mod no_messages;
 pub struct Round<F, K, P> {
     info: ProtocolInfoDeluxe<K, P>,
     round_type: RoundType<F, K>,
-    msg_in_faulters: FillVecMap<P, MsgInFault>,
+    msg_in_faulters: ProtocolFaulters<P>,
 }
 
 // info persisted throughout the protocol
@@ -60,9 +60,6 @@ pub struct BcastAndP2pRound<F, K> {
     pub bcasts_in: FillVecMap<K, BytesVec>,
     pub p2ps_in: FillP2ps<K, BytesVec>,
 }
-
-#[derive(Debug)]
-struct MsgInFault;
 
 impl<F, K, P> Round<F, K, P> {
     pub fn new(info: ProtocolInfoDeluxe<K, P>, round_type: RoundType<F, K>) -> Self {

@@ -7,7 +7,7 @@ pub mod api {
     pub type BytesVec = Vec<u8>;
 
     pub use super::{
-        protocol::{Fault, Protocol, ProtocolOutput},
+        protocol::{Fault, Protocol, ProtocolFaulters, ProtocolOutput},
         round::Round,
     };
 
