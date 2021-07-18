@@ -23,11 +23,12 @@ pub type SecretRecoveryKey = [u8; 64];
 // `FinalOutputTyped = KeygenOutput` and `Index = KeygenPartyIndex`
 // because https://github.com/rust-lang/rust/issues/41517
 
-pub const MAX_SHARE_COUNT: usize = 1000;
+pub const MAX_TOTAL_SHARE_COUNT: usize = 1000;
+pub const MAX_PARTY_SHARE_COUNT: usize = MAX_TOTAL_SHARE_COUNT;
 
 /// Initialize a new keygen protocol
 pub fn new_keygen(
-    share_count: usize,
+    party_share_counts: VecMap<RealKeygenPartyIndex, usize>,
     threshold: usize,
     index: TypedUsize<KeygenPartyIndex>,
     secret_recovery_key: &SecretRecoveryKey,
@@ -35,11 +36,24 @@ pub fn new_keygen(
     #[cfg(feature = "malicious")] behaviour: malicious::Behaviour,
 ) -> TofnResult<KeygenProtocol> {
     // validate args
-    if share_count <= threshold || share_count <= index.as_usize() || share_count > MAX_SHARE_COUNT
+    if party_share_counts
+        .iter()
+        .any(|(_, &c)| c > MAX_PARTY_SHARE_COUNT)
     {
         error!(
-            "invalid (share_count,threshold,index): ({},{},{})",
-            share_count, threshold, index
+            "detected a party with share count exceeding {}",
+            MAX_PARTY_SHARE_COUNT
+        );
+        return Err(TofnFatal);
+    }
+    let total_share_count: usize = party_share_counts.iter().map(|(_, c)| c).sum();
+    if total_share_count <= threshold
+        || total_share_count <= index.as_usize()
+        || total_share_count > MAX_TOTAL_SHARE_COUNT
+    {
+        error!(
+            "invalid (share_count,threshold,index,max_share_count): ({},{},{},{})",
+            total_share_count, threshold, index, MAX_TOTAL_SHARE_COUNT
         );
         return Err(TofnFatal);
     }
@@ -50,9 +64,6 @@ pub fn new_keygen(
 
     // compute the RNG seed now so as to minimize copying of `secret_recovery_key`
     let rng_seed = rng::seed(secret_recovery_key, session_nonce);
-
-    // TODO TEMPORARY one share per party
-    let party_share_counts = (0..share_count).map(|_| 1).collect();
 
     Ok(Protocol::NotDone(Round::new_no_messages(
         Box::new(r1::R1 {

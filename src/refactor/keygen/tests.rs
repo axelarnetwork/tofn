@@ -60,12 +60,15 @@ pub(crate) fn execute_keygen_from_recovery(
     secret_recovery_keys: &[SecretRecoveryKey],
     session_nonce: &[u8],
 ) -> Vec<SecretKeyShare> {
+    // TODO TEMPORARY one share per party
     let share_count = secret_recovery_keys.len();
+    let party_share_counts: VecMap<RealKeygenPartyIndex, usize> =
+        (0..share_count).map(|_| 1).collect();
 
     let r0_parties: Vec<_> = (0..share_count)
         .map(|i| {
             match new_keygen(
-                share_count,
+                party_share_counts.clone(),
                 threshold,
                 TypedUsize::from_usize(i),
                 &secret_recovery_keys[i],

@@ -132,12 +132,16 @@ pub fn initialize_parties(
     behaviours: &VecMap<KeygenPartyIndex, Behaviour>,
     threshold: usize,
 ) -> VecMap<KeygenPartyIndex, KeygenProtocol> {
+    // TODO TEMPORARY one share per party
+    let party_share_counts: VecMap<RealKeygenPartyIndex, usize> =
+        (0..behaviours.len()).map(|_| 1).collect();
+
     let session_nonce = b"foobar";
     behaviours
         .iter()
         .map(|(index, behaviour)| {
             new_keygen(
-                behaviours.len(),
+                party_share_counts.clone(),
                 threshold,
                 index,
                 &dummy_secret_recovery_key(index),

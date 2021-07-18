@@ -3,7 +3,10 @@ use rand::RngCore;
 use std::{sync::mpsc, thread};
 use tofn::{
     refactor::collections::TypedUsize,
-    refactor::keygen::{new_keygen, KeygenProtocol, SecretKeyShare},
+    refactor::{
+        collections::VecMap,
+        keygen::{new_keygen, KeygenProtocol, RealKeygenPartyIndex, SecretKeyShare},
+    },
 };
 
 #[cfg(feature = "malicious")]
@@ -16,12 +19,16 @@ fn main() {
     let (share_count, threshold) = (5, 2);
     let session_nonce = b"foobar";
 
+    // TODO TEMPORARY one share per party
+    let party_share_counts: VecMap<RealKeygenPartyIndex, usize> =
+        (0..share_count).map(|_| 1).collect();
+
     let parties: Vec<KeygenProtocol> = (0..share_count)
         .map(|index| {
             let mut secret_recovery_key = [0; 64];
             rand::thread_rng().fill_bytes(&mut secret_recovery_key);
             new_keygen(
-                share_count,
+                party_share_counts.clone(),
                 threshold,
                 TypedUsize::from_usize(index),
                 &secret_recovery_key,

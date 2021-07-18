@@ -33,7 +33,9 @@ fn main() {
 mod keygen {
     use tofn::{
         refactor::collections::{TypedUsize, VecMap},
-        refactor::keygen::{new_keygen, KeygenPartyIndex, KeygenProtocol, SecretRecoveryKey},
+        refactor::keygen::{
+            new_keygen, KeygenPartyIndex, KeygenProtocol, RealKeygenPartyIndex, SecretRecoveryKey,
+        },
     };
 
     #[cfg(feature = "malicious")]
@@ -43,12 +45,16 @@ mod keygen {
         share_count: usize,
         threshold: usize,
     ) -> VecMap<KeygenPartyIndex, KeygenProtocol> {
+        // TODO TEMPORARY one share per party
+        let party_share_counts: VecMap<RealKeygenPartyIndex, usize> =
+            (0..share_count).map(|_| 1).collect();
+
         let session_nonce = b"foobar";
         (0..share_count)
             .map(|index| {
                 let index = TypedUsize::from_usize(index);
                 new_keygen(
-                    share_count,
+                    party_share_counts.clone(),
                     threshold,
                     index,
                     &dummy_secret_recovery_key(index),
