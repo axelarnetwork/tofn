@@ -38,6 +38,8 @@ pub fn single_fault_test_case_list<K, P>() -> Vec<SingleFaulterTestCase<K, P>> {
         single_fault_test_case(P2p { to: zero }, Timeout),
         single_fault_test_case(Bcast, Corruption),
         single_fault_test_case(P2p { to: zero }, Corruption),
+        single_fault_test_case(Bcast, Duplicate),
+        single_fault_test_case(P2p { to: zero }, Duplicate),
     ]
 }
 
@@ -52,7 +54,7 @@ fn single_fault_test_case<K, P>(
     let mut faulters = FillVecMap::with_size(3);
     let fault = match fault_type {
         FaultType::Timeout => Fault::MissingMessage,
-        FaultType::Corruption => Fault::CorruptedMessage,
+        _ => Fault::CorruptedMessage,
     };
     faulters.set(faulter_party_id, fault).unwrap();
     SingleFaulterTestCase {
@@ -79,6 +81,7 @@ pub struct SingleFaulterTestCase<K, P> {
 pub enum FaultType {
     Timeout,
     Corruption,
+    Duplicate,
 }
 
 fn execute_test_case<F, K, P>(
@@ -160,17 +163,30 @@ where
     // deliver bcasts if present
     if let Some(bcasts) = bcasts {
         for (from, bytes) in bcasts.into_iter() {
-            // inject timeout fault
+            // inject timeout or duplicate fault
             if current_round == test_case.round
                 && test_case.faulter_share_id == from
-                && matches!(test_case.fault_type, Timeout)
                 && matches!(test_case.msg, Bcast)
             {
-                info!(
-                    "drop bcast from party {} in round {}",
-                    test_case.faulter_share_id, test_case.round
-                );
-                continue;
+                match test_case.fault_type {
+                    Timeout => {
+                        info!(
+                            "drop bcast from share_id {} in round {}",
+                            test_case.faulter_share_id, test_case.round
+                        );
+                        continue;
+                    }
+                    Duplicate => {
+                        info!(
+                            "duplicate bcast from share_id {} in round {}",
+                            test_case.faulter_share_id, test_case.round
+                        );
+                        for (_, round) in rounds.iter_mut() {
+                            round.msg_in(round.share_to_party_id(from).unwrap(), &bytes)?;
+                        }
+                    }
+                    _ => (),
+                }
             }
 
             for (_, round) in rounds.iter_mut() {
@@ -194,18 +210,32 @@ where
     if let Some(all_p2ps) = all_p2ps {
         for (from, p2ps) in all_p2ps.into_iter() {
             for (to, bytes) in p2ps {
-                // inject timeout fault
-                if current_round == test_case.round
-                    && test_case.faulter_share_id == from
-                    && matches!(test_case.fault_type, Timeout)
-                {
+                // inject timeout or duplicate fault
+                if current_round == test_case.round && test_case.faulter_share_id == from {
                     if let P2p { to: victim } = test_case.msg {
                         if victim == to {
-                            info!(
-                                "drop p2p from party {} to {} in round {}",
-                                test_case.faulter_share_id, victim, test_case.round
-                            );
-                            continue;
+                            match test_case.fault_type {
+                                Timeout => {
+                                    info!(
+                                        "drop p2p from share_id {} to {} in round {}",
+                                        test_case.faulter_share_id, victim, test_case.round
+                                    );
+                                    continue;
+                                }
+                                Duplicate => {
+                                    info!(
+                                        "duplicate p2p from share_id {} to {} in round {}",
+                                        test_case.faulter_share_id, victim, test_case.round
+                                    );
+                                    for (_, round) in rounds.iter_mut() {
+                                        round.msg_in(
+                                            round.share_to_party_id(from).unwrap(),
+                                            &bytes,
+                                        )?;
+                                    }
+                                }
+                                _ => (),
+                            }
                         }
                     }
                 }
