@@ -95,7 +95,7 @@ impl TestCase {
 fn execute_test_case_list(test_cases: &[TestCase]) {
     for test_case in test_cases {
         info!(
-            "all tests: party_share_counts [{:?}] threshold [{}]",
+            "test: party_share_counts [{:?}] threshold [{}]",
             test_case.party_share_counts, test_case.threshold
         );
         // print a pretty list of malicious parties

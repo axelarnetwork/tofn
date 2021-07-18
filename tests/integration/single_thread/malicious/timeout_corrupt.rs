@@ -14,19 +14,17 @@ use crate::{common::keygen, single_thread::execute::nobody_done};
 #[test]
 #[traced_test]
 fn single_faults_keygen() {
-    let party_share_counts = VecMap::from_vec(vec![2, 2, 2]); // 6 total shares
-    let threshold = 3;
-    info!(
-        "all tests: party_share_counts [{:?}] threshold [{}]",
-        party_share_counts, threshold
-    );
-
     for test_case in single_fault_test_case_list() {
-        let shares = keygen::initialize_honest_parties(&party_share_counts, threshold);
+        info!(
+            "test: party_share_counts [{:?}] threshold [{}]",
+            test_case.party_share_counts, test_case.threshold
+        );
         info!(
             "test: target_msg [{:?}], fault_type [{:?}]",
             test_case.msg, test_case.fault_type
         );
+        let shares =
+            keygen::initialize_honest_parties(&test_case.party_share_counts, test_case.threshold);
         execute_test_case(shares, test_case);
     }
 }
@@ -47,17 +45,20 @@ fn single_fault_test_case<K, P>(
     msg: MsgType<K>,
     fault_type: FaultType,
 ) -> SingleFaulterTestCase<K, P> {
-    // assume party_share_counts [2,2,2]
-    // faulter_share: 3, round: 2
+    // 2 parties, 2 shares per party
+    // share 3 (party 1) is malicious
+    // fault in round 2
     let faulter_share_id = TypedUsize::from_usize(3);
     let faulter_party_id = TypedUsize::from_usize(1);
-    let mut faulters = FillVecMap::with_size(3);
+    let mut faulters = FillVecMap::with_size(2);
     let fault = match fault_type {
         FaultType::Timeout => Fault::MissingMessage,
         _ => Fault::CorruptedMessage,
     };
     faulters.set(faulter_party_id, fault).unwrap();
     SingleFaulterTestCase {
+        party_share_counts: VecMap::from_vec(vec![2, 2]),
+        threshold: 2,
         faulter_share_id,
         faulter_party_id,
         round: 2,
@@ -68,6 +69,8 @@ fn single_fault_test_case<K, P>(
 }
 
 pub struct SingleFaulterTestCase<K, P> {
+    pub party_share_counts: VecMap<P, usize>,
+    pub threshold: usize,
     pub faulter_share_id: TypedUsize<K>,
     pub faulter_party_id: TypedUsize<P>,
     pub round: usize,          // round in which fault occurs, index starts at 1
@@ -85,16 +88,16 @@ pub enum FaultType {
 }
 
 fn execute_test_case<F, K, P>(
-    parties: VecMap<K, Protocol<F, K, P>>,
+    shares: VecMap<K, Protocol<F, K, P>>,
     test_case: SingleFaulterTestCase<K, P>,
 ) where
     K: PartialEq + std::fmt::Debug + Clone + Copy, // TODO can't quite escape ugly trait bounds :(
     P: PartialEq + std::fmt::Debug + Clone + Copy,
 {
-    let parties = execute_protocol(parties, &test_case).expect("internal tofn error");
+    let shares = execute_protocol(shares, &test_case).expect("internal tofn error");
 
     // TEST: honest parties finished and produced the expected output
-    for (i, party) in parties.iter() {
+    for (i, party) in shares.iter() {
         if i != test_case.faulter_share_id {
             let result = match party {
                 Protocol::NotDone(_) => panic!("honest party {} not done yet", i),
