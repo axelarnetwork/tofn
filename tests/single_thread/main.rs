@@ -13,17 +13,17 @@ use tracing_test::traced_test; // enable logs in tests
 #[test]
 #[traced_test]
 fn main() {
-    let (share_count, threshold) = (5, 2);
+    let party_share_counts = VecMap::from_vec(vec![1, 2, 3, 4]); // 10 total shares
+    let threshold = 5;
+    let mut shares = keygen::initialize_honest_parties(&party_share_counts, threshold);
 
-    let mut parties = keygen::initialize_honest_parties(share_count, threshold);
+    shares = execute_protocol(shares).expect("internal tofn error");
 
-    parties = execute_protocol(parties).expect("internal tofn error");
-
-    let _results: VecMap<KeygenPartyIndex, SecretKeyShare> = parties
+    let _results: VecMap<KeygenPartyIndex, SecretKeyShare> = shares
         .into_iter()
         .map(|(i, party)| match party {
-            Protocol::NotDone(_) => panic!("party {} not done yet", i),
-            Protocol::Done(result) => result.expect("party finished with error"),
+            Protocol::NotDone(_) => panic!("share_id {} not done yet", i),
+            Protocol::Done(result) => result.expect("share finished with error"),
         })
         .collect();
 
@@ -42,13 +42,10 @@ mod keygen {
     use tofn::refactor::keygen::malicious::Behaviour;
 
     pub fn initialize_honest_parties(
-        share_count: usize,
+        party_share_counts: &VecMap<RealKeygenPartyIndex, usize>,
         threshold: usize,
     ) -> VecMap<KeygenPartyIndex, KeygenProtocol> {
-        // TODO TEMPORARY one share per party
-        let party_share_counts: VecMap<RealKeygenPartyIndex, usize> =
-            (0..share_count).map(|_| 1).collect();
-
+        let share_count = party_share_counts.iter().map(|(_, c)| c).sum();
         let session_nonce = b"foobar";
         (0..share_count)
             .map(|index| {

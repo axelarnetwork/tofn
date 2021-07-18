@@ -1,5 +1,5 @@
 pub mod api {
-    //! API for protocol implementers, but not for users of protocols
+    //! API for tofn users
     #[derive(Debug)]
     pub struct TofnFatal;
     pub type TofnResult<T> = Result<T, TofnFatal>;
@@ -15,13 +15,13 @@ pub mod api {
     pub use super::wire_bytes::MsgType;
 }
 pub mod implementer_api {
-    use crate::refactor::{collections::TypedUsize, protocol::api::TofnFatal};
-
+    //! API for protocol implementers, but not for users of protocols
     use super::api::{BytesVec, TofnResult};
     pub use super::{
         protocol_builder::{ProtocolBuilder, ProtocolBuilderOutput, RoundBuilder},
         round::{bcast_and_p2p, bcast_only, no_messages, ProtocolInfo, ProtocolInfoDeluxe},
     };
+    use crate::refactor::{collections::TypedUsize, protocol::api::TofnFatal};
     use tracing::{error, info, warn};
 
     pub(crate) fn serialize<T: ?Sized>(value: &T) -> TofnResult<BytesVec>

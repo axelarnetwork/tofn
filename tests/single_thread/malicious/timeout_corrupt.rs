@@ -4,29 +4,30 @@
 use self::{FaultType::*, MsgType::*};
 use tofn::refactor::{
     collections::{FillVecMap, HoleVecMap, TypedUsize, VecMap},
-    protocol::api::{BytesVec, Fault, MsgType, Protocol, TofnResult},
+    protocol::api::{BytesVec, Fault, MsgType, Protocol, ProtocolFaulters, TofnResult},
 };
 use tracing::{info, warn};
 use tracing_test::traced_test; // enable logs in tests
 
-use crate::{execute::nobody_done, keygen::initialize_honest_parties};
+use crate::{execute::nobody_done, keygen};
 
 #[test]
 #[traced_test]
 fn single_faults_keygen() {
-    let (share_count, threshold) = (5, 2);
+    let party_share_counts = VecMap::from_vec(vec![2, 2, 2]); // 6 total shares
+    let threshold = 3;
     info!(
-        "all tests: share_count [{}] threshold [{}]",
-        share_count, threshold
+        "all tests: party_share_counts [{:?}] threshold [{}]",
+        party_share_counts, threshold
     );
 
     for test_case in single_fault_test_case_list() {
-        let parties = initialize_honest_parties(share_count, threshold);
+        let shares = keygen::initialize_honest_parties(&party_share_counts, threshold);
         info!(
-            "test: msg [{:?}], type [{:?}]",
+            "test: target_msg [{:?}], fault_type [{:?}]",
             test_case.msg, test_case.fault_type
         );
-        execute_test_case(parties, test_case);
+        execute_test_case(shares, test_case);
     }
 }
 
@@ -44,10 +45,11 @@ fn single_fault_test_case<K, P>(
     msg: MsgType<K>,
     fault_type: FaultType,
 ) -> SingleFaulterTestCase<K, P> {
-    // 5 parties, faulter: 3, round: 2
+    // assume party_share_counts [2,2,2]
+    // faulter_share: 3, round: 2
     let faulter_share_id = TypedUsize::from_usize(3);
-    let faulter_party_id = TypedUsize::from_usize(3);
-    let mut faulters = FillVecMap::with_size(5);
+    let faulter_party_id = TypedUsize::from_usize(1);
+    let mut faulters = FillVecMap::with_size(3);
     let fault = match fault_type {
         FaultType::Timeout => Fault::MissingMessage,
         FaultType::Corruption => Fault::CorruptedMessage,
@@ -69,7 +71,7 @@ pub struct SingleFaulterTestCase<K, P> {
     pub round: usize,          // round in which fault occurs, index starts at 1
     pub msg: MsgType<K>,       // which message is faulty
     pub fault_type: FaultType, // missing or corrupted message
-    pub expected_honest_output: FillVecMap<P, Fault>,
+    pub expected_honest_output: ProtocolFaulters<P>,
 }
 
 #[derive(Debug)]
@@ -138,6 +140,7 @@ where
         .collect();
 
     // inject corruption fault
+    // TODO different corruption types
     if current_round == test_case.round && matches!(test_case.fault_type, Corruption) {
         info!(
             "corrupt msg from {} in round {}",

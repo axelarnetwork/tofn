@@ -15,7 +15,6 @@ use super::KeygenPartyIndex;
 #[derive(Clone, Debug)]
 pub enum Behaviour {
     Honest,
-    // Timeout, // TODO how to test timeouts?
     CorruptMessage {
         msg_type: MsgType,
     },
