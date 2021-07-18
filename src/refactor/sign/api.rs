@@ -6,7 +6,7 @@ use std::{
 use crate::refactor::{
     collections::{TypedUsize, VecMap},
     keygen::{GroupPublicInfo, KeygenPartyIndex, SecretKeyShare, ShareSecretInfo},
-    protocol::{
+    sdk::{
         api::{BytesVec, Protocol, Round, TofnFatal, TofnResult},
         implementer_api::{ProtocolBuilder, ProtocolInfoDeluxe},
     },

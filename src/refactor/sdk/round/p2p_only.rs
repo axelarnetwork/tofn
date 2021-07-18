@@ -3,7 +3,7 @@ use tracing::warn;
 
 use crate::refactor::{
     collections::{FillP2ps, FillVecMap, P2ps},
-    protocol::{
+    sdk::{
         api::{BytesVec, Fault, TofnResult},
         implementer_api::{ProtocolBuilder, ProtocolInfo},
     },

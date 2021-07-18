@@ -73,7 +73,7 @@ struct BytesVecVersioned {
 pub mod malicious {
     use tracing::error;
 
-    use crate::refactor::protocol::api::{BytesVec, TofnFatal, TofnResult};
+    use crate::refactor::sdk::api::{BytesVec, TofnFatal, TofnResult};
 
     use super::{unwrap, wrap};
 

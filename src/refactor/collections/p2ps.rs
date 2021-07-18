@@ -3,7 +3,7 @@ use tracing::error;
 
 use crate::refactor::{
     collections::{FillHoleVecMap, HoleVecMap, TypedUsize, VecMap},
-    protocol::api::{TofnFatal, TofnResult},
+    sdk::api::{TofnFatal, TofnResult},
 };
 
 use super::p2ps_iter::P2psIter;

@@ -2,8 +2,8 @@ use serde::de::DeserializeOwned;
 use tracing::warn;
 
 use crate::refactor::{
-    collections::{FillVecMap, VecMap},
-    protocol::{
+    collections::{FillP2ps, FillVecMap, P2ps, VecMap},
+    sdk::{
         api::{BytesVec, Fault, TofnResult},
         implementer_api::{ProtocolBuilder, ProtocolInfo},
     },
@@ -13,10 +13,12 @@ pub trait Executer: Send + Sync {
     type FinalOutput;
     type Index;
     type Bcast: DeserializeOwned;
+    type P2p: DeserializeOwned;
     fn execute(
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
+        p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>>;
 
     #[cfg(test)]
@@ -33,6 +35,7 @@ pub trait ExecuterRaw: Send + Sync {
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, BytesVec>,
+        p2ps_in: FillP2ps<Self::Index, BytesVec>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>>;
 
     #[cfg(test)]
@@ -49,6 +52,7 @@ impl<T: Executer> ExecuterRaw for T {
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, BytesVec>,
+        p2ps_in: FillP2ps<Self::Index, BytesVec>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
         let mut faulters = FillVecMap::with_size(info.party_count());
 
@@ -59,6 +63,17 @@ impl<T: Executer> ExecuterRaw for T {
                 faulters.set(from, Fault::MissingMessage)?;
             }
         }
+        for (from, to, p2p) in p2ps_in.iter() {
+            if p2p.is_none() {
+                warn!(
+                    "party {} detect missing p2p from {} to {}",
+                    info.index(),
+                    from,
+                    to
+                );
+                faulters.set(from, Fault::MissingMessage)?;
+            }
+        }
         if !faulters.is_empty() {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
@@ -66,6 +81,8 @@ impl<T: Executer> ExecuterRaw for T {
         // attempt to deserialize bcasts, p2ps
         let bcasts_deserialized: VecMap<_, Result<_, _>> =
             bcasts_in.unwrap_all_map(|bytes| bincode::deserialize(&bytes))?;
+        let p2ps_deserialized: P2ps<_, Result<_, _>> =
+            p2ps_in.unwrap_all_map(|bytes| bincode::deserialize(&bytes))?;
 
         // check for deserialization faults
         for (from, bcast) in bcasts_deserialized.iter() {
@@ -78,14 +95,26 @@ impl<T: Executer> ExecuterRaw for T {
                 faulters.set(from, Fault::CorruptedMessage)?;
             }
         }
+        for (from, to, p2p) in p2ps_deserialized.iter() {
+            if p2p.is_err() {
+                warn!(
+                    "party {} detect corrupted p2p from {} to {}",
+                    info.index(),
+                    from,
+                    to
+                );
+                faulters.set(from, Fault::CorruptedMessage)?;
+            }
+        }
         if !faulters.is_empty() {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
         // unwrap deserialized bcasts, p2ps
         let bcasts_in = bcasts_deserialized.map(Result::unwrap);
+        let p2ps_in = p2ps_deserialized.map(Result::unwrap);
 
-        self.execute(info, bcasts_in)
+        self.execute(info, bcasts_in, p2ps_in)
     }
 
     #[cfg(test)]

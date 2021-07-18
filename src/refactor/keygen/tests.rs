@@ -2,7 +2,7 @@ use super::*;
 use crate::{
     protocol::gg20::vss_k256,
     refactor::collections::{HoleVecMap, TypedUsize, VecMap},
-    refactor::protocol::api::{BytesVec, Protocol},
+    refactor::sdk::api::{BytesVec, Protocol},
 };
 use rand::RngCore;
 use tracing_test::traced_test;

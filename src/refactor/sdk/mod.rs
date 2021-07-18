@@ -21,7 +21,7 @@ pub mod implementer_api {
         protocol_builder::{ProtocolBuilder, ProtocolBuilderOutput, RoundBuilder},
         round::{bcast_and_p2p, bcast_only, no_messages, ProtocolInfo, ProtocolInfoDeluxe},
     };
-    use crate::refactor::{collections::TypedUsize, protocol::api::TofnFatal};
+    use crate::refactor::{collections::TypedUsize, sdk::api::TofnFatal};
     use tracing::{error, info, warn};
 
     pub(crate) fn serialize<T: ?Sized>(value: &T) -> TofnResult<BytesVec>

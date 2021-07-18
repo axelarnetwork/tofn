@@ -1,4 +1,4 @@
 pub mod collections;
 pub mod keygen;
-pub mod protocol;
+pub mod sdk;
 pub mod sign;

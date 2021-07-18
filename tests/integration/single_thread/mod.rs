@@ -4,7 +4,7 @@ use execute::*;
 use tofn::refactor::{
     collections::VecMap,
     keygen::{KeygenPartyIndex, SecretKeyShare},
-    protocol::api::Protocol,
+    sdk::api::Protocol,
 };
 use tracing_test::traced_test; // enable logs in tests
 

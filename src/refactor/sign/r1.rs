@@ -2,7 +2,7 @@ use crate::{
     hash, paillier_k256,
     refactor::{
         keygen::SecretKeyShare,
-        protocol::{
+        sdk::{
             api::{BytesVec, TofnResult},
             implementer_api::{no_messages, ProtocolInfo},
         },

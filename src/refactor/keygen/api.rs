@@ -1,7 +1,7 @@
 use super::{r1, rng};
 use crate::refactor::collections::TypedUsize;
-use crate::refactor::protocol::api::{Protocol, Round, TofnFatal, TofnResult};
-use crate::refactor::protocol::implementer_api::{ProtocolBuilder, ProtocolInfoDeluxe};
+use crate::refactor::sdk::api::{Protocol, Round, TofnFatal, TofnResult};
+use crate::refactor::sdk::implementer_api::{ProtocolBuilder, ProtocolInfoDeluxe};
 use crate::{k256_serde, paillier_k256, refactor::collections::VecMap};
 use serde::{Deserialize, Serialize};
 use tracing::error;

@@ -8,7 +8,7 @@ use crate::{
             r1, r2, r3, r4::sad::R4Sad, GroupPublicInfo, KeygenPartyIndex, KeygenProtocolBuilder,
             SecretKeyShare, SharePublicInfo, ShareSecretInfo,
         },
-        protocol::{
+        sdk::{
             api::{Fault::ProtocolFault, TofnResult},
             implementer_api::{bcast_only, log_fault_warn, ProtocolBuilder, ProtocolInfo},
         },

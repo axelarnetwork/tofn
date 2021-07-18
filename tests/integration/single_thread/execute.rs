@@ -2,7 +2,7 @@
 
 use tofn::{
     refactor::collections::{HoleVecMap, VecMap},
-    refactor::protocol::api::{BytesVec, Protocol, TofnResult},
+    refactor::sdk::api::{BytesVec, Protocol, TofnResult},
 };
 use tracing::warn;
 

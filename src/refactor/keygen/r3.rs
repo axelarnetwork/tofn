@@ -9,7 +9,7 @@ use crate::{
     refactor::collections::{FillVecMap, P2ps, VecMap},
     refactor::{
         keygen::{r4, SecretKeyShare},
-        protocol::{
+        sdk::{
             api::{Fault::ProtocolFault, TofnResult},
             implementer_api::{
                 bcast_and_p2p, log_accuse_warn, serialize, ProtocolBuilder, ProtocolInfo,
@@ -200,7 +200,7 @@ mod malicious {
         refactor::{
             collections::{FillVecMap, HoleVecMap, TypedUsize},
             keygen::KeygenPartyIndex,
-            protocol::api::TofnResult,
+            sdk::api::TofnResult,
         },
     };
 

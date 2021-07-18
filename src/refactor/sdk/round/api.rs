@@ -1,6 +1,6 @@
 use super::super::wire_bytes::{self, MsgType::*, WireBytes};
 use super::*;
-use crate::refactor::protocol::api::{Fault, Protocol};
+use crate::refactor::sdk::api::{Fault, Protocol};
 use tracing::warn;
 
 impl<F, K, P> Round<F, K, P> {
@@ -169,7 +169,7 @@ impl<F, K, P> Round<F, K, P> {
 pub mod malicious {
     use tracing::{error, info};
 
-    use crate::refactor::protocol::{
+    use crate::refactor::sdk::{
         api::TofnFatal,
         round::RoundType,
         wire_bytes::{

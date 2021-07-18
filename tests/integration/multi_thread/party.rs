@@ -6,7 +6,7 @@ use std::sync::mpsc::Receiver;
 // https://github.com/rust-lang/rust/issues/83248
 use tofn::{
     refactor::collections::TypedUsize,
-    refactor::protocol::api::{BytesVec, Protocol, ProtocolOutput, TofnResult},
+    refactor::sdk::api::{BytesVec, Protocol, ProtocolOutput, TofnResult},
 };
 
 #[derive(Clone)]

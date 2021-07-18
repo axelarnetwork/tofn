@@ -2,7 +2,7 @@ use tracing::error;
 
 use crate::refactor::{
     collections::{FillP2ps, FillVecMap, HoleVecMap, TypedUsize, VecMap},
-    protocol::{
+    sdk::{
         api::{BytesVec, ProtocolFaulters, ProtocolOutput, TofnFatal, TofnResult},
         implementer_api::ProtocolBuilderOutput,
     },

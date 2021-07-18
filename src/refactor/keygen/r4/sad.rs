@@ -4,7 +4,7 @@ use crate::{
     refactor::collections::{FillVecMap, P2ps, VecMap},
     refactor::{
         keygen::{r1, r2, r3, KeygenPartyIndex, KeygenProtocolBuilder, SecretKeyShare},
-        protocol::{
+        sdk::{
             api::{Fault::ProtocolFault, TofnFatal, TofnResult},
             implementer_api::{bcast_only, log_fault_info, ProtocolBuilder, ProtocolInfo},
         },
