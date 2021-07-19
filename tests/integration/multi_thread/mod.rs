@@ -1,11 +1,11 @@
 use crate::common::keygen;
 use broadcaster::Broadcaster;
 use std::{sync::mpsc, thread};
-use tofn::refactor::{collections::VecMap, keygen::SecretKeyShare};
+use tofn::refactor::{keygen::SecretKeyShare, sdk::implementer_api::PartyShareCounts};
 
 #[test]
 fn basic_correctness() {
-    let party_share_counts = VecMap::from_vec(vec![1, 2, 3, 4]); // 10 total shares
+    let party_share_counts = PartyShareCounts::from_vec(vec![1, 2, 3, 4]); // 10 total shares
     let share_count = party_share_counts.iter().map(|(_, c)| c).sum();
     let threshold = 5;
 

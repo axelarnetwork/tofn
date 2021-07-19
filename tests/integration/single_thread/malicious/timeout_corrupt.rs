@@ -4,7 +4,10 @@
 use self::{FaultType::*, MsgType::*};
 use tofn::refactor::{
     collections::{FillVecMap, HoleVecMap, TypedUsize, VecMap},
-    sdk::api::{BytesVec, Fault, MsgType, Protocol, ProtocolFaulters, TofnResult},
+    sdk::{
+        api::{BytesVec, Fault, MsgType, Protocol, ProtocolFaulters, TofnResult},
+        implementer_api::PartyShareCounts,
+    },
 };
 use tracing::{info, warn};
 use tracing_test::traced_test; // enable logs in tests
@@ -57,7 +60,7 @@ fn single_fault_test_case<K, P>(
     };
     faulters.set(faulter_party_id, fault).unwrap();
     SingleFaulterTestCase {
-        party_share_counts: VecMap::from_vec(vec![2, 2]),
+        party_share_counts: PartyShareCounts::from_vec(vec![2, 2]),
         threshold: 2,
         faulter_share_id,
         faulter_party_id,
@@ -69,7 +72,7 @@ fn single_fault_test_case<K, P>(
 }
 
 pub struct SingleFaulterTestCase<K, P> {
-    pub party_share_counts: VecMap<P, usize>,
+    pub party_share_counts: PartyShareCounts<P>,
     pub threshold: usize,
     pub faulter_share_id: TypedUsize<K>,
     pub faulter_party_id: TypedUsize<P>,

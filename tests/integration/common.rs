@@ -1,8 +1,12 @@
 pub mod keygen {
     use tofn::{
         refactor::collections::{TypedUsize, VecMap},
-        refactor::keygen::{
-            new_keygen, KeygenPartyIndex, KeygenProtocol, RealKeygenPartyIndex, SecretRecoveryKey,
+        refactor::{
+            keygen::{
+                new_keygen, KeygenPartyIndex, KeygenProtocol, RealKeygenPartyIndex,
+                SecretRecoveryKey,
+            },
+            sdk::implementer_api::PartyShareCounts,
         },
     };
 
@@ -10,12 +14,11 @@ pub mod keygen {
     use tofn::refactor::keygen::malicious::Behaviour;
 
     pub fn initialize_honest_parties(
-        party_share_counts: &VecMap<RealKeygenPartyIndex, usize>,
+        party_share_counts: &PartyShareCounts<RealKeygenPartyIndex>,
         threshold: usize,
     ) -> VecMap<KeygenPartyIndex, KeygenProtocol> {
-        let share_count = party_share_counts.iter().map(|(_, c)| c).sum();
         let session_nonce = b"foobar";
-        (0..share_count)
+        (0..party_share_counts.total_share_count())
             .map(|index| {
                 let index = TypedUsize::from_usize(index);
                 new_keygen(

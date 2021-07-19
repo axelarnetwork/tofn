@@ -19,7 +19,10 @@ pub mod implementer_api {
     use super::api::{BytesVec, TofnResult};
     pub use super::{
         protocol_builder::{ProtocolBuilder, ProtocolBuilderOutput, RoundBuilder},
-        round::{bcast_and_p2p, bcast_only, no_messages, ProtocolInfo, ProtocolInfoDeluxe},
+        round::{
+            bcast_and_p2p, bcast_only, no_messages, party_share_counts::PartyShareCounts,
+            ProtocolInfo, ProtocolInfoDeluxe,
+        },
     };
     use crate::refactor::{collections::TypedUsize, sdk::api::TofnFatal};
     use tracing::{error, info, warn};

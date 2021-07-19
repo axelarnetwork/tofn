@@ -33,7 +33,11 @@ impl<F, K, P> Round<F, K, P> {
         };
 
         // verify share_id belongs to this party
-        match self.info.share_to_party_id_nonfatal(bytes_meta.from) {
+        match self
+            .info
+            .party_share_counts
+            .share_to_party_id_nonfatal(bytes_meta.from)
+        {
             Some(party_id) if party_id == from => (), // happy path
             _ => {
                 warn!(
@@ -157,11 +161,16 @@ impl<F, K, P> Round<F, K, P> {
     pub fn index(&self) -> TypedUsize<K> {
         self.info.core.index()
     }
+    pub fn party_id(&self) -> TypedUsize<P> {
+        self.info.party_id
+    }
     pub fn share_to_party_id(&self, share_id: TypedUsize<K>) -> TofnResult<TypedUsize<P>> {
-        self.info.share_to_party_id(share_id)
+        self.info.party_share_counts.share_to_party_id(share_id)
     }
     pub fn share_to_party_id_nonfatal(&self, share_id: TypedUsize<K>) -> Option<TypedUsize<P>> {
-        self.info.share_to_party_id_nonfatal(share_id)
+        self.info
+            .party_share_counts
+            .share_to_party_id_nonfatal(share_id)
     }
 }
 

@@ -4,7 +4,10 @@ use tofn::refactor::{
         malicious::Behaviour::{self, *},
         new_keygen, KeygenPartyIndex, KeygenProtocol, RealKeygenPartyIndex, SecretKeyShare,
     },
-    sdk::api::{Fault, Protocol::*, ProtocolOutput},
+    sdk::{
+        api::{Fault, Protocol::*, ProtocolOutput},
+        implementer_api::PartyShareCounts,
+    },
 };
 use tracing::info;
 use tracing_test::traced_test;
@@ -40,7 +43,7 @@ fn single_fault_test_case(behaviour: Behaviour) -> TestCase {
         .set(TypedUsize::from_usize(0), Fault::ProtocolFault)
         .unwrap();
     TestCase {
-        party_share_counts: VecMap::from_vec(vec![2, 2]),
+        party_share_counts: PartyShareCounts::from_vec(vec![2, 2]),
         threshold: 2,
         share_behaviours: VecMap::from_vec(vec![Honest, behaviour, Honest, Honest]),
         expected_honest_output: Err(faulters),
@@ -48,7 +51,7 @@ fn single_fault_test_case(behaviour: Behaviour) -> TestCase {
 }
 
 pub struct TestCase {
-    pub party_share_counts: VecMap<RealKeygenPartyIndex, usize>,
+    pub party_share_counts: PartyShareCounts<RealKeygenPartyIndex>,
     pub threshold: usize,
     pub share_behaviours: VecMap<KeygenPartyIndex, Behaviour>,
     pub expected_honest_output: ProtocolOutput<SecretKeyShare, RealKeygenPartyIndex>,

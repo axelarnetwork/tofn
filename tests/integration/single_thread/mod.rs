@@ -3,7 +3,7 @@ use execute::*;
 use tofn::refactor::{
     collections::VecMap,
     keygen::{KeygenPartyIndex, SecretKeyShare},
-    sdk::api::Protocol,
+    sdk::{api::Protocol, implementer_api::PartyShareCounts},
 };
 use tracing_test::traced_test; // enable logs in tests
 
@@ -12,7 +12,7 @@ use tracing_test::traced_test; // enable logs in tests
 #[test]
 #[traced_test]
 fn basic_correctness() {
-    let party_share_counts = VecMap::from_vec(vec![1, 2, 3, 4]); // 10 total shares
+    let party_share_counts = PartyShareCounts::from_vec(vec![1, 2, 3, 4]); // 10 total shares
     let threshold = 5;
     let mut shares = keygen::initialize_honest_parties(&party_share_counts, threshold);
 

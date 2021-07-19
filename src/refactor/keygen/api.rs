@@ -1,7 +1,9 @@
 use super::{r1, rng};
 use crate::refactor::collections::TypedUsize;
 use crate::refactor::sdk::api::{Protocol, Round, TofnFatal, TofnResult};
-use crate::refactor::sdk::implementer_api::{ProtocolBuilder, ProtocolInfoDeluxe};
+use crate::refactor::sdk::implementer_api::{
+    PartyShareCounts, ProtocolBuilder, ProtocolInfoDeluxe,
+};
 use crate::{k256_serde, paillier_k256, refactor::collections::VecMap};
 use serde::{Deserialize, Serialize};
 use tracing::error;
@@ -28,7 +30,7 @@ pub const MAX_PARTY_SHARE_COUNT: usize = MAX_TOTAL_SHARE_COUNT;
 
 /// Initialize a new keygen protocol
 pub fn new_keygen(
-    party_share_counts: VecMap<RealKeygenPartyIndex, usize>,
+    party_share_counts: PartyShareCounts<RealKeygenPartyIndex>,
     threshold: usize,
     index: TypedUsize<KeygenPartyIndex>,
     secret_recovery_key: &SecretRecoveryKey,
@@ -72,7 +74,7 @@ pub fn new_keygen(
             #[cfg(feature = "malicious")]
             behaviour,
         }),
-        ProtocolInfoDeluxe::new(party_share_counts, index),
+        ProtocolInfoDeluxe::new(party_share_counts, index)?,
     )?))
 }
 /// final output of keygen

@@ -10,53 +10,39 @@ use tofn::{
 };
 
 #[derive(Clone)]
-pub enum Message<K> {
-    Bcast {
-        from: TypedUsize<K>,
-        bytes: BytesVec,
-    },
-    P2p {
-        from: TypedUsize<K>,
-        to: TypedUsize<K>,
-        bytes: BytesVec,
-    },
+pub struct Message<P> {
+    from: TypedUsize<P>,
+    bytes: BytesVec,
 }
 
 pub fn execute_protocol<F, K, P>(
     mut party: Protocol<F, K, P>,
-    input: Receiver<Message<K>>,
-    broadcaster: Broadcaster<Message<K>>,
+    input: Receiver<Message<P>>,
+    broadcaster: Broadcaster<Message<P>>,
 ) -> TofnResult<ProtocolOutput<F, P>>
 where
-    K: Clone,
+    P: Clone,
 {
     while let Protocol::NotDone(mut round) = party {
         // send outgoing messages
         if let Some(bytes) = round.bcast_out() {
-            broadcaster.send(Message::Bcast {
-                from: round.index(),
+            broadcaster.send(Message {
+                from: round.party_id(),
                 bytes: bytes.clone(),
             });
         }
         if let Some(p2ps_out) = round.p2ps_out() {
-            for (to, bytes) in p2ps_out.iter() {
-                broadcaster.send(Message::P2p {
-                    from: round.index(),
-                    to,
+            for (_, bytes) in p2ps_out.iter() {
+                broadcaster.send(Message {
+                    from: round.party_id(),
                     bytes: bytes.clone(),
                 });
             }
         }
         // collect incoming messages
         while round.expecting_more_msgs_this_round() {
-            match input.recv().expect("recv fail") {
-                Message::Bcast { from, bytes } => {
-                    round.msg_in(round.share_to_party_id(from).unwrap(), &bytes)?
-                }
-                Message::P2p { from, to: _, bytes } => {
-                    round.msg_in(round.share_to_party_id(from).unwrap(), &bytes)?
-                }
-            }
+            let msg = input.recv().expect("recv fail");
+            round.msg_in(msg.from, &msg.bytes)?;
         }
 
         party = round.execute_next_round()?;

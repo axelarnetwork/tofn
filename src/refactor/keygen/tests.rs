@@ -1,8 +1,11 @@
 use super::*;
 use crate::{
     protocol::gg20::vss_k256,
-    refactor::collections::{HoleVecMap, TypedUsize, VecMap},
     refactor::sdk::api::{BytesVec, Protocol},
+    refactor::{
+        collections::{HoleVecMap, TypedUsize, VecMap},
+        sdk::implementer_api::PartyShareCounts,
+    },
 };
 use rand::RngCore;
 use tracing_test::traced_test;
@@ -62,8 +65,7 @@ pub(crate) fn execute_keygen_from_recovery(
 ) -> Vec<SecretKeyShare> {
     // TODO TEMPORARY one share per party
     let share_count = secret_recovery_keys.len();
-    let party_share_counts: VecMap<RealKeygenPartyIndex, usize> =
-        (0..share_count).map(|_| 1).collect();
+    let party_share_counts = PartyShareCounts::from_vecmap((0..share_count).map(|_| 1).collect());
 
     let r0_parties: Vec<_> = (0..share_count)
         .map(|i| {
