@@ -11,6 +11,10 @@ pub mod api {
         round::Round,
     };
 
+    // TODO make these into const generics wherever they're used
+    pub const MAX_TOTAL_SHARE_COUNT: usize = 1000;
+    pub const MAX_PARTY_SHARE_COUNT: usize = MAX_TOTAL_SHARE_COUNT;
+
     #[cfg(feature = "malicious")]
     pub use super::wire_bytes::MsgType;
 }
@@ -20,8 +24,9 @@ pub mod implementer_api {
     pub use super::{
         protocol_builder::{ProtocolBuilder, ProtocolBuilderOutput, RoundBuilder},
         round::{
-            bcast_and_p2p, bcast_only, no_messages, party_share_counts::PartyShareCounts,
-            ProtocolInfo, ProtocolInfoDeluxe,
+            bcast_and_p2p, bcast_only, no_messages,
+            party_share_counts::PartyShareCounts,
+            protocol_info::{ProtocolInfo, ProtocolInfoDeluxe},
         },
     };
     use crate::refactor::{collections::TypedUsize, sdk::api::TofnFatal};

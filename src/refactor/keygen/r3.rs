@@ -70,14 +70,14 @@ impl bcast_and_p2p::Executer for R3 {
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<KeygenProtocolBuilder> {
-        let mut faulters = FillVecMap::with_size(info.party_count());
+        let mut faulters = FillVecMap::with_size(info.share_count());
 
         // check y_i commits
         for (from, bcast) in bcasts_in.iter() {
             let y_i = bcast.u_i_vss_commit.secret_commit();
             let y_i_commit = hash::commit_with_randomness(to_bytes(y_i), &bcast.y_i_reveal);
             if y_i_commit != self.r1bcasts.get(from)?.y_i_commit {
-                warn!("party {} detect bad reveal by {}", info.index(), from);
+                warn!("party {} detect bad reveal by {}", info.share_id(), from);
                 faulters.set(from, ProtocolFault)?;
             }
         }
@@ -86,12 +86,12 @@ impl bcast_and_p2p::Executer for R3 {
         }
 
         // decrypt shares
-        let share_infos = p2ps_in.map_to_me(info.index(), |p2p| {
+        let share_infos = p2ps_in.map_to_me(info.share_id(), |p2p| {
             let (u_i_share_plaintext, u_i_share_randomness) =
                 self.dk.decrypt_with_randomness(&p2p.u_i_share_ciphertext);
             let u_i_share = vss_k256::Share::from_scalar(
                 u_i_share_plaintext.to_scalar(),
-                info.index().as_usize(),
+                info.share_id().as_usize(),
             );
             ShareInfo {
                 share: u_i_share,
@@ -100,14 +100,14 @@ impl bcast_and_p2p::Executer for R3 {
         })?;
 
         // validate shares
-        let mut vss_complaints = FillVecMap::with_size(info.party_count());
+        let mut vss_complaints = FillVecMap::with_size(info.share_count());
         for (from, share_info) in share_infos.iter() {
             if !bcasts_in
                 .get(from)?
                 .u_i_vss_commit
                 .validate_share(&share_info.share)
             {
-                log_accuse_warn(info.index(), from, "invalid vss share");
+                log_accuse_warn(info.share_id(), from, "invalid vss share");
                 vss_complaints.set(
                     from,
                     ShareInfo {
@@ -120,7 +120,7 @@ impl bcast_and_p2p::Executer for R3 {
 
         corrupt!(
             vss_complaints,
-            self.corrupt_complaint(info.index(), &share_infos, vss_complaints)?
+            self.corrupt_complaint(info.share_id(), &share_infos, vss_complaints)?
         );
 
         if !vss_complaints.is_empty() {
@@ -149,7 +149,7 @@ impl bcast_and_p2p::Executer for R3 {
             });
 
         // compute all_X_i
-        let all_X_i: VecMap<KeygenPartyIndex, k256::ProjectivePoint> = (0..info.party_count())
+        let all_X_i: VecMap<KeygenPartyIndex, k256::ProjectivePoint> = (0..info.share_count())
             .map(|i| {
                 bcasts_in
                     .iter()
@@ -159,12 +159,12 @@ impl bcast_and_p2p::Executer for R3 {
             })
             .collect();
 
-        corrupt!(x_i, self.corrupt_scalar(info.index(), x_i));
+        corrupt!(x_i, self.corrupt_scalar(info.share_id(), x_i));
 
         let x_i_proof = schnorr_k256::prove(
             &schnorr_k256::Statement {
                 base: &k256::ProjectivePoint::generator(),
-                target: all_X_i.get(info.index())?,
+                target: all_X_i.get(info.share_id())?,
             },
             &schnorr_k256::Witness { scalar: &x_i },
         );

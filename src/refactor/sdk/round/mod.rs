@@ -2,10 +2,7 @@ use tracing::error;
 
 use crate::refactor::{
     collections::{FillP2ps, FillVecMap, HoleVecMap, TypedUsize},
-    sdk::{
-        api::{BytesVec, ProtocolFaulters, ProtocolOutput, TofnFatal, TofnResult},
-        implementer_api::ProtocolBuilderOutput,
-    },
+    sdk::api::{BytesVec, ProtocolFaulters, TofnFatal, TofnResult},
 };
 
 // TODO is there a way to restrict visibility of struct methods?
@@ -18,25 +15,13 @@ pub mod bcast_only;
 pub mod no_messages;
 pub mod p2p_only;
 pub mod party_share_counts;
-use party_share_counts::PartyShareCounts;
+pub mod protocol_info;
+use protocol_info::ProtocolInfoDeluxe;
 
 pub struct Round<F, K, P> {
     info: ProtocolInfoDeluxe<K, P>,
     round_type: RoundType<F, K>,
     msg_in_faulters: ProtocolFaulters<P>,
-}
-
-// info persisted throughout the protocol ("deluxe" depends on `P`)
-pub struct ProtocolInfoDeluxe<K, P> {
-    party_share_counts: PartyShareCounts<P>,
-    party_id: TypedUsize<P>,
-    core: ProtocolInfo<K>,
-}
-
-// info persisted throughout the protocol (cannot depend on `P`)
-pub struct ProtocolInfo<K> {
-    share_count: usize,
-    share_id: TypedUsize<K>,
 }
 
 pub enum RoundType<F, K> {
@@ -72,67 +57,11 @@ pub struct BcastAndP2pRound<F, K> {
 
 impl<F, K, P> Round<F, K, P> {
     pub fn new(info: ProtocolInfoDeluxe<K, P>, round_type: RoundType<F, K>) -> Self {
-        let party_count = info.party_share_counts.party_count();
+        let party_count = info.party_share_counts().party_count();
         Self {
             info,
             round_type,
             msg_in_faulters: FillVecMap::with_size(party_count),
         }
-    }
-}
-
-impl<K> ProtocolInfo<K> {
-    pub fn party_count(&self) -> usize {
-        self.share_count
-    }
-    pub fn index(&self) -> TypedUsize<K> {
-        self.share_id
-    }
-}
-
-impl<K, P> ProtocolInfoDeluxe<K, P> {
-    pub fn new(
-        party_share_counts: PartyShareCounts<P>,
-        share_id: TypedUsize<K>,
-    ) -> TofnResult<Self> {
-        let party_id = party_share_counts.share_to_party_id(share_id)?;
-        let share_count = party_share_counts.total_share_count();
-        Ok(Self {
-            party_share_counts,
-            party_id,
-            core: ProtocolInfo {
-                share_count,
-                share_id,
-            },
-        })
-    }
-    pub fn party_count(&self) -> usize {
-        self.core.share_count
-    }
-    pub fn index(&self) -> TypedUsize<K> {
-        self.core.share_id
-    }
-
-    // TODO don't expose the following methods in the api
-    pub fn share_to_party_faults<F>(
-        &self,
-        output: ProtocolBuilderOutput<F, K>,
-    ) -> TofnResult<ProtocolOutput<F, P>> {
-        Ok(match output {
-            Ok(happy) => Ok(happy),
-            Err(share_faulters) => {
-                let mut party_faulters =
-                    FillVecMap::<P, _>::with_size(self.party_share_counts.party_count());
-                // TODO how to choose among multiple faults by one party?
-                // For now just overwrite and use the final fault
-                for (share_id, share_fault) in share_faulters.into_iter_some() {
-                    party_faulters.set(
-                        self.party_share_counts.share_to_party_id(share_id)?,
-                        share_fault,
-                    )?;
-                }
-                Err(party_faulters)
-            }
-        })
     }
 }

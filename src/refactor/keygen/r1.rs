@@ -47,15 +47,21 @@ impl no_messages::Executer for R1 {
             &(k256::ProjectivePoint::generator() * u_i_vss.get_secret()),
         ));
 
-        corrupt!(y_i_commit, self.corrupt_commit(_info.index(), y_i_commit));
+        corrupt!(
+            y_i_commit,
+            self.corrupt_commit(_info.share_id(), y_i_commit)
+        );
 
         let mut rng = rng::rng_from_seed(self.rng_seed);
         let (ek, dk) = paillier_k256::keygen_unsafe(&mut rng);
         let (zkp, zkp_proof) = paillier_k256::zk::ZkSetup::new_unsafe(&mut rng);
         let ek_proof = dk.correctness_proof();
 
-        corrupt!(ek_proof, self.corrupt_ek_proof(_info.index(), ek_proof));
-        corrupt!(zkp_proof, self.corrupt_zkp_proof(_info.index(), zkp_proof));
+        corrupt!(ek_proof, self.corrupt_ek_proof(_info.share_id(), ek_proof));
+        corrupt!(
+            zkp_proof,
+            self.corrupt_zkp_proof(_info.share_id(), zkp_proof)
+        );
 
         let bcast_out = serialize(&Bcast {
             y_i_commit,

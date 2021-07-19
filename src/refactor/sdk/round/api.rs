@@ -35,7 +35,7 @@ impl<F, K, P> Round<F, K, P> {
         // verify share_id belongs to this party
         match self
             .info
-            .party_share_counts
+            .party_share_counts()
             .share_to_party_id_nonfatal(bytes_meta.from)
         {
             Some(party_id) if party_id == from => (), // happy path
@@ -142,35 +142,21 @@ impl<F, K, P> Round<F, K, P> {
         match self.round_type {
             RoundType::BcastAndP2p(r) => r
                 .round
-                .execute_raw(&self.info.core, r.bcasts_in, r.p2ps_in)?
+                .execute_raw(&self.info.share_info(), r.bcasts_in, r.p2ps_in)?
                 .build(self.info),
             RoundType::BcastOnly(r) => r
                 .round
-                .execute_raw(&self.info.core, r.bcasts_in)?
+                .execute_raw(&self.info.share_info(), r.bcasts_in)?
                 .build(self.info),
             RoundType::P2pOnly(r) => r
                 .round
-                .execute_raw(&self.info.core, r.p2ps_in)?
+                .execute_raw(&self.info.share_info(), r.p2ps_in)?
                 .build(self.info),
-            RoundType::NoMessages(r) => r.round.execute(&self.info.core)?.build(self.info),
+            RoundType::NoMessages(r) => r.round.execute(&self.info.share_info())?.build(self.info),
         }
     }
-    pub fn party_count(&self) -> usize {
-        self.info.core.party_count()
-    }
-    pub fn index(&self) -> TypedUsize<K> {
-        self.info.core.index()
-    }
-    pub fn party_id(&self) -> TypedUsize<P> {
-        self.info.party_id
-    }
-    pub fn share_to_party_id(&self, share_id: TypedUsize<K>) -> TofnResult<TypedUsize<P>> {
-        self.info.party_share_counts.share_to_party_id(share_id)
-    }
-    pub fn share_to_party_id_nonfatal(&self, share_id: TypedUsize<K>) -> Option<TypedUsize<P>> {
-        self.info
-            .party_share_counts
-            .share_to_party_id_nonfatal(share_id)
+    pub fn info(&self) -> &ProtocolInfoDeluxe<K, P> {
+        &self.info
     }
 }
 
@@ -191,7 +177,10 @@ pub mod malicious {
 
     impl<F, K, P> Round<F, K, P> {
         pub fn corrupt_msg_payload(&mut self, msg_type: MsgType<K>) -> TofnResult<()> {
-            info!("malicious party {} corrupt msg", self.index());
+            info!(
+                "malicious party {} corrupt msg",
+                self.info.share_info().share_id()
+            );
             match &mut self.round_type {
                 RoundType::BcastAndP2p(r) => match msg_type {
                     Bcast => r.bcast_out = corrupt_payload::<K>(&r.bcast_out)?,

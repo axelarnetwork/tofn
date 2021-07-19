@@ -65,7 +65,8 @@ pub(crate) fn execute_keygen_from_recovery(
 ) -> Vec<SecretKeyShare> {
     // TODO TEMPORARY one share per party
     let share_count = secret_recovery_keys.len();
-    let party_share_counts = PartyShareCounts::from_vecmap((0..share_count).map(|_| 1).collect());
+    let party_share_counts =
+        PartyShareCounts::from_vecmap((0..share_count).map(|_| 1).collect()).unwrap();
 
     let r0_parties: Vec<_> = (0..share_count)
         .map(|i| {
@@ -109,7 +110,7 @@ pub(crate) fn execute_keygen_from_recovery(
     for party in r1_parties.iter_mut() {
         for (from, bytes) in r1_bcasts.iter() {
             party
-                .msg_in(party.share_to_party_id(from).unwrap(), bytes)
+                .msg_in(party_share_counts.share_to_party_id(from).unwrap(), bytes)
                 .unwrap();
         }
     }
@@ -150,7 +151,7 @@ pub(crate) fn execute_keygen_from_recovery(
     for party in r2_parties.iter_mut() {
         for (from, bytes) in r2_bcasts.iter() {
             party
-                .msg_in(party.share_to_party_id(from).unwrap(), bytes)
+                .msg_in(party_share_counts.share_to_party_id(from).unwrap(), bytes)
                 .unwrap();
         }
     }
@@ -162,7 +163,7 @@ pub(crate) fn execute_keygen_from_recovery(
         for (from, p2ps) in r2_p2ps.iter() {
             for (_, bytes) in p2ps.iter() {
                 party
-                    .msg_in(party.share_to_party_id(from).unwrap(), bytes)
+                    .msg_in(party_share_counts.share_to_party_id(from).unwrap(), bytes)
                     .unwrap();
             }
         }
@@ -191,7 +192,7 @@ pub(crate) fn execute_keygen_from_recovery(
     for party in r3_parties.iter_mut() {
         for (from, bytes) in r3_bcasts.iter() {
             party
-                .msg_in(party.share_to_party_id(from).unwrap(), bytes)
+                .msg_in(party_share_counts.share_to_party_id(from).unwrap(), bytes)
                 .unwrap();
         }
     }

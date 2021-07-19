@@ -52,7 +52,7 @@ impl bcast_only::Executer for R4 {
         {
             warn!(
                 "party {} r4 received complaints from others; move to sad path",
-                info.index()
+                info.share_id()
             );
             return Box::new(R4Sad {
                 r1bcasts: self.r1bcasts,
@@ -72,7 +72,7 @@ impl bcast_only::Executer for R4 {
             .collect();
 
         // verify proofs
-        let mut faulters = FillVecMap::with_size(info.party_count());
+        let mut faulters = FillVecMap::with_size(info.share_count());
         for (from, bcast) in bcasts_in.iter() {
             if schnorr_k256::verify(
                 &schnorr_k256::Statement {
@@ -83,7 +83,7 @@ impl bcast_only::Executer for R4 {
             )
             .is_err()
             {
-                log_fault_warn(info.index(), from, "bad DL proof");
+                log_fault_warn(info.share_id(), from, "bad DL proof");
                 faulters.set(from, ProtocolFault)?;
             }
         }
@@ -111,7 +111,7 @@ impl bcast_only::Executer for R4 {
                 all_shares,
             },
             share: ShareSecretInfo {
-                index: info.index(),
+                index: info.share_id(),
                 dk: self.dk,
                 x_i: self.x_i.into(),
             },

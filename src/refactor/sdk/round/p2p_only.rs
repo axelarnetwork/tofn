@@ -50,14 +50,14 @@ impl<T: Executer> ExecuterRaw for T {
         info: &ProtocolInfo<Self::Index>,
         p2ps_in: FillP2ps<Self::Index, BytesVec>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
-        let mut faulters = FillVecMap::with_size(info.party_count());
+        let mut faulters = FillVecMap::with_size(info.share_count());
 
         // check for timeout faults
         for (from, to, p2p) in p2ps_in.iter() {
             if p2p.is_none() {
                 warn!(
                     "party {} detect missing p2p from {} to {}",
-                    info.index(),
+                    info.share_id(),
                     from,
                     to
                 );
@@ -77,7 +77,7 @@ impl<T: Executer> ExecuterRaw for T {
             if p2p.is_err() {
                 warn!(
                     "party {} detect corrupted p2p from {} to {}",
-                    info.index(),
+                    info.share_id(),
                     from,
                     to
                 );

@@ -8,28 +8,21 @@ impl<F, K, P> Round<F, K, P> {
         p2ps_out: HoleVecMap<K, BytesVec>,
     ) -> TofnResult<Self> {
         // validate args
-        if info.index().as_usize() >= info.party_count() {
+        if p2ps_out.len() != info.share_info().share_count() {
             error!(
-                "index {} out of bounds {}",
-                info.index().as_usize(),
-                info.party_count()
-            );
-            return Err(TofnFatal);
-        }
-        if p2ps_out.len() != info.party_count() {
-            error!(
-                "p2ps_out length {} differs from party_count {}",
+                "p2ps_out length {} differs from share_count {}",
                 p2ps_out.len(),
-                info.party_count()
+                info.share_info().share_count()
             );
             return Err(TofnFatal);
         }
 
-        let bcast_out = wire_bytes::wrap(bcast_out, info.index(), Bcast)?;
-        let p2ps_out = p2ps_out
-            .map2_result(|(to, payload)| wire_bytes::wrap(payload, info.index(), P2p { to }))?;
+        let bcast_out = wire_bytes::wrap(bcast_out, info.share_info().share_id(), Bcast)?;
+        let p2ps_out = p2ps_out.map2_result(|(to, payload)| {
+            wire_bytes::wrap(payload, info.share_info().share_id(), P2p { to })
+        })?;
 
-        let len = info.party_count(); // squelch build error
+        let len = info.share_info().share_count(); // squelch build error
         Ok(Self::new(
             info,
             RoundType::BcastAndP2p(BcastAndP2pRound {
@@ -47,19 +40,9 @@ impl<F, K, P> Round<F, K, P> {
         info: ProtocolInfoDeluxe<K, P>,
         bcast_out: BytesVec,
     ) -> TofnResult<Self> {
-        // validate args
-        if info.index().as_usize() >= info.party_count() {
-            error!(
-                "index {} out of bounds {}",
-                info.index().as_usize(),
-                info.party_count()
-            );
-            return Err(TofnFatal);
-        }
+        let bcast_out = wire_bytes::wrap(bcast_out, info.share_info().share_id(), Bcast)?;
 
-        let bcast_out = wire_bytes::wrap(bcast_out, info.index(), Bcast)?;
-
-        let len = info.party_count(); // squelch build error
+        let len = info.share_info().share_count(); // squelch build error
         Ok(Self::new(
             info,
             RoundType::BcastOnly(BcastOnlyRound {
@@ -76,27 +59,20 @@ impl<F, K, P> Round<F, K, P> {
         p2ps_out: HoleVecMap<K, BytesVec>,
     ) -> TofnResult<Self> {
         // validate args
-        if info.index().as_usize() >= info.party_count() {
+        if p2ps_out.len() != info.share_info().share_count() {
             error!(
-                "index {} out of bounds {}",
-                info.index().as_usize(),
-                info.party_count()
-            );
-            return Err(TofnFatal);
-        }
-        if p2ps_out.len() != info.party_count() {
-            error!(
-                "p2ps_out length {} differs from party_count {}",
+                "p2ps_out length {} differs from share_count {}",
                 p2ps_out.len(),
-                info.party_count()
+                info.share_info().share_count()
             );
             return Err(TofnFatal);
         }
 
-        let p2ps_out = p2ps_out
-            .map2_result(|(to, payload)| wire_bytes::wrap(payload, info.index(), P2p { to }))?;
+        let p2ps_out = p2ps_out.map2_result(|(to, payload)| {
+            wire_bytes::wrap(payload, info.share_info().share_id(), P2p { to })
+        })?;
 
-        let len = info.party_count(); // squelch build error
+        let len = info.share_info().share_count(); // squelch build error
         Ok(Self::new(
             info,
             RoundType::P2pOnly(P2pOnlyRound {
@@ -111,15 +87,6 @@ impl<F, K, P> Round<F, K, P> {
         round: Box<dyn no_messages::Executer<FinalOutput = F, Index = K>>,
         info: ProtocolInfoDeluxe<K, P>,
     ) -> TofnResult<Self> {
-        if info.index().as_usize() >= info.party_count() {
-            error!(
-                "index {} out of bounds {}",
-                info.index().as_usize(),
-                info.party_count()
-            );
-            return Err(TofnFatal);
-        }
-
         Ok(Self::new(
             info,
             RoundType::NoMessages(NoMessagesRound { round }),

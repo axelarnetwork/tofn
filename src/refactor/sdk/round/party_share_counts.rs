@@ -2,7 +2,7 @@ use tracing::error;
 
 use crate::refactor::{
     collections::{TypedUsize, VecMap, VecMapIter},
-    sdk::api::{TofnFatal, TofnResult},
+    sdk::api::{TofnFatal, TofnResult, MAX_PARTY_SHARE_COUNT, MAX_TOTAL_SHARE_COUNT},
 };
 
 #[derive(Debug, Clone)]
@@ -12,15 +12,28 @@ pub struct PartyShareCounts<P> {
 }
 
 impl<P> PartyShareCounts<P> {
-    pub fn from_vecmap(vecmap: VecMap<P, usize>) -> Self {
-        // TODO enforce maxima here?
+    pub fn from_vecmap(vecmap: VecMap<P, usize>) -> TofnResult<Self> {
+        if vecmap.iter().any(|(_, &c)| c > MAX_PARTY_SHARE_COUNT) {
+            error!(
+                "detected a party with share count exceeding maximum {}",
+                MAX_PARTY_SHARE_COUNT
+            );
+            return Err(TofnFatal);
+        }
         let total_share_count = vecmap.iter().map(|(_, c)| c).sum();
-        Self {
+        if total_share_count > MAX_TOTAL_SHARE_COUNT {
+            error!(
+                "total share count {} exceeds maximum {}",
+                total_share_count, MAX_TOTAL_SHARE_COUNT
+            );
+            return Err(TofnFatal);
+        }
+        Ok(Self {
             party_share_counts: vecmap,
             total_share_count,
-        }
+        })
     }
-    pub fn from_vec(vec: Vec<usize>) -> Self {
+    pub fn from_vec(vec: Vec<usize>) -> TofnResult<Self> {
         Self::from_vecmap(VecMap::from_vec(vec))
     }
     pub fn total_share_count(&self) -> usize {

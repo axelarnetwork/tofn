@@ -60,7 +60,7 @@ fn single_fault_test_case<K, P>(
     };
     faulters.set(faulter_party_id, fault).unwrap();
     SingleFaulterTestCase {
-        party_share_counts: PartyShareCounts::from_vec(vec![2, 2]),
+        party_share_counts: PartyShareCounts::from_vec(vec![2, 2]).unwrap(),
         threshold: 2,
         faulter_share_id,
         faulter_party_id,
@@ -169,6 +169,8 @@ where
     // deliver bcasts if present
     if let Some(bcasts) = bcasts {
         for (from, bytes) in bcasts.into_iter() {
+            let from_party_id = test_case.party_share_counts.share_to_party_id(from)?;
+
             // inject timeout or duplicate fault
             if current_round == test_case.round
                 && test_case.faulter_share_id == from
@@ -188,7 +190,7 @@ where
                             test_case.faulter_share_id, test_case.round
                         );
                         for (_, round) in rounds.iter_mut() {
-                            round.msg_in(round.share_to_party_id(from).unwrap(), &bytes)?;
+                            round.msg_in(from_party_id, &bytes)?;
                         }
                     }
                     _ => (),
@@ -196,7 +198,7 @@ where
             }
 
             for (_, round) in rounds.iter_mut() {
-                round.msg_in(round.share_to_party_id(from).unwrap(), &bytes)?;
+                round.msg_in(from_party_id, &bytes)?;
             }
         }
     } else if current_round == test_case.round
@@ -215,6 +217,7 @@ where
     // deliver p2ps if present
     if let Some(all_p2ps) = all_p2ps {
         for (from, p2ps) in all_p2ps.into_iter() {
+            let from_party_id = test_case.party_share_counts.share_to_party_id(from)?;
             for (to, bytes) in p2ps {
                 // inject timeout or duplicate fault
                 if current_round == test_case.round && test_case.faulter_share_id == from {
@@ -234,10 +237,7 @@ where
                                         test_case.faulter_share_id, victim, test_case.round
                                     );
                                     for (_, round) in rounds.iter_mut() {
-                                        round.msg_in(
-                                            round.share_to_party_id(from).unwrap(),
-                                            &bytes,
-                                        )?;
+                                        round.msg_in(from_party_id, &bytes)?;
                                     }
                                 }
                                 _ => (),
@@ -247,7 +247,7 @@ where
                 }
 
                 for (_, round) in rounds.iter_mut() {
-                    round.msg_in(round.share_to_party_id(from).unwrap(), &bytes)?;
+                    round.msg_in(from_party_id, &bytes)?;
                 }
             }
         }

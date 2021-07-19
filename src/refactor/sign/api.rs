@@ -39,7 +39,7 @@ pub fn new_sign(
 
     // TODO TEMPORARY one share per party
     let party_share_counts =
-        PartyShareCounts::from_vecmap((0..participants.len()).map(|_| 1).collect());
+        PartyShareCounts::from_vecmap((0..participants.len()).map(|_| 1).collect())?;
 
     Ok(Protocol::NotDone(Round::new_no_messages(
         Box::new(r1::R1 {

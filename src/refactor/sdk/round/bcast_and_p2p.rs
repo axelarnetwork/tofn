@@ -54,12 +54,16 @@ impl<T: Executer> ExecuterRaw for T {
         bcasts_in: FillVecMap<Self::Index, BytesVec>,
         p2ps_in: FillP2ps<Self::Index, BytesVec>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
-        let mut faulters = FillVecMap::with_size(info.party_count());
+        let mut faulters = FillVecMap::with_size(info.share_count());
 
         // check for timeout faults
         for (from, bcast) in bcasts_in.iter() {
             if bcast.is_none() {
-                warn!("party {} detect missing bcast from {}", info.index(), from);
+                warn!(
+                    "party {} detect missing bcast from {}",
+                    info.share_id(),
+                    from
+                );
                 faulters.set(from, Fault::MissingMessage)?;
             }
         }
@@ -67,7 +71,7 @@ impl<T: Executer> ExecuterRaw for T {
             if p2p.is_none() {
                 warn!(
                     "party {} detect missing p2p from {} to {}",
-                    info.index(),
+                    info.share_id(),
                     from,
                     to
                 );
@@ -89,7 +93,7 @@ impl<T: Executer> ExecuterRaw for T {
             if bcast.is_err() {
                 warn!(
                     "party {} detect corrupted bcast from {}",
-                    info.index(),
+                    info.share_id(),
                     from
                 );
                 faulters.set(from, Fault::CorruptedMessage)?;
@@ -99,7 +103,7 @@ impl<T: Executer> ExecuterRaw for T {
             if p2p.is_err() {
                 warn!(
                     "party {} detect corrupted p2p from {} to {}",
-                    info.index(),
+                    info.share_id(),
                     from,
                     to
                 );

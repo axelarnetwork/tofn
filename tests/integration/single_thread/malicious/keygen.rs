@@ -43,7 +43,7 @@ fn single_fault_test_case(behaviour: Behaviour) -> TestCase {
         .set(TypedUsize::from_usize(0), Fault::ProtocolFault)
         .unwrap();
     TestCase {
-        party_share_counts: PartyShareCounts::from_vec(vec![2, 2]),
+        party_share_counts: PartyShareCounts::from_vec(vec![2, 2]).unwrap(),
         threshold: 2,
         share_behaviours: VecMap::from_vec(vec![Honest, behaviour, Honest, Honest]),
         expected_honest_output: Err(faulters),

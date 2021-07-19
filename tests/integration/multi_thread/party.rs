@@ -27,14 +27,14 @@ where
         // send outgoing messages
         if let Some(bytes) = round.bcast_out() {
             broadcaster.send(Message {
-                from: round.party_id(),
+                from: round.info().party_id(),
                 bytes: bytes.clone(),
             });
         }
         if let Some(p2ps_out) = round.p2ps_out() {
             for (_, bytes) in p2ps_out.iter() {
                 broadcaster.send(Message {
-                    from: round.party_id(),
+                    from: round.info().party_id(),
                     bytes: bytes.clone(),
                 });
             }
