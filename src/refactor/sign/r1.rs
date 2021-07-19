@@ -14,16 +14,23 @@ use crate::{
     },
 };
 use ecdsa::elliptic_curve::Field;
+use k256::Scalar;
 use serde::{Deserialize, Serialize};
 
 use super::{r2, Peers, SignParticipantIndex, SignProtocolBuilder};
 
+#[cfg(feature = "malicious")]
+use super::malicious::Behaviour;
+
 #[allow(non_snake_case)]
 pub struct R1 {
     pub secret_key_share: SecretKeyShare,
-    pub msg_to_sign: k256::Scalar,
+    pub msg_to_sign: Scalar,
     pub peers: Peers,
     pub keygen_id: TypedUsize<KeygenPartyIndex>,
+
+    #[cfg(feature = "malicious")]
+    pub behaviour: Behaviour,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -109,14 +116,25 @@ impl no_messages::Executer for R1 {
             round: Box::new(r2::R2 {
                 secret_key_share: self.secret_key_share,
                 msg_to_sign: self.msg_to_sign,
-                other_participants: self.peers,
+                peers: self.peers,
                 keygen_id: self.keygen_id,
                 gamma_i,
+                Gamma_i,
                 Gamma_i_reveal,
                 w_i,
+                k_i,
+                k_i_randomness,
+
+                #[cfg(feature = "malicious")]
+                behaviour: self.behaviour,
             }),
             bcast_out,
             p2ps_out,
         }))
+    }
+
+    #[cfg(test)]
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }

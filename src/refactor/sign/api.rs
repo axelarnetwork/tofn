@@ -18,6 +18,9 @@ use tracing::error;
 
 use super::r1;
 
+#[cfg(feature = "malicious")]
+use super::malicious;
+
 pub type SignProtocol = Protocol<BytesVec, SignParticipantIndex, RealSignParticipantIndex>;
 pub type SignProtocolBuilder = ProtocolBuilder<BytesVec, SignParticipantIndex>;
 pub type ParticipantsList = VecMap<SignParticipantIndex, TypedUsize<KeygenPartyIndex>>;
@@ -52,6 +55,7 @@ pub fn new_sign(
     share: &ShareSecretInfo,
     sign_parties: &SignParties,
     msg_to_sign: &MessageDigest,
+    #[cfg(feature = "malicious")] behaviour: malicious::Behaviour,
 ) -> TofnResult<SignProtocol> {
     let participants = VecMap::from_vec(group.party_share_counts().share_id_subset(sign_parties)?);
 
@@ -86,6 +90,8 @@ pub fn new_sign(
             msg_to_sign: msg_to_sign.into(),
             keygen_id: participants[index],
             sign_parties,
+            #[cfg(feature = "malicious")]
+            behaviour,
         }),
     )
 }
