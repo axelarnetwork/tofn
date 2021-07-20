@@ -97,7 +97,7 @@ impl bcast_and_p2p::Executer for R3 {
             if let Err(err) = zkp.verify_mta_proof(&peer_stmt, &p2p_in.alpha_proof) {
                 warn!(
                     "peer {} says: mta proof failed to verify for peer {} because [{}]",
-                    self.keygen_id, sign_peer_id, err
+                    sign_id, sign_peer_id, err
                 );
 
                 faulters.set(sign_peer_id, ProtocolFault)?;
@@ -107,9 +107,11 @@ impl bcast_and_p2p::Executer for R3 {
 
             // verify zk proof for step 2 of MtAwc k_i * w_j
             let lambda_i_S = &vss_k256::lagrange_coefficient(
-                sign_id.as_usize(),
+                sign_peer_id.as_usize(),
                 &self
                     .peers
+                    .clone()
+                    .plug_hole(self.keygen_id)
                     .iter()
                     .map(|(_, keygen_peer_id)| keygen_peer_id.as_usize())
                     .collect::<Vec<_>>(),
@@ -136,7 +138,7 @@ impl bcast_and_p2p::Executer for R3 {
             if let Err(err) = zkp.verify_mta_proof_wc(&peer_stmt, &p2p_in.mu_proof) {
                 warn!(
                     "peer {} says: mta_wc proof failed to verify for peer {} because [{}]",
-                    self.keygen_id, sign_peer_id, err
+                    sign_id, sign_peer_id, err
                 );
 
                 faulters.set(sign_peer_id, ProtocolFault)?;
@@ -169,7 +171,7 @@ impl bcast_and_p2p::Executer for R3 {
                 .secret_key_share
                 .share
                 .dk
-                .decrypt(&p2p_in.alpha_ciphertext)
+                .decrypt(&p2p_in.mu_ciphertext)
                 .to_scalar();
 
             Ok(mu)

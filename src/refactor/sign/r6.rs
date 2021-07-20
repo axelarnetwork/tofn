@@ -18,7 +18,7 @@ use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::{r1, r5, r7, Peers, SignParticipantIndex, SignProtocolBuilder};
+use super::{r1, r3, r5, r7, Peers, SignParticipantIndex, SignProtocolBuilder};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -41,6 +41,7 @@ pub struct R6 {
     pub(crate) beta_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub(crate) nu_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
+    pub r3bcasts: VecMap<SignParticipantIndex, r3::Bcast>,
     pub delta_inv: Scalar,
     pub R: ProjectivePoint,
 
@@ -72,7 +73,8 @@ impl bcast_and_p2p::Executer for R6 {
         let mut faulters = FillVecMap::with_size(participants_count);
 
         // verify proofs
-        for (sign_peer_id, bcast) in &bcasts_in {
+        for (sign_peer_id, &keygen_peer_id) in &self.peers {
+            let bcast = bcasts_in.get(sign_peer_id)?;
             let zkp = &self
                 .secret_key_share
                 .group
@@ -80,18 +82,18 @@ impl bcast_and_p2p::Executer for R6 {
                 .get(self.keygen_id)?
                 .zkp;
             let peer_k_i_ciphertext = &self.r1bcasts.get(sign_peer_id)?.k_i_ciphertext;
-            let ek = &self
+            let peer_ek = &self
                 .secret_key_share
                 .group
                 .all_shares
-                .get(self.keygen_id)?
+                .get(keygen_peer_id)?
                 .ek;
             let p2p_in = p2ps_in.get(sign_peer_id, sign_id)?;
 
             let peer_stmt = &zk::range::StatementWc {
                 stmt: zk::range::Statement {
                     ciphertext: peer_k_i_ciphertext,
-                    ek,
+                    ek: peer_ek,
                 },
                 msg_g: bcast.R_i.unwrap(),
                 g: &self.R,
@@ -112,7 +114,7 @@ impl bcast_and_p2p::Executer for R6 {
         }
 
         // check for failure of type 5 from section 4.2 of https://eprint.iacr.org/2020/540.pdf
-        let R_i_sum: ProjectivePoint = bcasts_in
+        let R_i_sum = bcasts_in
             .iter()
             .fold(ProjectivePoint::identity(), |acc, (_, bcast)| {
                 acc + bcast.R_i.unwrap()
@@ -128,7 +130,9 @@ impl bcast_and_p2p::Executer for R6 {
         let S_i = self.R * self.sigma_i;
         let S_i_proof_wc = pedersen_k256::prove_wc(
             &pedersen_k256::StatementWc {
-                stmt: pedersen_k256::Statement { commit: &self.T_i },
+                stmt: pedersen_k256::Statement {
+                    commit: &self.r3bcasts.get(sign_id)?.T_i.unwrap(),
+                },
                 msg_g: &S_i,
                 g: &self.R,
             },
@@ -161,6 +165,7 @@ impl bcast_and_p2p::Executer for R6 {
                 _beta_secrets: self.beta_secrets,
                 _nu_secrets: self.nu_secrets,
                 r1bcasts: self.r1bcasts,
+                r3bcasts: self.r3bcasts,
                 delta_inv: self.delta_inv,
                 R: self.R,
                 r5bcasts: bcasts_in,

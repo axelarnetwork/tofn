@@ -19,7 +19,7 @@ use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
 
-use super::{r1, r5, r6, r8, Peers, SignParticipantIndex, SignProtocolBuilder};
+use super::{r1, r3, r5, r6, r8, Peers, SignParticipantIndex, SignProtocolBuilder};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -43,6 +43,7 @@ pub struct R7 {
     pub(crate) _beta_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub(crate) _nu_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
+    pub r3bcasts: VecMap<SignParticipantIndex, r3::Bcast>,
     pub delta_inv: Scalar,
     pub R: ProjectivePoint,
     pub r5bcasts: VecMap<SignParticipantIndex, r5::Bcast>,
@@ -74,7 +75,9 @@ impl bcast_only::Executer for R7 {
         // verify proofs
         for (sign_peer_id, bcast) in &bcasts_in {
             let peer_stmt = &pedersen_k256::StatementWc {
-                stmt: pedersen_k256::Statement { commit: &self.T_i },
+                stmt: pedersen_k256::Statement {
+                    commit: &self.r3bcasts.get(sign_peer_id)?.T_i.unwrap(),
+                },
                 msg_g: bcast.S_i.unwrap(),
                 g: &self.R,
             };
@@ -94,7 +97,7 @@ impl bcast_only::Executer for R7 {
         }
 
         // check for failure of type 7 from section 4.2 of https://eprint.iacr.org/2020/540.pdf
-        let S_i_sum: ProjectivePoint = bcasts_in
+        let S_i_sum = bcasts_in
             .iter()
             .fold(ProjectivePoint::identity(), |acc, (_, bcast)| {
                 acc + bcast.S_i.unwrap()

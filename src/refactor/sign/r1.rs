@@ -55,15 +55,18 @@ impl no_messages::Executer for R1 {
         _participants_count: usize,
         sign_id: TypedUsize<Self::Index>,
     ) -> TofnResult<SignProtocolBuilder> {
-        let w_i = self.secret_key_share.share.x_i.unwrap()
-            * &vss_k256::lagrange_coefficient(
-                sign_id.as_usize(),
-                &self
-                    .peers
-                    .iter()
-                    .map(|(_, keygen_peer_id)| keygen_peer_id.as_usize())
-                    .collect::<Vec<_>>(),
-            );
+        let lambda_i_S = &vss_k256::lagrange_coefficient(
+            sign_id.as_usize(),
+            &self
+                .peers
+                .clone()
+                .plug_hole(self.keygen_id)
+                .iter()
+                .map(|(_, keygen_peer_id)| keygen_peer_id.as_usize())
+                .collect::<Vec<_>>(),
+        );
+
+        let w_i = self.secret_key_share.share.x_i.unwrap() * lambda_i_S;
 
         let k_i = k256::Scalar::random(rand::thread_rng());
         let gamma_i = k256::Scalar::random(rand::thread_rng());

@@ -10,5 +10,8 @@ mod r6;
 mod r7;
 mod r8;
 
+#[cfg(test)]
+pub mod tests;
+
 #[cfg(feature = "malicious")]
 mod malicious;

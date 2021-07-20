@@ -17,7 +17,7 @@ use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::{r1, r4, r6, Peers, SignParticipantIndex, SignProtocolBuilder};
+use super::{r1, r3, r4, r6, Peers, SignParticipantIndex, SignProtocolBuilder};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -40,6 +40,7 @@ pub struct R5 {
     pub(crate) beta_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub(crate) nu_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
+    pub r3bcasts: VecMap<SignParticipantIndex, r3::Bcast>,
     pub delta_inv: Scalar,
 
     #[cfg(feature = "malicious")]
@@ -154,6 +155,7 @@ impl bcast_only::Executer for R5 {
                 beta_secrets: self.beta_secrets,
                 nu_secrets: self.nu_secrets,
                 r1bcasts: self.r1bcasts,
+                r3bcasts: self.r3bcasts,
                 delta_inv: self.delta_inv,
                 R,
 

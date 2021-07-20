@@ -71,14 +71,14 @@ impl bcast_and_p2p::Executer for R2 {
         // 1. k_i (other) * gamma_j (me)
         // 2. k_i (other) * w_j (me)
         for (sign_peer_id, &keygen_peer_id) in &self.peers {
-            // k256: verify zk proof for first message of MtA
+            // verify zk proof for first message of MtA
             let peer_ek = &self
                 .secret_key_share
                 .group
                 .all_shares
                 .get(keygen_peer_id)?
                 .ek;
-            let peer_k_i_ciphertext = &bcasts_in.get(sign_id)?.k_i_ciphertext;
+            let peer_k_i_ciphertext = &bcasts_in.get(sign_peer_id)?.k_i_ciphertext;
 
             let peer_stmt = &paillier_k256::zk::range::Statement {
                 ciphertext: peer_k_i_ciphertext,
@@ -111,14 +111,14 @@ impl bcast_and_p2p::Executer for R2 {
         let mut p2ps_out = FillHoleVecMap::with_size(participants_count, sign_id)?;
 
         for (sign_peer_id, &keygen_peer_id) in &self.peers {
-            // k256: MtA step 2 for k_i * gamma_j
+            // MtA step 2 for k_i * gamma_j
             let peer_ek = &self
                 .secret_key_share
                 .group
                 .all_shares
                 .get(keygen_peer_id)?
                 .ek;
-            let peer_k_i_ciphertext = &bcasts_in.get(sign_id)?.k_i_ciphertext;
+            let peer_k_i_ciphertext = &bcasts_in.get(sign_peer_id)?.k_i_ciphertext;
             let peer_zkp = &self
                 .secret_key_share
                 .group
@@ -131,6 +131,7 @@ impl bcast_and_p2p::Executer for R2 {
 
             beta_secrets.set(sign_peer_id, beta_secret)?;
 
+            // MtAwc step 2 for k_i * w_j
             let (mu_ciphertext, mu_proof, nu_secret) =
                 mta::mta_response_with_proof_wc(peer_zkp, peer_ek, peer_k_i_ciphertext, &self.w_i);
 

@@ -88,17 +88,14 @@ impl bcast_only::Executer for R4 {
 
         let T_i = *bcasts_in.get(sign_id)?.T_i.unwrap();
 
-        // TODO: What if a player sends a delta_i = - sum_{j != i}{delta_j}?
-        // In this case, delta = 0 and inverse fails
         // compute delta_inv
         let delta_inv = bcasts_in
-            .into_iter()
+            .iter()
             .fold(Scalar::zero(), |acc, (_, bcast)| {
                 acc + bcast.delta_i.unwrap()
             })
             .invert();
 
-        // TODO: How do we identify the malicious peer?
         if bool::from(delta_inv.is_none()) {
             warn!("peer {} says: delta inv computation failed", sign_id);
             return Err(());
@@ -127,6 +124,7 @@ impl bcast_only::Executer for R4 {
                 beta_secrets: self.beta_secrets,
                 nu_secrets: self.nu_secrets,
                 r1bcasts: self.r1bcasts,
+                r3bcasts: bcasts_in,
                 delta_inv: delta_inv.unwrap(),
 
                 #[cfg(feature = "malicious")]

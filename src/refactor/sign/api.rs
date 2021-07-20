@@ -33,7 +33,7 @@ pub struct RealSignParticipantIndex;
 
 /// sign only 32-byte hash digests
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MessageDigest([u8; 32]);
+pub struct MessageDigest(pub [u8; 32]);
 
 impl TryFrom<&[u8]> for MessageDigest {
     type Error = TryFromSliceError;
