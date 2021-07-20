@@ -69,8 +69,8 @@ pub fn new_keygen(
         party_share_counts.clone(),
         index,
         Box::new(r1::R1 {
-            party_share_counts,
             threshold,
+            party_share_counts,
             rng_seed,
             #[cfg(feature = "malicious")]
             behaviour,

@@ -149,8 +149,7 @@ mod tests {
                 Self {
                     party_share_counts: PartyShareCounts::from_vec(party_share_counts).unwrap(),
                     party_ids,
-                    result: result
-                        .map(|vec| vec.into_iter().map(|i| TypedUsize::from_usize(i)).collect()),
+                    result: result.map(|vec| vec.into_iter().map(TypedUsize::from_usize).collect()),
                 }
             }
         }
