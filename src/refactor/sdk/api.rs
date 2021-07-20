@@ -1,8 +1,5 @@
 //! API for tofn users
-#[derive(Debug)]
-pub struct TofnFatal;
 pub type TofnResult<T> = Result<T, TofnFatal>;
-
 pub type BytesVec = Vec<u8>;
 
 pub use super::{
@@ -10,6 +7,9 @@ pub use super::{
     protocol::{Fault, Protocol, ProtocolFaulters, ProtocolOutput},
     round::Round,
 };
+
+#[derive(Debug)]
+pub struct TofnFatal;
 
 // TODO make these into const generics wherever they're used
 pub const MAX_TOTAL_SHARE_COUNT: usize = 1000;
