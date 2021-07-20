@@ -11,8 +11,7 @@ use crate::{
         sdk::{
             api::{Fault::ProtocolFault, TofnResult},
             bcast_only,
-            implementer_api::{log_fault_warn, ProtocolBuilder},
-            ProtocolInfo,
+            implementer_api::{log_fault_warn, ProtocolBuilder, ProtocolInfo},
         },
     },
     zkp::schnorr_k256,

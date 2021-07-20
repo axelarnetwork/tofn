@@ -7,9 +7,8 @@ use crate::refactor::{
     collections::{TypedUsize, VecMap},
     keygen::{GroupPublicInfo, KeygenPartyIndex, SecretKeyShare, ShareSecretInfo},
     sdk::{
-        api::{BytesVec, Protocol, Round, TofnFatal, TofnResult},
-        implementer_api::ProtocolBuilder,
-        PartyShareCounts, ProtocolInfoDeluxe,
+        api::{BytesVec, PartyShareCounts, Protocol, TofnFatal, TofnResult},
+        implementer_api::{new_protocol, ProtocolBuilder},
     },
 };
 use serde::{Deserialize, Serialize};
@@ -42,7 +41,9 @@ pub fn new_sign(
     let party_share_counts =
         PartyShareCounts::from_vecmap((0..participants.len()).map(|_| 1).collect())?;
 
-    Ok(Protocol::NotDone(Round::new_no_messages(
+    new_protocol(
+        party_share_counts,
+        index,
         Box::new(r1::R1 {
             secret_key_share: SecretKeyShare {
                 group: group.clone(),
@@ -51,8 +52,7 @@ pub fn new_sign(
             msg_to_sign: msg_to_sign.into(),
             participants: participants.clone(),
         }),
-        ProtocolInfoDeluxe::new(party_share_counts, index)?,
-    )?))
+    )
 }
 
 /// Assume `group`, `share` are valid and check `participants` against it.

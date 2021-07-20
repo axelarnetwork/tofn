@@ -7,8 +7,7 @@ use crate::{
         sdk::{
             api::{Fault::ProtocolFault, TofnFatal, TofnResult},
             bcast_only,
-            implementer_api::{log_fault_info, ProtocolBuilder},
-            ProtocolInfo,
+            implementer_api::{log_fault_info, ProtocolBuilder, ProtocolInfo},
         },
     },
 };

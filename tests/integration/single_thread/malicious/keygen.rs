@@ -4,10 +4,7 @@ use tofn::refactor::{
         malicious::Behaviour::{self, *},
         new_keygen, KeygenPartyIndex, KeygenProtocol, RealKeygenPartyIndex, SecretKeyShare,
     },
-    sdk::{
-        api::{Fault, Protocol::*, ProtocolOutput},
-        PartyShareCounts,
-    },
+    sdk::api::{Fault, PartyShareCounts, Protocol::*, ProtocolOutput},
 };
 use tracing::info;
 use tracing_test::traced_test;

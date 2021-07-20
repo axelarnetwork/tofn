@@ -10,8 +10,7 @@ use crate::{
         sdk::{
             api::{Fault::ProtocolFault, TofnResult},
             bcast_only,
-            implementer_api::{serialize, ProtocolBuilder, RoundBuilder},
-            ProtocolInfo,
+            implementer_api::{serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder},
         },
     },
 };

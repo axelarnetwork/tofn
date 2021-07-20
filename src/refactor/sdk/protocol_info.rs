@@ -29,7 +29,18 @@ impl<K> ProtocolInfo<K> {
 }
 
 impl<K, P> ProtocolInfoDeluxe<K, P> {
-    pub fn new(
+    pub fn party_id(&self) -> TypedUsize<P> {
+        self.party_id
+    }
+    pub fn share_info(&self) -> &ProtocolInfo<K> {
+        &self.share_info
+    }
+    pub fn party_share_counts(&self) -> &PartyShareCounts<P> {
+        &self.party_share_counts
+    }
+
+    // private methods
+    pub(super) fn new(
         party_share_counts: PartyShareCounts<P>,
         share_id: TypedUsize<K>,
     ) -> TofnResult<Self> {
@@ -44,18 +55,8 @@ impl<K, P> ProtocolInfoDeluxe<K, P> {
             },
         })
     }
-    pub fn party_id(&self) -> TypedUsize<P> {
-        self.party_id
-    }
-    pub fn share_info(&self) -> &ProtocolInfo<K> {
-        &self.share_info
-    }
-    pub fn party_share_counts(&self) -> &PartyShareCounts<P> {
-        &self.party_share_counts
-    }
 
-    // TODO don't expose the following methods in the api
-    pub fn share_to_party_faults<F>(
+    pub(super) fn share_to_party_faults<F>(
         &self,
         output: ProtocolBuilderOutput<F, K>,
     ) -> TofnResult<ProtocolOutput<F, P>> {

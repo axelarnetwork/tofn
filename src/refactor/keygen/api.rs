@@ -1,8 +1,7 @@
 use super::{r1, rng};
 use crate::refactor::collections::TypedUsize;
-use crate::refactor::sdk::api::{Protocol, Round, TofnFatal, TofnResult};
-use crate::refactor::sdk::implementer_api::ProtocolBuilder;
-use crate::refactor::sdk::{PartyShareCounts, ProtocolInfoDeluxe};
+use crate::refactor::sdk::api::{PartyShareCounts, Protocol, TofnFatal, TofnResult};
+use crate::refactor::sdk::implementer_api::{new_protocol, ProtocolBuilder};
 use crate::{k256_serde, paillier_k256, refactor::collections::VecMap};
 use serde::{Deserialize, Serialize};
 use tracing::error;
@@ -66,15 +65,16 @@ pub fn new_keygen(
     // compute the RNG seed now so as to minimize copying of `secret_recovery_key`
     let rng_seed = rng::seed(secret_recovery_key, session_nonce);
 
-    Ok(Protocol::NotDone(Round::new_no_messages(
+    new_protocol(
+        party_share_counts,
+        index,
         Box::new(r1::R1 {
             threshold,
             rng_seed,
             #[cfg(feature = "malicious")]
             behaviour,
         }),
-        ProtocolInfoDeluxe::new(party_share_counts, index)?,
-    )?))
+    )
 }
 /// final output of keygen
 /// store this struct in tofnd kvstore

@@ -4,9 +4,8 @@
 use self::{FaultType::*, MsgType::*};
 use tofn::refactor::{
     collections::{FillVecMap, HoleVecMap, TypedUsize, VecMap},
-    sdk::{
-        api::{BytesVec, Fault, MsgType, Protocol, ProtocolFaulters, TofnResult},
-        PartyShareCounts,
+    sdk::api::{
+        BytesVec, Fault, MsgType, PartyShareCounts, Protocol, ProtocolFaulters, TofnResult,
     },
 };
 use tracing::{info, warn};

@@ -1,11 +1,8 @@
 use super::*;
 use crate::{
     protocol::gg20::vss_k256,
-    refactor::sdk::api::{BytesVec, Protocol},
-    refactor::{
-        collections::{HoleVecMap, TypedUsize, VecMap},
-        sdk::PartyShareCounts,
-    },
+    refactor::collections::{HoleVecMap, TypedUsize, VecMap},
+    refactor::sdk::api::{BytesVec, PartyShareCounts, Protocol},
 };
 use rand::RngCore;
 use tracing_test::traced_test;

@@ -3,7 +3,7 @@ use execute::*;
 use tofn::refactor::{
     collections::VecMap,
     keygen::{KeygenPartyIndex, SecretKeyShare},
-    sdk::{api::Protocol, PartyShareCounts},
+    sdk::api::{PartyShareCounts, Protocol},
 };
 use tracing_test::traced_test; // enable logs in tests
 
