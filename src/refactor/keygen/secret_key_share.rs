@@ -18,16 +18,30 @@ use tracing::error;
 /// store this struct in tofnd kvstore
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SecretKeyShare {
-    pub group: GroupPublicInfo,
-    pub share: ShareSecretInfo,
+    group: GroupPublicInfo,
+    share: ShareSecretInfo,
+}
+
+impl SecretKeyShare {
+    pub fn group(&self) -> &GroupPublicInfo {
+        &self.group
+    }
+    pub fn share(&self) -> &ShareSecretInfo {
+        &self.share
+    }
+    // super::super so it's visible in sign
+    // TODO change file hierarchy so that you need only pub(super)
+    pub(in super::super) fn new(group: GroupPublicInfo, share: ShareSecretInfo) -> Self {
+        Self { group, share }
+    }
 }
 
 /// `GroupPublicInfo` is the same for all shares
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GroupPublicInfo {
-    pub(crate) threshold: usize,
-    pub(crate) y: k256_serde::ProjectivePoint,
-    pub(crate) all_shares: VecMap<KeygenPartyIndex, SharePublicInfo>,
+    threshold: usize,
+    y: k256_serde::ProjectivePoint,
+    all_shares: VecMap<KeygenPartyIndex, SharePublicInfo>,
 }
 
 impl GroupPublicInfo {
@@ -40,29 +54,83 @@ impl GroupPublicInfo {
     pub fn pubkey_bytes(&self) -> Vec<u8> {
         self.y.bytes()
     }
+    pub fn y(&self) -> &k256_serde::ProjectivePoint {
+        &self.y
+    }
+    pub fn all_shares(&self) -> &VecMap<KeygenPartyIndex, SharePublicInfo> {
+        &self.all_shares
+    }
+    pub(super) fn new(
+        threshold: usize,
+        y: k256_serde::ProjectivePoint,
+        all_shares: VecMap<KeygenPartyIndex, SharePublicInfo>,
+    ) -> Self {
+        Self {
+            threshold,
+            y,
+            all_shares,
+        }
+    }
 }
 
 /// `SharePublicInfo` public info unique to each share
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[allow(non_snake_case)]
 pub struct SharePublicInfo {
-    pub(crate) X_i: k256_serde::ProjectivePoint,
-    pub(crate) ek: paillier_k256::EncryptionKey,
-    pub(crate) zkp: paillier_k256::zk::ZkSetup,
+    X_i: k256_serde::ProjectivePoint,
+    ek: paillier_k256::EncryptionKey,
+    zkp: paillier_k256::zk::ZkSetup,
+}
+
+#[allow(non_snake_case)]
+impl SharePublicInfo {
+    pub fn X_i(&self) -> &k256_serde::ProjectivePoint {
+        &self.X_i
+    }
+    pub fn ek(&self) -> &paillier_k256::EncryptionKey {
+        &self.ek
+    }
+    pub fn zkp(&self) -> &paillier_k256::zk::ZkSetup {
+        &self.zkp
+    }
+    pub(super) fn new(
+        X_i: k256_serde::ProjectivePoint,
+        ek: paillier_k256::EncryptionKey,
+        zkp: paillier_k256::zk::ZkSetup,
+    ) -> Self {
+        Self { X_i, ek, zkp }
+    }
 }
 
 /// `ShareSecretInfo` secret info unique to each share
 /// `index` is not secret; it's just convenient to put it here
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ShareSecretInfo {
-    pub(crate) index: TypedUsize<KeygenPartyIndex>,
-    pub(crate) dk: paillier_k256::DecryptionKey,
-    pub(crate) x_i: k256_serde::Scalar,
+    index: TypedUsize<KeygenPartyIndex>,
+    dk: paillier_k256::DecryptionKey,
+    x_i: k256_serde::Scalar,
 }
 
 impl ShareSecretInfo {
     pub fn index(&self) -> TypedUsize<KeygenPartyIndex> {
         self.index
+    }
+    pub(super) fn new(
+        index: TypedUsize<KeygenPartyIndex>,
+        dk: paillier_k256::DecryptionKey,
+        x_i: k256_serde::Scalar,
+    ) -> Self {
+        Self { index, dk, x_i }
+    }
+
+    // expose secret info only in tests `#[cfg(test)]` and never outside this crate `pub(super)`
+    #[cfg(test)]
+    pub(super) fn dk(&self) -> &paillier_k256::DecryptionKey {
+        &self.dk
+    }
+    #[cfg(test)]
+    pub(super) fn x_i(&self) -> &k256_serde::Scalar {
+        &self.x_i
     }
 }
 

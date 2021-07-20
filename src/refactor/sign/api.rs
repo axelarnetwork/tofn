@@ -45,10 +45,7 @@ pub fn new_sign(
         party_share_counts,
         index,
         Box::new(r1::R1 {
-            secret_key_share: SecretKeyShare {
-                group: group.clone(),
-                share: share.clone(),
-            },
+            secret_key_share: SecretKeyShare::new(group.clone(), share.clone()),
             msg_to_sign: msg_to_sign.into(),
             participants: participants.clone(),
         }),
@@ -64,11 +61,11 @@ fn validate_args(
     participants: &ParticipantsList,
 ) -> TofnResult<TypedUsize<SignParticipantIndex>> {
     // participant count must be at least threshold + 1
-    if participants.len() <= group.threshold || participants.len() > group.share_count() {
+    if participants.len() <= group.threshold() || participants.len() > group.share_count() {
         error!(
             "invalid (participant_count,threshold,share_count): ({},{},{})",
             participants.len(),
-            group.threshold,
+            group.threshold(),
             group.share_count()
         );
         return Err(TofnFatal);
@@ -77,12 +74,12 @@ fn validate_args(
     // check that my index is in the list
     let my_participant_index = participants
         .iter()
-        .find(|(_, &k)| k == share.index)
+        .find(|(_, &k)| k == share.index())
         .map(|(s, _)| s);
     if my_participant_index.is_none() {
         error!(
             "my keygen party index {} not found in `participants`",
-            share.index
+            share.index()
         );
         return Err(TofnFatal);
     }

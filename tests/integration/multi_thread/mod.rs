@@ -31,9 +31,9 @@ fn basic_correctness() {
         })
         .collect();
 
-    println!("group info: {:?}", results[0].group);
+    println!("group info: {:?}", results[0].group());
     for (i, result) in results.iter().enumerate() {
-        println!("party {} secret info: {:?}", i, result.share);
+        println!("party {} secret info: {:?}", i, result.share());
     }
 }
 

@@ -96,26 +96,18 @@ impl bcast_only::Executer for R4 {
             .r1bcasts
             .iter()
             .map(|(i, r1bcast)| {
-                Ok(SharePublicInfo {
-                    X_i: self.all_X_i.get(i)?.into(),
-                    ek: r1bcast.ek.clone(),
-                    zkp: r1bcast.zkp.clone(),
-                })
+                Ok(SharePublicInfo::new(
+                    self.all_X_i.get(i)?.into(),
+                    r1bcast.ek.clone(),
+                    r1bcast.zkp.clone(),
+                ))
             })
             .collect::<TofnResult<VecMap<_, _>>>()?;
 
-        Ok(ProtocolBuilder::Done(Ok(SecretKeyShare {
-            group: GroupPublicInfo {
-                threshold: self.threshold,
-                y: self.y.into(),
-                all_shares,
-            },
-            share: ShareSecretInfo {
-                index: info.share_id(),
-                dk: self.dk,
-                x_i: self.x_i.into(),
-            },
-        })))
+        Ok(ProtocolBuilder::Done(Ok(SecretKeyShare::new(
+            GroupPublicInfo::new(self.threshold, self.y.into(), all_shares),
+            ShareSecretInfo::new(info.share_id(), self.dk, self.x_i.into()),
+        ))))
     }
 
     #[cfg(test)]

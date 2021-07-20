@@ -219,7 +219,9 @@ fn execute_keygen_from_recovery(
 
     let all_shares: Vec<vss_k256::Share> = all_secret_key_shares
         .iter()
-        .map(|k| vss_k256::Share::from_scalar(*k.share.x_i.unwrap(), k.share.index.as_usize()))
+        .map(|k| {
+            vss_k256::Share::from_scalar(*k.share().x_i().unwrap(), k.share().index().as_usize())
+        })
         .collect();
     let secret_key_recovered = vss_k256::recover_secret(&all_shares, threshold);
 
@@ -228,7 +230,7 @@ fn execute_keygen_from_recovery(
     // test: verify that the reconstructed secret key yields the public key everyone deduced
     for secret_key_share in all_secret_key_shares.iter() {
         let test_pubkey = k256::ProjectivePoint::generator() * secret_key_recovered;
-        assert_eq!(&test_pubkey, secret_key_share.group.y.unwrap());
+        assert_eq!(&test_pubkey, secret_key_share.group().y().unwrap());
     }
 
     // test: everyone computed everyone else's public key share correctly
@@ -237,13 +239,13 @@ fn execute_keygen_from_recovery(
         for (j, other_secret_key_share) in all_secret_key_shares.iter().enumerate() {
             assert_eq!(
                 *secret_key_share
-                    .group
-                    .all_shares
+                    .group()
+                    .all_shares()
                     .get(TypedUsize::from_usize(j))
                     .unwrap()
-                    .X_i
+                    .X_i()
                     .unwrap(),
-                k256::ProjectivePoint::generator() * other_secret_key_share.share.x_i.unwrap(),
+                k256::ProjectivePoint::generator() * other_secret_key_share.share().x_i().unwrap(),
                 "party {} got party {} key wrong",
                 i,
                 j
@@ -310,13 +312,13 @@ fn share_recovery() {
     );
 
     for (i, (s, r)) in shares.iter().zip(recovered_shares.iter()).enumerate() {
-        assert_eq!(s.share, r.share, "party {}", i);
-        for (j, ss, rr) in zip2(&s.group.all_shares, &r.group.all_shares) {
-            assert_eq!(ss.X_i, rr.X_i, "party {} public info on party {}", i, j);
-            assert_eq!(ss.ek, rr.ek, "party {} public info on party {}", i, j);
-            assert_eq!(ss.zkp, rr.zkp, "party {} public info on party {}", i, j);
+        assert_eq!(s.share(), r.share(), "party {}", i);
+        for (j, ss, rr) in zip2(&s.group().all_shares(), &r.group().all_shares()) {
+            assert_eq!(ss.X_i(), rr.X_i(), "party {} public info on party {}", i, j);
+            assert_eq!(ss.ek(), rr.ek(), "party {} public info on party {}", i, j);
+            assert_eq!(ss.zkp(), rr.zkp(), "party {} public info on party {}", i, j);
         }
-        assert_eq!(s.group.threshold, r.group.threshold, "party {}", i);
-        assert_eq!(s.group.y, r.group.y, "party {}", i);
+        assert_eq!(s.group().threshold(), r.group().threshold(), "party {}", i);
+        assert_eq!(s.group().y(), r.group().y(), "party {}", i);
     }
 }
