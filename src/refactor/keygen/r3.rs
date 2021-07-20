@@ -12,9 +12,9 @@ use crate::{
         sdk::{
             api::{Fault::ProtocolFault, TofnResult},
             implementer_api::{
-                bcast_and_p2p, log_accuse_warn, serialize, ProtocolBuilder, ProtocolInfo,
-                RoundBuilder,
+                bcast_and_p2p, log_accuse_warn, serialize, ProtocolBuilder, RoundBuilder,
             },
+            ProtocolInfo,
         },
     },
     zkp::schnorr_k256,

@@ -3,7 +3,7 @@ use crate::refactor::{
     sdk::{api::TofnResult, protocol::ProtocolOutput, protocol_builder::ProtocolBuilderOutput},
 };
 
-use super::party_share_counts::PartyShareCounts;
+use super::round::party_share_counts::PartyShareCounts;
 
 // party-level info persisted throughout the protocol ("deluxe" depends on `P`)
 pub struct ProtocolInfoDeluxe<K, P> {

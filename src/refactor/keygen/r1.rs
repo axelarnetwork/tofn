@@ -1,12 +1,12 @@
 use crate::{
     corrupt, hash, k256_serde, paillier_k256,
     protocol::gg20::vss_k256,
-    refactor::sdk::implementer_api::ProtocolInfo,
     refactor::{
         keygen::SecretKeyShare,
         sdk::{
             api::TofnResult,
             implementer_api::{no_messages, serialize, ProtocolBuilder::*, RoundBuilder},
+            ProtocolInfo,
         },
     },
 };

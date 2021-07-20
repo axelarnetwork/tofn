@@ -5,7 +5,8 @@ use crate::refactor::{
     collections::{FillVecMap, VecMap},
     sdk::{
         api::{BytesVec, Fault, TofnResult},
-        implementer_api::{ProtocolBuilder, ProtocolInfo},
+        implementer_api::ProtocolBuilder,
+        protocol_info::ProtocolInfo,
     },
 };
 

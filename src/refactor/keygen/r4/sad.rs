@@ -6,7 +6,8 @@ use crate::{
         keygen::{r1, r2, r3, KeygenPartyIndex, KeygenProtocolBuilder, SecretKeyShare},
         sdk::{
             api::{Fault::ProtocolFault, TofnFatal, TofnResult},
-            implementer_api::{bcast_only, log_fault_info, ProtocolBuilder, ProtocolInfo},
+            implementer_api::{bcast_only, log_fault_info, ProtocolBuilder},
+            ProtocolInfo,
         },
     },
 };

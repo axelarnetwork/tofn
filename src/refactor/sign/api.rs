@@ -8,7 +8,8 @@ use crate::refactor::{
     keygen::{GroupPublicInfo, KeygenPartyIndex, SecretKeyShare, ShareSecretInfo},
     sdk::{
         api::{BytesVec, Protocol, Round, TofnFatal, TofnResult},
-        implementer_api::{PartyShareCounts, ProtocolBuilder, ProtocolInfoDeluxe},
+        implementer_api::{PartyShareCounts, ProtocolBuilder},
+        ProtocolInfoDeluxe,
     },
 };
 use serde::{Deserialize, Serialize};

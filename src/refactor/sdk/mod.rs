@@ -23,11 +23,7 @@ pub mod implementer_api {
     use super::api::{BytesVec, TofnResult};
     pub use super::{
         protocol_builder::{ProtocolBuilder, ProtocolBuilderOutput, RoundBuilder},
-        round::{
-            bcast_and_p2p, bcast_only, no_messages,
-            party_share_counts::PartyShareCounts,
-            protocol_info::{ProtocolInfo, ProtocolInfoDeluxe},
-        },
+        round::{bcast_and_p2p, bcast_only, no_messages, party_share_counts::PartyShareCounts},
     };
     use crate::refactor::{collections::TypedUsize, sdk::api::TofnFatal};
     use tracing::{error, info, warn};
@@ -60,5 +56,7 @@ pub mod implementer_api {
 
 mod protocol;
 mod protocol_builder;
+mod protocol_info;
+pub use protocol_info::{ProtocolInfo, ProtocolInfoDeluxe};
 mod round;
 mod wire_bytes;
