@@ -14,26 +14,11 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use tracing::error;
 
-/// final output of keygen
-/// store this struct in tofnd kvstore
+/// final output of keygen: store this struct in tofnd kvstore
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SecretKeyShare {
     group: GroupPublicInfo,
     share: ShareSecretInfo,
-}
-
-impl SecretKeyShare {
-    pub fn group(&self) -> &GroupPublicInfo {
-        &self.group
-    }
-    pub fn share(&self) -> &ShareSecretInfo {
-        &self.share
-    }
-    // super::super so it's visible in sign
-    // TODO change file hierarchy so that you need only pub(super)
-    pub(in super::super) fn new(group: GroupPublicInfo, share: ShareSecretInfo) -> Self {
-        Self { group, share }
-    }
 }
 
 /// `GroupPublicInfo` is the same for all shares
@@ -42,6 +27,38 @@ pub struct GroupPublicInfo {
     threshold: usize,
     y: k256_serde::ProjectivePoint,
     all_shares: VecMap<KeygenPartyIndex, SharePublicInfo>,
+}
+
+/// `SharePublicInfo` public info unique to each share
+/// all parties store a list of `SharePublicInfo`
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[allow(non_snake_case)]
+pub struct SharePublicInfo {
+    X_i: k256_serde::ProjectivePoint,
+    ek: paillier_k256::EncryptionKey,
+    zkp: paillier_k256::zk::ZkSetup,
+}
+
+/// `ShareSecretInfo` secret info unique to each share
+/// `index` is not secret but it's stored here anyway
+/// because it's an essential part of secret data
+/// and parties need a way to know their own index
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ShareSecretInfo {
+    index: TypedUsize<KeygenPartyIndex>,
+    dk: paillier_k256::DecryptionKey,
+    x_i: k256_serde::Scalar,
+}
+
+/// Subset of `SecretKeyShare` that goes on-chain.
+/// (Secret data is encrypted so it's ok to post publicly.)
+/// When combined with similar data from all parties,
+/// this data + mnemonic can be used to recover a full `SecretKeyShare` struct.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KeyShareRecoveryInfo {
+    index: TypedUsize<KeygenPartyIndex>,
+    share: SharePublicInfo,
+    x_i_ciphertext: paillier_k256::Ciphertext,
 }
 
 impl GroupPublicInfo {
@@ -73,15 +90,6 @@ impl GroupPublicInfo {
     }
 }
 
-/// `SharePublicInfo` public info unique to each share
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[allow(non_snake_case)]
-pub struct SharePublicInfo {
-    X_i: k256_serde::ProjectivePoint,
-    ek: paillier_k256::EncryptionKey,
-    zkp: paillier_k256::zk::ZkSetup,
-}
-
 #[allow(non_snake_case)]
 impl SharePublicInfo {
     pub fn X_i(&self) -> &k256_serde::ProjectivePoint {
@@ -102,15 +110,6 @@ impl SharePublicInfo {
     }
 }
 
-/// `ShareSecretInfo` secret info unique to each share
-/// `index` is not secret; it's just convenient to put it here
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ShareSecretInfo {
-    index: TypedUsize<KeygenPartyIndex>,
-    dk: paillier_k256::DecryptionKey,
-    x_i: k256_serde::Scalar,
-}
-
 impl ShareSecretInfo {
     pub fn index(&self) -> TypedUsize<KeygenPartyIndex> {
         self.index
@@ -125,6 +124,7 @@ impl ShareSecretInfo {
 
     // expose secret info only in tests `#[cfg(test)]` and never outside this crate `pub(super)`
     #[cfg(test)]
+    #[allow(dead_code)]
     pub(super) fn dk(&self) -> &paillier_k256::DecryptionKey {
         &self.dk
     }
@@ -134,18 +134,14 @@ impl ShareSecretInfo {
     }
 }
 
-/// Subset of `SecretKeyShare` that goes on-chain.
-/// (Secret data is encrypted so it's ok to post publicly.)
-/// When combined with similar data from all parties,
-/// this data + mnemonic can be used to recover a full `SecretKeyShare` struct.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KeyShareRecoveryInfo {
-    index: TypedUsize<KeygenPartyIndex>,
-    share: SharePublicInfo,
-    x_i_ciphertext: paillier_k256::Ciphertext,
-}
-
 impl SecretKeyShare {
+    pub fn group(&self) -> &GroupPublicInfo {
+        &self.group
+    }
+    pub fn share(&self) -> &ShareSecretInfo {
+        &self.share
+    }
+
     pub fn recovery_info(&self) -> TofnResult<KeyShareRecoveryInfo> {
         let index = self.share.index;
         let share = self.group.all_shares.get(index)?.clone();
@@ -240,6 +236,12 @@ impl SecretKeyShare {
             },
             share: ShareSecretInfo { index, dk, x_i },
         })
+    }
+
+    // super::super so it's visible in sign
+    // TODO change file hierarchy so that you need only pub(super)
+    pub(in super::super) fn new(group: GroupPublicInfo, share: ShareSecretInfo) -> Self {
+        Self { group, share }
     }
 }
 
