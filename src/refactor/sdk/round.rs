@@ -6,7 +6,7 @@ use crate::refactor::{
 };
 
 use super::{
-    bcast_and_p2p, bcast_only, no_messages, p2p_only,
+    implementer_api::{bcast_and_p2p, bcast_only, no_messages, p2p_only},
     protocol_info::ProtocolInfoDeluxe,
     wire_bytes::{self, MsgType::*, WireBytes},
 };
