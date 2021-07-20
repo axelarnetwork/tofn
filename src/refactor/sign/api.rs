@@ -52,40 +52,7 @@ pub fn new_sign(
     sign_parties: &SignParties,
     msg_to_sign: &MessageDigest,
 ) -> TofnResult<SignProtocol> {
-    if sign_parties.max_size() != group.party_share_counts().party_count() {
-        error!(
-            "sign_parties max size {} disagrees with keygen group party count {}",
-            sign_parties.max_size(),
-            group.party_share_counts().party_count()
-        );
-        return Err(TofnFatal);
-    }
-
-    // `participants` map sign_share_id -> keygen_share_id
-    // Example:
-    // input:
-    //   keygen_party_ids: [a, b, c]
-    //   share_counts:     [1, 2, 3]
-    //   keygen_share_ids: [0, 1, 2, 3, 4, 5] <- always count from 0
-    //                      ^  ^  ^  ^  ^  ^
-    //                      a  b  b  c  c  c
-    //   sign_party_ids:   [a, c] <- subset of keygen_party_ids
-    // output:
-    //   sign_share_ids:   [0, 1, 2, 3] <- always count from 0
-    //   keygen_share_ids: [0, 3, 4, 5] <- ids of a's 1 share + c's 3 shares
-    let participants = {
-        let mut participants = Vec::new();
-        let mut sum = 0;
-        for (keygen_party_id, &party_share_count) in group.party_share_counts().iter() {
-            if sign_parties.is_member(keygen_party_id)? {
-                for j in 0..party_share_count {
-                    participants.push(TypedUsize::from_usize(sum + j));
-                }
-            }
-            sum += party_share_count;
-        }
-        VecMap::from_vec(participants)
-    };
+    let participants = VecMap::from_vec(group.party_share_counts().share_id_subset(sign_parties)?);
 
     // participant share count must be at least threshold + 1
     if participants.len() <= group.threshold() {
@@ -107,12 +74,8 @@ pub fn new_sign(
             TofnFatal
         })?;
 
-    let sign_party_share_counts = PartyShareCounts::<RealSignParticipantIndex>::from_vec(
-        sign_parties
-            .iter()
-            .map(|i| group.party_share_counts().party_share_count(i))
-            .collect::<TofnResult<Vec<_>>>()?,
-    )?;
+    let sign_party_share_counts =
+        PartyShareCounts::from_vec(group.party_share_counts().subset(sign_parties)?)?;
 
     new_protocol(
         sign_party_share_counts,
