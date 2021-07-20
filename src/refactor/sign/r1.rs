@@ -1,11 +1,10 @@
 use crate::{
     hash, paillier_k256,
     refactor::{
-        collections::TypedUsize,
         keygen::SecretKeyShare,
-        protocol::{
+        sdk::{
             api::{BytesVec, TofnResult},
-            no_messages,
+            implementer_api::{no_messages, ProtocolInfo},
         },
     },
 };
@@ -37,8 +36,7 @@ impl no_messages::Executer for R1 {
 
     fn execute(
         self: Box<Self>,
-        _party_count: usize,
-        _index: TypedUsize<Self::Index>,
+        _info: &ProtocolInfo<Self::Index>,
     ) -> TofnResult<SignProtocolBuilder> {
         todo!()
     }

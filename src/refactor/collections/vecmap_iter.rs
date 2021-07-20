@@ -1,18 +1,12 @@
-use super::{Behave, TypedUsize};
+use super::TypedUsize;
 
 /// Follows the implementation of std::iter::Enumerate https://doc.rust-lang.org/std/iter/struct.Enumerate.html
-pub struct VecMapIter<K, I>
-where
-    K: Behave,
-{
+pub struct VecMapIter<K, I> {
     iter: I,
     count: TypedUsize<K>,
 }
 
-impl<K, I> VecMapIter<K, I>
-where
-    K: Behave,
-{
+impl<K, I> VecMapIter<K, I> {
     pub fn new(iter: I) -> Self {
         Self {
             iter,
@@ -23,7 +17,6 @@ where
 
 impl<K, I> Iterator for VecMapIter<K, I>
 where
-    K: Behave,
     I: Iterator,
 {
     type Item = (TypedUsize<K>, <I as Iterator>::Item);

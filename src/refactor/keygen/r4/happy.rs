@@ -2,16 +2,15 @@ use tracing::warn;
 
 use crate::{
     paillier_k256,
-    refactor::collections::{FillVecMap, P2ps, TypedUsize, VecMap},
+    refactor::collections::{FillVecMap, P2ps, VecMap},
     refactor::{
         keygen::{
-            r1, r2, r3, r4::sad::R4Sad, GroupPublicInfo, KeygenPartyIndex, KeygenProtocolBuilder,
-            SecretKeyShare, SharePublicInfo, ShareSecretInfo,
+            r1, r2, r3, r4::sad::R4Sad, GroupPublicInfo, KeygenPartyIndex, KeygenPartyShareCounts,
+            KeygenProtocolBuilder, SecretKeyShare, SharePublicInfo, ShareSecretInfo,
         },
-        protocol::{
+        sdk::{
             api::{Fault::ProtocolFault, TofnResult},
-            bcast_only,
-            implementer_api::{log_fault_warn, ProtocolBuilder},
+            implementer_api::{bcast_only, log_fault_warn, ProtocolBuilder, ProtocolInfo},
         },
     },
     zkp::schnorr_k256,
@@ -23,6 +22,7 @@ use crate::refactor::keygen::malicious::Behaviour;
 #[allow(non_snake_case)]
 pub struct R4 {
     pub threshold: usize,
+    pub party_share_counts: KeygenPartyShareCounts,
     pub dk: paillier_k256::DecryptionKey,
     pub r1bcasts: VecMap<KeygenPartyIndex, r1::Bcast>,
     pub r2bcasts: VecMap<KeygenPartyIndex, r2::Bcast>,
@@ -43,8 +43,7 @@ impl bcast_only::Executer for R4 {
     #[allow(non_snake_case)]
     fn execute(
         self: Box<Self>,
-        party_count: usize,
-        index: TypedUsize<Self::Index>,
+        info: &ProtocolInfo<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
     ) -> TofnResult<KeygenProtocolBuilder> {
         // move to sad path if necessary
@@ -54,14 +53,14 @@ impl bcast_only::Executer for R4 {
         {
             warn!(
                 "party {} r4 received complaints from others; move to sad path",
-                index
+                info.share_id()
             );
             return Box::new(R4Sad {
                 r1bcasts: self.r1bcasts,
                 r2bcasts: self.r2bcasts,
                 r2p2ps: self.r2p2ps,
             })
-            .execute(party_count, index, bcasts_in);
+            .execute(info, bcasts_in);
         }
 
         // unwrap BcastHappy msgs
@@ -74,7 +73,7 @@ impl bcast_only::Executer for R4 {
             .collect();
 
         // verify proofs
-        let mut faulters = FillVecMap::with_size(party_count);
+        let mut faulters = FillVecMap::with_size(info.share_count());
         for (from, bcast) in bcasts_in.iter() {
             if schnorr_k256::verify(
                 &schnorr_k256::Statement {
@@ -85,7 +84,7 @@ impl bcast_only::Executer for R4 {
             )
             .is_err()
             {
-                log_fault_warn(index, from, "bad DL proof");
+                log_fault_warn(info.share_id(), from, "bad DL proof");
                 faulters.set(from, ProtocolFault)?;
             }
         }
@@ -98,26 +97,23 @@ impl bcast_only::Executer for R4 {
             .r1bcasts
             .iter()
             .map(|(i, r1bcast)| {
-                Ok(SharePublicInfo {
-                    X_i: self.all_X_i.get(i)?.into(),
-                    ek: r1bcast.ek.clone(),
-                    zkp: r1bcast.zkp.clone(),
-                })
+                Ok(SharePublicInfo::new(
+                    self.all_X_i.get(i)?.into(),
+                    r1bcast.ek.clone(),
+                    r1bcast.zkp.clone(),
+                ))
             })
             .collect::<TofnResult<VecMap<_, _>>>()?;
 
-        Ok(ProtocolBuilder::Done(Ok(SecretKeyShare {
-            group: GroupPublicInfo {
-                threshold: self.threshold,
-                y: self.y.into(),
+        Ok(ProtocolBuilder::Done(Ok(SecretKeyShare::new(
+            GroupPublicInfo::new(
+                self.party_share_counts,
+                self.threshold,
+                self.y.into(),
                 all_shares,
-            },
-            share: ShareSecretInfo {
-                index,
-                dk: self.dk,
-                x_i: self.x_i.into(),
-            },
-        })))
+            ),
+            ShareSecretInfo::new(info.share_id(), self.dk, self.x_i.into()),
+        ))))
     }
 
     #[cfg(test)]

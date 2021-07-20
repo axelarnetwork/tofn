@@ -2,21 +2,16 @@ use serde::{Deserialize, Serialize};
 use tracing::error;
 
 use crate::refactor::{
-    collections::{Behave, FillHoleVecMap, HoleVecMap, TypedUsize, VecMap},
-    protocol::api::TofnResult,
+    collections::{FillHoleVecMap, HoleVecMap, TypedUsize, VecMap},
+    sdk::api::{TofnFatal, TofnResult},
 };
 
 use super::p2ps_iter::P2psIter;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct P2ps<K, V>(VecMap<K, HoleVecMap<K, V>>)
-where
-    K: Behave;
+pub struct P2ps<K, V>(VecMap<K, HoleVecMap<K, V>>);
 
-impl<K, V> P2ps<K, V>
-where
-    K: Behave,
-{
+impl<K, V> P2ps<K, V> {
     pub fn get(&self, from: TypedUsize<K>, to: TypedUsize<K>) -> TofnResult<&V> {
         self.0.get(from)?.get(to)
     }
@@ -24,11 +19,10 @@ where
         &self,
         me: TypedUsize<K>,
     ) -> TofnResult<impl Iterator<Item = (TypedUsize<K>, &V)> + '_> {
-        // check `me` manually now
-        // instead of using `?` inside closure
+        // check `me` manually now instead of using `?` inside closure
         if me.as_usize() >= self.0.len() {
             error!("index {} out of bounds {}", me, self.0.len());
-            return Err(());
+            return Err(TofnFatal);
         }
         Ok(self.0.iter().filter_map(move |(k, hole_vec)| {
             if k == me {
@@ -64,10 +58,7 @@ where
     }
 }
 
-impl<K, V> IntoIterator for P2ps<K, V>
-where
-    K: Behave,
-{
+impl<K, V> IntoIterator for P2ps<K, V> {
     type Item = (
         TypedUsize<K>,
         TypedUsize<K>,
@@ -82,10 +73,7 @@ where
 
 /// impl IntoIterator for &P2ps as suggested here: https://doc.rust-lang.org/std/iter/index.html#iterating-by-reference
 /// follow the template of Vec: https://doc.rust-lang.org/src/alloc/vec/mod.rs.html#2451-2458
-impl<'a, K, V> IntoIterator for &'a P2ps<K, V>
-where
-    K: Behave,
-{
+impl<'a, K, V> IntoIterator for &'a P2ps<K, V> {
     type Item = (
         TypedUsize<K>,
         TypedUsize<K>,
@@ -100,14 +88,9 @@ where
 
 // `FillP2ps` is a `(VecMap<_,_>)` instead of `(P2ps<_,_>)` because `P2ps` has no public constructor.
 // Can't put `FillP2ps` in a separate module because `FillP2ps` has methods that construct a `P2ps`.
-pub struct FillP2ps<K, V>(VecMap<K, FillHoleVecMap<K, V>>)
-where
-    K: Behave;
+pub struct FillP2ps<K, V>(VecMap<K, FillHoleVecMap<K, V>>);
 
-impl<K, V> FillP2ps<K, V>
-where
-    K: Behave,
-{
+impl<K, V> FillP2ps<K, V> {
     pub fn with_size(len: usize) -> Self {
         Self(
             (0..len)
@@ -123,6 +106,9 @@ where
     }
     pub fn set_warn(&mut self, from: TypedUsize<K>, to: TypedUsize<K>, value: V) -> TofnResult<()> {
         self.0.get_mut(from)?.set_warn(to, value)
+    }
+    pub fn is_none(&self, from: TypedUsize<K>, to: TypedUsize<K>) -> TofnResult<bool> {
+        self.0.get(from)?.is_none(to)
     }
     pub fn is_full(&self) -> bool {
         self.0.iter().all(|(_, v)| v.is_full())
@@ -148,10 +134,7 @@ where
     }
 }
 
-impl<K, V> IntoIterator for FillP2ps<K, V>
-where
-    K: Behave,
-{
+impl<K, V> IntoIterator for FillP2ps<K, V> {
     type Item = (
         TypedUsize<K>,
         TypedUsize<K>,
@@ -167,10 +150,7 @@ where
 
 /// impl IntoIterator for &FillP2ps as suggested here: https://doc.rust-lang.org/std/iter/index.html#iterating-by-reference
 /// follow the template of Vec: https://doc.rust-lang.org/src/alloc/vec/mod.rs.html#2451-2458
-impl<'a, K, V> IntoIterator for &'a FillP2ps<K, V>
-where
-    K: Behave,
-{
+impl<'a, K, V> IntoIterator for &'a FillP2ps<K, V> {
     type Item = (
         TypedUsize<K>,
         TypedUsize<K>,
@@ -187,12 +167,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::FillP2ps;
-    use crate::refactor::collections::{Behave, TypedUsize};
-    use serde::{Deserialize, Serialize};
+    use crate::refactor::collections::TypedUsize;
 
-    #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
     struct TestIndex;
-    impl Behave for TestIndex {}
 
     #[test]
     fn basic_correctness() {

@@ -1,33 +1,34 @@
-use super::{r1, rng};
-use crate::refactor::collections::{Behave, TypedUsize};
-use crate::refactor::protocol::api::{Protocol, Round, TofnResult};
-use crate::refactor::protocol::implementer_api::ProtocolBuilder;
-use crate::{k256_serde, paillier_k256, refactor::collections::VecMap};
+use super::{r1, rng, SecretKeyShare};
+use crate::refactor::collections::TypedUsize;
+use crate::refactor::sdk::api::{PartyShareCounts, Protocol, TofnFatal, TofnResult};
+use crate::refactor::sdk::implementer_api::{new_protocol, ProtocolBuilder};
 use serde::{Deserialize, Serialize};
 use tracing::error;
 
 #[cfg(feature = "malicious")]
 use super::malicious;
 
-// need to derive all this crap for each new marker struct
-// in order to avoid this problem: https://stackoverflow.com/a/31371094
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct KeygenPartyIndex;
-impl Behave for KeygenPartyIndex {}
+pub struct KeygenPartyIndex; // TODO actually a keygen subshare index
 
-pub type KeygenProtocol = Protocol<SecretKeyShare, KeygenPartyIndex>;
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct RealKeygenPartyIndex; // TODO the real keygen party index
+
+pub type KeygenProtocol = Protocol<SecretKeyShare, KeygenPartyIndex, RealKeygenPartyIndex>;
 pub type KeygenProtocolBuilder = ProtocolBuilder<SecretKeyShare, KeygenPartyIndex>;
+pub type KeygenPartyShareCounts = PartyShareCounts<RealKeygenPartyIndex>;
 pub type SecretRecoveryKey = [u8; 64];
 
 // Can't define a keygen-specific alias for `RoundExecuter` that sets
 // `FinalOutputTyped = KeygenOutput` and `Index = KeygenPartyIndex`
 // because https://github.com/rust-lang/rust/issues/41517
 
-pub const MAX_SHARE_COUNT: usize = 1000;
+pub const MAX_TOTAL_SHARE_COUNT: usize = 1000;
+pub const MAX_PARTY_SHARE_COUNT: usize = MAX_TOTAL_SHARE_COUNT;
 
 /// Initialize a new keygen protocol
 pub fn new_keygen(
-    share_count: usize,
+    party_share_counts: KeygenPartyShareCounts,
     threshold: usize,
     index: TypedUsize<KeygenPartyIndex>,
     secret_recovery_key: &SecretRecoveryKey,
@@ -35,81 +36,44 @@ pub fn new_keygen(
     #[cfg(feature = "malicious")] behaviour: malicious::Behaviour,
 ) -> TofnResult<KeygenProtocol> {
     // validate args
-    if share_count <= threshold || share_count <= index.as_usize() || share_count > MAX_SHARE_COUNT
+    if party_share_counts
+        .iter()
+        .any(|(_, &c)| c > MAX_PARTY_SHARE_COUNT)
     {
         error!(
-            "invalid (share_count,threshold,index): ({},{},{})",
-            share_count, threshold, index
+            "detected a party with share count exceeding {}",
+            MAX_PARTY_SHARE_COUNT
         );
-        return Err(());
+        return Err(TofnFatal);
+    }
+    let total_share_count: usize = party_share_counts.iter().map(|(_, c)| c).sum();
+    if total_share_count <= threshold
+        || total_share_count <= index.as_usize()
+        || total_share_count > MAX_TOTAL_SHARE_COUNT
+    {
+        error!(
+            "invalid (share_count,threshold,index,max_share_count): ({},{},{},{})",
+            total_share_count, threshold, index, MAX_TOTAL_SHARE_COUNT
+        );
+        return Err(TofnFatal);
     }
     if session_nonce.is_empty() {
         error!("invalid session_nonce length: {}", session_nonce.len());
-        return Err(());
+        return Err(TofnFatal);
     }
 
     // compute the RNG seed now so as to minimize copying of `secret_recovery_key`
     let rng_seed = rng::seed(secret_recovery_key, session_nonce);
 
-    Ok(Protocol::NotDone(Round::new_no_messages(
+    new_protocol(
+        party_share_counts.clone(),
+        index,
         Box::new(r1::R1 {
             threshold,
+            party_share_counts,
             rng_seed,
             #[cfg(feature = "malicious")]
             behaviour,
         }),
-        share_count,
-        index,
-    )?))
-}
-/// final output of keygen
-/// store this struct in tofnd kvstore
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SecretKeyShare {
-    pub group: GroupPublicInfo,
-    pub share: ShareSecretInfo,
-}
-
-/// `GroupPublicInfo` is the same for all shares
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct GroupPublicInfo {
-    pub(crate) threshold: usize,
-    pub(crate) y: k256_serde::ProjectivePoint,
-    pub(crate) all_shares: VecMap<KeygenPartyIndex, SharePublicInfo>,
-}
-
-impl GroupPublicInfo {
-    pub fn share_count(&self) -> usize {
-        self.all_shares.len()
-    }
-    pub fn threshold(&self) -> usize {
-        self.threshold
-    }
-    pub fn pubkey_bytes(&self) -> Vec<u8> {
-        self.y.bytes()
-    }
-}
-
-/// `SharePublicInfo` public info unique to each share
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[allow(non_snake_case)]
-pub struct SharePublicInfo {
-    pub(crate) X_i: k256_serde::ProjectivePoint,
-    pub(crate) ek: paillier_k256::EncryptionKey,
-    pub(crate) zkp: paillier_k256::zk::ZkSetup,
-}
-
-/// `ShareSecretInfo` secret info unique to each share
-/// `index` is not secret; it's just convenient to put it here
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ShareSecretInfo {
-    pub(crate) index: TypedUsize<KeygenPartyIndex>,
-    pub(crate) dk: paillier_k256::DecryptionKey,
-    pub(crate) x_i: k256_serde::Scalar,
-}
-
-impl ShareSecretInfo {
-    pub fn index(&self) -> TypedUsize<KeygenPartyIndex> {
-        self.index
-    }
+    )
 }

@@ -1,25 +1,26 @@
 use crate::{
     corrupt, hash, k256_serde, paillier_k256,
     protocol::gg20::vss_k256,
-    refactor::collections::TypedUsize,
     refactor::{
         keygen::SecretKeyShare,
-        protocol::{
+        sdk::{
             api::TofnResult,
-            implementer_api::{serialize, ProtocolBuilder::*, RoundBuilder},
-            no_messages,
+            implementer_api::{
+                no_messages, serialize, ProtocolBuilder::*, ProtocolInfo, RoundBuilder,
+            },
         },
     },
 };
 use serde::{Deserialize, Serialize};
 
-use super::{r2, rng, KeygenPartyIndex, KeygenProtocolBuilder};
+use super::{r2, rng, KeygenPartyIndex, KeygenPartyShareCounts, KeygenProtocolBuilder};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
 
 pub struct R1 {
     pub threshold: usize,
+    pub party_share_counts: KeygenPartyShareCounts,
     pub rng_seed: rng::Seed,
 
     #[cfg(feature = "malicious")]
@@ -41,23 +42,28 @@ impl no_messages::Executer for R1 {
 
     fn execute(
         self: Box<Self>,
-        _party_count: usize,
-        _index: TypedUsize<Self::Index>,
+        _info: &ProtocolInfo<Self::Index>,
     ) -> TofnResult<KeygenProtocolBuilder> {
         let u_i_vss = vss_k256::Vss::new(self.threshold);
         let (y_i_commit, y_i_reveal) = hash::commit(k256_serde::to_bytes(
             &(k256::ProjectivePoint::generator() * u_i_vss.get_secret()),
         ));
 
-        corrupt!(y_i_commit, self.corrupt_commit(_index, y_i_commit));
+        corrupt!(
+            y_i_commit,
+            self.corrupt_commit(_info.share_id(), y_i_commit)
+        );
 
         let mut rng = rng::rng_from_seed(self.rng_seed);
         let (ek, dk) = paillier_k256::keygen_unsafe(&mut rng);
         let (zkp, zkp_proof) = paillier_k256::zk::ZkSetup::new_unsafe(&mut rng);
         let ek_proof = dk.correctness_proof();
 
-        corrupt!(ek_proof, self.corrupt_ek_proof(_index, ek_proof));
-        corrupt!(zkp_proof, self.corrupt_zkp_proof(_index, zkp_proof));
+        corrupt!(ek_proof, self.corrupt_ek_proof(_info.share_id(), ek_proof));
+        corrupt!(
+            zkp_proof,
+            self.corrupt_zkp_proof(_info.share_id(), zkp_proof)
+        );
 
         let bcast_out = serialize(&Bcast {
             y_i_commit,
@@ -70,6 +76,7 @@ impl no_messages::Executer for R1 {
         Ok(NotDone(RoundBuilder::BcastOnly {
             round: Box::new(r2::R2 {
                 threshold: self.threshold,
+                party_share_counts: self.party_share_counts,
                 dk,
                 u_i_vss,
                 y_i_reveal,

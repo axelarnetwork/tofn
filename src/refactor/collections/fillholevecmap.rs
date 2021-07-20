@@ -1,25 +1,17 @@
 //! A fillable Vec
-// use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
 
-use crate::refactor::protocol::api::TofnResult;
+use crate::refactor::sdk::api::{TofnFatal, TofnResult};
 
-use super::{holevecmap_iter::HoleVecMapIter, Behave, HoleVecMap, TypedUsize, VecMap};
+use super::{holevecmap_iter::HoleVecMapIter, HoleVecMap, TypedUsize, VecMap};
 
-// #[derive(Debug, Clone, Serialize, Deserialize)]
 #[derive(Debug, Clone, PartialEq)]
-pub struct FillHoleVecMap<K, V>
-where
-    K: Behave,
-{
+pub struct FillHoleVecMap<K, V> {
     hole_vec: HoleVecMap<K, Option<V>>,
     some_count: usize,
 }
 
-impl<K, V> FillHoleVecMap<K, V>
-where
-    K: Behave,
-{
+impl<K, V> FillHoleVecMap<K, V> {
     /// if hole >= len-1 then use hole = len-1
     pub fn with_size(len: usize, hole: TypedUsize<K>) -> TofnResult<Self> {
         Ok(Self {
@@ -47,6 +39,9 @@ where
         *stored = Some(value);
         Ok(())
     }
+    pub fn is_none(&self, index: TypedUsize<K>) -> TofnResult<bool> {
+        Ok(self.hole_vec.get(index)?.is_none())
+    }
     pub fn is_full(&self) -> bool {
         self.some_count == self.hole_vec.len() - 1
     }
@@ -59,7 +54,7 @@ where
     {
         if !self.is_full() {
             error!("self is not full");
-            return Err(());
+            return Err(TofnFatal);
         }
         Ok(self.hole_vec.map(|x| f(x.unwrap())))
     }
@@ -68,10 +63,7 @@ where
     }
 }
 
-impl<K, V> IntoIterator for FillHoleVecMap<K, V>
-where
-    K: Behave,
-{
+impl<K, V> IntoIterator for FillHoleVecMap<K, V> {
     type Item = <HoleVecMapIter<K, std::vec::IntoIter<Option<V>>> as Iterator>::Item;
     type IntoIter = HoleVecMapIter<K, std::vec::IntoIter<Option<V>>>;
 
@@ -82,10 +74,7 @@ where
 
 /// impl IntoIterator for &FillHoleVecMap as suggested here: https://doc.rust-lang.org/std/iter/index.html#iterating-by-reference
 /// follow the template of Vec: https://doc.rust-lang.org/src/alloc/vec/mod.rs.html#2451-2458
-impl<'a, K, V> IntoIterator for &'a FillHoleVecMap<K, V>
-where
-    K: Behave,
-{
+impl<'a, K, V> IntoIterator for &'a FillHoleVecMap<K, V> {
     type Item = (
         TypedUsize<K>,
         <std::slice::Iter<'a, Option<V>> as Iterator>::Item,

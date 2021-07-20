@@ -2,14 +2,14 @@ use tofn::refactor::{
     collections::{FillVecMap, TypedUsize, VecMap},
     keygen::{
         malicious::Behaviour::{self, *},
-        new_keygen, KeygenPartyIndex, KeygenProtocol, SecretKeyShare,
+        new_keygen, KeygenPartyIndex, KeygenProtocol, RealKeygenPartyIndex, SecretKeyShare,
     },
-    protocol::api::{Fault, Protocol::*, ProtocolOutput},
+    sdk::api::{Fault, PartyShareCounts, Protocol::*, ProtocolOutput},
 };
 use tracing::info;
 use tracing_test::traced_test;
 
-use crate::{execute::execute_protocol, keygen::dummy_secret_recovery_key};
+use crate::{common::keygen::dummy_secret_recovery_key, single_thread::execute::execute_protocol};
 
 #[test]
 #[traced_test]
@@ -33,30 +33,31 @@ pub fn single_fault_test_case_list() -> Vec<TestCase> {
 }
 
 fn single_fault_test_case(behaviour: Behaviour) -> TestCase {
-    // 3 parties (threshold 1)
-    // party 1 is malicious
-    // honest parties should identify party 1 as faulter
-    let mut faulters = FillVecMap::with_size(3);
+    // 2 parties, 2 shares per party
+    // share 1 (party 0) is malicious
+    let mut faulters = FillVecMap::with_size(2);
     faulters
-        .set(TypedUsize::from_usize(1), Fault::ProtocolFault)
+        .set(TypedUsize::from_usize(0), Fault::ProtocolFault)
         .unwrap();
     TestCase {
-        threshold: 1,
-        behaviours: VecMap::from_vec(vec![Honest, behaviour, Honest]),
+        party_share_counts: PartyShareCounts::from_vec(vec![2, 2]).unwrap(),
+        threshold: 2,
+        share_behaviours: VecMap::from_vec(vec![Honest, behaviour, Honest, Honest]),
         expected_honest_output: Err(faulters),
     }
 }
 
 pub struct TestCase {
+    pub party_share_counts: PartyShareCounts<RealKeygenPartyIndex>,
     pub threshold: usize,
-    pub behaviours: VecMap<KeygenPartyIndex, Behaviour>,
-    pub expected_honest_output: ProtocolOutput<SecretKeyShare, KeygenPartyIndex>,
+    pub share_behaviours: VecMap<KeygenPartyIndex, Behaviour>,
+    pub expected_honest_output: ProtocolOutput<SecretKeyShare, RealKeygenPartyIndex>,
 }
 
 impl TestCase {
     pub fn assert_expected_output(
         &self,
-        output: &ProtocolOutput<SecretKeyShare, KeygenPartyIndex>,
+        output: &ProtocolOutput<SecretKeyShare, RealKeygenPartyIndex>,
     ) {
         match output {
             Ok(_) => assert!(
@@ -72,32 +73,34 @@ impl TestCase {
             }
         }
     }
-    pub fn share_count(&self) -> usize {
-        self.behaviours.len()
+    pub fn initialize_malicious_parties(&self) -> VecMap<KeygenPartyIndex, KeygenProtocol> {
+        let session_nonce = b"foobar";
+        self.share_behaviours
+            .iter()
+            .map(|(share_id, behaviour)| {
+                new_keygen(
+                    self.party_share_counts.clone(),
+                    self.threshold,
+                    share_id,
+                    &dummy_secret_recovery_key(share_id),
+                    session_nonce,
+                    behaviour.clone(),
+                )
+                .expect("`new_keygen` failure")
+            })
+            .collect()
     }
-    //     pub(crate) fn assert_expected_waiting_on(&self, output: &[Vec<Crime>]) {
-    //         let mut expected_output = vec![];
-    //         for p in &self.parties {
-    //             expected_output.push(p.expected_crimes.clone());
-    //         }
-    //         assert_eq!(output, expected_output);
-    //     }
-    //     pub(super) fn share_count(&self) -> usize {
-    //         self.parties.len()
-    //     }
-    // }
 }
 
 fn execute_test_case_list(test_cases: &[TestCase]) {
     for test_case in test_cases {
         info!(
-            "share_count [{}] threshold [{}]",
-            test_case.share_count(),
-            test_case.threshold
+            "test: party_share_counts [{:?}] threshold [{}]",
+            test_case.party_share_counts, test_case.threshold
         );
         // print a pretty list of malicious parties
         let malicious_parties: Vec<(usize, &Behaviour)> = test_case
-            .behaviours
+            .share_behaviours
             .iter()
             .filter_map(|(i, b)| {
                 if b.is_honest() {
@@ -113,12 +116,12 @@ fn execute_test_case_list(test_cases: &[TestCase]) {
 }
 
 fn execute_test_case(test_case: &TestCase) {
-    let mut parties = initialize_parties(&test_case.behaviours, test_case.threshold);
+    let mut parties = test_case.initialize_malicious_parties();
 
     parties = execute_protocol(parties).expect("internal tofn error");
 
     // TEST: honest parties finished and produced the expected output
-    for (index, behaviour) in test_case.behaviours.iter() {
+    for (index, behaviour) in test_case.share_behaviours.iter() {
         if behaviour.is_honest() {
             match parties.get(index).unwrap() {
                 NotDone(_) => panic!("honest party {} not done yet", index),
@@ -126,25 +129,4 @@ fn execute_test_case(test_case: &TestCase) {
             }
         }
     }
-}
-
-pub fn initialize_parties(
-    behaviours: &VecMap<KeygenPartyIndex, Behaviour>,
-    threshold: usize,
-) -> VecMap<KeygenPartyIndex, KeygenProtocol> {
-    let session_nonce = b"foobar";
-    behaviours
-        .iter()
-        .map(|(index, behaviour)| {
-            new_keygen(
-                behaviours.len(),
-                threshold,
-                index,
-                &dummy_secret_recovery_key(index),
-                session_nonce,
-                behaviour.clone(),
-            )
-            .expect("`new_keygen` failure")
-        })
-        .collect()
 }

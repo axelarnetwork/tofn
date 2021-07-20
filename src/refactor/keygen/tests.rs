@@ -1,71 +1,86 @@
 use super::*;
 use crate::{
     protocol::gg20::vss_k256,
-    refactor::collections::{HoleVecMap, TypedUsize, VecMap},
-    refactor::protocol::api::{BytesVec, Protocol},
+    refactor::collections::{zip2, HoleVecMap, TypedUsize, VecMap},
+    refactor::sdk::api::{BytesVec, Protocol},
 };
-use rand::RngCore;
+use rand::{prelude::SliceRandom, RngCore};
 use tracing_test::traced_test;
 
 #[cfg(feature = "malicious")]
 use crate::refactor::keygen::malicious::Behaviour::Honest;
-pub struct TestCase {
-    share_count: usize,
-    threshold: usize,
-}
-
-lazy_static::lazy_static! {
-    pub static ref TEST_CASES: Vec<TestCase>
-    // = vec![t(5, 0), t(5, 1), t(5, 3), t(5, 4)];
-    = vec![t(5, 3)];
-}
 
 #[test]
 #[traced_test]
 fn basic_correctness() {
-    for t in TEST_CASES.iter() {
-        execute_keygen(t.share_count, t.threshold);
+    for t in test_case_list() {
+        execute_keygen(&t.party_share_counts, t.threshold);
     }
 }
 
-pub(crate) fn execute_keygen(share_count: usize, threshold: usize) -> Vec<SecretKeyShare> {
-    execute_keygen_with_recovery(share_count, threshold).shares
+pub struct TestCase {
+    party_share_counts: KeygenPartyShareCounts,
+    threshold: usize,
 }
 
-pub(crate) struct KeySharesWithRecovery {
+fn test_case_list() -> Vec<TestCase> {
+    vec![TestCase {
+        party_share_counts: KeygenPartyShareCounts::from_vec(vec![2, 2, 2]).unwrap(),
+        threshold: 3,
+    }]
+}
+
+fn execute_keygen(
+    party_share_counts: &KeygenPartyShareCounts,
+    threshold: usize,
+) -> Vec<SecretKeyShare> {
+    execute_keygen_with_recovery(party_share_counts, threshold).shares
+}
+
+struct KeySharesWithRecovery {
     pub shares: Vec<SecretKeyShare>,
     pub secret_recovery_keys: Vec<SecretRecoveryKey>,
     pub session_nonce: Vec<u8>,
 }
 
-pub(crate) fn execute_keygen_with_recovery(
-    share_count: usize,
+fn execute_keygen_with_recovery(
+    party_share_counts: &KeygenPartyShareCounts,
     threshold: usize,
 ) -> KeySharesWithRecovery {
-    let mut secret_recovery_keys = vec![[0u8; 64]; share_count];
+    let mut secret_recovery_keys = vec![[0u8; 64]; party_share_counts.total_share_count()];
     for s in secret_recovery_keys.iter_mut() {
         rand::thread_rng().fill_bytes(s);
     }
     let session_nonce = b"foobar".to_vec();
 
     KeySharesWithRecovery {
-        shares: execute_keygen_from_recovery(threshold, &secret_recovery_keys, &session_nonce),
+        shares: execute_keygen_from_recovery(
+            party_share_counts,
+            threshold,
+            &secret_recovery_keys,
+            &session_nonce,
+        ),
         secret_recovery_keys,
         session_nonce,
     }
 }
 
-pub(crate) fn execute_keygen_from_recovery(
+fn execute_keygen_from_recovery(
+    party_share_counts: &KeygenPartyShareCounts,
     threshold: usize,
     secret_recovery_keys: &[SecretRecoveryKey],
     session_nonce: &[u8],
 ) -> Vec<SecretKeyShare> {
+    assert_eq!(
+        secret_recovery_keys.len(),
+        party_share_counts.total_share_count()
+    );
     let share_count = secret_recovery_keys.len();
 
     let r0_parties: Vec<_> = (0..share_count)
         .map(|i| {
             match new_keygen(
-                share_count,
+                party_share_counts.clone(),
                 threshold,
                 TypedUsize::from_usize(i),
                 &secret_recovery_keys[i],
@@ -103,7 +118,9 @@ pub(crate) fn execute_keygen_from_recovery(
         .collect();
     for party in r1_parties.iter_mut() {
         for (from, bytes) in r1_bcasts.iter() {
-            party.bcast_in(from, bytes).unwrap();
+            party
+                .msg_in(party_share_counts.share_to_party_id(from).unwrap(), bytes)
+                .unwrap();
         }
     }
 
@@ -142,7 +159,9 @@ pub(crate) fn execute_keygen_from_recovery(
         .collect();
     for party in r2_parties.iter_mut() {
         for (from, bytes) in r2_bcasts.iter() {
-            party.bcast_in(from, bytes).unwrap();
+            party
+                .msg_in(party_share_counts.share_to_party_id(from).unwrap(), bytes)
+                .unwrap();
         }
     }
     let r2_p2ps: VecMap<KeygenPartyIndex, HoleVecMap<KeygenPartyIndex, BytesVec>> = r2_parties
@@ -151,8 +170,10 @@ pub(crate) fn execute_keygen_from_recovery(
         .collect();
     for party in r2_parties.iter_mut() {
         for (from, p2ps) in r2_p2ps.iter() {
-            for (to, msg) in p2ps.iter() {
-                party.p2p_in(from, to, msg).unwrap();
+            for (_, bytes) in p2ps.iter() {
+                party
+                    .msg_in(party_share_counts.share_to_party_id(from).unwrap(), bytes)
+                    .unwrap();
             }
         }
     }
@@ -179,7 +200,9 @@ pub(crate) fn execute_keygen_from_recovery(
         .collect();
     for party in r3_parties.iter_mut() {
         for (from, bytes) in r3_bcasts.iter() {
-            party.bcast_in(from, bytes).unwrap();
+            party
+                .msg_in(party_share_counts.share_to_party_id(from).unwrap(), bytes)
+                .unwrap();
         }
     }
 
@@ -211,7 +234,9 @@ pub(crate) fn execute_keygen_from_recovery(
 
     let all_shares: Vec<vss_k256::Share> = all_secret_key_shares
         .iter()
-        .map(|k| vss_k256::Share::from_scalar(*k.share.x_i.unwrap(), k.share.index.as_usize()))
+        .map(|k| {
+            vss_k256::Share::from_scalar(*k.share().x_i().unwrap(), k.share().index().as_usize())
+        })
         .collect();
     let secret_key_recovered = vss_k256::recover_secret(&all_shares, threshold);
 
@@ -220,7 +245,7 @@ pub(crate) fn execute_keygen_from_recovery(
     // test: verify that the reconstructed secret key yields the public key everyone deduced
     for secret_key_share in all_secret_key_shares.iter() {
         let test_pubkey = k256::ProjectivePoint::generator() * secret_key_recovered;
-        assert_eq!(&test_pubkey, secret_key_share.group.y.unwrap());
+        assert_eq!(&test_pubkey, secret_key_share.group().y().unwrap());
     }
 
     // test: everyone computed everyone else's public key share correctly
@@ -229,13 +254,13 @@ pub(crate) fn execute_keygen_from_recovery(
         for (j, other_secret_key_share) in all_secret_key_shares.iter().enumerate() {
             assert_eq!(
                 *secret_key_share
-                    .group
-                    .all_shares
+                    .group()
+                    .all_shares()
                     .get(TypedUsize::from_usize(j))
                     .unwrap()
-                    .X_i
+                    .X_i()
                     .unwrap(),
-                k256::ProjectivePoint::generator() * other_secret_key_share.share.x_i.unwrap(),
+                k256::ProjectivePoint::generator() * other_secret_key_share.share().x_i().unwrap(),
                 "party {} got party {} key wrong",
                 i,
                 j
@@ -246,10 +271,73 @@ pub(crate) fn execute_keygen_from_recovery(
     all_secret_key_shares
 }
 
-/// for brevity only
-fn t(n: usize, t: usize) -> TestCase {
-    TestCase {
-        share_count: n,
-        threshold: t,
+#[test]
+fn share_recovery() {
+    use rand::RngCore;
+
+    let party_share_counts = KeygenPartyShareCounts::from_vec(vec![2, 3, 1]).unwrap();
+    let threshold = 4;
+    let session_nonce = b"foobar";
+
+    // each party use the same secret recovery key for all its subshares
+    let secret_recovery_keys: Vec<SecretRecoveryKey> = party_share_counts
+        .iter()
+        .map(|(_, &n)| {
+            let mut s = [0u8; 64];
+            rand::thread_rng().fill_bytes(&mut s);
+            vec![s; n]
+        })
+        .collect::<Vec<Vec<_>>>()
+        .into_iter()
+        .flatten() // TODO don't need collect().into_iter() ???
+        .collect();
+    assert_eq!(
+        secret_recovery_keys.len(),
+        party_share_counts.total_share_count()
+    );
+
+    let shares = execute_keygen_from_recovery(
+        &party_share_counts,
+        threshold,
+        &secret_recovery_keys,
+        session_nonce,
+    );
+
+    let recovery_infos = {
+        let mut recovery_infos: Vec<_> =
+            shares.iter().map(|s| s.recovery_info().unwrap()).collect();
+        recovery_infos.shuffle(&mut rand::thread_rng()); // simulate nondeterministic message receipt
+        recovery_infos
+    };
+    let recovered_shares: Vec<SecretKeyShare> = secret_recovery_keys
+        .iter()
+        .enumerate()
+        .map(|(i, r)| {
+            SecretKeyShare::recover(
+                r,
+                session_nonce,
+                &recovery_infos,
+                TypedUsize::from_usize(i),
+                party_share_counts.clone(),
+                threshold,
+            )
+            .unwrap()
+        })
+        .collect();
+
+    assert_eq!(
+        recovered_shares, shares,
+        "comment-out this assert and use the following code to narrow down the discrepancy"
+    );
+
+    for (i, (s, r)) in shares.iter().zip(recovered_shares.iter()).enumerate() {
+        assert_eq!(s.share(), r.share(), "party {}", i);
+        for (j, ss, rr) in zip2(&s.group().all_shares(), &r.group().all_shares()) {
+            assert_eq!(ss.X_i(), rr.X_i(), "party {} public info on party {}", i, j);
+            assert_eq!(ss.ek(), rr.ek(), "party {} public info on party {}", i, j);
+            assert_eq!(ss.zkp(), rr.zkp(), "party {} public info on party {}", i, j);
+        }
+        assert_eq!(s.group().threshold(), r.group().threshold(), "party {}", i);
+        assert_eq!(s.group().y(), r.group().y(), "party {}", i);
     }
 }

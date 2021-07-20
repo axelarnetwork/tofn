@@ -2,19 +2,14 @@ use serde::{Deserialize, Serialize};
 use std::iter::FromIterator;
 use tracing::error;
 
-use crate::refactor::protocol::api::TofnResult;
+use crate::refactor::sdk::api::{TofnFatal, TofnResult};
 
-use super::{vecmap_iter::VecMapIter, Behave, HoleVecMap, TypedUsize};
+use super::{vecmap_iter::VecMapIter, HoleVecMap, TypedUsize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct VecMap<K, V>(Vec<V>, std::marker::PhantomData<TypedUsize<K>>)
-where
-    K: Behave;
+pub struct VecMap<K, V>(Vec<V>, std::marker::PhantomData<TypedUsize<K>>);
 
-impl<K, V> VecMap<K, V>
-where
-    K: Behave,
-{
+impl<K, V> VecMap<K, V> {
     pub fn from_vec(vec: Vec<V>) -> Self {
         Self(vec, std::marker::PhantomData)
     }
@@ -24,12 +19,14 @@ where
     pub fn get(&self, index: TypedUsize<K>) -> TofnResult<&V> {
         self.0.get(index.as_usize()).ok_or_else(|| {
             error!("index {} out of bounds {}", index, self.0.len());
+            TofnFatal
         })
     }
     pub fn get_mut(&mut self, index: TypedUsize<K>) -> TofnResult<&mut V> {
         let len = self.0.len(); // fight the borrow checker
         self.0.get_mut(index.as_usize()).ok_or_else(|| {
             error!("index {} out of bounds {}", index, len);
+            TofnFatal
         })
     }
     pub fn len(&self) -> usize {
@@ -41,7 +38,7 @@ where
     pub fn puncture_hole(mut self, hole: TypedUsize<K>) -> TofnResult<(HoleVecMap<K, V>, V)> {
         if hole.as_usize() >= self.0.len() {
             error!("hole {} out of bounds {}", hole.as_usize(), self.0.len());
-            return Err(());
+            return Err(TofnFatal);
         }
         let hole_val = self.0.remove(hole.as_usize());
         Ok((HoleVecMap::from_vecmap(self, hole)?, hole_val))
@@ -66,10 +63,7 @@ where
     }
 }
 
-impl<K, V> IntoIterator for VecMap<K, V>
-where
-    K: Behave,
-{
+impl<K, V> IntoIterator for VecMap<K, V> {
     type Item = (TypedUsize<K>, <std::vec::IntoIter<V> as Iterator>::Item);
     type IntoIter = VecMapIter<K, std::vec::IntoIter<V>>;
 
@@ -80,10 +74,7 @@ where
 
 /// impl IntoIterator for &VecMap as suggested here: https://doc.rust-lang.org/std/iter/index.html#iterating-by-reference
 /// follow the template of Vec: https://doc.rust-lang.org/src/alloc/vec/mod.rs.html#2451-2458
-impl<'a, K, V> IntoIterator for &'a VecMap<K, V>
-where
-    K: Behave,
-{
+impl<'a, K, V> IntoIterator for &'a VecMap<K, V> {
     type Item = (TypedUsize<K>, <std::slice::Iter<'a, V> as Iterator>::Item);
     type IntoIter = VecMapIter<K, std::slice::Iter<'a, V>>;
 
@@ -92,10 +83,7 @@ where
     }
 }
 
-impl<K, V> FromIterator<V> for VecMap<K, V>
-where
-    K: Behave,
-{
+impl<K, V> FromIterator<V> for VecMap<K, V> {
     fn from_iter<Iter: IntoIterator<Item = V>>(iter: Iter) -> Self {
         Self::from_vec(Vec::from_iter(iter))
     }

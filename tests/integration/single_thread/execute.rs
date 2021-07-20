@@ -1,16 +1,16 @@
 //! Single-threaded generic protocol execution
 
 use tofn::{
-    refactor::collections::{Behave, HoleVecMap, VecMap},
-    refactor::protocol::api::{BytesVec, Protocol, TofnResult},
+    refactor::collections::{HoleVecMap, VecMap},
+    refactor::sdk::api::{BytesVec, Protocol, TofnResult},
 };
 use tracing::warn;
 
-pub fn execute_protocol<F, K>(
-    mut parties: VecMap<K, Protocol<F, K>>,
-) -> TofnResult<VecMap<K, Protocol<F, K>>>
+pub fn execute_protocol<F, K, P>(
+    mut parties: VecMap<K, Protocol<F, K, P>>,
+) -> TofnResult<VecMap<K, Protocol<F, K, P>>>
 where
-    K: Behave,
+    K: Clone,
 {
     while nobody_done(&parties) {
         parties = next_round(parties)?;
@@ -18,10 +18,7 @@ where
     Ok(parties)
 }
 
-pub fn nobody_done<F, K>(parties: &VecMap<K, Protocol<F, K>>) -> bool
-where
-    K: Behave,
-{
+pub fn nobody_done<F, K, P>(parties: &VecMap<K, Protocol<F, K, P>>) -> bool {
     // warn if there's disagreement
     let (mut done, mut not_done) = (
         Vec::with_capacity(parties.len()),
@@ -43,9 +40,11 @@ where
     done.is_empty()
 }
 
-fn next_round<F, K>(parties: VecMap<K, Protocol<F, K>>) -> TofnResult<VecMap<K, Protocol<F, K>>>
+fn next_round<F, K, P>(
+    parties: VecMap<K, Protocol<F, K, P>>,
+) -> TofnResult<VecMap<K, Protocol<F, K, P>>>
 where
-    K: Behave,
+    K: Clone,
 {
     // extract current round from parties
     let mut rounds: VecMap<K, _> = parties
@@ -64,7 +63,14 @@ where
     for (from, bcast) in bcasts.into_iter() {
         if let Some(bytes) = bcast {
             for (_, round) in rounds.iter_mut() {
-                round.bcast_in(from, &bytes)?;
+                round.msg_in(
+                    round
+                        .info()
+                        .party_share_counts()
+                        .share_to_party_id(from)
+                        .unwrap(),
+                    &bytes,
+                )?;
             }
         }
     }
@@ -76,9 +82,16 @@ where
         .collect();
     for (from, p2ps) in all_p2ps.into_iter() {
         if let Some(p2ps) = p2ps {
-            for (to, bytes) in p2ps {
+            for (_, bytes) in p2ps {
                 for (_, round) in rounds.iter_mut() {
-                    round.p2p_in(from, to, &bytes)?;
+                    round.msg_in(
+                        round
+                            .info()
+                            .party_share_counts()
+                            .share_to_party_id(from)
+                            .unwrap(), // no easy access to from_party_id
+                        &bytes,
+                    )?;
                 }
             }
         }

@@ -1,29 +1,83 @@
-use serde::{Deserialize, Serialize};
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct TypedUsize<K>(usize, std::marker::PhantomData<K>)
-where
-    K: Behave;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::marker::PhantomData;
 
-/// Alias for all the trait bounds on `K` in order to work around https://stackoverflow.com/a/31371094
-pub trait Behave: std::fmt::Debug + Clone + Copy + PartialEq + Send + Sync {}
+pub struct TypedUsize<K>(usize, PhantomData<K>);
 
-impl<K> TypedUsize<K>
-where
-    K: Behave,
-{
+impl<K> TypedUsize<K> {
     pub fn from_usize(index: usize) -> Self {
-        TypedUsize(index, std::marker::PhantomData)
+        TypedUsize(index, PhantomData)
     }
     pub fn as_usize(&self) -> usize {
         self.0
     }
 }
 
-impl<K> std::fmt::Display for TypedUsize<K>
-where
-    K: Behave,
-{
+// Manual blanket impls for common traits.
+// `#[derive(...)]` doesn't work for all `K`:
+// * https://stackoverflow.com/a/31371094
+// * https://github.com/serde-rs/serde/issues/183#issuecomment-157348366
+
+impl<K> Copy for TypedUsize<K> {}
+
+impl<K> Clone for TypedUsize<K> {
+    fn clone(&self) -> Self {
+        Self::from_usize(self.0)
+    }
+}
+
+impl<K> std::fmt::Debug for TypedUsize<K> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        self.0.fmt(f)
+    }
+}
+
+impl<K> std::fmt::Display for TypedUsize<K> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl<K> PartialEq for TypedUsize<K> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl<K> Serialize for TypedUsize<K> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.0.serialize(serializer)
+    }
+}
+
+impl<'de, K> Deserialize<'de> for TypedUsize<K> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(Self::from_usize(usize::deserialize(deserializer)?))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TypedUsize;
+
+    struct TestMarker;
+
+    #[test]
+    fn serde_bincode() {
+        // test: `TypedUsize` and `usize` serialize to the same bytes
+        let untyped: usize = 12345678;
+        let typed = TypedUsize::<TestMarker>::from_usize(untyped);
+        let untyped_bytes = bincode::serialize(&untyped).unwrap();
+        let typed_bytes = bincode::serialize(&typed).unwrap();
+        assert_eq!(typed_bytes, untyped_bytes);
+        let typed_deserialized: TypedUsize<TestMarker> =
+            bincode::deserialize(&typed_bytes).unwrap();
+        assert_eq!(typed_deserialized, typed);
+        assert_eq!(typed_deserialized.as_usize(), untyped);
     }
 }

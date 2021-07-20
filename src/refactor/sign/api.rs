@@ -4,11 +4,13 @@ use std::{
 };
 
 use crate::refactor::{
-    collections::{Behave, TypedUsize, VecMap},
-    keygen::{GroupPublicInfo, KeygenPartyIndex, SecretKeyShare, ShareSecretInfo},
-    protocol::{
-        api::{BytesVec, Protocol, Round, TofnResult},
-        implementer_api::ProtocolBuilder,
+    collections::{Subset, TypedUsize, VecMap},
+    keygen::{
+        GroupPublicInfo, KeygenPartyIndex, RealKeygenPartyIndex, SecretKeyShare, ShareSecretInfo,
+    },
+    sdk::{
+        api::{BytesVec, PartyShareCounts, Protocol, TofnFatal, TofnResult},
+        implementer_api::{new_protocol, ProtocolBuilder},
     },
 };
 use serde::{Deserialize, Serialize};
@@ -16,92 +18,18 @@ use tracing::error;
 
 use super::r1;
 
-pub type SignProtocol = Protocol<BytesVec, SignParticipantIndex>;
+pub type SignProtocol = Protocol<BytesVec, SignParticipantIndex, RealSignParticipantIndex>;
 pub type SignProtocolBuilder = ProtocolBuilder<BytesVec, SignParticipantIndex>;
 pub type ParticipantsList = VecMap<SignParticipantIndex, TypedUsize<KeygenPartyIndex>>;
+pub type SignParties = Subset<RealKeygenPartyIndex>;
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SignParticipantIndex;
-impl Behave for SignParticipantIndex {}
+pub struct RealSignParticipantIndex;
 
 /// sign only 32-byte hash digests
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MessageDigest([u8; 32]);
-
-/// Initialize a new sign protocol
-pub fn new_sign(
-    group: &GroupPublicInfo,
-    share: &ShareSecretInfo,
-    participants: &ParticipantsList,
-    msg_to_sign: &MessageDigest,
-) -> TofnResult<SignProtocol> {
-    let index = validate_args(group, share, participants)?;
-
-    Ok(Protocol::NotDone(Round::new_no_messages(
-        Box::new(r1::R1 {
-            secret_key_share: SecretKeyShare {
-                group: group.clone(),
-                share: share.clone(),
-            },
-            msg_to_sign: msg_to_sign.into(),
-            participants: participants.clone(),
-        }),
-        participants.len(),
-        index,
-    )?))
-}
-
-/// Assume `group`, `share` are valid and check `participants` against it.
-/// Returns my index in `participants`.
-/// TODO either make this pub or move it out of api.rs
-fn validate_args(
-    group: &GroupPublicInfo,
-    share: &ShareSecretInfo,
-    participants: &ParticipantsList,
-) -> TofnResult<TypedUsize<SignParticipantIndex>> {
-    // participant count must be at least threshold + 1
-    if participants.len() <= group.threshold || participants.len() > group.share_count() {
-        error!(
-            "invalid (participant_count,threshold,share_count): ({},{},{})",
-            participants.len(),
-            group.threshold,
-            group.share_count()
-        );
-        return Err(());
-    }
-
-    // check that my index is in the list
-    let my_participant_index = participants
-        .iter()
-        .find(|(_, &k)| k == share.index)
-        .map(|(s, _)| s);
-    if my_participant_index.is_none() {
-        error!(
-            "my keygen party index {} not found in `participants`",
-            share.index
-        );
-        return Err(());
-    }
-
-    // check for duplicate party ids, indices out of bounds
-    // just do a dumb quadratic-time check
-    for (_, k) in participants.iter() {
-        if k.as_usize() >= group.share_count() {
-            error!(
-                "keygen party index {} out of bounds {}",
-                k,
-                group.share_count()
-            );
-            return Err(());
-        }
-        if participants.iter().filter(|(_, kk)| k == *kk).count() > 1 {
-            error!("duplicate keygen party index {} detected", k);
-            return Err(());
-        }
-    }
-
-    Ok(my_participant_index.unwrap())
-}
 
 impl TryFrom<&[u8]> for MessageDigest {
     type Error = TryFromSliceError;
@@ -114,4 +42,48 @@ impl From<&MessageDigest> for k256::Scalar {
     fn from(v: &MessageDigest) -> Self {
         k256::Scalar::from_bytes_reduced(k256::FieldBytes::from_slice(&v.0[..]))
     }
+}
+
+/// Initialize a new sign protocol
+/// Assume `group`, `share` are valid and check `sign_parties` against it.
+pub fn new_sign(
+    group: &GroupPublicInfo,
+    share: &ShareSecretInfo,
+    sign_parties: &SignParties,
+    msg_to_sign: &MessageDigest,
+) -> TofnResult<SignProtocol> {
+    let participants = VecMap::from_vec(group.party_share_counts().share_id_subset(sign_parties)?);
+
+    // participant share count must be at least threshold + 1
+    if participants.len() <= group.threshold() {
+        error!(
+            "not enough participant shares: threshold [{}], participants [{}]",
+            group.threshold(),
+            participants.len(),
+        );
+        return Err(TofnFatal);
+    }
+
+    // find my keygen share_id
+    let index = participants
+        .iter()
+        .find(|(_, &k)| k == share.index())
+        .map(|(s, _)| s)
+        .ok_or_else(|| {
+            error!("my keygen share_id {} is not a participant", share.index());
+            TofnFatal
+        })?;
+
+    let sign_party_share_counts =
+        PartyShareCounts::from_vec(group.party_share_counts().subset(sign_parties)?)?;
+
+    new_protocol(
+        sign_party_share_counts,
+        index,
+        Box::new(r1::R1 {
+            secret_key_share: SecretKeyShare::new(group.clone(), share.clone()),
+            msg_to_sign: msg_to_sign.into(),
+            participants,
+        }),
+    )
 }

@@ -1,10 +1,11 @@
 mod typed_usize;
-pub use typed_usize::{Behave, TypedUsize};
+pub use typed_usize::TypedUsize;
 
 mod vecmap;
 mod vecmap_iter;
 mod vecmap_zip;
 pub use vecmap::VecMap;
+pub use vecmap_iter::VecMapIter;
 pub use vecmap_zip::zip2;
 
 mod fillvecmap;
@@ -21,3 +22,6 @@ mod p2ps;
 pub use p2ps::{FillP2ps, P2ps};
 mod p2ps_iter;
 pub use p2ps_iter::P2psIter;
+
+mod subset;
+pub use subset::Subset;

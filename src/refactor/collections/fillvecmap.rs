@@ -2,32 +2,26 @@
 use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
 
-use crate::refactor::protocol::api::TofnResult;
+use crate::refactor::sdk::api::{TofnFatal, TofnResult};
 
-use super::{vecmap_iter::VecMapIter, Behave, TypedUsize, VecMap};
+use super::{vecmap_iter::VecMapIter, TypedUsize, VecMap};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct FillVecMap<K, V>
-where
-    K: Behave,
-{
+pub struct FillVecMap<K, V> {
     vec: VecMap<K, Option<V>>,
     some_count: usize,
 }
 
-impl<K, V> FillVecMap<K, V>
-where
-    K: Behave,
-{
+impl<K, V> FillVecMap<K, V> {
     pub fn with_size(len: usize) -> Self {
         Self {
             vec: (0..len).map(|_| None).collect(),
             some_count: 0,
         }
     }
-    // pub fn size(&self) -> usize {
-    //     self.vec.len()
-    // }
+    pub fn size(&self) -> usize {
+        self.vec.len()
+    }
     // pub fn get(&self, index: Index<K>) -> &Option<V> {
     //     self.vec.get(index)
     // }
@@ -57,6 +51,9 @@ where
     pub fn is_empty(&self) -> bool {
         self.some_count == 0
     }
+    pub fn some_count(&self) -> usize {
+        self.some_count
+    }
     pub fn iter(&self) -> VecMapIter<K, std::slice::Iter<Option<V>>> {
         self.vec.iter()
     }
@@ -77,7 +74,7 @@ where
     {
         if !self.is_full() {
             error!("self is not full");
-            return Err(());
+            return Err(TofnFatal);
         }
         Ok(self.vec.map(|x| f(x.unwrap())))
     }
@@ -86,10 +83,7 @@ where
     }
 }
 
-impl<K, V> IntoIterator for FillVecMap<K, V>
-where
-    K: Behave,
-{
+impl<K, V> IntoIterator for FillVecMap<K, V> {
     type Item = <VecMapIter<K, std::vec::IntoIter<Option<V>>> as Iterator>::Item;
     type IntoIter = VecMapIter<K, std::vec::IntoIter<Option<V>>>;
 
@@ -100,10 +94,7 @@ where
 
 /// impl IntoIterator for &FillVecMap as suggested here: https://doc.rust-lang.org/std/iter/index.html#iterating-by-reference
 /// follow the template of Vec: https://doc.rust-lang.org/src/alloc/vec/mod.rs.html#2451-2458
-impl<'a, K, V> IntoIterator for &'a FillVecMap<K, V>
-where
-    K: Behave,
-{
+impl<'a, K, V> IntoIterator for &'a FillVecMap<K, V> {
     type Item = (
         TypedUsize<K>,
         <std::slice::Iter<'a, Option<V>> as Iterator>::Item,
