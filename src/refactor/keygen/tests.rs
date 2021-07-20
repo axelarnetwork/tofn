@@ -4,7 +4,7 @@ use crate::{
     refactor::sdk::api::{BytesVec, Protocol},
     refactor::{
         collections::{HoleVecMap, TypedUsize, VecMap},
-        sdk::implementer_api::PartyShareCounts,
+        sdk::PartyShareCounts,
     },
 };
 use rand::RngCore;

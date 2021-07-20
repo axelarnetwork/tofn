@@ -16,7 +16,6 @@ pub mod bcast_and_p2p;
 pub mod bcast_only;
 pub mod no_messages;
 pub mod p2p_only;
-pub mod party_share_counts;
 
 pub struct Round<F, K, P> {
     info: ProtocolInfoDeluxe<K, P>,

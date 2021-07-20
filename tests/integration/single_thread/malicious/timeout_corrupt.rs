@@ -6,7 +6,7 @@ use tofn::refactor::{
     collections::{FillVecMap, HoleVecMap, TypedUsize, VecMap},
     sdk::{
         api::{BytesVec, Fault, MsgType, Protocol, ProtocolFaulters, TofnResult},
-        implementer_api::PartyShareCounts,
+        PartyShareCounts,
     },
 };
 use tracing::{info, warn};

@@ -6,7 +6,7 @@ use tofn::refactor::{
     },
     sdk::{
         api::{Fault, Protocol::*, ProtocolOutput},
-        implementer_api::PartyShareCounts,
+        PartyShareCounts,
     },
 };
 use tracing::info;

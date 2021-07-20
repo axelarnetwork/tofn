@@ -6,7 +6,7 @@ pub mod keygen {
                 new_keygen, KeygenPartyIndex, KeygenProtocol, RealKeygenPartyIndex,
                 SecretRecoveryKey,
             },
-            sdk::implementer_api::PartyShareCounts,
+            sdk::PartyShareCounts,
         },
     };
 
