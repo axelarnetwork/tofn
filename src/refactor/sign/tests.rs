@@ -24,7 +24,8 @@ use crate::refactor::sign::malicious::Behaviour::Honest;
 
 type Parties = Vec<Round<BytesVec, SignParticipantIndex>>;
 type PartyBcast = Result<VecMap<SignParticipantIndex, BytesVec>, ()>;
-type PartyP2p = Result<VecMap<SignParticipantIndex, HoleVecMap<SignParticipantIndex, BytesVec>>, ()>;
+type PartyP2p =
+    Result<VecMap<SignParticipantIndex, HoleVecMap<SignParticipantIndex, BytesVec>>, ()>;
 type PartyResult = Result<BytesVec, FillVecMap<SignParticipantIndex, Fault>>;
 
 #[test]
@@ -44,7 +45,7 @@ fn basic_correctness() {
     }
 }
 
-#[allow(non_snake_case,clippy::many_single_char_names)]
+#[allow(non_snake_case, clippy::many_single_char_names)]
 fn execute_sign(
     key_shares: Vec<SecretKeyShare>,
     test_case: &TestCase,
@@ -188,11 +189,7 @@ fn execute_round(
     round_num: usize,
     expect_bcast_out: bool,
     expect_p2p_out: bool,
-) -> (
-    Parties,
-    PartyBcast,
-    PartyP2p,
-) {
+) -> (Parties, PartyBcast, PartyP2p) {
     let mut next_round_parties: Parties = parties
         .into_iter()
         .enumerate()
@@ -222,10 +219,7 @@ fn execute_round(
     (next_round_parties, bcasts, p2ps)
 }
 
-fn execute_final_round(
-    parties: Parties,
-    round_num: usize,
-) -> Vec<PartyResult> {
+fn execute_final_round(parties: Parties, round_num: usize) -> Vec<PartyResult> {
     let mut results = Vec::new();
 
     debug!("Executing the final round");
@@ -270,11 +264,7 @@ fn retrieve_and_set_bcasts(
     Ok(bcasts)
 }
 
-fn retrieve_and_set_p2ps(
-    parties: &mut Parties,
-    expect_p2p: bool,
-    round_num: usize,
-) -> PartyP2p {
+fn retrieve_and_set_p2ps(parties: &mut Parties, expect_p2p: bool, round_num: usize) -> PartyP2p {
     if !expect_p2p {
         return Err(());
     }
