@@ -16,6 +16,7 @@ pub struct RealKeygenPartyIndex; // TODO the real keygen party index
 
 pub type KeygenProtocol = Protocol<SecretKeyShare, KeygenPartyIndex, RealKeygenPartyIndex>;
 pub type KeygenProtocolBuilder = ProtocolBuilder<SecretKeyShare, KeygenPartyIndex>;
+pub type KeygenPartyShareCounts = PartyShareCounts<RealKeygenPartyIndex>;
 pub type SecretRecoveryKey = [u8; 64];
 
 // Can't define a keygen-specific alias for `RoundExecuter` that sets
@@ -27,7 +28,7 @@ pub const MAX_PARTY_SHARE_COUNT: usize = MAX_TOTAL_SHARE_COUNT;
 
 /// Initialize a new keygen protocol
 pub fn new_keygen(
-    party_share_counts: PartyShareCounts<RealKeygenPartyIndex>,
+    party_share_counts: KeygenPartyShareCounts,
     threshold: usize,
     index: TypedUsize<KeygenPartyIndex>,
     secret_recovery_key: &SecretRecoveryKey,
@@ -65,9 +66,10 @@ pub fn new_keygen(
     let rng_seed = rng::seed(secret_recovery_key, session_nonce);
 
     new_protocol(
-        party_share_counts,
+        party_share_counts.clone(),
         index,
         Box::new(r1::R1 {
+            party_share_counts,
             threshold,
             rng_seed,
             #[cfg(feature = "malicious")]

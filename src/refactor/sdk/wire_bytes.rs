@@ -46,8 +46,7 @@ pub fn unwrap<K>(bytes: &[u8]) -> Option<WireBytes<K>> {
 }
 
 #[derive(Serialize, Deserialize)]
-// disable serde trait bounds on `K`: https://serde.rs/attr-bound.html
-#[serde(bound(serialize = "", deserialize = ""))]
+#[serde(bound(serialize = "", deserialize = ""))] // disable serde trait bounds on `K`: https://serde.rs/attr-bound.html
 pub struct WireBytes<K> {
     pub msg_type: MsgType<K>,
     pub from: TypedUsize<K>,

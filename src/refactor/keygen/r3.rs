@@ -20,7 +20,7 @@ use crate::{
     zkp::schnorr_k256,
 };
 
-use super::{r1, r2, KeygenPartyIndex, KeygenProtocolBuilder};
+use super::{r1, r2, KeygenPartyIndex, KeygenPartyShareCounts, KeygenProtocolBuilder};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -49,6 +49,7 @@ pub struct ShareInfo {
 
 pub struct R3 {
     pub threshold: usize,
+    pub party_share_counts: KeygenPartyShareCounts,
     pub dk: paillier_k256::DecryptionKey,
     pub u_i_my_share: vss_k256::Share,
     pub r1bcasts: VecMap<KeygenPartyIndex, r1::Bcast>,
@@ -172,6 +173,7 @@ impl bcast_and_p2p::Executer for R3 {
         Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
             round: Box::new(r4::happy::R4 {
                 threshold: self.threshold,
+                party_share_counts: self.party_share_counts,
                 dk: self.dk,
                 r1bcasts: self.r1bcasts,
                 r2bcasts: bcasts_in,

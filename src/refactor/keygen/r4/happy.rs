@@ -5,8 +5,8 @@ use crate::{
     refactor::collections::{FillVecMap, P2ps, VecMap},
     refactor::{
         keygen::{
-            r1, r2, r3, r4::sad::R4Sad, GroupPublicInfo, KeygenPartyIndex, KeygenProtocolBuilder,
-            SecretKeyShare, SharePublicInfo, ShareSecretInfo,
+            r1, r2, r3, r4::sad::R4Sad, GroupPublicInfo, KeygenPartyIndex, KeygenPartyShareCounts,
+            KeygenProtocolBuilder, SecretKeyShare, SharePublicInfo, ShareSecretInfo,
         },
         sdk::{
             api::{Fault::ProtocolFault, TofnResult},
@@ -22,6 +22,7 @@ use crate::refactor::keygen::malicious::Behaviour;
 #[allow(non_snake_case)]
 pub struct R4 {
     pub threshold: usize,
+    pub party_share_counts: KeygenPartyShareCounts,
     pub dk: paillier_k256::DecryptionKey,
     pub r1bcasts: VecMap<KeygenPartyIndex, r1::Bcast>,
     pub r2bcasts: VecMap<KeygenPartyIndex, r2::Bcast>,
@@ -105,7 +106,12 @@ impl bcast_only::Executer for R4 {
             .collect::<TofnResult<VecMap<_, _>>>()?;
 
         Ok(ProtocolBuilder::Done(Ok(SecretKeyShare::new(
-            GroupPublicInfo::new(self.threshold, self.y.into(), all_shares),
+            GroupPublicInfo::new(
+                self.party_share_counts,
+                self.threshold,
+                self.y.into(),
+                all_shares,
+            ),
             ShareSecretInfo::new(info.share_id(), self.dk, self.x_i.into()),
         ))))
     }

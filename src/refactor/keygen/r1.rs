@@ -13,13 +13,14 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::{r2, rng, KeygenPartyIndex, KeygenProtocolBuilder};
+use super::{r2, rng, KeygenPartyIndex, KeygenPartyShareCounts, KeygenProtocolBuilder};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
 
 pub struct R1 {
     pub threshold: usize,
+    pub party_share_counts: KeygenPartyShareCounts,
     pub rng_seed: rng::Seed,
 
     #[cfg(feature = "malicious")]
@@ -75,6 +76,7 @@ impl no_messages::Executer for R1 {
         Ok(NotDone(RoundBuilder::BcastOnly {
             round: Box::new(r2::R2 {
                 threshold: self.threshold,
+                party_share_counts: self.party_share_counts,
                 dk,
                 u_i_vss,
                 y_i_reveal,

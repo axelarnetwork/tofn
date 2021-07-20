@@ -2,34 +2,39 @@ use super::*;
 use crate::{
     protocol::gg20::vss_k256,
     refactor::collections::{zip2, HoleVecMap, TypedUsize, VecMap},
-    refactor::sdk::api::{BytesVec, PartyShareCounts, Protocol},
+    refactor::sdk::api::{BytesVec, Protocol},
 };
 use rand::{prelude::SliceRandom, RngCore};
 use tracing_test::traced_test;
 
 #[cfg(feature = "malicious")]
 use crate::refactor::keygen::malicious::Behaviour::Honest;
-pub struct TestCase {
-    share_count: usize,
-    threshold: usize,
-}
-
-lazy_static::lazy_static! {
-    pub static ref TEST_CASES: Vec<TestCase>
-    // = vec![t(5, 0), t(5, 1), t(5, 3), t(5, 4)];
-    = vec![t(5, 3)];
-}
 
 #[test]
 #[traced_test]
 fn basic_correctness() {
-    for t in TEST_CASES.iter() {
-        execute_keygen(t.share_count, t.threshold);
+    for t in test_case_list() {
+        execute_keygen(&t.party_share_counts, t.threshold);
     }
 }
 
-fn execute_keygen(share_count: usize, threshold: usize) -> Vec<SecretKeyShare> {
-    execute_keygen_with_recovery(share_count, threshold).shares
+pub struct TestCase {
+    party_share_counts: KeygenPartyShareCounts,
+    threshold: usize,
+}
+
+fn test_case_list() -> Vec<TestCase> {
+    vec![TestCase {
+        party_share_counts: KeygenPartyShareCounts::from_vec(vec![2, 2, 2]).unwrap(),
+        threshold: 3,
+    }]
+}
+
+fn execute_keygen(
+    party_share_counts: &KeygenPartyShareCounts,
+    threshold: usize,
+) -> Vec<SecretKeyShare> {
+    execute_keygen_with_recovery(party_share_counts, threshold).shares
 }
 
 struct KeySharesWithRecovery {
@@ -38,29 +43,39 @@ struct KeySharesWithRecovery {
     pub session_nonce: Vec<u8>,
 }
 
-fn execute_keygen_with_recovery(share_count: usize, threshold: usize) -> KeySharesWithRecovery {
-    let mut secret_recovery_keys = vec![[0u8; 64]; share_count];
+fn execute_keygen_with_recovery(
+    party_share_counts: &KeygenPartyShareCounts,
+    threshold: usize,
+) -> KeySharesWithRecovery {
+    let mut secret_recovery_keys = vec![[0u8; 64]; party_share_counts.total_share_count()];
     for s in secret_recovery_keys.iter_mut() {
         rand::thread_rng().fill_bytes(s);
     }
     let session_nonce = b"foobar".to_vec();
 
     KeySharesWithRecovery {
-        shares: execute_keygen_from_recovery(threshold, &secret_recovery_keys, &session_nonce),
+        shares: execute_keygen_from_recovery(
+            party_share_counts,
+            threshold,
+            &secret_recovery_keys,
+            &session_nonce,
+        ),
         secret_recovery_keys,
         session_nonce,
     }
 }
 
 fn execute_keygen_from_recovery(
+    party_share_counts: &KeygenPartyShareCounts,
     threshold: usize,
     secret_recovery_keys: &[SecretRecoveryKey],
     session_nonce: &[u8],
 ) -> Vec<SecretKeyShare> {
-    // TODO TEMPORARY one share per party
+    assert_eq!(
+        secret_recovery_keys.len(),
+        party_share_counts.total_share_count()
+    );
     let share_count = secret_recovery_keys.len();
-    let party_share_counts =
-        PartyShareCounts::from_vecmap((0..share_count).map(|_| 1).collect()).unwrap();
 
     let r0_parties: Vec<_> = (0..share_count)
         .map(|i| {
@@ -256,34 +271,37 @@ fn execute_keygen_from_recovery(
     all_secret_key_shares
 }
 
-/// for brevity only
-fn t(n: usize, t: usize) -> TestCase {
-    TestCase {
-        share_count: n,
-        threshold: t,
-    }
-}
-
 #[test]
 fn share_recovery() {
     use rand::RngCore;
 
-    let (share_count, threshold) = (7, 4);
-    let mut secret_recovery_keys = vec![[0u8; 64]; share_count];
-
-    // repeat some secret_recovery_keys:
-    // fill secret_recovery_keys with random data, copying each entry once
-    // eg: [r1, r1, r2, r2, r3, r3, r4]
-    // use `while let` instead of `for` so as to enable use of iterator inside loop: https://stackoverflow.com/a/59045627
-    let mut iter_mut = secret_recovery_keys.iter_mut();
-    while let Some(s) = iter_mut.next() {
-        rand::thread_rng().fill_bytes(s);
-        if let Some(t) = iter_mut.next() {
-            *t = *s;
-        }
-    }
+    let party_share_counts = KeygenPartyShareCounts::from_vec(vec![2, 3, 1]).unwrap();
+    let threshold = 4;
     let session_nonce = b"foobar";
-    let shares = execute_keygen_from_recovery(threshold, &secret_recovery_keys, session_nonce);
+
+    // each party use the same secret recovery key for all its subshares
+    let secret_recovery_keys: Vec<SecretRecoveryKey> = party_share_counts
+        .iter()
+        .map(|(_, &n)| {
+            let mut s = [0u8; 64];
+            rand::thread_rng().fill_bytes(&mut s);
+            vec![s; n]
+        })
+        .collect::<Vec<Vec<_>>>()
+        .into_iter()
+        .flatten()
+        .collect();
+    assert_eq!(
+        secret_recovery_keys.len(),
+        party_share_counts.total_share_count()
+    );
+
+    let shares = execute_keygen_from_recovery(
+        &party_share_counts,
+        threshold,
+        &secret_recovery_keys,
+        session_nonce,
+    );
 
     let recovery_infos = {
         let mut recovery_infos: Vec<_> =
@@ -300,6 +318,7 @@ fn share_recovery() {
                 session_nonce,
                 &recovery_infos,
                 TypedUsize::from_usize(i),
+                party_share_counts.clone(),
                 threshold,
             )
             .unwrap()

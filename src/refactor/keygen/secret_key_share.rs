@@ -1,4 +1,4 @@
-use super::{KeygenPartyIndex, SecretRecoveryKey};
+use super::{KeygenPartyIndex, KeygenPartyShareCounts, SecretRecoveryKey};
 use crate::{
     k256_serde, paillier_k256,
     protocol::gg20::vss_k256,
@@ -24,6 +24,7 @@ pub struct SecretKeyShare {
 /// `GroupPublicInfo` is the same for all shares
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GroupPublicInfo {
+    party_share_counts: KeygenPartyShareCounts,
     threshold: usize,
     y: k256_serde::ProjectivePoint,
     all_shares: VecMap<KeygenPartyIndex, SharePublicInfo>,
@@ -78,11 +79,13 @@ impl GroupPublicInfo {
         &self.all_shares
     }
     pub(super) fn new(
+        party_share_counts: KeygenPartyShareCounts,
         threshold: usize,
         y: k256_serde::ProjectivePoint,
         all_shares: VecMap<KeygenPartyIndex, SharePublicInfo>,
     ) -> Self {
         Self {
+            party_share_counts,
             threshold,
             y,
             all_shares,
@@ -124,11 +127,6 @@ impl ShareSecretInfo {
 
     // expose secret info only in tests `#[cfg(test)]` and never outside this crate `pub(super)`
     #[cfg(test)]
-    #[allow(dead_code)]
-    pub(super) fn dk(&self) -> &paillier_k256::DecryptionKey {
-        &self.dk
-    }
-    #[cfg(test)]
     pub(super) fn x_i(&self) -> &k256_serde::Scalar {
         &self.x_i
     }
@@ -160,6 +158,7 @@ impl SecretKeyShare {
         session_nonce: &[u8],
         recovery_infos: &[KeyShareRecoveryInfo],
         index: TypedUsize<KeygenPartyIndex>,
+        party_share_counts: KeygenPartyShareCounts,
         threshold: usize,
     ) -> TofnResult<Self> {
         // basic argument validation
@@ -173,6 +172,10 @@ impl SecretKeyShare {
                 "invalid (share_count,threshold,index): ({},{},{})",
                 share_count, threshold, index
             );
+            return Err(TofnFatal);
+        }
+        if share_count != party_share_counts.total_share_count() {
+            error!("party_share_counts and recovery_infos disagree on total share count",);
             return Err(TofnFatal);
         }
 
@@ -230,6 +233,7 @@ impl SecretKeyShare {
 
         Ok(Self {
             group: GroupPublicInfo {
+                party_share_counts,
                 threshold,
                 y,
                 all_shares,

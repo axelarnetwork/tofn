@@ -14,7 +14,7 @@ use crate::{
     },
 };
 
-use super::{r1, KeygenPartyIndex, KeygenProtocolBuilder};
+use super::{r1, KeygenPartyIndex, KeygenPartyShareCounts, KeygenProtocolBuilder};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -32,6 +32,7 @@ pub struct P2p {
 
 pub struct R2 {
     pub threshold: usize,
+    pub party_share_counts: KeygenPartyShareCounts,
     pub dk: paillier_k256::DecryptionKey,
     pub u_i_vss: vss_k256::Vss,
     pub y_i_reveal: hash::Randomness,
@@ -103,6 +104,7 @@ impl bcast_only::Executer for R2 {
         Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastAndP2p {
             round: Box::new(r3::R3 {
                 threshold: self.threshold,
+                party_share_counts: self.party_share_counts,
                 dk: self.dk,
                 u_i_my_share,
                 r1bcasts: bcasts_in,

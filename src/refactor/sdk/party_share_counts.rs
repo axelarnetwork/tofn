@@ -1,11 +1,12 @@
-use tracing::error;
-
 use crate::refactor::{
     collections::{TypedUsize, VecMap, VecMapIter},
     sdk::api::{TofnFatal, TofnResult, MAX_PARTY_SHARE_COUNT, MAX_TOTAL_SHARE_COUNT},
 };
+use serde::{Deserialize, Serialize};
+use tracing::error;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(bound(serialize = "", deserialize = ""))] // disable serde trait bounds on `P`: https://serde.rs/attr-bound.html
 pub struct PartyShareCounts<P> {
     party_share_counts: VecMap<P, usize>,
     total_share_count: usize,
