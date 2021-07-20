@@ -21,10 +21,7 @@ pub mod api {
 pub mod implementer_api {
     //! API for protocol implementers, but not for users of protocols
     use super::api::{BytesVec, TofnResult};
-    pub use super::{
-        protocol_builder::{ProtocolBuilder, ProtocolBuilderOutput, RoundBuilder},
-        round::{bcast_and_p2p, bcast_only, no_messages},
-    };
+    pub use super::protocol_builder::{ProtocolBuilder, ProtocolBuilderOutput, RoundBuilder};
     use crate::refactor::{collections::TypedUsize, sdk::api::TofnFatal};
     use tracing::{error, info, warn};
 
@@ -60,6 +57,11 @@ mod protocol_builder;
 mod protocol_info;
 mod round;
 mod wire_bytes;
+
+pub mod bcast_and_p2p;
+pub mod bcast_only;
+pub mod no_messages;
+pub mod p2p_only;
 
 pub use party_share_counts::PartyShareCounts;
 pub use protocol_info::{ProtocolInfo, ProtocolInfoDeluxe};

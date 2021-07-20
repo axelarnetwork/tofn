@@ -11,9 +11,8 @@ use crate::{
         keygen::{r4, SecretKeyShare},
         sdk::{
             api::{Fault::ProtocolFault, TofnResult},
-            implementer_api::{
-                bcast_and_p2p, log_accuse_warn, serialize, ProtocolBuilder, RoundBuilder,
-            },
+            bcast_and_p2p,
+            implementer_api::{log_accuse_warn, serialize, ProtocolBuilder, RoundBuilder},
             ProtocolInfo,
         },
     },

@@ -5,17 +5,12 @@ use crate::refactor::{
     sdk::api::{BytesVec, ProtocolFaulters, TofnFatal, TofnResult},
 };
 
-use super::protocol_info::ProtocolInfoDeluxe;
+use super::{bcast_and_p2p, bcast_only, no_messages, p2p_only, protocol_info::ProtocolInfoDeluxe};
 
 // TODO is there a way to restrict visibility of struct methods?
 // currently anyone with visibility of `Round` can use all its methods
 mod api; // Round methods for tofn users
 mod implementer_api; // Round methods for protocol implementers
-
-pub mod bcast_and_p2p;
-pub mod bcast_only;
-pub mod no_messages;
-pub mod p2p_only;
 
 pub struct Round<F, K, P> {
     info: ProtocolInfoDeluxe<K, P>,

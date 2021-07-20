@@ -5,8 +5,8 @@ use crate::{
         keygen::SecretKeyShare,
         sdk::{
             api::TofnResult,
-            implementer_api::{no_messages, serialize, ProtocolBuilder::*, RoundBuilder},
-            ProtocolInfo,
+            implementer_api::{serialize, ProtocolBuilder::*, RoundBuilder},
+            no_messages, ProtocolInfo,
         },
     },
 };

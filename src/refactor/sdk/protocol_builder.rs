@@ -2,9 +2,10 @@ use crate::refactor::collections::{FillVecMap, HoleVecMap};
 
 use super::{
     api::{BytesVec, TofnResult},
+    bcast_and_p2p, bcast_only, no_messages, p2p_only,
     protocol::{Fault, Protocol},
     protocol_info::ProtocolInfoDeluxe,
-    round::{bcast_and_p2p, bcast_only, no_messages, p2p_only, Round},
+    round::Round,
 };
 
 pub enum ProtocolBuilder<F, K> {
