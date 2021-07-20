@@ -40,6 +40,9 @@ impl<P> PartyShareCounts<P> {
     pub fn total_share_count(&self) -> usize {
         self.total_share_count
     }
+    pub fn party_share_count(&self, index: TypedUsize<P>) -> TofnResult<usize> {
+        Ok(*self.party_share_counts.get(index)?)
+    }
     pub fn party_count(&self) -> usize {
         self.party_share_counts.len()
     }

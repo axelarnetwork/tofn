@@ -289,7 +289,7 @@ fn share_recovery() {
         })
         .collect::<Vec<Vec<_>>>()
         .into_iter()
-        .flatten()
+        .flatten() // TODO don't need collect().into_iter() ???
         .collect();
     assert_eq!(
         secret_recovery_keys.len(),

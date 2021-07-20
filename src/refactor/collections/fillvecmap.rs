@@ -19,9 +19,9 @@ impl<K, V> FillVecMap<K, V> {
             some_count: 0,
         }
     }
-    // pub fn size(&self) -> usize {
-    //     self.vec.len()
-    // }
+    pub fn size(&self) -> usize {
+        self.vec.len()
+    }
     // pub fn get(&self, index: Index<K>) -> &Option<V> {
     //     self.vec.get(index)
     // }
@@ -50,6 +50,9 @@ impl<K, V> FillVecMap<K, V> {
     }
     pub fn is_empty(&self) -> bool {
         self.some_count == 0
+    }
+    pub fn some_count(&self) -> usize {
+        self.some_count
     }
     pub fn iter(&self) -> VecMapIter<K, std::slice::Iter<Option<V>>> {
         self.vec.iter()

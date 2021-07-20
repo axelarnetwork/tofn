@@ -63,6 +63,9 @@ pub struct KeyShareRecoveryInfo {
 }
 
 impl GroupPublicInfo {
+    pub fn party_share_counts(&self) -> &KeygenPartyShareCounts {
+        &self.party_share_counts
+    }
     pub fn share_count(&self) -> usize {
         self.all_shares.len()
     }

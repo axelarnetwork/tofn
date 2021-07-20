@@ -22,3 +22,6 @@ mod p2ps;
 pub use p2ps::{FillP2ps, P2ps};
 mod p2ps_iter;
 pub use p2ps_iter::P2psIter;
+
+mod subset;
+pub use subset::Subset;
