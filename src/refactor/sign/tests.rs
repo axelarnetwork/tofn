@@ -38,10 +38,10 @@ fn basic_correctness() {
     let msg_to_sign: MessageDigest =
         MessageDigest::try_from(msg).expect("could not convert msg to MessageDigest");
 
-    for t in TEST_CASES.iter() {
-        let key_shares = execute_keygen(t.share_count, t.threshold);
+    for test_case in TEST_CASES.iter() {
+        let key_shares = execute_keygen(test_case.share_count, test_case.threshold);
 
-        execute_sign(key_shares, t, &msg_to_sign);
+        execute_sign(key_shares, test_case, &msg_to_sign);
     }
 }
 

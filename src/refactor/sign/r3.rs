@@ -227,6 +227,7 @@ impl bcast_and_p2p::Executer for R3 {
                 beta_secrets: self.beta_secrets,
                 nu_secrets: self.nu_secrets,
                 r1bcasts: self.r1bcasts,
+                r2p2ps: p2ps_in,
 
                 #[cfg(feature = "malicious")]
                 behaviour: self.behaviour,

@@ -4,7 +4,7 @@ use crate::{
     mta::Secret,
     paillier_k256,
     refactor::{
-        collections::{FillVecMap, HoleVecMap, TypedUsize, VecMap},
+        collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
         protocol::{
             api::{BytesVec, Fault::ProtocolFault, TofnResult},
@@ -18,7 +18,7 @@ use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::{r1, r3, r5, Peers, SignParticipantIndex, SignProtocolBuilder};
+use super::{r1, r2, r3, r5, Peers, SignParticipantIndex, SignProtocolBuilder};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -40,6 +40,7 @@ pub struct R4 {
     pub(crate) beta_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub(crate) nu_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
+    pub r2p2ps: P2ps<SignParticipantIndex, r2::P2p>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
@@ -124,6 +125,7 @@ impl bcast_only::Executer for R4 {
                 beta_secrets: self.beta_secrets,
                 nu_secrets: self.nu_secrets,
                 r1bcasts: self.r1bcasts,
+                r2p2ps: self.r2p2ps,
                 r3bcasts: bcasts_in,
                 delta_inv: delta_inv.unwrap(),
 

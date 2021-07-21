@@ -56,7 +56,7 @@ pub struct Bcast {
 impl bcast_only::Executer for R8 {
     type FinalOutput = BytesVec;
     type Index = SignParticipantIndex;
-    type Bcast = r7::Bcast;
+    type Bcast = r7::happy::Bcast;
 
     #[allow(non_snake_case)]
     fn execute(
@@ -96,7 +96,16 @@ impl bcast_only::Executer for R8 {
         // verify proofs
         for (sign_peer_id, bcast) in &bcasts_in {
             let R_i = self.r5bcasts.get(sign_peer_id)?.R_i.unwrap();
-            let S_i = self.r6bcasts.get(sign_peer_id)?.S_i.unwrap();
+            let S_i = match self.r6bcasts.get(sign_peer_id)? {
+                r6::Bcast::Happy(bcast) => Ok(bcast.S_i.unwrap()),
+                _ => {
+                    error!(
+                        "peer {} says: unexpected sad R6 bcast found from peer {}",
+                        sign_id, sign_peer_id
+                    );
+                    Err(())
+                }
+            }?;
 
             let R_s = self.R * bcast.s_i.unwrap();
             let R_s_prime = R_i * &self.msg_to_sign + S_i * &self.r;

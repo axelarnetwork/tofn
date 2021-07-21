@@ -4,13 +4,14 @@ use crate::{
     mta::Secret,
     paillier_k256,
     refactor::{
-        collections::{FillVecMap, HoleVecMap, TypedUsize, VecMap},
+        collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
         protocol::{
             api::{BytesVec, Fault::ProtocolFault, TofnResult},
             bcast_only,
             implementer_api::{serialize, ProtocolBuilder, RoundBuilder},
         },
+        sign::{r4, r7, SignParticipantIndex},
     },
     zkp::pedersen_k256,
 };
@@ -19,10 +20,10 @@ use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
 
-use super::{r1, r3, r5, r6, r8, Peers, SignParticipantIndex, SignProtocolBuilder};
+use super::super::{r1, r2, r3, r5, r6, r8, Peers, SignProtocolBuilder};
 
 #[cfg(feature = "malicious")]
-use super::malicious::Behaviour;
+use super::super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
 pub struct R7 {
@@ -40,10 +41,12 @@ pub struct R7 {
     pub l_i: Scalar,
     pub T_i: ProjectivePoint,
     // TODO: Remove these as needed
-    pub(crate) _beta_secrets: HoleVecMap<SignParticipantIndex, Secret>,
-    pub(crate) _nu_secrets: HoleVecMap<SignParticipantIndex, Secret>,
+    pub(crate) beta_secrets: HoleVecMap<SignParticipantIndex, Secret>,
+    pub(crate) nu_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
+    pub r2p2ps: P2ps<SignParticipantIndex, r2::P2p>,
     pub r3bcasts: VecMap<SignParticipantIndex, r3::Bcast>,
+    pub r4bcasts: VecMap<SignParticipantIndex, r4::Bcast>,
     pub delta_inv: Scalar,
     pub R: ProjectivePoint,
     pub r5bcasts: VecMap<SignParticipantIndex, r5::Bcast>,
@@ -70,10 +73,62 @@ impl bcast_only::Executer for R7 {
         sign_id: TypedUsize<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
     ) -> TofnResult<SignProtocolBuilder> {
+        for (sign_peer_id, bcast) in &bcasts_in {
+            if matches!(bcast, r6::Bcast::Sad(_)) {
+                warn!(
+                    "peer {} says: received a complaint from peer {}; running the 'type 5' failure protocol",
+                    sign_id, sign_peer_id,
+                );
+
+                return Box::new(r7::sad::R7 {
+                    secret_key_share: self.secret_key_share,
+                    msg_to_sign: self.msg_to_sign,
+                    peers: self.peers,
+                    keygen_id: self.keygen_id,
+                    gamma_i: self.gamma_i,
+                    Gamma_i: self.Gamma_i,
+                    Gamma_i_reveal: self.Gamma_i_reveal,
+                    w_i: self.w_i,
+                    k_i: self.k_i,
+                    k_i_randomness: self.k_i_randomness,
+                    sigma_i: self.sigma_i,
+                    l_i: self.l_i,
+                    T_i: self.T_i,
+                    _beta_secrets: self.beta_secrets,
+                    _nu_secrets: self.nu_secrets,
+                    r1bcasts: self.r1bcasts,
+                    r2p2ps: self.r2p2ps,
+                    r3bcasts: self.r3bcasts,
+                    r4bcasts: self.r4bcasts,
+                    delta_inv: self.delta_inv,
+                    R: self.R,
+                    r5bcasts: self.r5bcasts,
+
+                    #[cfg(feature = "malicious")]
+                    behaviour: self.behaviour,
+                })
+                .execute(participants_count, sign_id, bcasts_in);
+            }
+        }
+
         let mut faulters = FillVecMap::with_size(participants_count);
+        let bcasts: VecMap<SignParticipantIndex, &r6::BcastHappy> = VecMap::from_vec(
+            bcasts_in
+                .iter()
+                .filter_map(|(_, bcast)| match bcast {
+                    r6::Bcast::Happy(b) => Some(b),
+                    _ => None,
+                })
+                .collect::<Vec<_>>(),
+        );
+
+        if bcasts.len() != self.peers.len() {
+            error!("invalid happy bcast length received");
+            return Err(());
+        }
 
         // verify proofs
-        for (sign_peer_id, bcast) in &bcasts_in {
+        for (sign_peer_id, bcast) in &bcasts {
             let peer_stmt = &pedersen_k256::StatementWc {
                 stmt: pedersen_k256::Statement {
                     commit: &self.r3bcasts.get(sign_peer_id)?.T_i.unwrap(),
@@ -97,7 +152,7 @@ impl bcast_only::Executer for R7 {
         }
 
         // check for failure of type 7 from section 4.2 of https://eprint.iacr.org/2020/540.pdf
-        let S_i_sum = bcasts_in
+        let S_i_sum = bcasts
             .iter()
             .fold(ProjectivePoint::identity(), |acc, (_, bcast)| {
                 acc + bcast.S_i.unwrap()
