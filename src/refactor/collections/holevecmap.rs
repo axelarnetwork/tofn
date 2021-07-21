@@ -24,9 +24,11 @@ impl<K, V> HoleVecMap<K, V> {
             phantom: std::marker::PhantomData,
         })
     }
+
     pub fn get(&self, index: TypedUsize<K>) -> TofnResult<&V> {
         self.vec.get(self.map_index(index)?)
     }
+
     pub fn get_mut(&mut self, index: TypedUsize<K>) -> TofnResult<&mut V> {
         self.vec.get_mut(self.map_index(index)?)
     }
@@ -35,6 +37,7 @@ impl<K, V> HoleVecMap<K, V> {
     pub fn len(&self) -> usize {
         self.vec.len() + 1
     }
+
     pub fn is_empty(&self) -> bool {
         self.vec.is_empty()
     }
@@ -44,9 +47,11 @@ impl<K, V> HoleVecMap<K, V> {
         vec.insert(self.hole.as_usize(), val);
         VecMap::from_vec(vec)
     }
+
     pub fn iter(&self) -> HoleVecMapIter<K, std::slice::Iter<V>> {
         HoleVecMapIter::new(self.vec.iter(), self.hole)
     }
+
     fn map_index(&self, index: TypedUsize<K>) -> TofnResult<TypedUsize<K>> {
         match index.as_usize() {
             i if i < self.hole.as_usize() => Ok(index),
@@ -63,12 +68,25 @@ impl<K, V> HoleVecMap<K, V> {
             }
         }
     }
+
+    pub fn map_ref<W, F>(&self, f: F) -> TofnResult<HoleVecMap<K, W>>
+    where
+        F: Fn((TypedUsize<K>, &V)) -> TofnResult<W>,
+    {
+        Ok(HoleVecMap::<K, W>::from_vecmap(
+            self.iter().map(f).collect::<TofnResult<VecMap<K, W>>>()?,
+            self.hole,
+        )
+        .expect("hole out of bounds"))
+    }
+
     pub fn map<W, F>(self, f: F) -> HoleVecMap<K, W>
     where
         F: FnMut(V) -> W,
     {
         HoleVecMap::<K, W>::from_vecmap(self.vec.map(f), self.hole).expect("hole out of bounds")
     }
+
     pub fn map2_result<W, F>(self, f: F) -> TofnResult<HoleVecMap<K, W>>
     where
         F: FnMut((TypedUsize<K>, V)) -> TofnResult<W>,

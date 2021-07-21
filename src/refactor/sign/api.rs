@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::refactor::{
-    collections::{Subset, TypedUsize, VecMap},
+    collections::{HoleVecMap, Subset, TypedUsize, VecMap},
     keygen::{
         GroupPublicInfo, KeygenPartyIndex, RealKeygenPartyIndex, SecretKeyShare, ShareSecretInfo,
     },
@@ -18,10 +18,14 @@ use tracing::error;
 
 use super::r1;
 
+#[cfg(feature = "malicious")]
+use super::malicious;
+
 pub type SignProtocol = Protocol<BytesVec, SignParticipantIndex, RealSignParticipantIndex>;
 pub type SignProtocolBuilder = ProtocolBuilder<BytesVec, SignParticipantIndex>;
 pub type ParticipantsList = VecMap<SignParticipantIndex, TypedUsize<KeygenPartyIndex>>;
 pub type SignParties = Subset<RealKeygenPartyIndex>;
+pub type Peers = HoleVecMap<SignParticipantIndex, TypedUsize<KeygenPartyIndex>>;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SignParticipantIndex;
@@ -29,7 +33,7 @@ pub struct RealSignParticipantIndex;
 
 /// sign only 32-byte hash digests
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MessageDigest([u8; 32]);
+pub struct MessageDigest(pub [u8; 32]);
 
 impl TryFrom<&[u8]> for MessageDigest {
     type Error = TryFromSliceError;
@@ -51,6 +55,7 @@ pub fn new_sign(
     share: &ShareSecretInfo,
     sign_parties: &SignParties,
     msg_to_sign: &MessageDigest,
+    #[cfg(feature = "malicious")] behaviour: malicious::Behaviour,
 ) -> TofnResult<SignProtocol> {
     let participants = VecMap::from_vec(group.party_share_counts().share_id_subset(sign_parties)?);
 
@@ -77,13 +82,18 @@ pub fn new_sign(
     let sign_party_share_counts =
         PartyShareCounts::from_vec(group.party_share_counts().subset(sign_parties)?)?;
 
+    let (peers, keygen_id) = participants.puncture_hole(index)?;
+
     new_protocol(
         sign_party_share_counts,
         index,
         Box::new(r1::R1 {
             secret_key_share: SecretKeyShare::new(group.clone(), share.clone()),
             msg_to_sign: msg_to_sign.into(),
-            participants,
+            peers,
+            keygen_id,
+            #[cfg(feature = "malicious")]
+            behaviour,
         }),
     )
 }

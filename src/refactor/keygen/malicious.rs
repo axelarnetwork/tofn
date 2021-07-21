@@ -63,9 +63,9 @@ pub enum MsgType {
 
 pub(crate) fn log_confess_info<K>(me: TypedUsize<K>, behaviour: &Behaviour, msg: &str) {
     if msg.is_empty() {
-        info!("malicious party {} do {:?}", me, behaviour);
+        info!("malicious peer {} do {:?}", me, behaviour);
     } else {
-        info!("malicious party {} do {:?} [{}]", me, behaviour, msg);
+        info!("malicious peer {} do {:?} [{}]", me, behaviour, msg);
     }
 }
 
