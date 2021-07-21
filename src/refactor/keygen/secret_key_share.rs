@@ -129,9 +129,13 @@ impl ShareSecretInfo {
     }
 
     // expose secret info only in tests `#[cfg(test)]` and never outside this crate `pub(super)`
-    #[cfg(test)]
-    pub(super) fn x_i(&self) -> &k256_serde::Scalar {
+    // TODO: #[cfg(test)]  // We need this in R1
+    pub(crate) fn x_i(&self) -> &k256_serde::Scalar {
         &self.x_i
+    }
+
+    pub(crate) fn dk(&self) -> &paillier_k256::DecryptionKey {
+        &self.dk
     }
 }
 

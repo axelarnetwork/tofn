@@ -6,10 +6,11 @@ use crate::{
     refactor::{
         collections::TypedUsize,
         keygen::{KeygenPartyIndex, SecretKeyShare},
-        protocol::{
+        sdk::{
             api::{BytesVec, TofnResult},
-            implementer_api::{serialize, ProtocolBuilder, RoundBuilder},
-            no_messages,
+            implementer_api::{
+                no_messages, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder,
+            },
         },
     },
 };
@@ -52,9 +53,10 @@ impl no_messages::Executer for R1 {
     #[allow(non_snake_case)]
     fn execute(
         self: Box<Self>,
-        _participants_count: usize,
-        sign_id: TypedUsize<Self::Index>,
+        info: &ProtocolInfo<Self::Index>,
     ) -> TofnResult<SignProtocolBuilder> {
+        let sign_id = info.share_id();
+
         let lambda_i_S = &vss_k256::lagrange_coefficient(
             sign_id.as_usize(),
             &self
@@ -66,7 +68,7 @@ impl no_messages::Executer for R1 {
                 .collect::<Vec<_>>(),
         );
 
-        let w_i = self.secret_key_share.share.x_i.unwrap() * lambda_i_S;
+        let w_i = self.secret_key_share.share().x_i().unwrap() * lambda_i_S;
 
         let k_i = k256::Scalar::random(rand::thread_rng());
         let gamma_i = k256::Scalar::random(rand::thread_rng());
@@ -82,19 +84,19 @@ impl no_messages::Executer for R1 {
 
         let ek = &self
             .secret_key_share
-            .group
-            .all_shares
+            .group()
+            .all_shares()
             .get(self.keygen_id)?
-            .ek;
+            .ek();
         let (k_i_ciphertext, k_i_randomness) = ek.encrypt(&(&k_i).into());
 
         let p2ps_out = self.peers.map_ref(|(_, &keygen_peer_id)| {
             let peer_zkp = &self
                 .secret_key_share
-                .group
-                .all_shares
+                .group()
+                .all_shares()
                 .get(keygen_peer_id)?
-                .zkp;
+                .zkp();
 
             let range_proof = peer_zkp.range_proof(
                 &paillier_k256::zk::range::Statement {

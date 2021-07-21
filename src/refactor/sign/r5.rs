@@ -6,10 +6,9 @@ use crate::{
     refactor::{
         collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
-        protocol::{
+        sdk::{
             api::{BytesVec, Fault::ProtocolFault, TofnResult},
-            bcast_only,
-            implementer_api::{serialize, ProtocolBuilder, RoundBuilder},
+            implementer_api::{bcast_only, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder},
         },
     },
 };
@@ -67,10 +66,12 @@ impl bcast_only::Executer for R5 {
     #[allow(non_snake_case)]
     fn execute(
         self: Box<Self>,
-        participants_count: usize,
-        sign_id: TypedUsize<Self::Index>,
+        info: &ProtocolInfo<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
     ) -> TofnResult<SignProtocolBuilder> {
+        let sign_id = info.share_id();
+        let participants_count = info.share_count();
+
         let mut faulters = FillVecMap::with_size(participants_count);
 
         // verify commits
@@ -105,10 +106,10 @@ impl bcast_only::Executer for R5 {
         let k_i_ciphertext = &self.r1bcasts.get(sign_id)?.k_i_ciphertext;
         let ek = &self
             .secret_key_share
-            .group
-            .all_shares
+            .group()
+            .all_shares()
             .get(self.keygen_id)?
-            .ek;
+            .ek();
 
         let stmt_wc = &zk::range::StatementWc {
             stmt: zk::range::Statement {
@@ -126,10 +127,10 @@ impl bcast_only::Executer for R5 {
         let p2ps_out = self.peers.map_ref(|(_, &keygen_peer_id)| {
             let peer_zkp = &self
                 .secret_key_share
-                .group
-                .all_shares
+                .group()
+                .all_shares()
                 .get(keygen_peer_id)?
-                .zkp;
+                .zkp();
 
             let k_i_range_proof_wc = peer_zkp.range_proof_wc(stmt_wc, wit);
 

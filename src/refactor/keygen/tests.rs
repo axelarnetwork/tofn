@@ -19,18 +19,18 @@ fn basic_correctness() {
 }
 
 pub struct TestCase {
-    party_share_counts: KeygenPartyShareCounts,
-    threshold: usize,
+    pub party_share_counts: KeygenPartyShareCounts,
+    pub threshold: usize,
 }
 
-fn test_case_list() -> Vec<TestCase> {
+pub fn test_case_list() -> Vec<TestCase> {
     vec![TestCase {
         party_share_counts: KeygenPartyShareCounts::from_vec(vec![2, 2, 2]).unwrap(),
         threshold: 3,
     }]
 }
 
-fn execute_keygen(
+pub fn execute_keygen(
     party_share_counts: &KeygenPartyShareCounts,
     threshold: usize,
 ) -> Vec<SecretKeyShare> {

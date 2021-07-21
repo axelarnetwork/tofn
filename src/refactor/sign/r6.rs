@@ -6,10 +6,11 @@ use crate::{
     refactor::{
         collections::{FillHoleVecMap, FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
-        protocol::{
+        sdk::{
             api::{BytesVec, Fault::ProtocolFault, TofnResult},
-            bcast_and_p2p,
-            implementer_api::{serialize, ProtocolBuilder, RoundBuilder},
+            implementer_api::{
+                bcast_and_p2p, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder,
+            },
         },
     },
     zkp::pedersen_k256,
@@ -91,11 +92,13 @@ impl bcast_and_p2p::Executer for R6 {
     #[allow(non_snake_case)]
     fn execute(
         self: Box<Self>,
-        participants_count: usize,
-        sign_id: TypedUsize<Self::Index>,
+        info: &ProtocolInfo<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<SignProtocolBuilder> {
+        let sign_id = info.share_id();
+        let participants_count = info.share_count();
+
         let mut faulters = FillVecMap::with_size(participants_count);
 
         // verify proofs
@@ -103,17 +106,17 @@ impl bcast_and_p2p::Executer for R6 {
             let bcast = bcasts_in.get(sign_peer_id)?;
             let zkp = &self
                 .secret_key_share
-                .group
-                .all_shares
+                .group()
+                .all_shares()
                 .get(self.keygen_id)?
-                .zkp;
+                .zkp();
             let peer_k_i_ciphertext = &self.r1bcasts.get(sign_peer_id)?.k_i_ciphertext;
             let peer_ek = &self
                 .secret_key_share
-                .group
-                .all_shares
+                .group()
+                .all_shares()
                 .get(keygen_peer_id)?
-                .ek;
+                .ek();
             let p2p_in = p2ps_in.get(sign_peer_id, sign_id)?;
 
             let peer_stmt = &zk::range::StatementWc {
@@ -157,8 +160,8 @@ impl bcast_and_p2p::Executer for R6 {
 
                 let (alpha_plaintext, alpha_randomness) = self
                     .secret_key_share
-                    .share
-                    .dk
+                    .share()
+                    .dk()
                     .decrypt_with_randomness(&r2p2p.alpha_ciphertext);
 
                 let beta_secret = self.beta_secrets.get(sign_peer_id)?.clone();

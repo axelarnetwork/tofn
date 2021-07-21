@@ -3,17 +3,17 @@ use std::convert::TryFrom;
 use super::*;
 use crate::{
     refactor::{
-        collections::{FillVecMap, HoleVecMap, TypedUsize, VecMap},
-        keygen::tests::{execute_keygen, TEST_CASES},
-        protocol::api::{Fault, Round},
-    },
-    refactor::{
-        keygen::{tests::TestCase, KeygenPartyIndex, SecretKeyShare},
-        protocol::api::{BytesVec, Protocol},
+        collections::Subset,
+        keygen::{tests::TestCase, SecretKeyShare},
+        sdk::api::{BytesVec, Protocol},
         sign::api::{new_sign, SignParticipantIndex},
     },
+    refactor::{
+        collections::{FillVecMap, HoleVecMap, TypedUsize, VecMap},
+        keygen::tests::{execute_keygen, test_case_list},
+        sdk::api::{Fault, Round},
+    },
 };
-use bincode::deserialize;
 use ecdsa::{elliptic_curve::sec1::ToEncodedPoint, hazmat::VerifyPrimitive};
 use k256::{ecdsa::Signature, ProjectivePoint};
 use tracing::debug;
@@ -22,11 +22,12 @@ use tracing_test::traced_test;
 #[cfg(feature = "malicious")]
 use crate::refactor::sign::malicious::Behaviour::Honest;
 
-type Parties = Vec<Round<BytesVec, SignParticipantIndex>>;
+type Party = Round<BytesVec, SignParticipantIndex, RealSignParticipantIndex>;
+type Parties = Vec<Party>;
 type PartyBcast = Result<VecMap<SignParticipantIndex, BytesVec>, ()>;
 type PartyP2p =
     Result<VecMap<SignParticipantIndex, HoleVecMap<SignParticipantIndex, BytesVec>>, ()>;
-type PartyResult = Result<BytesVec, FillVecMap<SignParticipantIndex, Fault>>;
+type PartyResult = Result<BytesVec, FillVecMap<RealSignParticipantIndex, Fault>>;
 
 #[test]
 #[traced_test]
@@ -38,10 +39,10 @@ fn basic_correctness() {
     let msg_to_sign: MessageDigest =
         MessageDigest::try_from(msg).expect("could not convert msg to MessageDigest");
 
-    for test_case in TEST_CASES.iter() {
-        let key_shares = execute_keygen(test_case.share_count, test_case.threshold);
+    for test_case in test_case_list() {
+        let key_shares = execute_keygen(&test_case.party_share_counts, test_case.threshold);
 
-        execute_sign(key_shares, test_case, &msg_to_sign);
+        execute_sign(key_shares, &test_case, &msg_to_sign);
     }
 }
 
@@ -51,24 +52,20 @@ fn execute_sign(
     test_case: &TestCase,
     msg_to_sign: &MessageDigest,
 ) {
-    let everyone = VecMap::<SignParticipantIndex, TypedUsize<KeygenPartyIndex>>::from_vec(
-        (0..test_case.threshold + 1)
-            .map(TypedUsize::<KeygenPartyIndex>::from_usize)
-            .collect::<Vec<_>>(),
-    );
-
-    let key_shares: Vec<_> = everyone
-        .iter()
-        .map(|(sign_peer_id, _)| key_shares[sign_peer_id.as_usize()].clone())
-        .collect();
+    let mut sign_parties = Subset::with_max_size(test_case.party_share_counts.party_count());
+    for (i, _) in test_case.party_share_counts.iter() {
+        sign_parties
+            .add(TypedUsize::from_usize(i.as_usize()))
+            .unwrap();
+    }
 
     let r0_parties: Vec<_> = key_shares
         .iter()
         .map(|key_share| {
             match new_sign(
-                &key_share.group,
-                &key_share.share,
-                &everyone,
+                &key_share.group(),
+                &key_share.share(),
+                &sign_parties,
                 msg_to_sign,
                 #[cfg(feature = "malicious")]
                 Honest,
@@ -93,7 +90,7 @@ fn execute_sign(
     let y = ProjectivePoint::generator() * x;
 
     for key_share in &key_shares {
-        assert_eq!(y, *key_share.group.y.unwrap());
+        assert_eq!(y, *key_share.group().y().unwrap());
     }
 
     let k = r1_parties
@@ -106,18 +103,14 @@ fn execute_sign(
         .map(|party| round_cast::<r2::R2>(party).gamma_i)
         .fold(k256::Scalar::zero(), |acc, gamma_i| acc + gamma_i);
 
-    let (r2_parties, ..) = execute_round(r1_parties, 2, true, true);
+    let (r2_parties, ..) = execute_round(r1_parties, 2, false, true);
 
-    let (r3_parties, r3bcasts, ..) = execute_round(r2_parties, 3, true, false);
-    let r3bcasts = r3bcasts.expect("missing r3 bcasts");
+    let (r3_parties, ..) = execute_round(r2_parties, 3, true, false);
 
     // TEST: MtA for delta_i, sigma_i
-    let k_gamma = r3bcasts
+    let k_gamma = r3_parties
         .iter()
-        .map(|(_, bytes)| {
-            let bcast: r3::Bcast = deserialize(bytes).expect("failed to deserialize r3 bcast");
-            *bcast.delta_i.unwrap()
-        })
+        .map(|party| round_cast::<r4::R4>(party)._delta_i)
         .fold(k256::Scalar::zero(), |acc, delta_i| acc + delta_i);
 
     assert_eq!(k_gamma, k * gamma);
@@ -167,7 +160,9 @@ fn execute_sign(
     let encoded_sig = sig.to_der().as_bytes().to_vec();
 
     for result in results {
-        let encoded_threshold_sig = result.expect("round 8 signature computation failed");
+        let encoded_threshold_sig = result
+            .map_err(|_| ())
+            .expect("round 8 signature computation failed");
         let threshold_sig =
             Signature::from_der(&encoded_threshold_sig).expect("decoding threshold sig failed");
 
@@ -180,7 +175,7 @@ fn execute_sign(
     assert!(pub_key.verify_prehashed(&m, &sig).is_ok());
 }
 
-fn round_cast<T: 'static>(party: &Round<BytesVec, SignParticipantIndex>) -> &T {
+fn round_cast<T: 'static>(party: &Party) -> &T {
     return party.round_as_any().downcast_ref::<T>().unwrap();
 }
 
@@ -251,17 +246,18 @@ fn retrieve_and_set_bcasts(
 
     debug!("Round {}: broadcasting messages for next round", round_num);
 
-    let bcasts: VecMap<SignParticipantIndex, BytesVec> = parties
+    let bcasts: VecMap<SignParticipantIndex, _> = parties
         .iter()
-        .map(|party| party.bcast_out().unwrap().clone())
+        .map(|party| (party.info().party_id(), party.bcast_out().unwrap().clone()))
         .collect();
+
     for party in parties.iter_mut() {
-        for (from, bytes) in bcasts.iter() {
-            party.bcast_in(from, bytes).unwrap();
+        for (_, (from, bytes)) in bcasts.iter() {
+            party.msg_in(*from, bytes).unwrap();
         }
     }
 
-    Ok(bcasts)
+    Ok(bcasts.into_iter().map(|(_, (_, bcast))| bcast).collect())
 }
 
 fn retrieve_and_set_p2ps(parties: &mut Parties, expect_p2p: bool, round_num: usize) -> PartyP2p {
@@ -271,19 +267,18 @@ fn retrieve_and_set_p2ps(parties: &mut Parties, expect_p2p: bool, round_num: usi
 
     debug!("Round {}: sending p2p messages for next round", round_num);
 
-    let all_p2ps: VecMap<SignParticipantIndex, HoleVecMap<SignParticipantIndex, BytesVec>> =
-        parties
-            .iter()
-            .map(|party| party.p2ps_out().unwrap().clone())
-            .collect();
+    let all_p2ps: VecMap<SignParticipantIndex, _> = parties
+        .iter()
+        .map(|party| (party.info().party_id(), party.p2ps_out().unwrap().clone()))
+        .collect();
 
     for party in parties.iter_mut() {
-        for (from, p2ps) in all_p2ps.iter() {
-            for (to, msg) in p2ps.iter() {
-                party.p2p_in(from, to, msg).unwrap();
+        for (_, (from, p2ps)) in all_p2ps.iter() {
+            for (_, msg) in p2ps.iter() {
+                party.msg_in(*from, msg).unwrap();
             }
         }
     }
 
-    Ok(all_p2ps)
+    Ok(all_p2ps.into_iter().map(|(_, (_, msg))| msg).collect())
 }

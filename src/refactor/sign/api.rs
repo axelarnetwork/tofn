@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::refactor::{
-    collections::{Subset, TypedUsize, VecMap},
+    collections::{HoleVecMap, Subset, TypedUsize, VecMap},
     keygen::{
         GroupPublicInfo, KeygenPartyIndex, RealKeygenPartyIndex, SecretKeyShare, ShareSecretInfo,
     },
@@ -25,7 +25,7 @@ pub type SignProtocol = Protocol<BytesVec, SignParticipantIndex, RealSignPartici
 pub type SignProtocolBuilder = ProtocolBuilder<BytesVec, SignParticipantIndex>;
 pub type ParticipantsList = VecMap<SignParticipantIndex, TypedUsize<KeygenPartyIndex>>;
 pub type SignParties = Subset<RealKeygenPartyIndex>;
-// TODO: pub type Peers = HoleVecMap<SignParticipantIndex, TypedUsize<KeygenPartyIndex>>;
+pub type Peers = HoleVecMap<SignParticipantIndex, TypedUsize<KeygenPartyIndex>>;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SignParticipantIndex;
@@ -82,14 +82,16 @@ pub fn new_sign(
     let sign_party_share_counts =
         PartyShareCounts::from_vec(group.party_share_counts().subset(sign_parties)?)?;
 
+    let (peers, keygen_id) = participants.puncture_hole(index)?;
+
     new_protocol(
         sign_party_share_counts,
         index,
         Box::new(r1::R1 {
             secret_key_share: SecretKeyShare::new(group.clone(), share.clone()),
             msg_to_sign: msg_to_sign.into(),
-            keygen_id: participants[index],
-            sign_parties,
+            peers,
+            keygen_id,
             #[cfg(feature = "malicious")]
             behaviour,
         }),

@@ -6,10 +6,9 @@ use crate::{
     refactor::{
         collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
-        protocol::{
-            api::{BytesVec, Fault::ProtocolFault, TofnResult},
-            bcast_only,
-            implementer_api::{serialize, ProtocolBuilder, RoundBuilder},
+        sdk::{
+            api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
+            implementer_api::{bcast_only, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder},
         },
     },
     zkp::pedersen_k256,
@@ -37,6 +36,7 @@ pub struct R4 {
     pub k_i_randomness: paillier_k256::Randomness,
     pub sigma_i: Scalar,
     pub l_i: Scalar,
+    pub(crate) _delta_i: Scalar, // TODO: This is only needed for tests
     pub(crate) beta_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub(crate) nu_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
@@ -61,10 +61,12 @@ impl bcast_only::Executer for R4 {
     #[allow(non_snake_case)]
     fn execute(
         self: Box<Self>,
-        participants_count: usize,
-        sign_id: TypedUsize<Self::Index>,
+        info: &ProtocolInfo<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
     ) -> TofnResult<SignProtocolBuilder> {
+        let sign_id = info.share_id();
+        let participants_count = info.share_count();
+
         let mut faulters = FillVecMap::with_size(participants_count);
 
         for (sign_peer_id, bcast) in &bcasts_in {
@@ -99,7 +101,7 @@ impl bcast_only::Executer for R4 {
 
         if bool::from(delta_inv.is_none()) {
             warn!("peer {} says: delta inv computation failed", sign_id);
-            return Err(());
+            return Err(TofnFatal);
         }
 
         let bcast_out = serialize(&Bcast {

@@ -6,10 +6,9 @@ use crate::{
     refactor::{
         collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
-        protocol::{
-            api::{BytesVec, Fault::ProtocolFault, TofnResult},
-            bcast_only,
-            implementer_api::ProtocolBuilder,
+        sdk::{
+            api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
+            implementer_api::{bcast_only, ProtocolBuilder, ProtocolInfo},
         },
         sign::{r2, r4},
     },
@@ -67,10 +66,12 @@ impl bcast_only::Executer for R7 {
     #[allow(non_snake_case)]
     fn execute(
         self: Box<Self>,
-        participants_count: usize,
-        sign_id: TypedUsize<Self::Index>,
+        info: &ProtocolInfo<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
     ) -> TofnResult<SignProtocolBuilder> {
+        let sign_id = info.share_id();
+        let participants_count = info.share_count();
+
         if bcasts_in
             .iter()
             .all(|(_, bcast)| matches!(bcast, r6::Bcast::Happy(_)))
@@ -79,7 +80,7 @@ impl bcast_only::Executer for R7 {
                 "peer {} says: entered R7 failure protocol with no complaints",
                 sign_id
             );
-            return Err(());
+            return Err(TofnFatal);
         }
 
         let mut faulters = FillVecMap::with_size(participants_count);
@@ -133,10 +134,10 @@ impl bcast_only::Executer for R7 {
 
             let peer_ek = &self
                 .secret_key_share
-                .group
-                .all_shares
+                .group()
+                .all_shares()
                 .get(keygen_peer_id)?
-                .ek;
+                .ek();
 
             // k_i
             let k_i_ciphertext = peer_ek
@@ -173,10 +174,10 @@ impl bcast_only::Executer for R7 {
                 // beta_ij
                 let party_ek = &self
                     .secret_key_share
-                    .group
-                    .all_shares
+                    .group()
+                    .all_shares()
                     .get(keygen_party_id)?
-                    .ek;
+                    .ek();
                 let party_k_i_ciphertext = &self.r1bcasts.get(sign_party_id)?.k_i_ciphertext;
                 let party_alpha_ciphertext = &self
                     .r2p2ps
@@ -226,7 +227,7 @@ impl bcast_only::Executer for R7 {
                 "peer {} says: No faulters found in R7 failure protocol",
                 sign_id
             );
-            return Err(());
+            return Err(TofnFatal);
         }
 
         Ok(ProtocolBuilder::Done(Err(faulters)))

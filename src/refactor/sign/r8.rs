@@ -4,10 +4,9 @@ use crate::{
     refactor::{
         collections::{FillVecMap, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
-        protocol::{
-            api::{BytesVec, Fault::ProtocolFault, TofnResult},
-            bcast_only,
-            implementer_api::ProtocolBuilder,
+        sdk::{
+            api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
+            implementer_api::{bcast_only, ProtocolBuilder, ProtocolInfo},
         },
     },
 };
@@ -61,10 +60,12 @@ impl bcast_only::Executer for R8 {
     #[allow(non_snake_case)]
     fn execute(
         self: Box<Self>,
-        participants_count: usize,
-        sign_id: TypedUsize<Self::Index>,
+        info: &ProtocolInfo<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
     ) -> TofnResult<SignProtocolBuilder> {
+        let sign_id = info.share_id();
+        let participants_count = info.share_count();
+
         let mut faulters = FillVecMap::with_size(participants_count);
 
         // compute s = sum_i s_i
@@ -75,16 +76,18 @@ impl bcast_only::Executer for R8 {
         let sig = {
             let mut sig = Signature::from_scalars(self.r, s).map_err(|_| {
                 error!("scalars to signature conversion failed");
+                TofnFatal
             })?;
 
             sig.normalize_s().map_err(|_| {
                 error!("signature normalization failed");
+                TofnFatal
             })?;
 
             sig
         };
 
-        let pub_key = &self.secret_key_share.group.y.unwrap().to_affine();
+        let pub_key = &self.secret_key_share.group().y().unwrap().to_affine();
 
         if pub_key.verify_prehashed(&self.msg_to_sign, &sig).is_ok() {
             // convert signature into ASN1/DER (Bitcoin) format
@@ -103,7 +106,7 @@ impl bcast_only::Executer for R8 {
                         "peer {} says: unexpected sad R6 bcast found from peer {}",
                         sign_id, sign_peer_id
                     );
-                    Err(())
+                    Err(TofnFatal)
                 }
             }?;
 
@@ -127,7 +130,7 @@ impl bcast_only::Executer for R8 {
                 "peer {} says: invalid signature detected but no faulters identified",
                 sign_id
             );
-            Err(())
+            Err(TofnFatal)
         }
     }
 

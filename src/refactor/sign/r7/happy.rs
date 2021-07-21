@@ -6,10 +6,9 @@ use crate::{
     refactor::{
         collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
-        protocol::{
-            api::{BytesVec, Fault::ProtocolFault, TofnResult},
-            bcast_only,
-            implementer_api::{serialize, ProtocolBuilder, RoundBuilder},
+        sdk::{
+            api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
+            implementer_api::{bcast_only, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder},
         },
         sign::{r4, r7, SignParticipantIndex},
     },
@@ -69,10 +68,12 @@ impl bcast_only::Executer for R7 {
     #[allow(non_snake_case)]
     fn execute(
         self: Box<Self>,
-        participants_count: usize,
-        sign_id: TypedUsize<Self::Index>,
+        info: &ProtocolInfo<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
     ) -> TofnResult<SignProtocolBuilder> {
+        let sign_id = info.share_id();
+        let participants_count = info.share_count();
+
         for (sign_peer_id, bcast) in &bcasts_in {
             if matches!(bcast, r6::Bcast::Sad(_)) {
                 warn!(
@@ -107,7 +108,7 @@ impl bcast_only::Executer for R7 {
                     #[cfg(feature = "malicious")]
                     behaviour: self.behaviour,
                 })
-                .execute(participants_count, sign_id, bcasts_in);
+                .execute(info, bcasts_in);
             }
         }
 
@@ -124,7 +125,7 @@ impl bcast_only::Executer for R7 {
 
         if bcasts.len() != self.peers.len() {
             error!("invalid happy bcast length received");
-            return Err(());
+            return Err(TofnFatal);
         }
 
         // verify proofs
@@ -158,11 +159,11 @@ impl bcast_only::Executer for R7 {
                 acc + bcast.S_i.unwrap()
             });
 
-        if &S_i_sum != self.secret_key_share.group.y.unwrap() {
+        if &S_i_sum != self.secret_key_share.group().y().unwrap() {
             warn!("peer {} says: 'type 7' fault detected", sign_id);
 
             // TODO: Move to sad path
-            return Err(());
+            return Err(TofnFatal);
         }
 
         // compute r, s_i
@@ -174,6 +175,7 @@ impl bcast_only::Executer for R7 {
                 .x()
                 .ok_or_else(|| {
                     error!("Invalid R point");
+                    TofnFatal
                 })?,
         );
 

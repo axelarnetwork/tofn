@@ -4,10 +4,11 @@ use crate::{
     refactor::{
         collections::{FillHoleVecMap, FillVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
-        protocol::{
+        sdk::{
             api::{BytesVec, Fault::ProtocolFault, TofnResult},
-            bcast_and_p2p,
-            implementer_api::{serialize, ProtocolBuilder, RoundBuilder},
+            implementer_api::{
+                bcast_and_p2p, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder,
+            },
         },
     },
 };
@@ -37,10 +38,6 @@ pub struct R2 {
     pub behaviour: Behaviour,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(non_snake_case)]
-pub struct Bcast {}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct P2p {
     pub alpha_ciphertext: Ciphertext,
@@ -57,11 +54,13 @@ impl bcast_and_p2p::Executer for R2 {
 
     fn execute(
         self: Box<Self>,
-        participants_count: usize,
-        sign_id: TypedUsize<Self::Index>,
+        info: &ProtocolInfo<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<SignProtocolBuilder> {
+        let sign_id = info.share_id();
+        let participants_count = info.share_count();
+
         let mut faulters = FillVecMap::with_size(participants_count);
 
         let mut beta_secrets = FillHoleVecMap::with_size(participants_count, sign_id)?;
@@ -74,10 +73,10 @@ impl bcast_and_p2p::Executer for R2 {
             // verify zk proof for first message of MtA
             let peer_ek = &self
                 .secret_key_share
-                .group
-                .all_shares
+                .group()
+                .all_shares()
                 .get(keygen_peer_id)?
-                .ek;
+                .ek();
             let peer_k_i_ciphertext = &bcasts_in.get(sign_peer_id)?.k_i_ciphertext;
 
             let peer_stmt = &paillier_k256::zk::range::Statement {
@@ -89,10 +88,10 @@ impl bcast_and_p2p::Executer for R2 {
 
             let zkp = &self
                 .secret_key_share
-                .group
-                .all_shares
+                .group()
+                .all_shares()
                 .get(self.keygen_id)?
-                .zkp;
+                .zkp();
 
             if let Err(err) = zkp.verify_range_proof(peer_stmt, peer_proof) {
                 warn!(
@@ -114,17 +113,17 @@ impl bcast_and_p2p::Executer for R2 {
             // MtA step 2 for k_i * gamma_j
             let peer_ek = &self
                 .secret_key_share
-                .group
-                .all_shares
+                .group()
+                .all_shares()
                 .get(keygen_peer_id)?
-                .ek;
+                .ek();
             let peer_k_i_ciphertext = &bcasts_in.get(sign_peer_id)?.k_i_ciphertext;
             let peer_zkp = &self
                 .secret_key_share
-                .group
-                .all_shares
+                .group()
+                .all_shares()
                 .get(keygen_peer_id)?
-                .zkp;
+                .zkp();
 
             let (alpha_ciphertext, alpha_proof, beta_secret) =
                 mta::mta_response_with_proof(peer_zkp, peer_ek, peer_k_i_ciphertext, &self.gamma_i);
@@ -151,9 +150,7 @@ impl bcast_and_p2p::Executer for R2 {
         let nu_secrets = nu_secrets.unwrap_all()?;
         let p2ps_out = p2ps_out.unwrap_all()?;
 
-        let bcast_out = serialize(&Bcast {})?;
-
-        Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastAndP2p {
+        Ok(ProtocolBuilder::NotDone(RoundBuilder::P2pOnly {
             round: Box::new(r3::R3 {
                 secret_key_share: self.secret_key_share,
                 msg_to_sign: self.msg_to_sign,
@@ -172,7 +169,6 @@ impl bcast_and_p2p::Executer for R2 {
                 #[cfg(feature = "malicious")]
                 behaviour: self.behaviour,
             }),
-            bcast_out,
             p2ps_out,
         }))
     }

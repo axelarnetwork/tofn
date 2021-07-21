@@ -1,6 +1,6 @@
 use tracing::info;
 
-use crate::refactor::collections::{Behave, TypedUsize};
+use crate::refactor::collections::TypedUsize;
 
 use super::SignParticipantIndex;
 
@@ -131,10 +131,7 @@ pub enum Status {
     Fail,
 }
 
-pub(crate) fn log_confess_info<K>(me: TypedUsize<K>, behaviour: &Behaviour, msg: &str)
-where
-    K: Behave,
-{
+pub(crate) fn log_confess_info<K>(me: TypedUsize<K>, behaviour: &Behaviour, msg: &str) {
     if msg.is_empty() {
         info!("malicious peer {} does {:?}", me, behaviour);
     } else {

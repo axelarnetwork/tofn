@@ -8,10 +8,9 @@ use crate::{
     refactor::{
         collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
-        protocol::{
+        sdk::{
             api::{BytesVec, Fault::ProtocolFault, TofnResult},
-            bcast_and_p2p,
-            implementer_api::{serialize, ProtocolBuilder, RoundBuilder},
+            implementer_api::{p2p_only, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder},
         },
         sign::r4,
     },
@@ -54,35 +53,35 @@ pub struct Bcast {
     pub T_i_proof: pedersen_k256::Proof,
 }
 
-impl bcast_and_p2p::Executer for R3 {
+impl p2p_only::Executer for R3 {
     type FinalOutput = BytesVec;
     type Index = SignParticipantIndex;
-    type Bcast = ();
     type P2p = r2::P2p;
 
     #[allow(non_snake_case)]
     fn execute(
         self: Box<Self>,
-        participants_count: usize,
-        sign_id: TypedUsize<Self::Index>,
-        _bcasts_in: VecMap<Self::Index, Self::Bcast>,
+        info: &ProtocolInfo<Self::Index>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<SignProtocolBuilder> {
+        let sign_id = info.share_id();
+        let participants_count = info.share_count();
+
         let mut faulters = FillVecMap::with_size(participants_count);
 
         let zkp = &self
             .secret_key_share
-            .group
-            .all_shares
+            .group()
+            .all_shares()
             .get(self.keygen_id)?
-            .zkp;
+            .zkp();
 
         let ek = &self
             .secret_key_share
-            .group
-            .all_shares
+            .group()
+            .all_shares()
             .get(self.keygen_id)?
-            .ek;
+            .ek();
 
         for (sign_peer_id, &keygen_peer_id) in &self.peers {
             let p2p_in = p2ps_in.get(sign_peer_id, sign_id)?;
@@ -119,10 +118,10 @@ impl bcast_and_p2p::Executer for R3 {
 
             let peer_W_i = self
                 .secret_key_share
-                .group
-                .all_shares
+                .group()
+                .all_shares()
                 .get(keygen_peer_id)?
-                .X_i
+                .X_i()
                 .unwrap()
                 * lambda_i_S;
 
@@ -156,8 +155,8 @@ impl bcast_and_p2p::Executer for R3 {
 
             let alpha = self
                 .secret_key_share
-                .share
-                .dk
+                .share()
+                .dk()
                 .decrypt(&p2p_in.alpha_ciphertext)
                 .to_scalar();
 
@@ -169,8 +168,8 @@ impl bcast_and_p2p::Executer for R3 {
 
             let mu = self
                 .secret_key_share
-                .share
-                .dk
+                .share()
+                .dk()
                 .decrypt(&p2p_in.mu_ciphertext)
                 .to_scalar();
 
@@ -227,6 +226,7 @@ impl bcast_and_p2p::Executer for R3 {
                 beta_secrets: self.beta_secrets,
                 nu_secrets: self.nu_secrets,
                 r1bcasts: self.r1bcasts,
+                _delta_i: delta_i,
                 r2p2ps: p2ps_in,
 
                 #[cfg(feature = "malicious")]
