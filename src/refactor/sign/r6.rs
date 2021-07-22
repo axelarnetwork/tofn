@@ -1,4 +1,5 @@
 use crate::{
+    corrupt,
     hash::Randomness,
     k256_serde,
     mta::{self, Secret},
@@ -216,8 +217,11 @@ impl bcast_and_p2p::Executer for R6 {
 
             let mta_plaintexts = mta_plaintexts.unwrap_all()?;
 
+            let k_i = self.k_i;
+            corrupt!(k_i, self.corrupt_k_i(info.share_id(), k_i));
+
             let bcast_out = serialize(&Bcast::SadType5(BcastSadType5 {
-                k_i: self.k_i.into(),
+                k_i: k_i.into(),
                 k_i_randomness: self.k_i_randomness.clone(),
                 gamma_i: self.gamma_i.into(),
                 mta_plaintexts,
@@ -310,5 +314,32 @@ impl bcast_and_p2p::Executer for R6 {
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+}
+
+#[cfg(feature = "malicious")]
+mod malicious {
+    use super::R6;
+    use crate::refactor::{
+        collections::TypedUsize,
+        sign::{
+            malicious::{log_confess_info, Behaviour::*},
+            SignParticipantIndex,
+        },
+    };
+
+    impl R6 {
+        /// earlier we prepared to corrupt k_i by corrupting delta_i
+        pub fn corrupt_k_i(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            mut k_i: k256::Scalar,
+        ) -> k256::Scalar {
+            if let R3BadKI = self.behaviour {
+                log_confess_info(me, &self.behaviour, "step 2/2: k_i");
+                k_i += k256::Scalar::one();
+            }
+            k_i
+        }
     }
 }

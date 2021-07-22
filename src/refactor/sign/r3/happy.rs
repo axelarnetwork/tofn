@@ -271,6 +271,10 @@ impl bcast_and_p2p::Executer for R3 {
         );
 
         corrupt!(delta_i, self.corrupt_delta_i(info.share_id(), delta_i));
+        corrupt!(
+            delta_i,
+            self.corrupt_k_i(info.share_id(), delta_i, self.gamma_i)
+        );
 
         // compute sigma_i = k_i * w_i + sum_{j != i} mu_ij + nu_ji
         let sigma_i = mus.into_iter().zip(self.nu_secrets.iter()).fold(
@@ -396,6 +400,21 @@ mod malicious {
             if let R3BadDeltaI = self.behaviour {
                 log_confess_info(me, &self.behaviour, "");
                 delta_i += k256::Scalar::one();
+            }
+            delta_i
+        }
+
+        /// later we will corrupt k_i by adding 1
+        /// => need to add gamma_i to delta_i to maintain consistency
+        pub fn corrupt_k_i(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            mut delta_i: k256::Scalar,
+            gamma_i: k256::Scalar,
+        ) -> k256::Scalar {
+            if let R3BadKI = self.behaviour {
+                log_confess_info(me, &self.behaviour, "step 1/2: delta_i");
+                delta_i += gamma_i;
             }
             delta_i
         }
