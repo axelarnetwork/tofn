@@ -1,5 +1,5 @@
 use crate::{
-    hash, mta,
+    corrupt, hash, mta,
     paillier_k256::{self, Ciphertext},
     refactor::{
         collections::{FillHoleVecMap, P2ps, Subset, TypedUsize, VecMap},
@@ -121,6 +121,11 @@ impl bcast_and_p2p::Executer for R2 {
             }
         }
 
+        corrupt!(
+            zkp_complaints,
+            self.corrupt_complaint(info.share_id(), zkp_complaints)?
+        );
+
         if !zkp_complaints.is_empty() {
             let bcast_out = serialize(&Bcast::Sad(BcastSad { zkp_complaints }))?;
 
@@ -227,5 +232,41 @@ impl bcast_and_p2p::Executer for R2 {
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+}
+
+#[cfg(feature = "malicious")]
+mod malicious {
+    use crate::refactor::{
+        collections::{Subset, TypedUsize},
+        sdk::api::TofnResult,
+        sign::{
+            malicious::{log_confess_info, Behaviour::*},
+            SignParticipantIndex,
+        },
+    };
+
+    use super::R2;
+
+    impl R2 {
+        pub fn corrupt_complaint(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            // share_infos: &HoleVecMap<KeygenPartyIndex, ShareInfo>,
+            mut zkp_complaints: Subset<SignParticipantIndex>,
+        ) -> TofnResult<Subset<SignParticipantIndex>> {
+            if let R2FalseAccusation { victim } = self.behaviour {
+                if zkp_complaints.is_member(victim)? {
+                    log_confess_info(me, &self.behaviour, "but the accusation is true");
+                } else if victim == me {
+                    log_confess_info(me, &self.behaviour, "self accusation");
+                    zkp_complaints.add(me)?;
+                } else {
+                    log_confess_info(me, &self.behaviour, "");
+                    zkp_complaints.add(victim)?;
+                }
+            }
+            Ok(zkp_complaints)
+        }
     }
 }
