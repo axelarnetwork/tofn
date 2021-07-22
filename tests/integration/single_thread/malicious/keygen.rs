@@ -7,13 +7,17 @@ use tofn::refactor::{
     sdk::api::{Fault, PartyShareCounts, Protocol::*, ProtocolOutput},
 };
 use tracing::info;
-use tracing_test::traced_test;
+// use tracing_test::traced_test;
 
-use crate::{common::keygen::dummy_secret_recovery_key, single_thread::execute::execute_protocol};
+use crate::{
+    common::keygen::dummy_secret_recovery_key,
+    single_thread::{execute::execute_protocol, set_up_logs},
+};
 
 #[test]
-#[traced_test]
+// #[traced_test]
 fn single_faults() {
+    set_up_logs();
     execute_test_case_list(&single_fault_test_case_list())
 }
 

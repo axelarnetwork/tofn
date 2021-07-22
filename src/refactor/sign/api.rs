@@ -29,6 +29,8 @@ pub type Peers = HoleVecMap<SignParticipantIndex, TypedUsize<KeygenPartyIndex>>;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SignParticipantIndex;
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RealSignParticipantIndex;
 
 /// sign only 32-byte hash digests
