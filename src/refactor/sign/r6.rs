@@ -229,6 +229,7 @@ impl bcast_and_p2p::Executer for R6 {
                     secret_key_share: self.secret_key_share,
                     msg_to_sign: self.msg_to_sign,
                     peers: self.peers,
+                    participants: self.participants,
                     keygen_id: self.keygen_id,
                     gamma_i: self.gamma_i,
                     Gamma_i: self.Gamma_i,

@@ -74,6 +74,8 @@ impl no_messages::Executer for R1 {
         let Gamma_i = k256::ProjectivePoint::generator() * gamma_i;
         let (Gamma_i_commit, Gamma_i_reveal) = hash::commit(to_bytes(&Gamma_i));
 
+        corrupt!(gamma_i, self.corrupt_gamma_i(info.share_id(), gamma_i));
+
         // initiate MtA protocols for
         // 1. k_i (me) * gamma_j (other)
         // 2. k_i (me) * w_j (other)
@@ -108,7 +110,6 @@ impl no_messages::Executer for R1 {
                 },
             );
 
-            // let _ = peer_id; // squelch build warning
             corrupt!(
                 range_proof,
                 self.corrupt_range_proof(info.share_id(), _peer_id, range_proof)
@@ -152,6 +153,7 @@ impl no_messages::Executer for R1 {
 
 #[cfg(feature = "malicious")]
 mod malicious {
+    use super::R1;
     use crate::{
         paillier_k256::{self, zk::range},
         refactor::{
@@ -163,22 +165,18 @@ mod malicious {
         },
     };
 
-    use super::R1;
-    use tracing::info;
-
     impl R1 {
-        // pub fn corrupt_commit(
-        //     &self,
-        //     my_index: TypedUsize<KeygenPartyIndex>,
-        //     commit: Output,
-        // ) -> Output {
-        //     if let Behaviour::R1BadCommit = self.behaviour {
-        //         info!("malicious party {} do {:?}", my_index, self.behaviour);
-        //         commit.corrupt()
-        //     } else {
-        //         commit
-        //     }
-        // }
+        pub fn corrupt_gamma_i(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            mut gamma_i: k256::Scalar,
+        ) -> k256::Scalar {
+            if let Behaviour::R1BadGammaI = self.behaviour {
+                log_confess_info(me, &self.behaviour, "");
+                gamma_i += k256::Scalar::one();
+            }
+            gamma_i
+        }
 
         // pub fn corrupt_ek_proof(
         //     &self,
@@ -201,7 +199,6 @@ mod malicious {
         ) -> range::Proof {
             if let Behaviour::R1BadProof { victim } = self.behaviour {
                 if victim == recipient {
-                    info!("malicious party {} do {:?}", me, self.behaviour);
                     log_confess_info(me, &self.behaviour, "");
                     return paillier_k256::zk::range::malicious::corrupt_proof(&range_proof);
                 }

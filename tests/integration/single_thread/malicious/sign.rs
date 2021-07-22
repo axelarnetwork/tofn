@@ -31,7 +31,7 @@ pub fn single_fault_test_case_list() -> Vec<TestCase> {
     // let one = TypedUsize::from_usize(1);
     vec![
         single_fault_test_case(R1BadProof { victim: zero }),
-        // single_fault_test_case(R3BadSigmaI),
+        single_fault_test_case(R1BadGammaI),
     ]
 }
 
