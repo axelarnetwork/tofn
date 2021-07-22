@@ -1,5 +1,6 @@
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::marker::PhantomData;
+use zeroize::Zeroize;
 
 pub struct TypedUsize<K>(usize, PhantomData<K>);
 
@@ -9,6 +10,12 @@ impl<K> TypedUsize<K> {
     }
     pub fn as_usize(&self) -> usize {
         self.0
+    }
+}
+
+impl<K> Zeroize for TypedUsize<K> {
+    fn zeroize(&mut self) {
+        self.0.zeroize()
     }
 }
 

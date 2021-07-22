@@ -1,13 +1,15 @@
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use zeroize::Zeroize;
 
 // can't derive Serialize, Deserialize for sha3::digest::Output<Sha3_256>
 // so use [u8; 32] instead
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Output([u8; 32]);
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Zeroize)]
+#[zeroize(drop)]
 pub struct Randomness([u8; 32]);
 
 pub fn commit(msg: impl AsRef<[u8]>) -> (Output, Randomness) {

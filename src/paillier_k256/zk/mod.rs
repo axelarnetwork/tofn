@@ -3,6 +3,7 @@ use super::{keygen_unsafe, BigInt, DecryptionKey, EncryptionKey};
 use paillier::zk::{CompositeDLogProof, DLogStatement, NICorrectKeyProof};
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
+use zeroize::Zeroize;
 // use zk_paillier::zkproofs::{CompositeDLogProof, DLogStatement};
 
 pub(crate) mod mta;
@@ -18,6 +19,17 @@ pub struct ZkSetup {
 }
 
 pub type ZkSetupProof = CompositeDLogProof;
+
+// TODO: This might be optimized away since BigInt itself doesn't implement Zeroize
+impl Zeroize for ZkSetup {
+    fn zeroize(&mut self) {
+        self.composite_dlog_statement.N = BigInt::zero();
+        self.composite_dlog_statement.g = BigInt::zero();
+        self.composite_dlog_statement.ni = BigInt::zero();
+        self.q_n_tilde = BigInt::zero();
+        self.q3_n_tilde = BigInt::zero();
+    }
+}
 
 impl ZkSetup {
     pub fn new_unsafe(rng: &mut (impl CryptoRng + RngCore)) -> (ZkSetup, ZkSetupProof) {

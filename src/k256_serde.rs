@@ -7,8 +7,9 @@
 
 use k256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
 use serde::{de, de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
+use zeroize::Zeroize;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Zeroize)]
 pub struct Scalar(k256::Scalar);
 
 impl Scalar {
@@ -72,7 +73,7 @@ impl<'de> Visitor<'de> for ScalarVisitor {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Zeroize)]
 struct AffinePoint(k256::AffinePoint);
 
 impl Serialize for AffinePoint {
@@ -131,6 +132,13 @@ impl ProjectivePoint {
             .to_encoded_point(true)
             .as_bytes()
             .to_vec()
+    }
+}
+
+// TODO: This might be optimized away since ProjectivePoint itself doesn't implement Zeroize
+impl Zeroize for ProjectivePoint {
+    fn zeroize(&mut self) {
+        self.0 = k256::ProjectivePoint::identity();
     }
 }
 

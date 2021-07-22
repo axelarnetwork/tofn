@@ -1,7 +1,7 @@
 [package]
 name = "tofn"
 version = "0.1.0"
-authors = ["Gus Gutoski <gus@axelar.network>"]
+authors = ["Gus Gutoski <gus@axelar.network>", "Milap Sheth <milap@axelar.network>"]
 edition = "2018"
 
 [lib]
@@ -12,9 +12,10 @@ serde = { version = "1.0", features = ["derive"] }
 bincode = "1.2.1"
 rand_chacha = "0"
 hmac = "0"
+zeroize = { version = "1.4", features = ["zeroize_derive"] }
 
 # k256 baggage
-k256 = "0"
+k256 = { version = "0", features = ["zeroize"] }
 rand = "0"
 sha2 = "0"
 ecdsa = "0" # needed only for FromDigest trait

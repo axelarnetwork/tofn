@@ -7,6 +7,7 @@ use paillier::{
 };
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
+use zeroize::Zeroize;
 
 pub mod zk;
 
@@ -18,6 +19,14 @@ pub fn keygen_unsafe(rng: &mut (impl CryptoRng + RngCore)) -> (EncryptionKey, De
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EncryptionKey(paillier::EncryptionKey);
+
+// TODO: This might be optimized away since BigInt itself doesn't implement Zeroize
+impl Zeroize for EncryptionKey {
+    fn zeroize(&mut self) {
+        self.0.n = BigInt::zero();
+        self.0.nn = BigInt::zero();
+    }
+}
 
 impl EncryptionKey {
     pub fn sample_randomness(&self) -> Randomness {
@@ -87,6 +96,14 @@ impl DecryptionKey {
     }
 }
 
+// TODO: This might be optimized away since BigInt itself doesn't implement Zeroize
+impl Zeroize for DecryptionKey {
+    fn zeroize(&mut self) {
+        self.0.p = BigInt::zero();
+        self.0.q = BigInt::zero();
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Plaintext(paillier::BigInt);
 
@@ -112,11 +129,32 @@ impl From<&k256::Scalar> for Plaintext {
     }
 }
 
+// TODO: This might be optimized away since BigInt itself doesn't implement Zeroize
+impl Zeroize for Plaintext {
+    fn zeroize(&mut self) {
+        self.0 = BigInt::zero();
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Ciphertext(paillier::BigInt);
 
+// TODO: This might be optimized away since BigInt itself doesn't implement Zeroize
+impl Zeroize for Ciphertext {
+    fn zeroize(&mut self) {
+        self.0 = BigInt::zero();
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Randomness(paillier::BigInt);
+
+// TODO: This might be optimized away since BigInt itself doesn't implement Zeroize
+impl Zeroize for Randomness {
+    fn zeroize(&mut self) {
+        self.0 = BigInt::zero();
+    }
+}
 
 fn to_bigint(s: &k256::Scalar) -> BigInt {
     BigInt::from(s.to_bytes().as_slice())
