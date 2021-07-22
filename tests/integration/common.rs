@@ -1,12 +1,9 @@
 pub mod keygen {
     use rand::RngCore;
     use tofn::{
-        refactor::collections::{TypedUsize, VecMap},
+        refactor::collections::VecMap,
         refactor::{
-            keygen::{
-                new_keygen, KeygenPartyIndex, KeygenProtocol, RealKeygenPartyIndex,
-                SecretRecoveryKey,
-            },
+            keygen::{new_keygen, KeygenPartyIndex, KeygenProtocol, RealKeygenPartyIndex},
             sdk::api::PartyShareCounts,
         },
     };
@@ -44,6 +41,11 @@ pub mod keygen {
             .flatten()
             .collect()
     }
+}
+
+#[cfg(feature = "malicious")]
+pub mod malicious {
+    use tofn::refactor::{collections::TypedUsize, keygen::SecretRecoveryKey};
 
     /// return the all-zero array with the first bytes set to the bytes of `index`
     pub fn dummy_secret_recovery_key<K>(index: TypedUsize<K>) -> SecretRecoveryKey {

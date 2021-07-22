@@ -1,5 +1,5 @@
 use crate::{
-    hash,
+    corrupt, hash,
     k256_serde::to_bytes,
     paillier_k256,
     protocol::gg20::vss_k256,
@@ -89,7 +89,7 @@ impl no_messages::Executer for R1 {
             .ek();
         let (k_i_ciphertext, k_i_randomness) = ek.encrypt(&(&k_i).into());
 
-        let p2ps_out = self.peers.map_ref(|(_, &keygen_peer_id)| {
+        let p2ps_out = self.peers.map_ref(|(_peer_id, &keygen_peer_id)| {
             let peer_zkp = &self
                 .secret_key_share
                 .group()
@@ -106,6 +106,12 @@ impl no_messages::Executer for R1 {
                     msg: &k_i,
                     randomness: &k_i_randomness,
                 },
+            );
+
+            // let _ = peer_id; // squelch build warning
+            corrupt!(
+                range_proof,
+                self.corrupt_range_proof(info.share_id(), _peer_id, range_proof)
             );
 
             serialize(&P2p { range_proof })
@@ -141,5 +147,66 @@ impl no_messages::Executer for R1 {
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+}
+
+#[cfg(feature = "malicious")]
+mod malicious {
+    use crate::{
+        paillier_k256::{self, zk::range},
+        refactor::{
+            collections::TypedUsize,
+            sign::{
+                malicious::{log_confess_info, Behaviour},
+                SignParticipantIndex,
+            },
+        },
+    };
+
+    use super::R1;
+    use tracing::info;
+
+    impl R1 {
+        // pub fn corrupt_commit(
+        //     &self,
+        //     my_index: TypedUsize<KeygenPartyIndex>,
+        //     commit: Output,
+        // ) -> Output {
+        //     if let Behaviour::R1BadCommit = self.behaviour {
+        //         info!("malicious party {} do {:?}", my_index, self.behaviour);
+        //         commit.corrupt()
+        //     } else {
+        //         commit
+        //     }
+        // }
+
+        // pub fn corrupt_ek_proof(
+        //     &self,
+        //     my_index: TypedUsize<KeygenPartyIndex>,
+        //     ek_proof: EncryptionKeyProof,
+        // ) -> EncryptionKeyProof {
+        //     if let Behaviour::R1BadEncryptionKeyProof = self.behaviour {
+        //         info!("malicious party {} do {:?}", my_index, self.behaviour);
+        //         paillier_k256::zk::malicious::corrupt_ek_proof(ek_proof)
+        //     } else {
+        //         ek_proof
+        //     }
+        // }
+
+        pub fn corrupt_range_proof(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            recipient: TypedUsize<SignParticipantIndex>,
+            range_proof: range::Proof,
+        ) -> range::Proof {
+            if let Behaviour::R1BadProof { victim } = self.behaviour {
+                if victim == recipient {
+                    info!("malicious party {} do {:?}", me, self.behaviour);
+                    log_confess_info(me, &self.behaviour, "");
+                    return paillier_k256::zk::range::malicious::corrupt_proof(&range_proof);
+                }
+            }
+            range_proof
+        }
     }
 }

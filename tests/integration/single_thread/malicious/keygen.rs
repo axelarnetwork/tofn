@@ -10,7 +10,7 @@ use tracing::info;
 // use tracing_test::traced_test;
 
 use crate::{
-    common::keygen::dummy_secret_recovery_key,
+    common::malicious::dummy_secret_recovery_key,
     single_thread::{execute::execute_protocol, set_up_logs},
 };
 

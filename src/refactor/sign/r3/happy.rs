@@ -337,7 +337,6 @@ mod malicious {
             sign_id: TypedUsize<SignParticipantIndex>,
             mut sigma_i: Scalar,
         ) -> Scalar {
-            // TODO hack type7 fault
             if let Behaviour::R3BadSigmaI = self.behaviour {
                 log_confess_info(sign_id, &self.behaviour, "");
                 sigma_i += Scalar::one();

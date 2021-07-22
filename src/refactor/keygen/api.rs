@@ -50,6 +50,8 @@ pub fn new_keygen(
     }
     let total_share_count: usize = party_share_counts.total_share_count();
     let my_share_id = party_share_counts.party_to_share_id(my_party_id, my_subshare_id)?;
+
+    #[allow(clippy::suspicious_operation_groupings)]
     if total_share_count <= threshold
         || total_share_count > MAX_TOTAL_SHARE_COUNT
         || my_party_id.as_usize() >= party_share_counts.party_count()

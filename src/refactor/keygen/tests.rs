@@ -55,7 +55,7 @@ fn execute_keygen_with_recovery(
 ) -> KeySharesWithRecovery {
     let secret_recovery_keys = VecMap::from_vec(
         (0..party_share_counts.party_count())
-            .map(|i| dummy_secret_recovery_key(i))
+            .map(dummy_secret_recovery_key)
             .collect(),
     );
     let session_nonce = b"foobar".to_vec();

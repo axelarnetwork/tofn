@@ -7,8 +7,11 @@ use tofn::refactor::{
     collections::{TypedUsize, VecMap},
     keygen::{KeygenPartyIndex, SecretKeyShare},
     sdk::api::{PartyShareCounts, Protocol},
-    sign::{self, new_sign, MessageDigest, SignParticipantIndex, SignParties},
+    sign::{new_sign, MessageDigest, SignParticipantIndex, SignParties},
 };
+
+#[cfg(feature = "malicious")]
+use tofn::refactor::sign;
 
 // use test_env_log::test;
 // use tracing_test::traced_test; // enable logs in tests

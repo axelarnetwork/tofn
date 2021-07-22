@@ -27,10 +27,10 @@ fn single_faults() {
 }
 
 pub fn single_fault_test_case_list() -> Vec<TestCase> {
-    // let zero = TypedUsize::from_usize(0);
+    let zero = TypedUsize::from_usize(0);
     // let one = TypedUsize::from_usize(1);
     vec![
-        // single_fault_test_case(R1BadGammaI),
+        single_fault_test_case(R1BadProof { victim: zero }),
         // single_fault_test_case(R3BadSigmaI),
     ]
 }
@@ -47,7 +47,7 @@ fn single_fault_test_case(behaviour: Behaviour) -> TestCase {
 
     let mut faulters = FillVecMap::with_size(sign_party_count);
     faulters
-        .set(TypedUsize::from_usize(0), Fault::ProtocolFault)
+        .set(TypedUsize::from_usize(1), Fault::ProtocolFault)
         .unwrap();
 
     TestCase {
