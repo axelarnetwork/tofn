@@ -4,7 +4,7 @@ use crate::{
     refactor::collections::{zip2, HoleVecMap, TypedUsize, VecMap},
     refactor::sdk::api::{BytesVec, Protocol},
 };
-use rand::{prelude::SliceRandom, RngCore};
+use rand::prelude::SliceRandom;
 use tracing_test::traced_test;
 
 #[cfg(feature = "malicious")]
@@ -45,7 +45,7 @@ pub fn execute_keygen(
 
 struct KeySharesWithRecovery {
     pub shares: Vec<SecretKeyShare>,
-    pub secret_recovery_keys: Vec<SecretRecoveryKey>,
+    pub secret_recovery_keys: VecMap<RealKeygenPartyIndex, SecretRecoveryKey>,
     pub session_nonce: Vec<u8>,
 }
 
@@ -53,10 +53,11 @@ fn execute_keygen_with_recovery(
     party_share_counts: &KeygenPartyShareCounts,
     threshold: usize,
 ) -> KeySharesWithRecovery {
-    let mut secret_recovery_keys = vec![[0u8; 64]; party_share_counts.total_share_count()];
-    for s in secret_recovery_keys.iter_mut() {
-        rand::thread_rng().fill_bytes(s);
-    }
+    let secret_recovery_keys = VecMap::from_vec(
+        (0..party_share_counts.party_count())
+            .map(|i| dummy_secret_recovery_key(i))
+            .collect(),
+    );
     let session_nonce = b"foobar".to_vec();
 
     KeySharesWithRecovery {
@@ -74,32 +75,35 @@ fn execute_keygen_with_recovery(
 fn execute_keygen_from_recovery(
     party_share_counts: &KeygenPartyShareCounts,
     threshold: usize,
-    secret_recovery_keys: &[SecretRecoveryKey],
+    secret_recovery_keys: &VecMap<RealKeygenPartyIndex, SecretRecoveryKey>,
     session_nonce: &[u8],
 ) -> Vec<SecretKeyShare> {
-    assert_eq!(
-        secret_recovery_keys.len(),
-        party_share_counts.total_share_count()
-    );
-    let share_count = secret_recovery_keys.len();
+    assert_eq!(secret_recovery_keys.len(), party_share_counts.party_count());
+    let share_count = party_share_counts.total_share_count();
 
-    let r0_parties: Vec<_> = (0..share_count)
-        .map(|i| {
-            match new_keygen(
-                party_share_counts.clone(),
-                threshold,
-                TypedUsize::from_usize(i),
-                &secret_recovery_keys[i],
-                session_nonce,
-                #[cfg(feature = "malicious")]
-                Honest,
-            )
-            .unwrap()
-            {
-                Protocol::NotDone(round) => round,
-                Protocol::Done(_) => panic!("`new_keygen` returned a `Done` protocol"),
-            }
+    let r0_parties: Vec<_> = party_share_counts
+        .iter()
+        .map(|(party_id, &party_share_count)| {
+            (0..party_share_count).map(move |subshare_id| {
+                // each party use the same secret recovery key for all its subshares
+                match new_keygen(
+                    party_share_counts.clone(),
+                    threshold,
+                    party_id,
+                    subshare_id,
+                    secret_recovery_keys.get(party_id).unwrap(),
+                    session_nonce,
+                    #[cfg(feature = "malicious")]
+                    Honest,
+                )
+                .unwrap()
+                {
+                    Protocol::NotDone(round) => round,
+                    Protocol::Done(_) => panic!("`new_keygen` returned a `Done` protocol"),
+                }
+            })
         })
+        .flatten()
         .collect();
 
     // execute round 1 all parties
@@ -281,29 +285,22 @@ fn execute_keygen_from_recovery(
 fn share_recovery() {
     use rand::RngCore;
 
-    let party_share_counts = KeygenPartyShareCounts::from_vec(vec![2, 3, 1]).unwrap();
+    let party_share_counts = &KeygenPartyShareCounts::from_vec(vec![2, 3, 1]).unwrap();
     let threshold = 4;
     let session_nonce = b"foobar";
 
-    // each party use the same secret recovery key for all its subshares
-    let secret_recovery_keys: Vec<SecretRecoveryKey> = party_share_counts
-        .iter()
-        .map(|(_, &n)| {
-            let mut s = [0u8; 64];
-            rand::thread_rng().fill_bytes(&mut s);
-            vec![s; n]
-        })
-        .collect::<Vec<Vec<_>>>()
-        .into_iter()
-        .flatten() // TODO don't need collect().into_iter() ???
-        .collect();
-    assert_eq!(
-        secret_recovery_keys.len(),
-        party_share_counts.total_share_count()
+    let secret_recovery_keys = VecMap::from_vec(
+        (0..party_share_counts.party_count())
+            .map(|_| {
+                let mut s = [0u8; 64];
+                rand::thread_rng().fill_bytes(&mut s);
+                s
+            })
+            .collect(),
     );
 
     let shares = execute_keygen_from_recovery(
-        &party_share_counts,
+        party_share_counts,
         threshold,
         &secret_recovery_keys,
         session_nonce,
@@ -315,20 +312,27 @@ fn share_recovery() {
         recovery_infos.shuffle(&mut rand::thread_rng()); // simulate nondeterministic message receipt
         recovery_infos
     };
+    let recovery_infos = &recovery_infos;
+
     let recovered_shares: Vec<SecretKeyShare> = secret_recovery_keys
         .iter()
-        .enumerate()
-        .map(|(i, r)| {
-            SecretKeyShare::recover(
-                r,
-                session_nonce,
-                &recovery_infos,
-                TypedUsize::from_usize(i),
-                party_share_counts.clone(),
-                threshold,
-            )
-            .unwrap()
+        .map(|(party_id, &secret_recovery_key)| {
+            (0..party_share_counts.party_share_count(party_id).unwrap()).map(move |subshare_id| {
+                let share_id = party_share_counts
+                    .party_to_share_id(party_id, subshare_id)
+                    .unwrap();
+                SecretKeyShare::recover(
+                    &secret_recovery_key,
+                    session_nonce,
+                    &recovery_infos,
+                    share_id,
+                    party_share_counts.clone(),
+                    threshold,
+                )
+                .unwrap()
+            })
         })
+        .flatten()
         .collect();
 
     assert_eq!(
@@ -346,4 +350,14 @@ fn share_recovery() {
         assert_eq!(s.group().threshold(), r.group().threshold(), "party {}", i);
         assert_eq!(s.group().y(), r.group().y(), "party {}", i);
     }
+}
+
+/// return the all-zero array with the first bytes set to the bytes of `index`
+pub fn dummy_secret_recovery_key(index: usize) -> SecretRecoveryKey {
+    let index_bytes = index.to_be_bytes();
+    let mut result = [0; 64];
+    for (i, &b) in index_bytes.iter().enumerate() {
+        result[i] = b;
+    }
+    result
 }

@@ -78,15 +78,20 @@ impl TestCase {
         self.share_behaviours
             .iter()
             .map(|(share_id, behaviour)| {
+                let (party_id, subshare_id) = self
+                    .party_share_counts
+                    .share_to_party_subshare_ids(share_id)
+                    .unwrap();
                 new_keygen(
                     self.party_share_counts.clone(),
                     self.threshold,
-                    share_id,
+                    party_id,
+                    subshare_id,
                     &dummy_secret_recovery_key(share_id),
                     session_nonce,
                     behaviour.clone(),
                 )
-                .expect("`new_keygen` failure")
+                .unwrap()
             })
             .collect()
     }
