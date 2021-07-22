@@ -21,7 +21,8 @@ ecdsa = "0" # needed only for FromDigest trait
 
 # logging
 log = "0.4"
-tracing = "0.1"
+# tracing = "0"
+tracing = {version = "0", default-features = false}
 
 # TODO need a better Paillier library
 paillier = { git = "https://github.com/axelarnetwork/rust-paillier"}
@@ -32,7 +33,11 @@ strum_macros = "0.20"
 
 [dev-dependencies]
 lazy_static = "1.4"
-tracing-test = "0.1.0" # enable logging for tests
+tracing-test = "0" # enable logging for tests
+# tracing-subscriber = "0"
+tracing-subscriber = {version = "0", default-features = false, features = ["env-filter", "fmt"]}
+# test-env-log = {version = "0", default-features = false, features = ["trace"]}
+
 
 [features]
 malicious = []

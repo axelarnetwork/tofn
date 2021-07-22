@@ -82,9 +82,9 @@ impl<F, K, P> Round<F, K, P> {
         match self
             .info
             .party_share_counts()
-            .share_to_party_id_nonfatal(bytes_meta.from)
+            .share_to_party_id(bytes_meta.from)
         {
-            Some(party_id) if party_id == from => (), // happy path
+            Ok(party_id) if party_id == from => (), // happy path
             _ => {
                 warn!(
                     "msg_in fault: share_id {} does not belong to party {}",

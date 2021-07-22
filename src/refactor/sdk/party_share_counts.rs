@@ -49,28 +49,53 @@ impl<P> PartyShareCounts<P> {
     pub fn iter(&self) -> VecMapIter<P, std::slice::Iter<usize>> {
         self.party_share_counts.iter()
     }
-    /// fatal out of bounds
-    pub fn share_to_party_id<K>(&self, share_id: TypedUsize<K>) -> TofnResult<TypedUsize<P>> {
-        self.share_to_party_id_nonfatal(share_id).ok_or_else(|| {
-            error!(
-                "share_id {} out of bounds {}",
-                share_id, self.total_share_count
-            );
-            TofnFatal
-        })
-    }
-    /// non-fatal out of bounds
-    pub fn share_to_party_id_nonfatal<K>(&self, share_id: TypedUsize<K>) -> Option<TypedUsize<P>> {
+    pub fn share_to_party_subshare_ids<K>(
+        &self,
+        share_id: TypedUsize<K>,
+    ) -> TofnResult<(TypedUsize<P>, usize)> {
         let mut sum = 0;
         for (party_id, &share_count) in self.party_share_counts.iter() {
             sum += share_count;
             if share_id.as_usize() < sum {
-                return Some(party_id);
+                return Ok((party_id, share_id.as_usize() - (sum - share_count)));
             }
         }
-        None
+        error!(
+            "share_id {} out of bounds {}",
+            share_id, self.total_share_count
+        );
+        Err(TofnFatal)
     }
-
+    pub fn share_to_party_id<K>(&self, share_id: TypedUsize<K>) -> TofnResult<TypedUsize<P>> {
+        Ok(self.share_to_party_subshare_ids(share_id)?.0)
+    }
+    pub fn party_to_share_id<K>(
+        &self,
+        party_id: TypedUsize<P>,
+        subshare_id: usize,
+    ) -> TofnResult<TypedUsize<K>> {
+        let mut sum = 0;
+        for (p, &share_count) in self.party_share_counts.iter() {
+            if p.as_usize() == party_id.as_usize() {
+                if subshare_id < share_count {
+                    return Ok(TypedUsize::from_usize(sum + subshare_id));
+                } else {
+                    error!(
+                        "subshare_id {} exceeds party_share_count {}",
+                        subshare_id, share_count
+                    );
+                    return Err(TofnFatal);
+                }
+            }
+            sum += share_count;
+        }
+        error!(
+            "party_id {} exceeds party_count {}",
+            subshare_id,
+            self.party_count()
+        );
+        Err(TofnFatal)
+    }
     pub fn subset(&self, party_ids: &Subset<P>) -> TofnResult<Vec<usize>> {
         if party_ids.max_size() != self.party_count() {
             error!(

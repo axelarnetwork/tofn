@@ -9,13 +9,17 @@ use tofn::refactor::{
     },
 };
 use tracing::{info, warn};
-use tracing_test::traced_test; // enable logs in tests
+// use tracing_test::traced_test; // enable logs in tests
 
-use crate::{common::keygen, single_thread::execute::nobody_done};
+use crate::{
+    common::keygen,
+    single_thread::{execute::nobody_done, set_up_logs},
+};
 
 #[test]
-#[traced_test]
+// #[traced_test]
 fn single_faults_keygen() {
+    set_up_logs();
     for test_case in single_fault_test_case_list() {
         info!(
             "test: party_share_counts [{:?}] threshold [{}]",

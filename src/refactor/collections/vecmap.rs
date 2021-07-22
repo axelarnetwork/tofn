@@ -35,6 +35,8 @@ impl<K, V> VecMap<K, V> {
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
+
+    /// 2 ways to convert to `HoleVecMap`
     pub fn puncture_hole(mut self, hole: TypedUsize<K>) -> TofnResult<(HoleVecMap<K, V>, V)> {
         if hole.as_usize() >= self.0.len() {
             error!("hole {} out of bounds {}", hole.as_usize(), self.0.len());
@@ -43,6 +45,10 @@ impl<K, V> VecMap<K, V> {
         let hole_val = self.0.remove(hole.as_usize());
         Ok((HoleVecMap::from_vecmap(self, hole)?, hole_val))
     }
+    pub fn remember_hole(self, hole: TypedUsize<K>) -> TofnResult<HoleVecMap<K, V>> {
+        HoleVecMap::from_vecmap(self, hole)
+    }
+
     pub fn iter(&self) -> VecMapIter<K, std::slice::Iter<V>> {
         VecMapIter::new(self.0.iter())
     }

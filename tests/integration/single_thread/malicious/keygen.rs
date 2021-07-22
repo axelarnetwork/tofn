@@ -7,13 +7,17 @@ use tofn::refactor::{
     sdk::api::{Fault, PartyShareCounts, Protocol::*, ProtocolOutput},
 };
 use tracing::info;
-use tracing_test::traced_test;
+// use tracing_test::traced_test;
 
-use crate::{common::keygen::dummy_secret_recovery_key, single_thread::execute::execute_protocol};
+use crate::{
+    common::malicious::dummy_secret_recovery_key,
+    single_thread::{execute::execute_protocol, set_up_logs},
+};
 
 #[test]
-#[traced_test]
+// #[traced_test]
 fn single_faults() {
+    set_up_logs();
     execute_test_case_list(&single_fault_test_case_list())
 }
 
@@ -78,15 +82,20 @@ impl TestCase {
         self.share_behaviours
             .iter()
             .map(|(share_id, behaviour)| {
+                let (party_id, subshare_id) = self
+                    .party_share_counts
+                    .share_to_party_subshare_ids(share_id)
+                    .unwrap();
                 new_keygen(
                     self.party_share_counts.clone(),
                     self.threshold,
-                    share_id,
+                    party_id,
+                    subshare_id,
                     &dummy_secret_recovery_key(share_id),
                     session_nonce,
                     behaviour.clone(),
                 )
-                .expect("`new_keygen` failure")
+                .unwrap()
             })
             .collect()
     }

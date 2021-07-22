@@ -1,11 +1,9 @@
 pub mod keygen {
+    use rand::RngCore;
     use tofn::{
-        refactor::collections::{TypedUsize, VecMap},
+        refactor::collections::VecMap,
         refactor::{
-            keygen::{
-                new_keygen, KeygenPartyIndex, KeygenProtocol, RealKeygenPartyIndex,
-                SecretRecoveryKey,
-            },
+            keygen::{new_keygen, KeygenPartyIndex, KeygenProtocol, RealKeygenPartyIndex},
             sdk::api::PartyShareCounts,
         },
     };
@@ -18,22 +16,36 @@ pub mod keygen {
         threshold: usize,
     ) -> VecMap<KeygenPartyIndex, KeygenProtocol> {
         let session_nonce = b"foobar";
-        (0..party_share_counts.total_share_count())
-            .map(|index| {
-                let index = TypedUsize::from_usize(index);
-                new_keygen(
-                    party_share_counts.clone(),
-                    threshold,
-                    index,
-                    &dummy_secret_recovery_key(index),
-                    session_nonce,
-                    #[cfg(feature = "malicious")]
-                    Behaviour::Honest,
-                )
-                .expect("`new_keygen` failure")
+
+        party_share_counts
+            .iter()
+            .map(|(party_id, &party_share_count)| {
+                // each party use the same secret recovery key for all its subshares
+                let mut secret_recovery_key = [0u8; 64];
+                rand::thread_rng().fill_bytes(&mut secret_recovery_key);
+
+                (0..party_share_count).map(move |subshare_id| {
+                    new_keygen(
+                        party_share_counts.clone(),
+                        threshold,
+                        party_id,
+                        subshare_id,
+                        &secret_recovery_key,
+                        session_nonce,
+                        #[cfg(feature = "malicious")]
+                        Behaviour::Honest,
+                    )
+                    .unwrap()
+                })
             })
+            .flatten()
             .collect()
     }
+}
+
+#[cfg(feature = "malicious")]
+pub mod malicious {
+    use tofn::refactor::{collections::TypedUsize, keygen::SecretRecoveryKey};
 
     /// return the all-zero array with the first bytes set to the bytes of `index`
     pub fn dummy_secret_recovery_key<K>(index: TypedUsize<K>) -> SecretRecoveryKey {

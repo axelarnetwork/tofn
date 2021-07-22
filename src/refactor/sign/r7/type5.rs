@@ -8,7 +8,7 @@ use crate::{
             api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
             implementer_api::{bcast_only, ProtocolBuilder, ProtocolInfo},
         },
-        sign::{r2, r4},
+        sign::{r2, r4, Participants},
     },
 };
 use k256::{ProjectivePoint, Scalar};
@@ -24,6 +24,7 @@ pub struct R7 {
     pub secret_key_share: SecretKeyShare,
     pub msg_to_sign: Scalar,
     pub peers: Peers,
+    pub participants: Participants,
     pub keygen_id: TypedUsize<KeygenPartyIndex>,
     pub gamma_i: Scalar,
     pub Gamma_i: ProjectivePoint,
@@ -61,7 +62,6 @@ impl bcast_only::Executer for R7 {
         let participants_count = info.share_count();
 
         let mut faulters = FillVecMap::with_size(participants_count);
-
         let mut bcasts = FillVecMap::with_size(participants_count);
 
         // our check for 'type 5` error failed, so any peer broadcasting a success is a faulter
@@ -126,7 +126,7 @@ impl bcast_only::Executer for R7 {
             // 2. gamma_i
             // 3. beta_ij
             // 4. alpha_ij
-            let keygen_peer_id = *self.peers.get(sign_peer_id)?;
+            let keygen_peer_id = *self.participants.get(sign_peer_id)?;
 
             let peer_ek = &self
                 .secret_key_share
@@ -160,12 +160,7 @@ impl bcast_only::Executer for R7 {
 
             // beta_ij, alpha_ij
             for (sign_party_id, mta_plaintext) in mta_plaintexts {
-                // TODO: Since self.peers doesn't include the current party, we need the following lookup safeguard
-                let keygen_party_id = if sign_party_id == sign_id {
-                    self.keygen_id
-                } else {
-                    *self.peers.get(sign_party_id)?
-                };
+                let keygen_party_id = *self.participants.get(sign_party_id)?;
 
                 // beta_ij
                 let party_ek = &self

@@ -15,9 +15,6 @@ use super::KeygenPartyIndex;
 #[derive(Clone, Debug)]
 pub enum Behaviour {
     Honest,
-    CorruptMessage {
-        msg_type: MsgType,
-    },
     R1BadCommit,
     R1BadEncryptionKeyProof,
     R1BadZkSetupProof,
@@ -39,14 +36,14 @@ impl Behaviour {
     }
 }
 
-#[derive(Clone, Debug)]
-pub enum MsgType {
-    R1Bcast,
-    R2Bcast,
-    R2P2p { to: TypedUsize<KeygenPartyIndex> },
-    R3Bcast,
-    R3FailBcast,
-}
+// #[derive(Clone, Debug)]
+// pub enum MsgType {
+//     R1Bcast,
+//     R2Bcast,
+//     R2P2p { to: TypedUsize<KeygenPartyIndex> },
+//     R3Bcast,
+//     R3FailBcast,
+// }
 
 // `EnumIter` derivation for `Behaviour` requires `Default` impls
 // https://docs.rs/strum/0.14.0/strum/?search=#strum-macros

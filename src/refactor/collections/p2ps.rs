@@ -1,4 +1,3 @@
-use serde::{Deserialize, Serialize};
 use tracing::error;
 
 use crate::refactor::{
@@ -8,7 +7,8 @@ use crate::refactor::{
 
 use super::p2ps_iter::P2psIter;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+// do not derive serde for anything with a `HoleVecMap`
+#[derive(Debug, Clone, PartialEq)]
 pub struct P2ps<K, V>(VecMap<K, HoleVecMap<K, V>>);
 
 impl<K, V> P2ps<K, V> {

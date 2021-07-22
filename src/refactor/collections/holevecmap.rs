@@ -5,6 +5,8 @@ use crate::refactor::sdk::api::{TofnFatal, TofnResult};
 
 use super::{holevecmap_iter::HoleVecMapIter, TypedUsize, VecMap};
 
+// TODO do not derive serde: `hole` might be an attack vector
+// Instead use `forget` and `remember` to convert to/from `VecMap`
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HoleVecMap<K, V> {
     vec: VecMap<K, V>,
@@ -42,10 +44,14 @@ impl<K, V> HoleVecMap<K, V> {
         self.vec.is_empty()
     }
 
+    /// two ways to convert to `VecMap`
     pub fn plug_hole(self, val: V) -> VecMap<K, V> {
         let mut vec = self.vec.into_vec();
         vec.insert(self.hole.as_usize(), val);
         VecMap::from_vec(vec)
+    }
+    pub fn forget_hole(self) -> VecMap<K, V> {
+        self.vec
     }
 
     pub fn iter(&self) -> HoleVecMapIter<K, std::slice::Iter<V>> {

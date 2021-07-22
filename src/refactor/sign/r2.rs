@@ -1,5 +1,5 @@
 use crate::{
-    hash, mta,
+    corrupt, hash, mta,
     paillier_k256::{self, Ciphertext},
     refactor::{
         collections::{FillHoleVecMap, P2ps, Subset, TypedUsize, VecMap},
@@ -121,6 +121,11 @@ impl bcast_and_p2p::Executer for R2 {
             }
         }
 
+        corrupt!(
+            zkp_complaints,
+            self.corrupt_complaint(info.share_id(), zkp_complaints)?
+        );
+
         if !zkp_complaints.is_empty() {
             let bcast_out = serialize(&Bcast::Sad(BcastSad { zkp_complaints }))?;
 
@@ -174,11 +179,21 @@ impl bcast_and_p2p::Executer for R2 {
             let (alpha_ciphertext, alpha_proof, beta_secret) =
                 mta::mta_response_with_proof(peer_zkp, peer_ek, peer_k_i_ciphertext, &self.gamma_i);
 
+            corrupt!(
+                alpha_proof,
+                self.corrupt_alpha_proof(info.share_id(), sign_peer_id, alpha_proof)
+            );
+
             beta_secrets.set(sign_peer_id, beta_secret)?;
 
             // MtAwc step 2 for k_i * w_j
             let (mu_ciphertext, mu_proof, nu_secret) =
                 mta::mta_response_with_proof_wc(peer_zkp, peer_ek, peer_k_i_ciphertext, &self.w_i);
+
+            corrupt!(
+                mu_proof,
+                self.corrupt_mu_proof(info.share_id(), sign_peer_id, mu_proof)
+            );
 
             nu_secrets.set(sign_peer_id, nu_secret)?;
 
@@ -227,5 +242,73 @@ impl bcast_and_p2p::Executer for R2 {
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+}
+
+#[cfg(feature = "malicious")]
+mod malicious {
+    use crate::{
+        paillier_k256::zk::mta,
+        refactor::{
+            collections::{Subset, TypedUsize},
+            sdk::api::TofnResult,
+            sign::{
+                malicious::{log_confess_info, Behaviour::*},
+                SignParticipantIndex,
+            },
+        },
+    };
+
+    use super::R2;
+
+    impl R2 {
+        pub fn corrupt_complaint(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            mut zkp_complaints: Subset<SignParticipantIndex>,
+        ) -> TofnResult<Subset<SignParticipantIndex>> {
+            if let R2FalseAccusation { victim } = self.behaviour {
+                if zkp_complaints.is_member(victim)? {
+                    log_confess_info(me, &self.behaviour, "but the accusation is true");
+                } else if victim == me {
+                    log_confess_info(me, &self.behaviour, "self accusation");
+                    zkp_complaints.add(me)?;
+                } else {
+                    log_confess_info(me, &self.behaviour, "");
+                    zkp_complaints.add(victim)?;
+                }
+            }
+            Ok(zkp_complaints)
+        }
+
+        pub fn corrupt_alpha_proof(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            recipient: TypedUsize<SignParticipantIndex>,
+            alpha_proof: mta::Proof,
+        ) -> mta::Proof {
+            if let R2BadMta { victim } = self.behaviour {
+                if victim == recipient {
+                    log_confess_info(me, &self.behaviour, "");
+                    return mta::malicious::corrupt_proof(&alpha_proof);
+                }
+            }
+            alpha_proof
+        }
+
+        pub fn corrupt_mu_proof(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            recipient: TypedUsize<SignParticipantIndex>,
+            mu_proof: mta::ProofWc,
+        ) -> mta::ProofWc {
+            if let R2BadMtaWc { victim } = self.behaviour {
+                if victim == recipient {
+                    log_confess_info(me, &self.behaviour, "");
+                    return mta::malicious::corrupt_proof_wc(&mu_proof);
+                }
+            }
+            mu_proof
+        }
     }
 }
