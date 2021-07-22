@@ -34,6 +34,7 @@ pub fn single_fault_test_case_list() -> Vec<TestCase> {
         single_fault_test_case(R1BadGammaI),
         single_fault_test_case(R2FalseAccusation { victim: zero }),
         single_fault_test_case(R2FalseAccusation { victim: three }), // self accusation
+        single_fault_test_case(R2BadMta { victim: zero }),
     ]
 }
 

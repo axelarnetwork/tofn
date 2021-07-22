@@ -179,6 +179,11 @@ impl bcast_and_p2p::Executer for R2 {
             let (alpha_ciphertext, alpha_proof, beta_secret) =
                 mta::mta_response_with_proof(peer_zkp, peer_ek, peer_k_i_ciphertext, &self.gamma_i);
 
+            corrupt!(
+                alpha_proof,
+                self.corrupt_alpha_proof(info.share_id(), sign_peer_id, alpha_proof)
+            );
+
             beta_secrets.set(sign_peer_id, beta_secret)?;
 
             // MtAwc step 2 for k_i * w_j
@@ -237,12 +242,15 @@ impl bcast_and_p2p::Executer for R2 {
 
 #[cfg(feature = "malicious")]
 mod malicious {
-    use crate::refactor::{
-        collections::{Subset, TypedUsize},
-        sdk::api::TofnResult,
-        sign::{
-            malicious::{log_confess_info, Behaviour::*},
-            SignParticipantIndex,
+    use crate::{
+        paillier_k256::zk::mta,
+        refactor::{
+            collections::{Subset, TypedUsize},
+            sdk::api::TofnResult,
+            sign::{
+                malicious::{log_confess_info, Behaviour::*},
+                SignParticipantIndex,
+            },
         },
     };
 
@@ -252,7 +260,6 @@ mod malicious {
         pub fn corrupt_complaint(
             &self,
             me: TypedUsize<SignParticipantIndex>,
-            // share_infos: &HoleVecMap<KeygenPartyIndex, ShareInfo>,
             mut zkp_complaints: Subset<SignParticipantIndex>,
         ) -> TofnResult<Subset<SignParticipantIndex>> {
             if let R2FalseAccusation { victim } = self.behaviour {
@@ -267,6 +274,21 @@ mod malicious {
                 }
             }
             Ok(zkp_complaints)
+        }
+
+        pub fn corrupt_alpha_proof(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            recipient: TypedUsize<SignParticipantIndex>,
+            alpha_proof: mta::Proof,
+        ) -> mta::Proof {
+            if let R2BadMta { victim } = self.behaviour {
+                if victim == recipient {
+                    log_confess_info(me, &self.behaviour, "");
+                    return mta::malicious::corrupt_proof(&alpha_proof);
+                }
+            }
+            alpha_proof
         }
     }
 }
