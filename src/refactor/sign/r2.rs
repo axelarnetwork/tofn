@@ -190,6 +190,11 @@ impl bcast_and_p2p::Executer for R2 {
             let (mu_ciphertext, mu_proof, nu_secret) =
                 mta::mta_response_with_proof_wc(peer_zkp, peer_ek, peer_k_i_ciphertext, &self.w_i);
 
+            corrupt!(
+                mu_proof,
+                self.corrupt_mu_proof(info.share_id(), sign_peer_id, mu_proof)
+            );
+
             nu_secrets.set(sign_peer_id, nu_secret)?;
 
             let p2p = serialize(&P2p::Happy(P2pHappy {
@@ -289,6 +294,21 @@ mod malicious {
                 }
             }
             alpha_proof
+        }
+
+        pub fn corrupt_mu_proof(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            recipient: TypedUsize<SignParticipantIndex>,
+            mu_proof: mta::ProofWc,
+        ) -> mta::ProofWc {
+            if let R2BadMtaWc { victim } = self.behaviour {
+                if victim == recipient {
+                    log_confess_info(me, &self.behaviour, "");
+                    return mta::malicious::corrupt_proof_wc(&mu_proof);
+                }
+            }
+            mu_proof
         }
     }
 }
