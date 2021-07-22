@@ -4,10 +4,10 @@ use crate::{
     mta::{self, Secret},
     paillier_k256::{self, zk, Plaintext},
     refactor::{
-        collections::{FillHoleVecMap, FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
+        collections::{FillHoleVecMap, HoleVecMap, P2ps, Subset, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
         sdk::{
-            api::{BytesVec, Fault::ProtocolFault, TofnResult},
+            api::{BytesVec, TofnResult},
             implementer_api::{
                 bcast_and_p2p, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder,
             },
@@ -19,7 +19,9 @@ use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::{r1, r2, r3, r4, r5, r7, Peers, SignParticipantIndex, SignProtocolBuilder};
+use super::{
+    r1, r2, r3, r4, r5, r7, Participants, Peers, SignParticipantIndex, SignProtocolBuilder,
+};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -29,6 +31,7 @@ pub struct R6 {
     pub secret_key_share: SecretKeyShare,
     pub msg_to_sign: Scalar,
     pub peers: Peers,
+    pub participants: Participants,
     pub keygen_id: TypedUsize<KeygenPartyIndex>,
     pub gamma_i: Scalar,
     pub Gamma_i: ProjectivePoint,
@@ -40,7 +43,6 @@ pub struct R6 {
     pub l_i: Scalar,
     pub T_i: ProjectivePoint,
     pub(crate) beta_secrets: HoleVecMap<SignParticipantIndex, Secret>,
-    pub(crate) nu_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
     pub r2p2ps: P2ps<SignParticipantIndex, r2::P2pHappy>,
     pub r3bcasts: VecMap<SignParticipantIndex, r3::happy::BcastHappy>,
@@ -56,6 +58,7 @@ pub struct R6 {
 pub enum Bcast {
     Happy(BcastHappy),
     Sad(BcastSad),
+    SadType5(BcastSadType5),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -67,6 +70,11 @@ pub struct BcastHappy {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BcastSad {
+    pub zkp_complaints: Subset<SignParticipantIndex>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BcastSadType5 {
     pub k_i: k256_serde::Scalar,
     pub k_i_randomness: paillier_k256::Randomness,
     pub gamma_i: k256_serde::Scalar,
@@ -99,7 +107,7 @@ impl bcast_and_p2p::Executer for R6 {
         let sign_id = info.share_id();
         let participants_count = info.share_count();
 
-        let mut faulters = FillVecMap::with_size(participants_count);
+        let mut zkp_complaints = Subset::with_max_size(participants_count);
 
         // verify proofs
         for (sign_peer_id, &keygen_peer_id) in &self.peers {
@@ -134,12 +142,43 @@ impl bcast_and_p2p::Executer for R6 {
                     sign_id, sign_peer_id, err
                 );
 
-                faulters.set(sign_peer_id, ProtocolFault)?;
+                zkp_complaints.add(sign_peer_id)?;
             }
         }
 
-        if !faulters.is_empty() {
-            return Ok(ProtocolBuilder::Done(Err(faulters)));
+        if !zkp_complaints.is_empty() {
+            let bcast_out = serialize(&Bcast::Sad(BcastSad { zkp_complaints }))?;
+
+            return Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
+                round: Box::new(r7::sad::R7 {
+                    secret_key_share: self.secret_key_share,
+                    msg_to_sign: self.msg_to_sign,
+                    peers: self.peers,
+                    participants: self.participants,
+                    keygen_id: self.keygen_id,
+                    gamma_i: self.gamma_i,
+                    Gamma_i: self.Gamma_i,
+                    Gamma_i_reveal: self.Gamma_i_reveal,
+                    w_i: self.w_i,
+                    k_i: self.k_i,
+                    k_i_randomness: self.k_i_randomness,
+                    sigma_i: self.sigma_i,
+                    l_i: self.l_i,
+                    T_i: self.T_i,
+                    r1bcasts: self.r1bcasts,
+                    r2p2ps: self.r2p2ps,
+                    r3bcasts: self.r3bcasts,
+                    r4bcasts: self.r4bcasts,
+                    delta_inv: self.delta_inv,
+                    R: self.R,
+                    r5bcasts: bcasts_in,
+                    r5p2ps: p2ps_in,
+
+                    #[cfg(feature = "malicious")]
+                    behaviour: self.behaviour,
+                }),
+                bcast_out,
+            }));
         }
 
         // check for failure of type 5 from section 4.2 of https://eprint.iacr.org/2020/540.pdf
@@ -177,7 +216,7 @@ impl bcast_and_p2p::Executer for R6 {
 
             let mta_plaintexts = mta_plaintexts.unwrap_all()?;
 
-            let bcast_out = serialize(&Bcast::Sad(BcastSad {
+            let bcast_out = serialize(&Bcast::SadType5(BcastSadType5 {
                 k_i: self.k_i.into(),
                 k_i_randomness: self.k_i_randomness.clone(),
                 gamma_i: self.gamma_i.into(),
@@ -186,7 +225,7 @@ impl bcast_and_p2p::Executer for R6 {
 
             // TODO: Move to sad path
             return Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
-                round: Box::new(r7::sad::R7 {
+                round: Box::new(r7::type5::R7 {
                     secret_key_share: self.secret_key_share,
                     msg_to_sign: self.msg_to_sign,
                     peers: self.peers,
@@ -200,8 +239,6 @@ impl bcast_and_p2p::Executer for R6 {
                     sigma_i: self.sigma_i,
                     l_i: self.l_i,
                     T_i: self.T_i,
-                    _beta_secrets: self.beta_secrets,
-                    _nu_secrets: self.nu_secrets,
                     r1bcasts: self.r1bcasts,
                     r2p2ps: self.r2p2ps,
                     r3bcasts: self.r3bcasts,
@@ -242,6 +279,7 @@ impl bcast_and_p2p::Executer for R6 {
                 secret_key_share: self.secret_key_share,
                 msg_to_sign: self.msg_to_sign,
                 peers: self.peers,
+                participants: self.participants,
                 keygen_id: self.keygen_id,
                 gamma_i: self.gamma_i,
                 Gamma_i: self.Gamma_i,
@@ -259,6 +297,7 @@ impl bcast_and_p2p::Executer for R6 {
                 delta_inv: self.delta_inv,
                 R: self.R,
                 r5bcasts: bcasts_in,
+                r5p2ps: p2ps_in,
 
                 #[cfg(feature = "malicious")]
                 behaviour: self.behaviour,

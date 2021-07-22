@@ -61,16 +61,16 @@ fn test_case_list() -> Vec<TestCase> {
             threshold: 3,
             sign_share_count: 4,
         },
-        TestCase {
-            party_share_counts: KeygenPartyShareCounts::from_vec(vec![10, 2, 3]).unwrap(),
-            threshold: 3,
-            sign_share_count: 12,
-        },
-        TestCase {
-            party_share_counts: KeygenPartyShareCounts::from_vec(vec![3, 2, 1]).unwrap(),
-            threshold: 5,
-            sign_share_count: 6,
-        },
+        // TestCase {
+        //     party_share_counts: KeygenPartyShareCounts::from_vec(vec![10, 2, 3]).unwrap(),
+        //     threshold: 3,
+        //     sign_share_count: 12,
+        // },
+        // TestCase {
+        //     party_share_counts: KeygenPartyShareCounts::from_vec(vec![3, 2, 1]).unwrap(),
+        //     threshold: 5,
+        //     sign_share_count: 6,
+        // },
     ]
 }
 

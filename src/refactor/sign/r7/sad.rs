@@ -1,21 +1,22 @@
 use crate::{
     hash::Randomness,
-    mta::{self, Secret},
-    paillier_k256,
+    k256_serde, paillier_k256,
     refactor::{
         collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
         sdk::{
             api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
-            implementer_api::{bcast_only, ProtocolBuilder, ProtocolInfo},
+            implementer_api::{bcast_only, log_fault_info, ProtocolBuilder, ProtocolInfo},
         },
-        sign::{r2, r4},
+        sign::{r4, Participants, SignParticipantIndex},
     },
+    zkp::chaum_pedersen_k256,
 };
 use k256::{ProjectivePoint, Scalar};
-use tracing::{error, warn};
+use serde::{Deserialize, Serialize};
+use tracing::error;
 
-use super::super::{r1, r3, r5, r6, Peers, SignParticipantIndex, SignProtocolBuilder};
+use super::super::{r1, r2, r3, r5, r6, Peers, SignProtocolBuilder};
 
 #[cfg(feature = "malicious")]
 use super::super::malicious::Behaviour;
@@ -25,6 +26,7 @@ pub struct R7 {
     pub secret_key_share: SecretKeyShare,
     pub msg_to_sign: Scalar,
     pub peers: Peers,
+    pub participants: Participants,
     pub keygen_id: TypedUsize<KeygenPartyIndex>,
     pub gamma_i: Scalar,
     pub Gamma_i: ProjectivePoint,
@@ -35,9 +37,6 @@ pub struct R7 {
     pub sigma_i: Scalar,
     pub l_i: Scalar,
     pub T_i: ProjectivePoint,
-    // TODO: Remove these as needed
-    pub(crate) _beta_secrets: HoleVecMap<SignParticipantIndex, Secret>,
-    pub(crate) _nu_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
     pub r2p2ps: P2ps<SignParticipantIndex, r2::P2pHappy>,
     pub r3bcasts: VecMap<SignParticipantIndex, r3::happy::BcastHappy>,
@@ -45,9 +44,41 @@ pub struct R7 {
     pub delta_inv: Scalar,
     pub R: ProjectivePoint,
     pub r5bcasts: VecMap<SignParticipantIndex, r5::Bcast>,
+    pub r5p2ps: P2ps<SignParticipantIndex, r5::P2p>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
+}
+
+// TODO: Should we box the BcastSad enum?
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum Bcast {
+    Happy(BcastHappy),
+    Sad(BcastSad),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(non_snake_case)]
+pub struct BcastHappy {
+    pub s_i: k256_serde::Scalar,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BcastSad {
+    pub k_i: k256_serde::Scalar,
+    pub k_i_randomness: paillier_k256::Randomness,
+    pub proof: chaum_pedersen_k256::Proof,
+    pub mta_wc_plaintexts: HoleVecMap<SignParticipantIndex, MtaWcPlaintext>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MtaWcPlaintext {
+    // mu_plaintext instead of mu
+    // because mu_plaintext may differ from mu
+    // why? because the ciphertext was formed from homomorphic Paillier operations, not just encrypting mu
+    pub mu_plaintext: paillier_k256::Plaintext,
+    pub mu_randomness: paillier_k256::Randomness,
 }
 
 impl bcast_only::Executer for R7 {
@@ -66,161 +97,91 @@ impl bcast_only::Executer for R7 {
 
         let mut faulters = FillVecMap::with_size(participants_count);
 
-        let mut bcasts = FillVecMap::with_size(participants_count);
-
-        // our check for 'type 5` error failed, so any peer broadcasting a success is a faulter
-        for (sign_peer_id, bcast) in bcasts_in.into_iter() {
-            match bcast {
-                r6::Bcast::Sad(bcast) => {
-                    bcasts.set(sign_peer_id, bcast)?;
-                }
-                r6::Bcast::Happy(_) => {
-                    warn!(
-                        "peer {} says: peer {} did not broadcast a 'type 5' failure",
-                        sign_id, sign_peer_id
-                    );
-                    faulters.set(sign_peer_id, ProtocolFault)?;
-                }
-            }
-        }
-
-        if !faulters.is_empty() {
-            return Ok(ProtocolBuilder::Done(Err(faulters)));
-        }
-
-        let bcasts_in = bcasts.unwrap_all()?;
-
-        // verify that each participant's data is consistent with earlier messages:
-        for (sign_peer_id, bcast) in &bcasts_in {
-            let mta_plaintexts = &bcast.mta_plaintexts;
-
-            if mta_plaintexts.len() != self.peers.len() {
-                warn!(
-                    "peer {} says: peer {} did not send all the MtA plaintexts",
-                    sign_id, sign_peer_id
-                );
-                faulters.set(sign_peer_id, ProtocolFault)?;
-                continue;
-            }
-
-            // verify correct computation of delta_i
-            let delta_i = mta_plaintexts.iter().fold(
-                bcast.k_i.unwrap() * bcast.gamma_i.unwrap(),
-                |acc, (_, mta_plaintext)| {
-                    acc + mta_plaintext.alpha_plaintext.to_scalar()
-                        + mta_plaintext.beta_secret.beta.unwrap()
-                },
+        // TODO: What do we do if there is a Type5 fault?
+        // check if there are no complaints
+        if bcasts_in
+            .iter()
+            .all(|(_, bcast)| !matches!(bcast, r6::Bcast::Sad(_)))
+        {
+            error!(
+                "peer {} says: received no R6 complaints from others in R7 failure protocol",
+                sign_id,
             );
 
-            if &delta_i != self.r3bcasts.get(sign_peer_id)?.delta_i.unwrap() {
-                warn!(
-                    "peer {} says: delta_i for peer {} does not match",
-                    sign_id, sign_peer_id
-                );
-                faulters.set(sign_peer_id, ProtocolFault)?;
-                continue;
-            }
+            return Err(TofnFatal);
+        }
 
-            // verify R7 peer data is consistent with earlier messages:
-            // 1. k_i
-            // 2. gamma_i
-            // 3. beta_ij
-            // 4. alpha_ij
-            let keygen_peer_id = *self.peers.get(sign_peer_id)?;
+        let accusations_iter =
+            bcasts_in
+                .into_iter()
+                .filter_map(|(sign_peer_id, bcast)| match bcast {
+                    r6::Bcast::Sad(accusations) => Some((sign_peer_id, accusations)),
+                    _ => None,
+                });
 
-            let peer_ek = &self
-                .secret_key_share
-                .group()
-                .all_shares()
-                .get(keygen_peer_id)?
-                .ek();
+        // verify complaints
+        for (accuser_sign_id, accusations) in accusations_iter {
+            for accused_sign_id in accusations.zkp_complaints.iter() {
+                if accuser_sign_id == accused_sign_id {
+                    log_fault_info(sign_id, accuser_sign_id, "self accusation");
+                    faulters.set(accuser_sign_id, ProtocolFault)?;
+                    continue;
+                }
 
-            // k_i
-            let k_i_ciphertext = peer_ek
-                .encrypt_with_randomness(&(bcast.k_i.unwrap()).into(), &bcast.k_i_randomness);
-            if k_i_ciphertext != self.r1bcasts.get(sign_peer_id)?.k_i_ciphertext {
-                warn!(
-                    "peer {} says: invalid k_i detected from peer {}",
-                    sign_id, sign_peer_id
-                );
-                faulters.set(sign_peer_id, ProtocolFault)?;
-                continue;
-            }
+                let accused_keygen_id = *self.participants.get(accused_sign_id)?;
+                let accuser_keygen_id = *self.participants.get(accuser_sign_id)?;
 
-            // gamma_i
-            let Gamma_i = ProjectivePoint::generator() * bcast.gamma_i.unwrap();
-            if &Gamma_i != self.r4bcasts.get(sign_peer_id)?.Gamma_i.unwrap() {
-                warn!(
-                    "peer {} says: invalid Gamma_i detected from peer {}",
-                    sign_id, sign_peer_id
-                );
-                faulters.set(sign_peer_id, ProtocolFault)?;
-                continue;
-            }
-
-            // beta_ij, alpha_ij
-            for (sign_party_id, mta_plaintext) in mta_plaintexts {
-                // TODO: Since self.peers doesn't include the current party, we need the following lookup safeguard
-                let keygen_party_id = if sign_party_id == sign_id {
-                    self.keygen_id
-                } else {
-                    *self.peers.get(sign_party_id)?
-                };
-
-                // beta_ij
-                let party_ek = &self
+                // check r5 range proof wc
+                let accused_ek = &self
                     .secret_key_share
                     .group()
                     .all_shares()
-                    .get(keygen_party_id)?
+                    .get(accused_keygen_id)?
                     .ek();
-                let party_k_i_ciphertext = &self.r1bcasts.get(sign_party_id)?.k_i_ciphertext;
-                let party_alpha_ciphertext = &self
-                    .r2p2ps
-                    .get(sign_peer_id, sign_party_id)?
-                    .alpha_ciphertext;
+                let accused_k_i_ciphertext = &self.r1bcasts.get(accused_sign_id)?.k_i_ciphertext;
+                let accused_R_i = self.r5bcasts.get(accused_sign_id)?.R_i.unwrap();
 
-                if !mta::verify_mta_response(
-                    party_ek,
-                    party_k_i_ciphertext,
-                    bcast.gamma_i.unwrap(),
-                    party_alpha_ciphertext,
-                    &mta_plaintext.beta_secret,
-                ) {
-                    // TODO: Who's responsible for the failure here?
-                    warn!(
-                        "peer {} says: invalid beta from peer {} to victim peer {}",
-                        sign_id, sign_peer_id, sign_party_id
-                    );
-                    faulters.set(sign_peer_id, ProtocolFault)?;
-                    continue;
-                }
+                let accused_stmt = &paillier_k256::zk::range::StatementWc {
+                    stmt: paillier_k256::zk::range::Statement {
+                        ciphertext: accused_k_i_ciphertext,
+                        ek: accused_ek,
+                    },
+                    msg_g: accused_R_i,
+                    g: &self.R,
+                };
 
-                // alpha_ij
-                let peer_alpha_ciphertext = peer_ek.encrypt_with_randomness(
-                    &mta_plaintext.alpha_plaintext,
-                    &mta_plaintext.alpha_randomness,
-                );
-                if peer_alpha_ciphertext
-                    != self
-                        .r2p2ps
-                        .get(sign_party_id, sign_peer_id)?
-                        .alpha_ciphertext
-                {
-                    // TODO: Who's responsible for the failure here?
-                    warn!(
-                        "peer {} says: invalid alpha from peer {} to victim peer {}",
-                        sign_id, sign_peer_id, sign_party_id
-                    );
-                    faulters.set(sign_peer_id, ProtocolFault)?;
-                    continue;
-                }
+                let accused_proof = &self
+                    .r5p2ps
+                    .get(accused_sign_id, accuser_sign_id)?
+                    .k_i_range_proof_wc;
+
+                let accuser_zkp = &self
+                    .secret_key_share
+                    .group()
+                    .all_shares()
+                    .get(accuser_keygen_id)?
+                    .zkp();
+
+                match accuser_zkp.verify_range_proof_wc(accused_stmt, accused_proof) {
+                    Ok(_) => {
+                        log_fault_info(sign_id, accuser_sign_id, "false R5 p2p accusation");
+                        faulters.set(accuser_sign_id, ProtocolFault)?;
+                    }
+                    Err(err) => {
+                        log_fault_info(
+                            sign_id,
+                            accused_sign_id,
+                            &format!("invalid r5 p2p range proof wc because '{}'", err),
+                        );
+                        faulters.set(accused_sign_id, ProtocolFault)?;
+                    }
+                };
             }
         }
 
         if faulters.is_empty() {
             error!(
-                "peer {} says: No faulters found in 'type 5' failure protocol",
+                "peer {} says: R7 failure protocol found no faulters",
                 sign_id
             );
             return Err(TofnFatal);

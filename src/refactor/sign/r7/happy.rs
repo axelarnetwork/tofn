@@ -8,7 +8,7 @@ use crate::{
             api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
             implementer_api::{bcast_only, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder},
         },
-        sign::{r4, SignParticipantIndex},
+        sign::{r4, r7, Participants, SignParticipantIndex},
     },
     zkp::{chaum_pedersen_k256, pedersen_k256},
 };
@@ -27,6 +27,7 @@ pub struct R7 {
     pub secret_key_share: SecretKeyShare,
     pub msg_to_sign: Scalar,
     pub peers: Peers,
+    pub participants: Participants,
     pub keygen_id: TypedUsize<KeygenPartyIndex>,
     pub gamma_i: Scalar,
     pub Gamma_i: ProjectivePoint,
@@ -44,6 +45,7 @@ pub struct R7 {
     pub delta_inv: Scalar,
     pub R: ProjectivePoint,
     pub r5bcasts: VecMap<SignParticipantIndex, r5::Bcast>,
+    pub r5p2ps: P2ps<SignParticipantIndex, r5::P2p>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
@@ -94,6 +96,47 @@ impl bcast_only::Executer for R7 {
         let sign_id = info.share_id();
         let participants_count = info.share_count();
 
+        // check for complaints
+        if bcasts_in
+            .iter()
+            .any(|(_, bcast)| matches!(bcast, r6::Bcast::Sad(_)))
+        {
+            // TODO: do we prioritize sad or type 5 path?
+            warn!(
+                "peer {} says: received an R6 complaint from others",
+                sign_id,
+            );
+
+            return Box::new(r7::sad::R7 {
+                secret_key_share: self.secret_key_share,
+                msg_to_sign: self.msg_to_sign,
+                peers: self.peers,
+                participants: self.participants,
+                keygen_id: self.keygen_id,
+                gamma_i: self.gamma_i,
+                Gamma_i: self.Gamma_i,
+                Gamma_i_reveal: self.Gamma_i_reveal,
+                w_i: self.w_i,
+                k_i: self.k_i,
+                k_i_randomness: self.k_i_randomness,
+                sigma_i: self.sigma_i,
+                l_i: self.l_i,
+                T_i: self.T_i,
+                r1bcasts: self.r1bcasts,
+                r2p2ps: self.r2p2ps,
+                r3bcasts: self.r3bcasts,
+                r4bcasts: self.r4bcasts,
+                delta_inv: self.delta_inv,
+                R: self.R,
+                r5bcasts: self.r5bcasts,
+                r5p2ps: self.r5p2ps,
+
+                #[cfg(feature = "malicious")]
+                behaviour: self.behaviour,
+            })
+            .execute(info, bcasts_in);
+        }
+
         let mut faulters = FillVecMap::with_size(participants_count);
 
         let mut bcasts = FillVecMap::with_size(participants_count);
@@ -104,7 +147,8 @@ impl bcast_only::Executer for R7 {
                 r6::Bcast::Happy(bcast) => {
                     bcasts.set(sign_peer_id, bcast)?;
                 }
-                r6::Bcast::Sad(_) => {
+                r6::Bcast::Sad(_) => unreachable!(),
+                r6::Bcast::SadType5(_) => {
                     warn!(
                         "peer {} says: peer {} broadcasted a 'type 5' failure",
                         sign_id, sign_peer_id

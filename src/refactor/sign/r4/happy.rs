@@ -40,7 +40,6 @@ pub struct R4 {
     pub l_i: Scalar,
     pub(crate) _delta_i: Scalar, // TODO: This is only needed for tests
     pub(crate) beta_secrets: HoleVecMap<SignParticipantIndex, Secret>,
-    pub(crate) nu_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
     pub r2p2ps: P2ps<SignParticipantIndex, r2::P2pHappy>,
 
@@ -153,6 +152,7 @@ impl bcast_only::Executer for R4 {
                 secret_key_share: self.secret_key_share,
                 msg_to_sign: self.msg_to_sign,
                 peers: self.peers,
+                participants: self.participants,
                 keygen_id: self.keygen_id,
                 gamma_i: self.gamma_i,
                 Gamma_i: self.Gamma_i,
@@ -164,7 +164,6 @@ impl bcast_only::Executer for R4 {
                 l_i: self.l_i,
                 T_i,
                 beta_secrets: self.beta_secrets,
-                nu_secrets: self.nu_secrets,
                 r1bcasts: self.r1bcasts,
                 r2p2ps: self.r2p2ps,
                 r3bcasts: bcasts_in,

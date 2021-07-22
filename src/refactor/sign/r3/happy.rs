@@ -306,7 +306,6 @@ impl bcast_and_p2p::Executer for R3 {
                 sigma_i,
                 l_i,
                 beta_secrets: self.beta_secrets,
-                nu_secrets: self.nu_secrets,
                 r1bcasts: self.r1bcasts,
                 _delta_i: delta_i,
                 r2p2ps: p2ps_in,
