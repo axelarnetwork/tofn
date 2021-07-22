@@ -10,6 +10,7 @@ use crate::{
             api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
             implementer_api::{bcast_only, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder},
         },
+        sign::{r4, Participants},
     },
     zkp::pedersen_k256,
 };
@@ -27,6 +28,7 @@ pub struct R4 {
     pub secret_key_share: SecretKeyShare,
     pub msg_to_sign: Scalar,
     pub peers: Peers,
+    pub participants: Participants,
     pub keygen_id: TypedUsize<KeygenPartyIndex>,
     pub gamma_i: Scalar,
     pub Gamma_i: ProjectivePoint,
@@ -68,6 +70,43 @@ impl bcast_only::Executer for R4 {
         let participants_count = info.share_count();
 
         let mut faulters = FillVecMap::with_size(participants_count);
+
+        // check for complaints
+        if bcasts_in
+            .iter()
+            .any(|(_, bcast)| matches!(bcast, r3::happy::Bcast::Sad(_)))
+        {
+            // TODO: Should we check if this peer's P2p's are all Sad?
+            warn!(
+                "peer {} says: received an R3 complaint from others",
+                sign_id,
+            );
+
+            return Box::new(r4::sad::R4 {
+                secret_key_share: self.secret_key_share,
+                msg_to_sign: self.msg_to_sign,
+                peers: self.peers,
+                participants: self.participants,
+                keygen_id: self.keygen_id,
+                gamma_i: self.gamma_i,
+                Gamma_i: self.Gamma_i,
+                Gamma_i_reveal: self.Gamma_i_reveal,
+                w_i: self.w_i,
+                k_i: self.k_i,
+                k_i_randomness: self.k_i_randomness,
+                r1bcasts: self.r1bcasts,
+                r2p2ps: self.r2p2ps,
+
+                #[cfg(feature = "malicious")]
+                behaviour: self.behaviour,
+            })
+            .execute(info, bcasts_in);
+        }
+
+        let bcasts_in = bcasts_in.map2_result(|(_, bcast)| match bcast {
+            r3::happy::Bcast::Happy(b) => Ok(b),
+            r3::happy::Bcast::Sad(_) => Err(TofnFatal),
+        })?;
 
         for (sign_peer_id, bcast) in &bcasts_in {
             let peer_stmt = pedersen_k256::Statement {

@@ -40,7 +40,7 @@ pub struct R7 {
     pub(crate) _nu_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
     pub r2p2ps: P2ps<SignParticipantIndex, r2::P2pHappy>,
-    pub r3bcasts: VecMap<SignParticipantIndex, r3::happy::Bcast>,
+    pub r3bcasts: VecMap<SignParticipantIndex, r3::happy::BcastHappy>,
     pub r4bcasts: VecMap<SignParticipantIndex, r4::happy::Bcast>,
     pub delta_inv: Scalar,
     pub R: ProjectivePoint,

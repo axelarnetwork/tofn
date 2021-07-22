@@ -61,7 +61,9 @@ impl<K, V> P2ps<K, V> {
     where
         F: FnMut((TypedUsize<K>, V)) -> TofnResult<W> + Clone,
     {
-        Ok(P2ps::<K, W>(self.0.map2_result(|(_, v)| v.map2_result(f.clone()))?))
+        Ok(P2ps::<K, W>(
+            self.0.map2_result(|(_, v)| v.map2_result(f.clone()))?,
+        ))
     }
 }
 

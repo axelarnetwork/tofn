@@ -16,7 +16,7 @@ use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::{Participants, Peers, SignParticipantIndex, SignProtocolBuilder, r1, r3};
+use super::{r1, r3, Participants, Peers, SignParticipantIndex, SignProtocolBuilder};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -122,16 +122,12 @@ impl bcast_and_p2p::Executer for R2 {
         }
 
         if !zkp_complaints.is_empty() {
-            let bcast_out = serialize(&Bcast::Sad(BcastSad {
-                zkp_complaints,
-            }))?;
+            let bcast_out = serialize(&Bcast::Sad(BcastSad { zkp_complaints }))?;
 
             // TODO: Since R3 expects P2ps in the happy path but Bcast in the sad path
-            // we always send bcasts and p2ps to R3, using empty P2ps and Bcasts in 
+            // we always send bcasts and p2ps to R3, using empty P2ps and Bcasts in
             // the respective path. This adds some network overhead, so investigate a better approach.
-            let p2ps_out = self.peers.map_ref(|_| {
-                serialize(&P2p::Sad)
-            })?;
+            let p2ps_out = self.peers.map_ref(|_| serialize(&P2p::Sad))?;
 
             return Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastAndP2p {
                 round: Box::new(r3::sad::R3 {
@@ -154,7 +150,7 @@ impl bcast_and_p2p::Executer for R2 {
                 }),
                 bcast_out,
                 p2ps_out,
-            }))
+            }));
         }
 
         let mut p2ps_out = FillHoleVecMap::with_size(participants_count, sign_id)?;

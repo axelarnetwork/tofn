@@ -18,7 +18,7 @@ use ecdsa::elliptic_curve::Field;
 use k256::Scalar;
 use serde::{Deserialize, Serialize};
 
-use super::{Participants, Peers, SignParticipantIndex, SignProtocolBuilder, r2};
+use super::{r2, Participants, Peers, SignParticipantIndex, SignProtocolBuilder};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;

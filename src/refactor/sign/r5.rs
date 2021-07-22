@@ -40,7 +40,7 @@ pub struct R5 {
     pub(crate) nu_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
     pub r2p2ps: P2ps<SignParticipantIndex, r2::P2pHappy>,
-    pub r3bcasts: VecMap<SignParticipantIndex, r3::happy::Bcast>,
+    pub r3bcasts: VecMap<SignParticipantIndex, r3::happy::BcastHappy>,
     pub delta_inv: Scalar,
 
     #[cfg(feature = "malicious")]

@@ -48,7 +48,6 @@ impl From<&MessageDigest> for k256::Scalar {
     }
 }
 
-
 /// Initialize a new sign protocol
 /// Assume `group`, `share` are valid and check `sign_parties` against it.
 pub fn new_sign(

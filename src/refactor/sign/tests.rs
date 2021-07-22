@@ -10,9 +10,7 @@ use crate::{
     },
     refactor::{
         collections::{FillVecMap, HoleVecMap, TypedUsize, VecMap},
-        keygen::{
-            tests::execute_keygen, KeygenPartyIndex, KeygenPartyShareCounts,
-        },
+        keygen::{tests::execute_keygen, KeygenPartyIndex, KeygenPartyShareCounts},
         sdk::api::{Fault, Round},
     },
 };

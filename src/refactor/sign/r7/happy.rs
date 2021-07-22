@@ -1,7 +1,17 @@
-use crate::{hash::Randomness, k256_serde, mta::Secret, paillier_k256, refactor::{collections::{FillHoleVecMap, FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap}, keygen::{KeygenPartyIndex, SecretKeyShare}, sdk::{
+use crate::{
+    hash::Randomness,
+    k256_serde, paillier_k256,
+    refactor::{
+        collections::{FillHoleVecMap, FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
+        keygen::{KeygenPartyIndex, SecretKeyShare},
+        sdk::{
             api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
             implementer_api::{bcast_only, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder},
-        }, sign::{r4, SignParticipantIndex}}, zkp::{chaum_pedersen_k256, pedersen_k256}};
+        },
+        sign::{r4, SignParticipantIndex},
+    },
+    zkp::{chaum_pedersen_k256, pedersen_k256},
+};
 use ecdsa::elliptic_curve::sec1::ToEncodedPoint;
 use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
@@ -27,12 +37,9 @@ pub struct R7 {
     pub sigma_i: Scalar,
     pub l_i: Scalar,
     pub T_i: ProjectivePoint,
-    // TODO: Remove these as needed
-    pub(crate) beta_secrets: HoleVecMap<SignParticipantIndex, Secret>,
-    pub(crate) nu_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
     pub r2p2ps: P2ps<SignParticipantIndex, r2::P2pHappy>,
-    pub r3bcasts: VecMap<SignParticipantIndex, r3::happy::Bcast>,
+    pub r3bcasts: VecMap<SignParticipantIndex, r3::happy::BcastHappy>,
     pub r4bcasts: VecMap<SignParticipantIndex, r4::happy::Bcast>,
     pub delta_inv: Scalar,
     pub R: ProjectivePoint,
@@ -42,6 +49,8 @@ pub struct R7 {
     pub behaviour: Behaviour,
 }
 
+// TODO: Should we box the BcastSad enum?
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Bcast {
     Happy(BcastHappy),

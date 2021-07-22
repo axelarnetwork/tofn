@@ -9,7 +9,7 @@ use crate::{
         collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
         sdk::{
-            api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
+            api::{BytesVec, TofnFatal, TofnResult},
             implementer_api::{
                 bcast_and_p2p, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder,
             },
@@ -49,12 +49,29 @@ pub struct R3 {
     pub behaviour: Behaviour,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum Bcast {
+    Happy(BcastHappy),
+    Sad(BcastSad),
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(non_snake_case)]
-pub struct Bcast {
+pub struct BcastHappy {
     pub delta_i: k256_serde::Scalar,
     pub T_i: k256_serde::ProjectivePoint,
     pub T_i_proof: pedersen_k256::Proof,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BcastSad {
+    pub mta_complaints: FillVecMap<SignParticipantIndex, Accusation>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum Accusation {
+    MtA,
+    MtAwc,
 }
 
 impl bcast_and_p2p::Executer for R3 {
@@ -111,16 +128,16 @@ impl bcast_and_p2p::Executer for R3 {
             r2::P2p::Sad => Err(TofnFatal),
         })?;
 
-        let mut faulters = FillVecMap::with_size(participants_count);
+        let mut mta_complaints = FillVecMap::with_size(participants_count);
 
-        let zkp = &self
+        let zkp = self
             .secret_key_share
             .group()
             .all_shares()
             .get(self.keygen_id)?
             .zkp();
 
-        let ek = &self
+        let ek = self
             .secret_key_share
             .group()
             .all_shares()
@@ -143,7 +160,7 @@ impl bcast_and_p2p::Executer for R3 {
                     sign_id, sign_peer_id, err
                 );
 
-                faulters.set(sign_peer_id, ProtocolFault)?;
+                mta_complaints.set(sign_peer_id, Accusation::MtA)?;
 
                 continue;
             }
@@ -182,14 +199,36 @@ impl bcast_and_p2p::Executer for R3 {
                     sign_id, sign_peer_id, err
                 );
 
-                faulters.set(sign_peer_id, ProtocolFault)?;
+                mta_complaints.set(sign_peer_id, Accusation::MtAwc)?;
 
                 continue;
             }
         }
 
-        if !faulters.is_empty() {
-            return Ok(ProtocolBuilder::Done(Err(faulters)));
+        if !mta_complaints.is_empty() {
+            let bcast_out = serialize(&Bcast::Sad(BcastSad { mta_complaints }))?;
+
+            return Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
+                round: Box::new(r4::sad::R4 {
+                    secret_key_share: self.secret_key_share,
+                    msg_to_sign: self.msg_to_sign,
+                    peers: self.peers,
+                    participants: self.participants,
+                    keygen_id: self.keygen_id,
+                    gamma_i: self.gamma_i,
+                    Gamma_i: self.Gamma_i,
+                    Gamma_i_reveal: self.Gamma_i_reveal,
+                    w_i: self.w_i,
+                    k_i: self.k_i,
+                    k_i_randomness: self.k_i_randomness,
+                    r1bcasts: self.r1bcasts,
+                    r2p2ps: p2ps_in,
+
+                    #[cfg(feature = "malicious")]
+                    behaviour: self.behaviour,
+                }),
+                bcast_out,
+            }));
         }
 
         let alphas = self.peers.map_ref(|(sign_peer_id, _)| {
@@ -245,17 +284,18 @@ impl bcast_and_p2p::Executer for R3 {
             },
         );
 
-        let bcast_out = serialize(&Bcast {
+        let bcast_out = serialize(&Bcast::Happy(BcastHappy {
             delta_i: k256_serde::Scalar::from(delta_i),
             T_i: k256_serde::ProjectivePoint::from(T_i),
             T_i_proof,
-        })?;
+        }))?;
 
         Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
             round: Box::new(r4::happy::R4 {
                 secret_key_share: self.secret_key_share,
                 msg_to_sign: self.msg_to_sign,
                 peers: self.peers,
+                participants: self.participants,
                 keygen_id: self.keygen_id,
                 gamma_i: self.gamma_i,
                 Gamma_i: self.Gamma_i,

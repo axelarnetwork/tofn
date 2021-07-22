@@ -25,14 +25,14 @@ struct TestCase {
 
 fn test_case_list() -> Vec<TestCase> {
     vec![
-    TestCase {
-        party_share_counts: KeygenPartyShareCounts::from_vec(vec![2, 0, 2]).unwrap(),
-        threshold: 3,
-    },
-    TestCase {
-        party_share_counts: KeygenPartyShareCounts::from_vec(vec![10, 2, 3]).unwrap(),
-        threshold: 3,
-    },
+        TestCase {
+            party_share_counts: KeygenPartyShareCounts::from_vec(vec![2, 0, 2]).unwrap(),
+            threshold: 3,
+        },
+        TestCase {
+            party_share_counts: KeygenPartyShareCounts::from_vec(vec![10, 2, 3]).unwrap(),
+            threshold: 3,
+        },
     ]
 }
 
