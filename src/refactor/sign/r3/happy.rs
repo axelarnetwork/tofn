@@ -270,6 +270,8 @@ impl bcast_and_p2p::Executer for R3 {
             },
         );
 
+        corrupt!(delta_i, self.corrupt_delta_i(info.share_id(), delta_i));
+
         // compute sigma_i = k_i * w_i + sum_{j != i} mu_ij + nu_ji
         let sigma_i = mus.into_iter().zip(self.nu_secrets.iter()).fold(
             self.k_i * self.w_i,
@@ -384,6 +386,18 @@ mod malicious {
                 return pedersen_k256::malicious::corrupt_proof(&T_i_proof);
             }
             T_i_proof
+        }
+
+        pub fn corrupt_delta_i(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            mut delta_i: k256::Scalar,
+        ) -> k256::Scalar {
+            if let R3BadDeltaI = self.behaviour {
+                log_confess_info(me, &self.behaviour, "");
+                delta_i += k256::Scalar::one();
+            }
+            delta_i
         }
 
         pub fn corrupt_sigma(
