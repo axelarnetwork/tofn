@@ -1,4 +1,4 @@
-use super::{KeygenPartyIndex, KeygenPartyShareCounts, SecretRecoveryKey};
+use super::{KeygenPartyIndex, KeygenPartyShareCounts, RealKeygenPartyIndex, SecretRecoveryKey};
 use crate::{
     k256_serde, paillier_k256,
     protocol::gg20::vss_k256,
@@ -159,12 +159,12 @@ impl SecretKeyShare {
     }
 
     /// Recover a `SecretKeyShare`
-    /// TODO more complete arg checking? eg. unique eks, etc
     pub fn recover(
         secret_recovery_key: &SecretRecoveryKey,
         session_nonce: &[u8],
         recovery_infos: &[KeyShareRecoveryInfo],
-        index: TypedUsize<KeygenPartyIndex>,
+        party_id: TypedUsize<RealKeygenPartyIndex>,
+        subshare_id: usize, // in 0..party_share_counts[party_id]
         party_share_counts: KeygenPartyShareCounts,
         threshold: usize,
     ) -> TofnResult<Self> {
@@ -174,10 +174,11 @@ impl SecretKeyShare {
             return Err(TofnFatal);
         }
         let share_count = recovery_infos.len();
-        if threshold >= share_count || index.as_usize() >= share_count {
+        let share_id = party_share_counts.party_to_share_id(party_id, subshare_id)?;
+        if threshold >= share_count || share_id.as_usize() >= share_count {
             error!(
                 "invalid (share_count,threshold,index): ({},{},{})",
-                share_count, threshold, index
+                share_count, threshold, share_id
             );
             return Err(TofnFatal);
         }
@@ -209,14 +210,14 @@ impl SecretKeyShare {
         )));
 
         // verify recovery of the correct Paillier keys
-        if ek != recovery_infos_sorted[index.as_usize()].share.ek {
-            error!("recovered ek mismatch for index {}", index);
+        if ek != recovery_infos_sorted[share_id.as_usize()].share.ek {
+            error!("recovered ek mismatch for index {}", share_id);
             return Err(TofnFatal);
         }
 
         // prepare output
         let x_i = dk
-            .decrypt(&recovery_infos_sorted[index.as_usize()].x_i_ciphertext)
+            .decrypt(&recovery_infos_sorted[share_id.as_usize()].x_i_ciphertext)
             .to_scalar()
             .into();
         let y = vss_k256::recover_secret_commit(
@@ -245,7 +246,11 @@ impl SecretKeyShare {
                 y,
                 all_shares,
             },
-            share: ShareSecretInfo { index, dk, x_i },
+            share: ShareSecretInfo {
+                index: share_id,
+                dk,
+                x_i,
+            },
         })
     }
 

@@ -318,14 +318,15 @@ fn share_recovery() {
         .iter()
         .map(|(party_id, &secret_recovery_key)| {
             (0..party_share_counts.party_share_count(party_id).unwrap()).map(move |subshare_id| {
-                let share_id = party_share_counts
-                    .party_to_share_id(party_id, subshare_id)
-                    .unwrap();
+                // let share_id = party_share_counts
+                //     .party_to_share_id(party_id, subshare_id)
+                //     .unwrap();
                 SecretKeyShare::recover(
                     &secret_recovery_key,
                     session_nonce,
                     &recovery_infos,
-                    share_id,
+                    party_id,
+                    subshare_id,
                     party_share_counts.clone(),
                     threshold,
                 )
