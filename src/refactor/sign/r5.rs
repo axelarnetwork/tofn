@@ -16,7 +16,7 @@ use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::{r1, r2, r3, r4, r6, Peers, SignParticipantIndex, SignProtocolBuilder};
+use super::{r1, r2, r3, r4, r6, Participants, Peers, SignParticipantIndex, SignProtocolBuilder};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -26,6 +26,7 @@ pub struct R5 {
     pub secret_key_share: SecretKeyShare,
     pub msg_to_sign: Scalar,
     pub peers: Peers,
+    pub participants: Participants,
     pub keygen_id: TypedUsize<KeygenPartyIndex>,
     pub gamma_i: Scalar,
     pub Gamma_i: ProjectivePoint,
@@ -37,10 +38,9 @@ pub struct R5 {
     pub l_i: Scalar,
     pub T_i: ProjectivePoint,
     pub(crate) beta_secrets: HoleVecMap<SignParticipantIndex, Secret>,
-    pub(crate) nu_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
-    pub r2p2ps: P2ps<SignParticipantIndex, r2::P2p>,
-    pub r3bcasts: VecMap<SignParticipantIndex, r3::Bcast>,
+    pub r2p2ps: P2ps<SignParticipantIndex, r2::P2pHappy>,
+    pub r3bcasts: VecMap<SignParticipantIndex, r3::happy::BcastHappy>,
     pub delta_inv: Scalar,
 
     #[cfg(feature = "malicious")]
@@ -61,7 +61,7 @@ pub struct P2p {
 impl bcast_only::Executer for R5 {
     type FinalOutput = BytesVec;
     type Index = SignParticipantIndex;
-    type Bcast = r4::Bcast;
+    type Bcast = r4::happy::Bcast;
 
     #[allow(non_snake_case)]
     fn execute(
@@ -144,6 +144,7 @@ impl bcast_only::Executer for R5 {
                 secret_key_share: self.secret_key_share,
                 msg_to_sign: self.msg_to_sign,
                 peers: self.peers,
+                participants: self.participants,
                 keygen_id: self.keygen_id,
                 gamma_i: self.gamma_i,
                 Gamma_i: self.Gamma_i,
@@ -155,7 +156,6 @@ impl bcast_only::Executer for R5 {
                 l_i: self.l_i,
                 T_i: self.T_i,
                 beta_secrets: self.beta_secrets,
-                nu_secrets: self.nu_secrets,
                 r1bcasts: self.r1bcasts,
                 r2p2ps: self.r2p2ps,
                 r3bcasts: self.r3bcasts,

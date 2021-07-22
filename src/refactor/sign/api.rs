@@ -23,7 +23,7 @@ use super::malicious;
 
 pub type SignProtocol = Protocol<BytesVec, SignParticipantIndex, RealSignParticipantIndex>;
 pub type SignProtocolBuilder = ProtocolBuilder<BytesVec, SignParticipantIndex>;
-pub type ParticipantsList = VecMap<SignParticipantIndex, TypedUsize<KeygenPartyIndex>>;
+pub type Participants = VecMap<SignParticipantIndex, TypedUsize<KeygenPartyIndex>>;
 pub type SignParties = Subset<RealKeygenPartyIndex>;
 pub type Peers = HoleVecMap<SignParticipantIndex, TypedUsize<KeygenPartyIndex>>;
 
@@ -82,7 +82,7 @@ pub fn new_sign(
     let sign_party_share_counts =
         PartyShareCounts::from_vec(group.party_share_counts().subset(sign_parties)?)?;
 
-    let (peers, keygen_id) = participants.puncture_hole(index)?;
+    let (peers, keygen_id) = participants.clone().puncture_hole(index)?;
 
     new_protocol(
         sign_party_share_counts,
@@ -91,6 +91,7 @@ pub fn new_sign(
             secret_key_share: SecretKeyShare::new(group.clone(), share.clone()),
             msg_to_sign: msg_to_sign.into(),
             peers,
+            participants,
             keygen_id,
             #[cfg(feature = "malicious")]
             behaviour,

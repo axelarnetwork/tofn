@@ -1,28 +1,26 @@
 use crate::{
     hash::Randomness,
-    k256_serde, paillier_k256,
+    paillier_k256,
     refactor::{
-        collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
+        collections::{FillVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
         sdk::{
             api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
-            implementer_api::{bcast_only, log_fault_info, ProtocolBuilder, ProtocolInfo},
+            implementer_api::{bcast_and_p2p, log_fault_info, ProtocolBuilder, ProtocolInfo},
         },
-        sign::{r4, Participants, SignParticipantIndex},
+        sign::Participants,
     },
-    zkp::chaum_pedersen_k256,
 };
 use k256::{ProjectivePoint, Scalar};
-use serde::{Deserialize, Serialize};
 use tracing::error;
 
-use super::super::{r1, r2, r3, r5, r6, Peers, SignProtocolBuilder};
+use super::super::{r1, r2, Peers, SignParticipantIndex, SignProtocolBuilder};
 
 #[cfg(feature = "malicious")]
 use super::super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
-pub struct R7 {
+pub struct R3 {
     pub secret_key_share: SecretKeyShare,
     pub msg_to_sign: Scalar,
     pub peers: Peers,
@@ -34,89 +32,52 @@ pub struct R7 {
     pub w_i: Scalar,
     pub k_i: Scalar,
     pub k_i_randomness: paillier_k256::Randomness,
-    pub sigma_i: Scalar,
-    pub l_i: Scalar,
-    pub T_i: ProjectivePoint,
     pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
-    pub r2p2ps: P2ps<SignParticipantIndex, r2::P2pHappy>,
-    pub r3bcasts: VecMap<SignParticipantIndex, r3::happy::BcastHappy>,
-    pub r4bcasts: VecMap<SignParticipantIndex, r4::happy::Bcast>,
-    pub delta_inv: Scalar,
-    pub R: ProjectivePoint,
-    pub r5bcasts: VecMap<SignParticipantIndex, r5::Bcast>,
-    pub r5p2ps: P2ps<SignParticipantIndex, r5::P2p>,
+    pub r1p2ps: P2ps<SignParticipantIndex, r1::P2p>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
 }
 
-// TODO: Should we box the BcastSad enum?
-#[allow(clippy::large_enum_variant)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum Bcast {
-    Happy(BcastHappy),
-    Sad(BcastSad),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(non_snake_case)]
-pub struct BcastHappy {
-    pub s_i: k256_serde::Scalar,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BcastSad {
-    pub k_i: k256_serde::Scalar,
-    pub k_i_randomness: paillier_k256::Randomness,
-    pub proof: chaum_pedersen_k256::Proof,
-    pub mta_wc_plaintexts: HoleVecMap<SignParticipantIndex, MtaWcPlaintext>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MtaWcPlaintext {
-    // mu_plaintext instead of mu
-    // because mu_plaintext may differ from mu
-    // why? because the ciphertext was formed from homomorphic Paillier operations, not just encrypting mu
-    pub mu_plaintext: paillier_k256::Plaintext,
-    pub mu_randomness: paillier_k256::Randomness,
-}
-
-impl bcast_only::Executer for R7 {
+impl bcast_and_p2p::Executer for R3 {
     type FinalOutput = BytesVec;
     type Index = SignParticipantIndex;
-    type Bcast = r6::Bcast;
+    type Bcast = r2::Bcast;
+    type P2p = r2::P2p;
 
     #[allow(non_snake_case)]
     fn execute(
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
+        _p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<SignProtocolBuilder> {
         let sign_id = info.share_id();
         let participants_count = info.share_count();
 
         let mut faulters = FillVecMap::with_size(participants_count);
 
-        // TODO: What do we do if there is a Type5 fault?
         // check if there are no complaints
         if bcasts_in
             .iter()
-            .all(|(_, bcast)| !matches!(bcast, r6::Bcast::Sad(_)))
+            .all(|(_, bcast)| matches!(bcast, r2::Bcast::Happy))
         {
             error!(
-                "peer {} says: received no R6 complaints from others in R7 failure protocol",
+                "peer {} says: received no R2 complaints from others in R3 failure protocol",
                 sign_id,
             );
 
             return Err(TofnFatal);
         }
 
+        // TODO: do we check that P2ps are also Sad?
+
         let accusations_iter =
             bcasts_in
                 .into_iter()
                 .filter_map(|(sign_peer_id, bcast)| match bcast {
-                    r6::Bcast::Sad(accusations) => Some((sign_peer_id, accusations)),
-                    _ => None,
+                    r2::Bcast::Happy => None,
+                    r2::Bcast::Sad(accusations) => Some((sign_peer_id, accusations)),
                 });
 
         // verify complaints
@@ -131,7 +92,7 @@ impl bcast_only::Executer for R7 {
                 let accused_keygen_id = *self.participants.get(accused_sign_id)?;
                 let accuser_keygen_id = *self.participants.get(accuser_sign_id)?;
 
-                // check r5 range proof wc
+                // check r1 range proof
                 let accused_ek = &self
                     .secret_key_share
                     .group()
@@ -139,21 +100,16 @@ impl bcast_only::Executer for R7 {
                     .get(accused_keygen_id)?
                     .ek();
                 let accused_k_i_ciphertext = &self.r1bcasts.get(accused_sign_id)?.k_i_ciphertext;
-                let accused_R_i = self.r5bcasts.get(accused_sign_id)?.R_i.unwrap();
 
-                let accused_stmt = &paillier_k256::zk::range::StatementWc {
-                    stmt: paillier_k256::zk::range::Statement {
-                        ciphertext: accused_k_i_ciphertext,
-                        ek: accused_ek,
-                    },
-                    msg_g: accused_R_i,
-                    g: &self.R,
+                let accused_stmt = &paillier_k256::zk::range::Statement {
+                    ciphertext: accused_k_i_ciphertext,
+                    ek: accused_ek,
                 };
 
                 let accused_proof = &self
-                    .r5p2ps
+                    .r1p2ps
                     .get(accused_sign_id, accuser_sign_id)?
-                    .k_i_range_proof_wc;
+                    .range_proof;
 
                 let accuser_zkp = &self
                     .secret_key_share
@@ -162,16 +118,16 @@ impl bcast_only::Executer for R7 {
                     .get(accuser_keygen_id)?
                     .zkp();
 
-                match accuser_zkp.verify_range_proof_wc(accused_stmt, accused_proof) {
+                match accuser_zkp.verify_range_proof(accused_stmt, accused_proof) {
                     Ok(_) => {
-                        log_fault_info(sign_id, accuser_sign_id, "false R5 p2p accusation");
+                        log_fault_info(sign_id, accuser_sign_id, "false accusation");
                         faulters.set(accuser_sign_id, ProtocolFault)?;
                     }
                     Err(err) => {
                         log_fault_info(
                             sign_id,
                             accused_sign_id,
-                            &format!("invalid r5 p2p range proof wc because '{}'", err),
+                            &format!("invalid r1 p2p range proof because '{}'", err),
                         );
                         faulters.set(accused_sign_id, ProtocolFault)?;
                     }
@@ -181,7 +137,7 @@ impl bcast_only::Executer for R7 {
 
         if faulters.is_empty() {
             error!(
-                "peer {} says: R7 failure protocol found no faulters",
+                "peer {} says: R3 failure protocol found no faulters",
                 sign_id
             );
             return Err(TofnFatal);

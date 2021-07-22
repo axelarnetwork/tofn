@@ -14,4 +14,4 @@ mod r8;
 pub mod tests;
 
 #[cfg(feature = "malicious")]
-mod malicious;
+pub mod malicious;

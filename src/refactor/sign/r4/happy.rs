@@ -10,6 +10,7 @@ use crate::{
             api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
             implementer_api::{bcast_only, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder},
         },
+        sign::{r4, Participants},
     },
     zkp::pedersen_k256,
 };
@@ -17,16 +18,17 @@ use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::{r1, r2, r3, r5, Peers, SignParticipantIndex, SignProtocolBuilder};
+use super::super::{r1, r2, r3, r5, Peers, SignParticipantIndex, SignProtocolBuilder};
 
 #[cfg(feature = "malicious")]
-use super::malicious::Behaviour;
+use super::super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
 pub struct R4 {
     pub secret_key_share: SecretKeyShare,
     pub msg_to_sign: Scalar,
     pub peers: Peers,
+    pub participants: Participants,
     pub keygen_id: TypedUsize<KeygenPartyIndex>,
     pub gamma_i: Scalar,
     pub Gamma_i: ProjectivePoint,
@@ -38,9 +40,8 @@ pub struct R4 {
     pub l_i: Scalar,
     pub(crate) _delta_i: Scalar, // TODO: This is only needed for tests
     pub(crate) beta_secrets: HoleVecMap<SignParticipantIndex, Secret>,
-    pub(crate) nu_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
-    pub r2p2ps: P2ps<SignParticipantIndex, r2::P2p>,
+    pub r2p2ps: P2ps<SignParticipantIndex, r2::P2pHappy>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
@@ -56,7 +57,7 @@ pub struct Bcast {
 impl bcast_only::Executer for R4 {
     type FinalOutput = BytesVec;
     type Index = SignParticipantIndex;
-    type Bcast = r3::Bcast;
+    type Bcast = r3::happy::Bcast;
 
     #[allow(non_snake_case)]
     fn execute(
@@ -68,6 +69,43 @@ impl bcast_only::Executer for R4 {
         let participants_count = info.share_count();
 
         let mut faulters = FillVecMap::with_size(participants_count);
+
+        // check for complaints
+        if bcasts_in
+            .iter()
+            .any(|(_, bcast)| matches!(bcast, r3::happy::Bcast::Sad(_)))
+        {
+            // TODO: Should we check if this peer's P2p's are all Sad?
+            warn!(
+                "peer {} says: received an R3 complaint from others",
+                sign_id,
+            );
+
+            return Box::new(r4::sad::R4 {
+                secret_key_share: self.secret_key_share,
+                msg_to_sign: self.msg_to_sign,
+                peers: self.peers,
+                participants: self.participants,
+                keygen_id: self.keygen_id,
+                gamma_i: self.gamma_i,
+                Gamma_i: self.Gamma_i,
+                Gamma_i_reveal: self.Gamma_i_reveal,
+                w_i: self.w_i,
+                k_i: self.k_i,
+                k_i_randomness: self.k_i_randomness,
+                r1bcasts: self.r1bcasts,
+                r2p2ps: self.r2p2ps,
+
+                #[cfg(feature = "malicious")]
+                behaviour: self.behaviour,
+            })
+            .execute(info, bcasts_in);
+        }
+
+        let bcasts_in = bcasts_in.map2_result(|(_, bcast)| match bcast {
+            r3::happy::Bcast::Happy(b) => Ok(b),
+            r3::happy::Bcast::Sad(_) => Err(TofnFatal),
+        })?;
 
         for (sign_peer_id, bcast) in &bcasts_in {
             let peer_stmt = pedersen_k256::Statement {
@@ -114,6 +152,7 @@ impl bcast_only::Executer for R4 {
                 secret_key_share: self.secret_key_share,
                 msg_to_sign: self.msg_to_sign,
                 peers: self.peers,
+                participants: self.participants,
                 keygen_id: self.keygen_id,
                 gamma_i: self.gamma_i,
                 Gamma_i: self.Gamma_i,
@@ -125,7 +164,6 @@ impl bcast_only::Executer for R4 {
                 l_i: self.l_i,
                 T_i,
                 beta_secrets: self.beta_secrets,
-                nu_secrets: self.nu_secrets,
                 r1bcasts: self.r1bcasts,
                 r2p2ps: self.r2p2ps,
                 r3bcasts: bcasts_in,

@@ -56,6 +56,15 @@ impl<K, V> P2ps<K, V> {
     {
         P2ps::<K, W>(self.0.map(|v| v.map(f.clone())))
     }
+
+    pub fn map2_result<W, F>(self, f: F) -> TofnResult<P2ps<K, W>>
+    where
+        F: FnMut((TypedUsize<K>, V)) -> TofnResult<W> + Clone,
+    {
+        Ok(P2ps::<K, W>(
+            self.0.map2_result(|(_, v)| v.map2_result(f.clone()))?,
+        ))
+    }
 }
 
 impl<K, V> IntoIterator for P2ps<K, V> {

@@ -2,10 +2,10 @@ use crate::{
     hash, mta,
     paillier_k256::{self, Ciphertext},
     refactor::{
-        collections::{FillHoleVecMap, FillVecMap, P2ps, TypedUsize, VecMap},
+        collections::{FillHoleVecMap, P2ps, Subset, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
         sdk::{
-            api::{BytesVec, Fault::ProtocolFault, TofnResult},
+            api::{BytesVec, TofnResult},
             implementer_api::{
                 bcast_and_p2p, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder,
             },
@@ -16,7 +16,7 @@ use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::{r1, r3, Peers, SignParticipantIndex, SignProtocolBuilder};
+use super::{r1, r3, Participants, Peers, SignParticipantIndex, SignProtocolBuilder};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -26,6 +26,7 @@ pub struct R2 {
     pub secret_key_share: SecretKeyShare,
     pub msg_to_sign: Scalar,
     pub peers: Peers,
+    pub participants: Participants,
     pub keygen_id: TypedUsize<KeygenPartyIndex>,
     pub gamma_i: Scalar,
     pub Gamma_i: ProjectivePoint,
@@ -39,7 +40,24 @@ pub struct R2 {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct P2p {
+pub enum Bcast {
+    Happy,
+    Sad(BcastSad),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BcastSad {
+    pub zkp_complaints: Subset<SignParticipantIndex>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum P2p {
+    Happy(P2pHappy),
+    Sad,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct P2pHappy {
     pub alpha_ciphertext: Ciphertext,
     pub alpha_proof: paillier_k256::zk::mta::Proof,
     pub mu_ciphertext: Ciphertext,
@@ -61,7 +79,7 @@ impl bcast_and_p2p::Executer for R2 {
         let sign_id = info.share_id();
         let participants_count = info.share_count();
 
-        let mut faulters = FillVecMap::with_size(participants_count);
+        let mut zkp_complaints = Subset::with_max_size(participants_count);
 
         let mut beta_secrets = FillHoleVecMap::with_size(participants_count, sign_id)?;
         let mut nu_secrets = FillHoleVecMap::with_size(participants_count, sign_id)?;
@@ -99,12 +117,40 @@ impl bcast_and_p2p::Executer for R2 {
                     sign_id, sign_peer_id, err
                 );
 
-                faulters.set(sign_peer_id, ProtocolFault)?;
+                zkp_complaints.add(sign_peer_id)?;
             }
         }
 
-        if !faulters.is_empty() {
-            return Ok(ProtocolBuilder::Done(Err(faulters)));
+        if !zkp_complaints.is_empty() {
+            let bcast_out = serialize(&Bcast::Sad(BcastSad { zkp_complaints }))?;
+
+            // TODO: Since R3 expects P2ps in the happy path but Bcast in the sad path
+            // we always send bcasts and p2ps to R3, using empty P2ps and Bcasts in
+            // the respective path. This adds some network overhead, so investigate a better approach.
+            let p2ps_out = self.peers.map_ref(|_| serialize(&P2p::Sad))?;
+
+            return Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastAndP2p {
+                round: Box::new(r3::sad::R3 {
+                    secret_key_share: self.secret_key_share,
+                    msg_to_sign: self.msg_to_sign,
+                    peers: self.peers,
+                    participants: self.participants,
+                    keygen_id: self.keygen_id,
+                    gamma_i: self.gamma_i,
+                    Gamma_i: self.Gamma_i,
+                    Gamma_i_reveal: self.Gamma_i_reveal,
+                    w_i: self.w_i,
+                    k_i: self.k_i,
+                    k_i_randomness: self.k_i_randomness,
+                    r1bcasts: bcasts_in,
+                    r1p2ps: p2ps_in,
+
+                    #[cfg(feature = "malicious")]
+                    behaviour: self.behaviour,
+                }),
+                bcast_out,
+                p2ps_out,
+            }));
         }
 
         let mut p2ps_out = FillHoleVecMap::with_size(participants_count, sign_id)?;
@@ -136,12 +182,12 @@ impl bcast_and_p2p::Executer for R2 {
 
             nu_secrets.set(sign_peer_id, nu_secret)?;
 
-            let p2p = serialize(&P2p {
+            let p2p = serialize(&P2p::Happy(P2pHappy {
                 alpha_ciphertext,
                 alpha_proof,
                 mu_ciphertext,
                 mu_proof,
-            })?;
+            }))?;
 
             p2ps_out.set(sign_peer_id, p2p)?;
         }
@@ -150,11 +196,14 @@ impl bcast_and_p2p::Executer for R2 {
         let nu_secrets = nu_secrets.unwrap_all()?;
         let p2ps_out = p2ps_out.unwrap_all()?;
 
-        Ok(ProtocolBuilder::NotDone(RoundBuilder::P2pOnly {
-            round: Box::new(r3::R3 {
+        let bcast_out = serialize(&Bcast::Happy)?;
+
+        Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastAndP2p {
+            round: Box::new(r3::happy::R3 {
                 secret_key_share: self.secret_key_share,
                 msg_to_sign: self.msg_to_sign,
                 peers: self.peers,
+                participants: self.participants,
                 keygen_id: self.keygen_id,
                 gamma_i: self.gamma_i,
                 Gamma_i: self.Gamma_i,
@@ -165,10 +214,12 @@ impl bcast_and_p2p::Executer for R2 {
                 beta_secrets,
                 nu_secrets,
                 r1bcasts: bcasts_in,
+                r1p2ps: p2ps_in,
 
                 #[cfg(feature = "malicious")]
                 behaviour: self.behaviour,
             }),
+            bcast_out,
             p2ps_out,
         }))
     }

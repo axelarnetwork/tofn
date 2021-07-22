@@ -18,7 +18,7 @@ use ecdsa::elliptic_curve::Field;
 use k256::Scalar;
 use serde::{Deserialize, Serialize};
 
-use super::{r2, Peers, SignParticipantIndex, SignProtocolBuilder};
+use super::{r2, Participants, Peers, SignParticipantIndex, SignProtocolBuilder};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -28,6 +28,7 @@ pub struct R1 {
     pub secret_key_share: SecretKeyShare,
     pub msg_to_sign: Scalar,
     pub peers: Peers,
+    pub participants: Participants,
     pub keygen_id: TypedUsize<KeygenPartyIndex>,
 
     #[cfg(feature = "malicious")]
@@ -60,9 +61,7 @@ impl no_messages::Executer for R1 {
         let lambda_i_S = &vss_k256::lagrange_coefficient(
             sign_id.as_usize(),
             &self
-                .peers
-                .clone()
-                .plug_hole(self.keygen_id)
+                .participants
                 .iter()
                 .map(|(_, keygen_peer_id)| keygen_peer_id.as_usize())
                 .collect::<Vec<_>>(),
@@ -122,6 +121,7 @@ impl no_messages::Executer for R1 {
                 secret_key_share: self.secret_key_share,
                 msg_to_sign: self.msg_to_sign,
                 peers: self.peers,
+                participants: self.participants,
                 keygen_id: self.keygen_id,
                 gamma_i,
                 Gamma_i,

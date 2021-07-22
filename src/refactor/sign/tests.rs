@@ -4,13 +4,13 @@ use super::*;
 use crate::{
     refactor::{
         collections::Subset,
-        keygen::{tests::TestCase, SecretKeyShare},
+        keygen::SecretKeyShare,
         sdk::api::{BytesVec, Protocol},
         sign::api::{new_sign, SignParticipantIndex},
     },
     refactor::{
         collections::{FillVecMap, HoleVecMap, TypedUsize, VecMap},
-        keygen::tests::{execute_keygen, test_case_list},
+        keygen::{tests::execute_keygen, KeygenPartyIndex, KeygenPartyShareCounts},
         sdk::api::{Fault, Round},
     },
 };
@@ -28,6 +28,51 @@ type PartyBcast = Result<VecMap<SignParticipantIndex, BytesVec>, ()>;
 type PartyP2p =
     Result<VecMap<SignParticipantIndex, HoleVecMap<SignParticipantIndex, BytesVec>>, ()>;
 type PartyResult = Result<BytesVec, FillVecMap<RealSignParticipantIndex, Fault>>;
+struct TestCase {
+    party_share_counts: KeygenPartyShareCounts,
+    threshold: usize,
+    sign_share_count: usize,
+}
+
+fn test_case_list() -> Vec<TestCase> {
+    vec![
+        TestCase {
+            party_share_counts: KeygenPartyShareCounts::from_vec(vec![1]).unwrap(),
+            threshold: 0,
+            sign_share_count: 1,
+        },
+        TestCase {
+            party_share_counts: KeygenPartyShareCounts::from_vec(vec![5]).unwrap(),
+            threshold: 0,
+            sign_share_count: 5,
+        },
+        TestCase {
+            party_share_counts: KeygenPartyShareCounts::from_vec(vec![1, 1, 1]).unwrap(),
+            threshold: 1,
+            sign_share_count: 2,
+        },
+        TestCase {
+            party_share_counts: KeygenPartyShareCounts::from_vec(vec![0, 0, 2]).unwrap(),
+            threshold: 1,
+            sign_share_count: 2,
+        },
+        TestCase {
+            party_share_counts: KeygenPartyShareCounts::from_vec(vec![2, 0, 3, 1]).unwrap(),
+            threshold: 3,
+            sign_share_count: 4,
+        },
+        // TestCase {
+        //     party_share_counts: KeygenPartyShareCounts::from_vec(vec![10, 2, 3]).unwrap(),
+        //     threshold: 3,
+        //     sign_share_count: 12,
+        // },
+        // TestCase {
+        //     party_share_counts: KeygenPartyShareCounts::from_vec(vec![3, 2, 1]).unwrap(),
+        //     threshold: 5,
+        //     sign_share_count: 6,
+        // },
+    ]
+}
 
 #[test]
 #[traced_test]
@@ -52,16 +97,33 @@ fn execute_sign(
     test_case: &TestCase,
     msg_to_sign: &MessageDigest,
 ) {
+    let mut share_count = 0;
     let mut sign_parties = Subset::with_max_size(test_case.party_share_counts.party_count());
     for (i, _) in test_case.party_share_counts.iter() {
         sign_parties
             .add(TypedUsize::from_usize(i.as_usize()))
             .unwrap();
+
+        share_count += test_case.party_share_counts.party_share_count(i).unwrap();
+
+        if share_count > test_case.sign_share_count {
+            break;
+        }
     }
 
-    let r0_parties: Vec<_> = key_shares
+    let sign_parties_share_ids =
+        VecMap::<TypedUsize<SignParticipantIndex>, TypedUsize<KeygenPartyIndex>>::from_vec(
+            test_case
+                .party_share_counts
+                .share_id_subset(&sign_parties)
+                .unwrap(),
+        );
+
+    let r0_parties: Vec<_> = sign_parties_share_ids
         .iter()
-        .map(|key_share| {
+        .map(|(_, &keygen_id)| {
+            let key_share = key_shares.get(keygen_id.as_usize()).unwrap();
+
             match new_sign(
                 &key_share.group(),
                 &key_share.share(),
@@ -103,21 +165,21 @@ fn execute_sign(
         .map(|party| round_cast::<r2::R2>(party).gamma_i)
         .fold(k256::Scalar::zero(), |acc, gamma_i| acc + gamma_i);
 
-    let (r2_parties, ..) = execute_round(r1_parties, 2, false, true);
+    let (r2_parties, ..) = execute_round(r1_parties, 2, true, true);
 
     let (r3_parties, ..) = execute_round(r2_parties, 3, true, false);
 
     // TEST: MtA for delta_i, sigma_i
     let k_gamma = r3_parties
         .iter()
-        .map(|party| round_cast::<r4::R4>(party)._delta_i)
+        .map(|party| round_cast::<r4::happy::R4>(party)._delta_i)
         .fold(k256::Scalar::zero(), |acc, delta_i| acc + delta_i);
 
     assert_eq!(k_gamma, k * gamma);
 
     let k_x = r3_parties
         .iter()
-        .map(|party| round_cast::<r4::R4>(party).sigma_i)
+        .map(|party| round_cast::<r4::happy::R4>(party).sigma_i)
         .fold(k256::Scalar::zero(), |acc, sigma_i| acc + sigma_i);
 
     assert_eq!(k_x, k * x);
