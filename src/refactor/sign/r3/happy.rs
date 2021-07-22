@@ -9,10 +9,12 @@ use crate::{
         collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
         sdk::{
-            api::{BytesVec, Fault::ProtocolFault, TofnResult},
-            implementer_api::{p2p_only, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder},
+            api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
+            implementer_api::{
+                bcast_and_p2p, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder,
+            },
         },
-        sign::r4,
+        sign::{r3, r4, Participants},
     },
     zkp::pedersen_k256,
 };
@@ -20,16 +22,17 @@ use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::{r1, r2, Peers, SignParticipantIndex, SignProtocolBuilder};
+use super::super::{r1, r2, Peers, SignParticipantIndex, SignProtocolBuilder};
 
 #[cfg(feature = "malicious")]
-use super::malicious::Behaviour;
+use super::super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
 pub struct R3 {
     pub secret_key_share: SecretKeyShare,
     pub msg_to_sign: Scalar,
     pub peers: Peers,
+    pub participants: Participants,
     pub keygen_id: TypedUsize<KeygenPartyIndex>,
     pub gamma_i: Scalar,
     pub Gamma_i: ProjectivePoint,
@@ -40,6 +43,7 @@ pub struct R3 {
     pub(crate) beta_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub(crate) nu_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
+    pub r1p2ps: P2ps<SignParticipantIndex, r1::P2p>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
@@ -53,19 +57,59 @@ pub struct Bcast {
     pub T_i_proof: pedersen_k256::Proof,
 }
 
-impl p2p_only::Executer for R3 {
+impl bcast_and_p2p::Executer for R3 {
     type FinalOutput = BytesVec;
     type Index = SignParticipantIndex;
+    type Bcast = r2::Bcast;
     type P2p = r2::P2p;
 
     #[allow(non_snake_case)]
     fn execute(
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
+        bcasts_in: VecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<SignProtocolBuilder> {
         let sign_id = info.share_id();
         let participants_count = info.share_count();
+
+        // check for complaints
+        if bcasts_in
+            .iter()
+            .any(|(_, bcast)| matches!(bcast, r2::Bcast::Sad(_)))
+        {
+            // TODO: Should we check if this peer's P2p's are all Sad?
+            warn!(
+                "peer {} says: received an R2 complaint from others",
+                sign_id,
+            );
+
+            return Box::new(r3::sad::R3 {
+                secret_key_share: self.secret_key_share,
+                msg_to_sign: self.msg_to_sign,
+                peers: self.peers,
+                participants: self.participants,
+                keygen_id: self.keygen_id,
+                gamma_i: self.gamma_i,
+                Gamma_i: self.Gamma_i,
+                Gamma_i_reveal: self.Gamma_i_reveal,
+                w_i: self.w_i,
+                k_i: self.k_i,
+                k_i_randomness: self.k_i_randomness,
+                r1bcasts: self.r1bcasts,
+                r1p2ps: self.r1p2ps,
+
+                #[cfg(feature = "malicious")]
+                behaviour: self.behaviour,
+            })
+            .execute(info, bcasts_in, p2ps_in);
+        }
+
+        // TODO: Should faults be returned for bad P2ps?
+        let p2ps_in = p2ps_in.map2_result(|(_, p2p)| match p2p {
+            r2::P2p::Happy(p) => Ok(p),
+            r2::P2p::Sad => Err(TofnFatal),
+        })?;
 
         let mut faulters = FillVecMap::with_size(participants_count);
 
@@ -105,12 +149,10 @@ impl p2p_only::Executer for R3 {
             }
 
             // verify zk proof for step 2 of MtAwc k_i * w_j
-            let lambda_i_S = &vss_k256::lagrange_coefficient(
+            let peer_lambda_i_S = &vss_k256::lagrange_coefficient(
                 sign_peer_id.as_usize(),
                 &self
-                    .peers
-                    .clone()
-                    .plug_hole(self.keygen_id)
+                    .participants
                     .iter()
                     .map(|(_, keygen_peer_id)| keygen_peer_id.as_usize())
                     .collect::<Vec<_>>(),
@@ -123,7 +165,7 @@ impl p2p_only::Executer for R3 {
                 .get(keygen_peer_id)?
                 .X_i()
                 .unwrap()
-                * lambda_i_S;
+                * peer_lambda_i_S;
 
             let peer_stmt = paillier_k256::zk::mta::StatementWc {
                 stmt: paillier_k256::zk::mta::Statement {
@@ -210,7 +252,7 @@ impl p2p_only::Executer for R3 {
         })?;
 
         Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
-            round: Box::new(r4::R4 {
+            round: Box::new(r4::happy::R4 {
                 secret_key_share: self.secret_key_share,
                 msg_to_sign: self.msg_to_sign,
                 peers: self.peers,
@@ -248,7 +290,7 @@ mod malicious {
     use crate::refactor::{collections::TypedUsize, sign::SignParticipantIndex};
     use k256::Scalar;
 
-    use super::super::malicious::{log_confess_info, Behaviour};
+    use super::super::super::malicious::{log_confess_info, Behaviour};
 
     impl R3 {
         pub fn corrupt_sigma(

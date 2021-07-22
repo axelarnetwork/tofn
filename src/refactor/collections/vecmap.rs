@@ -61,6 +61,12 @@ impl<K, V> VecMap<K, V> {
     {
         self.into_iter().map(f).collect()
     }
+    pub fn map2_result<W, F>(self, f: F) -> TofnResult<VecMap<K, W>>
+    where
+        F: FnMut((TypedUsize<K>, V)) -> TofnResult<W>,
+    {
+        self.into_iter().map(f).collect()
+    }
 }
 
 impl<K, V> IntoIterator for VecMap<K, V> {

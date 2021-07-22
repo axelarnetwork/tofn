@@ -17,10 +17,10 @@ use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::{r1, r2, r3, r5, Peers, SignParticipantIndex, SignProtocolBuilder};
+use super::super::{r1, r2, r3, r5, Peers, SignParticipantIndex, SignProtocolBuilder};
 
 #[cfg(feature = "malicious")]
-use super::malicious::Behaviour;
+use super::super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
 pub struct R4 {
@@ -40,7 +40,7 @@ pub struct R4 {
     pub(crate) beta_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub(crate) nu_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
-    pub r2p2ps: P2ps<SignParticipantIndex, r2::P2p>,
+    pub r2p2ps: P2ps<SignParticipantIndex, r2::P2pHappy>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
@@ -56,7 +56,7 @@ pub struct Bcast {
 impl bcast_only::Executer for R4 {
     type FinalOutput = BytesVec;
     type Index = SignParticipantIndex;
-    type Bcast = r3::Bcast;
+    type Bcast = r3::happy::Bcast;
 
     #[allow(non_snake_case)]
     fn execute(

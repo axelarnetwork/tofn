@@ -39,8 +39,8 @@ pub struct R5 {
     pub(crate) beta_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub(crate) nu_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
-    pub r2p2ps: P2ps<SignParticipantIndex, r2::P2p>,
-    pub r3bcasts: VecMap<SignParticipantIndex, r3::Bcast>,
+    pub r2p2ps: P2ps<SignParticipantIndex, r2::P2pHappy>,
+    pub r3bcasts: VecMap<SignParticipantIndex, r3::happy::Bcast>,
     pub delta_inv: Scalar,
 
     #[cfg(feature = "malicious")]
@@ -61,7 +61,7 @@ pub struct P2p {
 impl bcast_only::Executer for R5 {
     type FinalOutput = BytesVec;
     type Index = SignParticipantIndex;
-    type Bcast = r4::Bcast;
+    type Bcast = r4::happy::Bcast;
 
     #[allow(non_snake_case)]
     fn execute(

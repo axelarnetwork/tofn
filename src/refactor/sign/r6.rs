@@ -42,9 +42,9 @@ pub struct R6 {
     pub(crate) beta_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub(crate) nu_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
-    pub r2p2ps: P2ps<SignParticipantIndex, r2::P2p>,
-    pub r3bcasts: VecMap<SignParticipantIndex, r3::Bcast>,
-    pub r4bcasts: VecMap<SignParticipantIndex, r4::Bcast>,
+    pub r2p2ps: P2ps<SignParticipantIndex, r2::P2pHappy>,
+    pub r3bcasts: VecMap<SignParticipantIndex, r3::happy::Bcast>,
+    pub r4bcasts: VecMap<SignParticipantIndex, r4::happy::Bcast>,
     pub delta_inv: Scalar,
     pub R: ProjectivePoint,
 
@@ -171,8 +171,6 @@ impl bcast_and_p2p::Executer for R6 {
                     alpha_randomness,
                     beta_secret,
                 };
-
-                // TODO: sanity check: we should recover the alpha we computed in r3
 
                 mta_plaintexts.set(sign_peer_id, mta_plaintext)?;
             }

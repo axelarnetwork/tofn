@@ -15,10 +15,10 @@ use k256::{ecdsa::Signature, ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
 
-use super::{r1, r5, r6, r7, Peers, SignParticipantIndex, SignProtocolBuilder};
+use super::super::{r1, r5, r6, r7, Peers, SignParticipantIndex, SignProtocolBuilder};
 
 #[cfg(feature = "malicious")]
-use super::malicious::Behaviour;
+use super::super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
 pub struct R8 {
@@ -40,7 +40,7 @@ pub struct R8 {
     pub R: ProjectivePoint,
     pub r: Scalar,
     pub r5bcasts: VecMap<SignParticipantIndex, r5::Bcast>,
-    pub r6bcasts: VecMap<SignParticipantIndex, r6::Bcast>,
+    pub r6bcasts: VecMap<SignParticipantIndex, r6::BcastHappy>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
@@ -65,8 +65,31 @@ impl bcast_only::Executer for R8 {
     ) -> TofnResult<SignProtocolBuilder> {
         let sign_id = info.share_id();
         let participants_count = info.share_count();
-
         let mut faulters = FillVecMap::with_size(participants_count);
+
+        let mut bcasts = FillVecMap::with_size(participants_count);
+
+        // our check for 'type 7` error failed, so any peer broadcasting a success is a faulter
+        for (sign_peer_id, bcast) in bcasts_in.into_iter() {
+            match bcast {
+                r7::happy::Bcast::Happy(bcast) => {
+                    bcasts.set(sign_peer_id, bcast)?;
+                }
+                r7::happy::Bcast::Sad(_) => {
+                    warn!(
+                        "peer {} says: peer {} broadcasted a 'type 7' failure",
+                        sign_id, sign_peer_id
+                    );
+                    faulters.set(sign_peer_id, ProtocolFault)?;
+                }
+            }
+        }
+
+        if !faulters.is_empty() {
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
+        }
+
+        let bcasts_in = bcasts.unwrap_all()?;
 
         // compute s = sum_i s_i
         let s = bcasts_in
@@ -99,16 +122,7 @@ impl bcast_only::Executer for R8 {
         // verify proofs
         for (sign_peer_id, bcast) in &bcasts_in {
             let R_i = self.r5bcasts.get(sign_peer_id)?.R_i.unwrap();
-            let S_i = match self.r6bcasts.get(sign_peer_id)? {
-                r6::Bcast::Happy(bcast) => Ok(bcast.S_i.unwrap()),
-                _ => {
-                    error!(
-                        "peer {} says: unexpected sad R6 bcast found from peer {}",
-                        sign_id, sign_peer_id
-                    );
-                    Err(TofnFatal)
-                }
-            }?;
+            let S_i = self.r6bcasts.get(sign_peer_id)?.S_i.unwrap();
 
             let R_s = self.R * bcast.s_i.unwrap();
             let R_s_prime = R_i * &self.msg_to_sign + S_i * &self.r;

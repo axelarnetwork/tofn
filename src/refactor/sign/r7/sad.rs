@@ -1,6 +1,5 @@
 use crate::{
     hash::Randomness,
-    k256_serde,
     mta::{self, Secret},
     paillier_k256,
     refactor::{
@@ -14,7 +13,6 @@ use crate::{
     },
 };
 use k256::{ProjectivePoint, Scalar};
-use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
 
 use super::super::{r1, r3, r5, r6, Peers, SignParticipantIndex, SignProtocolBuilder};
@@ -41,21 +39,15 @@ pub struct R7 {
     pub(crate) _beta_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub(crate) _nu_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
-    pub r2p2ps: P2ps<SignParticipantIndex, r2::P2p>,
-    pub r3bcasts: VecMap<SignParticipantIndex, r3::Bcast>,
-    pub r4bcasts: VecMap<SignParticipantIndex, r4::Bcast>,
+    pub r2p2ps: P2ps<SignParticipantIndex, r2::P2pHappy>,
+    pub r3bcasts: VecMap<SignParticipantIndex, r3::happy::Bcast>,
+    pub r4bcasts: VecMap<SignParticipantIndex, r4::happy::Bcast>,
     pub delta_inv: Scalar,
     pub R: ProjectivePoint,
     pub r5bcasts: VecMap<SignParticipantIndex, r5::Bcast>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(non_snake_case)]
-pub struct Bcast {
-    pub s_i: k256_serde::Scalar,
 }
 
 impl bcast_only::Executer for R7 {
@@ -72,30 +64,34 @@ impl bcast_only::Executer for R7 {
         let sign_id = info.share_id();
         let participants_count = info.share_count();
 
-        if bcasts_in
-            .iter()
-            .all(|(_, bcast)| matches!(bcast, r6::Bcast::Happy(_)))
-        {
-            error!(
-                "peer {} says: entered R7 failure protocol with no complaints",
-                sign_id
-            );
-            return Err(TofnFatal);
-        }
-
         let mut faulters = FillVecMap::with_size(participants_count);
 
-        let accusations_iter =
-            bcasts_in
-                .into_iter()
-                .filter_map(|(sign_peer_id, bcast)| match bcast {
-                    r6::Bcast::Happy(_) => None,
-                    r6::Bcast::Sad(bcast) => Some((sign_peer_id, bcast)),
-                });
+        let mut bcasts = FillVecMap::with_size(participants_count);
 
-        // verify complaints
-        // TODO: Check suspiciously decoded mta_plaintexts, for e.g. incorrect length, all none elements etc.
-        for (sign_peer_id, bcast) in accusations_iter {
+        // our check for 'type 5` error failed, so any peer broadcasting a success is a faulter
+        for (sign_peer_id, bcast) in bcasts_in.into_iter() {
+            match bcast {
+                r6::Bcast::Sad(bcast) => {
+                    bcasts.set(sign_peer_id, bcast)?;
+                }
+                r6::Bcast::Happy(_) => {
+                    warn!(
+                        "peer {} says: peer {} did not broadcast a 'type 5' failure",
+                        sign_id, sign_peer_id
+                    );
+                    faulters.set(sign_peer_id, ProtocolFault)?;
+                }
+            }
+        }
+
+        if !faulters.is_empty() {
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
+        }
+
+        let bcasts_in = bcasts.unwrap_all()?;
+
+        // verify that each participant's data is consistent with earlier messages:
+        for (sign_peer_id, bcast) in &bcasts_in {
             let mta_plaintexts = &bcast.mta_plaintexts;
 
             if mta_plaintexts.len() != self.peers.len() {
@@ -224,7 +220,7 @@ impl bcast_only::Executer for R7 {
 
         if faulters.is_empty() {
             error!(
-                "peer {} says: No faulters found in R7 failure protocol",
+                "peer {} says: No faulters found in 'type 5' failure protocol",
                 sign_id
             );
             return Err(TofnFatal);
