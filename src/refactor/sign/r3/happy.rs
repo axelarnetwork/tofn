@@ -289,6 +289,11 @@ impl bcast_and_p2p::Executer for R3 {
             },
         );
 
+        corrupt!(
+            T_i_proof,
+            self.corrupt_T_i_proof(info.share_id(), T_i_proof)
+        );
+
         let bcast_out = serialize(&Bcast::Happy(BcastHappy {
             delta_i: k256_serde::Scalar::from(delta_i),
             T_i: k256_serde::ProjectivePoint::from(T_i),
@@ -331,10 +336,13 @@ impl bcast_and_p2p::Executer for R3 {
 #[cfg(feature = "malicious")]
 mod malicious {
     use super::{Accusation, R3};
-    use crate::refactor::{
-        collections::{FillVecMap, TypedUsize},
-        sdk::api::TofnResult,
-        sign::SignParticipantIndex,
+    use crate::{
+        refactor::{
+            collections::{FillVecMap, TypedUsize},
+            sdk::api::TofnResult,
+            sign::SignParticipantIndex,
+        },
+        zkp::pedersen_k256,
     };
     use k256::Scalar;
 
@@ -363,6 +371,19 @@ mod malicious {
                 }
             }
             Ok(mta_complaints)
+        }
+
+        #[allow(non_snake_case)]
+        pub fn corrupt_T_i_proof(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            T_i_proof: pedersen_k256::Proof,
+        ) -> pedersen_k256::Proof {
+            if let R3BadProof = self.behaviour {
+                log_confess_info(me, &self.behaviour, "");
+                return pedersen_k256::malicious::corrupt_proof(&T_i_proof);
+            }
+            T_i_proof
         }
 
         pub fn corrupt_sigma(

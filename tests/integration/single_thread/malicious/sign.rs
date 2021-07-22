@@ -107,6 +107,7 @@ fn single_fault_test_cases() -> SingleFaultTestCaseList {
         R3FalseAccusationMta { victim: three }, // self accusation
         R3FalseAccusationMtaWc { victim: zero },
         R3FalseAccusationMtaWc { victim: three }, // self accusation
+        R3BadProof,
     ];
 
     SingleFaultTestCaseList {
