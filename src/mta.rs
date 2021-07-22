@@ -8,13 +8,13 @@ use crate::{
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct Secret {
-    pub(crate) beta: k256_serde::Scalar,
-    pub(crate) beta_prime: Plaintext,
-    pub(crate) beta_prime_randomness: Randomness,
+pub struct Secret {
+    pub beta: k256_serde::Scalar,
+    pub beta_prime: Plaintext,
+    pub beta_prime_randomness: Randomness,
 }
 
-pub(crate) fn mta_response(
+pub fn mta_response(
     a_ek: &EncryptionKey,
     a_ciphertext: &Ciphertext,
     b: &k256::Scalar,
@@ -33,7 +33,7 @@ pub(crate) fn mta_response(
     )
 }
 
-pub(crate) fn mta_response_from_randomness(
+pub fn mta_response_from_randomness(
     a_ek: &EncryptionKey,
     a_ciphertext: &Ciphertext,
     b: &k256::Scalar,
@@ -50,7 +50,7 @@ pub(crate) fn mta_response_from_randomness(
 }
 
 /// Return `true` iff `mta_response_from_randomness(a_ek, a_ciphertext, b, s.beta_prime, s.beta_randomness) == (c_b, s)`
-pub(crate) fn verify_mta_response(
+pub fn verify_mta_response(
     a_ek: &EncryptionKey,
     a_ciphertext: &Ciphertext,
     b: &k256::Scalar,
@@ -67,7 +67,7 @@ pub(crate) fn verify_mta_response(
     check_c_b == *c_b && check_beta == s.beta
 }
 
-pub(crate) fn mta_response_with_proof(
+pub fn mta_response_with_proof(
     a_zkp: &ZkSetup,
     a_ek: &EncryptionKey,
     a_ciphertext: &Ciphertext,
@@ -89,7 +89,7 @@ pub(crate) fn mta_response_with_proof(
     (c_b, proof, s)
 }
 
-pub(crate) fn mta_response_with_proof_wc(
+pub fn mta_response_with_proof_wc(
     a_zkp: &ZkSetup,
     a_ek: &EncryptionKey,
     a_ciphertext: &Ciphertext,
@@ -115,7 +115,7 @@ pub(crate) fn mta_response_with_proof_wc(
 }
 
 #[cfg(test)]
-pub(crate) mod tests {
+mod tests {
     use ecdsa::elliptic_curve::Field;
 
     use super::{mta_response_with_proof_wc, verify_mta_response};

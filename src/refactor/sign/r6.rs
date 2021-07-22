@@ -211,6 +211,11 @@ impl bcast_and_p2p::Executer for R6 {
 
                 let beta_secret = self.beta_secrets.get(sign_peer_id)?.clone();
 
+                corrupt!(
+                    beta_secret,
+                    self.corrupt_beta_secret(info.share_id(), sign_peer_id, beta_secret)
+                );
+
                 let mta_plaintext = MtaPlaintext {
                     alpha_plaintext,
                     alpha_randomness,
@@ -326,6 +331,7 @@ impl bcast_and_p2p::Executer for R6 {
 mod malicious {
     use super::R6;
     use crate::{
+        mta::Secret,
         paillier_k256::Plaintext,
         refactor::{
             collections::TypedUsize,
@@ -363,6 +369,21 @@ mod malicious {
                 }
             }
             alpha_plaintext
+        }
+        /// earlier we prepared to corrupt beta_secret by corrupting delta_i
+        pub fn corrupt_beta_secret(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            recipient: TypedUsize<SignParticipantIndex>,
+            mut beta_secret: Secret,
+        ) -> Secret {
+            if let R3BadBeta { victim } = self.behaviour {
+                if victim == recipient {
+                    log_confess_info(me, &self.behaviour, "step 2/2: beta_secret");
+                    *beta_secret.beta.unwrap_mut() += k256::Scalar::one();
+                }
+            }
+            beta_secret
         }
     }
 }
