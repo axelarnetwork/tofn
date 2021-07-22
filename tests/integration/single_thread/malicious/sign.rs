@@ -36,6 +36,10 @@ pub fn single_fault_test_case_list() -> Vec<TestCase> {
         single_fault_test_case(R2FalseAccusation { victim: three }), // self accusation
         single_fault_test_case(R2BadMta { victim: zero }),
         single_fault_test_case(R2BadMtaWc { victim: zero }),
+        single_fault_test_case(R3FalseAccusationMta { victim: zero }),
+        single_fault_test_case(R3FalseAccusationMta { victim: three }), // self accusation
+        single_fault_test_case(R3FalseAccusationMtaWc { victim: zero }),
+        single_fault_test_case(R3FalseAccusationMtaWc { victim: three }), // self accusation
     ]
 }
 

@@ -205,6 +205,11 @@ impl bcast_and_p2p::Executer for R3 {
             }
         }
 
+        corrupt!(
+            mta_complaints,
+            self.corrupt_complaint(info.share_id(), mta_complaints)?
+        );
+
         if !mta_complaints.is_empty() {
             let bcast_out = serialize(&Bcast::Sad(BcastSad { mta_complaints }))?;
 
@@ -325,19 +330,47 @@ impl bcast_and_p2p::Executer for R3 {
 
 #[cfg(feature = "malicious")]
 mod malicious {
-    use super::R3;
-    use crate::refactor::{collections::TypedUsize, sign::SignParticipantIndex};
+    use super::{Accusation, R3};
+    use crate::refactor::{
+        collections::{FillVecMap, TypedUsize},
+        sdk::api::TofnResult,
+        sign::SignParticipantIndex,
+    };
     use k256::Scalar;
 
-    use super::super::super::malicious::{log_confess_info, Behaviour};
+    use super::super::super::malicious::{log_confess_info, Behaviour::*};
 
     impl R3 {
+        pub fn corrupt_complaint(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            mut mta_complaints: FillVecMap<SignParticipantIndex, Accusation>,
+        ) -> TofnResult<FillVecMap<SignParticipantIndex, Accusation>> {
+            let info = match self.behaviour {
+                R3FalseAccusationMta { victim } => Some((victim, Accusation::MtA)),
+                R3FalseAccusationMtaWc { victim } => Some((victim, Accusation::MtAwc)),
+                _ => None,
+            };
+            if let Some((victim, accusation)) = info {
+                if !mta_complaints.is_none(victim)? {
+                    log_confess_info(me, &self.behaviour, "but the accusation is true");
+                } else if victim == me {
+                    log_confess_info(me, &self.behaviour, "self accusation");
+                    mta_complaints.set(me, accusation)?;
+                } else {
+                    log_confess_info(me, &self.behaviour, "");
+                    mta_complaints.set(victim, accusation)?;
+                }
+            }
+            Ok(mta_complaints)
+        }
+
         pub fn corrupt_sigma(
             &self,
             sign_id: TypedUsize<SignParticipantIndex>,
             mut sigma_i: Scalar,
         ) -> Scalar {
-            if let Behaviour::R3BadSigmaI = self.behaviour {
+            if let R3BadSigmaI = self.behaviour {
                 log_confess_info(sign_id, &self.behaviour, "");
                 sigma_i += Scalar::one();
             }
