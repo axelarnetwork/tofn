@@ -110,6 +110,7 @@ fn single_fault_test_cases() -> SingleFaultTestCaseList {
         R3BadProof,
         R3BadDeltaI,
         R3BadKI,
+        R3BadAlpha { victim: zero },
     ];
 
     SingleFaultTestCaseList {

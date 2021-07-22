@@ -204,6 +204,11 @@ impl bcast_and_p2p::Executer for R6 {
                     .dk()
                     .decrypt_with_randomness(&r2p2p.alpha_ciphertext);
 
+                corrupt!(
+                    alpha_plaintext,
+                    self.corrupt_alpha_plaintext(info.share_id(), sign_peer_id, alpha_plaintext)
+                );
+
                 let beta_secret = self.beta_secrets.get(sign_peer_id)?.clone();
 
                 let mta_plaintext = MtaPlaintext {
@@ -320,11 +325,14 @@ impl bcast_and_p2p::Executer for R6 {
 #[cfg(feature = "malicious")]
 mod malicious {
     use super::R6;
-    use crate::refactor::{
-        collections::TypedUsize,
-        sign::{
-            malicious::{log_confess_info, Behaviour::*},
-            SignParticipantIndex,
+    use crate::{
+        paillier_k256::Plaintext,
+        refactor::{
+            collections::TypedUsize,
+            sign::{
+                malicious::{log_confess_info, Behaviour::*},
+                SignParticipantIndex,
+            },
         },
     };
 
@@ -340,6 +348,21 @@ mod malicious {
                 k_i += k256::Scalar::one();
             }
             k_i
+        }
+        /// earlier we prepared to corrupt alpha_plaintext by corrupting delta_i
+        pub fn corrupt_alpha_plaintext(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            recipient: TypedUsize<SignParticipantIndex>,
+            mut alpha_plaintext: Plaintext,
+        ) -> Plaintext {
+            if let R3BadAlpha { victim } = self.behaviour {
+                if victim == recipient {
+                    log_confess_info(me, &self.behaviour, "step 2/2: alpha_plaintext");
+                    alpha_plaintext.corrupt();
+                }
+            }
+            alpha_plaintext
         }
     }
 }
