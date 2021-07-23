@@ -13,6 +13,7 @@ use ecdsa::hazmat::VerifyPrimitive;
 use k256::{ecdsa::Signature, ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
+use zeroize::Zeroize;
 
 use super::super::{r1, r5, r6, r7, Peers, SignParticipantIndex, SignProtocolBuilder};
 
@@ -43,6 +44,17 @@ pub struct R8 {
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
+}
+
+// Zeroize the auxiliary secret information
+impl Drop for R8 {
+    fn drop(&mut self) {
+        self.gamma_i.zeroize();
+        self.k_i.zeroize();
+        self.w_i.zeroize();
+        self.sigma_i.zeroize();
+        self.l_i.zeroize();
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

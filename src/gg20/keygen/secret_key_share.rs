@@ -13,15 +13,14 @@ use tracing::error;
 use zeroize::Zeroize;
 
 /// final output of keygen: store this struct in tofnd kvstore
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Zeroize)]
-#[zeroize(drop)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SecretKeyShare {
     group: GroupPublicInfo,
     share: ShareSecretInfo,
 }
 
 /// `GroupPublicInfo` is the same for all shares
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Zeroize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GroupPublicInfo {
     party_share_counts: KeygenPartyShareCounts,
     threshold: usize,
@@ -31,7 +30,7 @@ pub struct GroupPublicInfo {
 
 /// `SharePublicInfo` public info unique to each share
 /// all parties store a list of `SharePublicInfo`
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Zeroize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[allow(non_snake_case)]
 pub struct SharePublicInfo {
     X_i: k256_serde::ProjectivePoint,
