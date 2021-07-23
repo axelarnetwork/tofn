@@ -1,7 +1,7 @@
 use tracing::warn;
 
 use crate::{
-    paillier_k256,
+    paillier,
     refactor::collections::{FillVecMap, P2ps, VecMap},
     refactor::{
         keygen::{
@@ -23,7 +23,7 @@ use crate::refactor::keygen::malicious::Behaviour;
 pub struct R4 {
     pub threshold: usize,
     pub party_share_counts: KeygenPartyShareCounts,
-    pub dk: paillier_k256::DecryptionKey,
+    pub dk: paillier::DecryptionKey,
     pub r1bcasts: VecMap<KeygenPartyIndex, r1::Bcast>,
     pub r2bcasts: VecMap<KeygenPartyIndex, r2::Bcast>,
     pub r2p2ps: P2ps<KeygenPartyIndex, r2::P2p>,

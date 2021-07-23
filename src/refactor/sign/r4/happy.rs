@@ -3,7 +3,7 @@ use crate::{
     hash::Randomness,
     k256_serde,
     mta::Secret,
-    paillier_k256,
+    paillier,
     refactor::{
         collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
@@ -36,7 +36,7 @@ pub struct R4 {
     pub Gamma_i_reveal: Randomness,
     pub w_i: Scalar,
     pub k_i: Scalar,
-    pub k_i_randomness: paillier_k256::Randomness,
+    pub k_i_randomness: paillier::Randomness,
     pub sigma_i: Scalar,
     pub l_i: Scalar,
     pub(crate) _delta_i: Scalar, // TODO: This is only needed for tests

@@ -1,7 +1,7 @@
 use crate::{
     crypto_tools::vss,
     hash::Randomness,
-    paillier_k256,
+    paillier,
     refactor::{
         collections::{FillVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
@@ -32,7 +32,7 @@ pub struct R4 {
     pub Gamma_i_reveal: Randomness,
     pub w_i: Scalar,
     pub k_i: Scalar,
-    pub k_i_randomness: paillier_k256::Randomness,
+    pub k_i_randomness: paillier::Randomness,
     pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
     pub r2p2ps: P2ps<SignParticipantIndex, r2::P2pHappy>,
 
@@ -108,7 +108,7 @@ impl bcast_only::Executer for R4 {
                 // check mta proofs
                 let (accusation_type, result) = match *accusation {
                     r3::happy::Accusation::MtA => {
-                        let accused_stmt = paillier_k256::zk::mta::Statement {
+                        let accused_stmt = paillier::zk::mta::Statement {
                             ciphertext1: &self.r1bcasts.get(accuser_sign_id)?.k_i_ciphertext,
                             ciphertext2: &p2p.alpha_ciphertext,
                             ek: accuser_ek,
@@ -138,8 +138,8 @@ impl bcast_only::Executer for R4 {
                             .unwrap()
                             * accused_lambda_i_S;
 
-                        let accused_stmt = paillier_k256::zk::mta::StatementWc {
-                            stmt: paillier_k256::zk::mta::Statement {
+                        let accused_stmt = paillier::zk::mta::StatementWc {
+                            stmt: paillier::zk::mta::Statement {
                                 ciphertext1: &self.r1bcasts.get(accuser_sign_id)?.k_i_ciphertext,
                                 ciphertext2: &p2p.mu_ciphertext,
                                 ek: accuser_ek,

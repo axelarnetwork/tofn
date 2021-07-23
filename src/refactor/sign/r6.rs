@@ -3,7 +3,7 @@ use crate::{
     hash::Randomness,
     k256_serde,
     mta::{self, Secret},
-    paillier_k256::{self, zk, Plaintext},
+    paillier::{self, zk, Plaintext},
     refactor::{
         collections::{FillHoleVecMap, HoleVecMap, P2ps, Subset, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
@@ -39,7 +39,7 @@ pub struct R6 {
     pub Gamma_i_reveal: Randomness,
     pub w_i: Scalar,
     pub k_i: Scalar,
-    pub k_i_randomness: paillier_k256::Randomness,
+    pub k_i_randomness: paillier::Randomness,
     pub sigma_i: Scalar,
     pub l_i: Scalar,
     pub T_i: ProjectivePoint,
@@ -77,7 +77,7 @@ pub struct BcastSad {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BcastSadType5 {
     pub k_i: k256_serde::Scalar,
-    pub k_i_randomness: paillier_k256::Randomness,
+    pub k_i_randomness: paillier::Randomness,
     pub gamma_i: k256_serde::Scalar,
     pub mta_plaintexts: HoleVecMap<SignParticipantIndex, MtaPlaintext>,
 }
@@ -88,7 +88,7 @@ pub struct MtaPlaintext {
     // because alpha_plaintext may differ from alpha
     // why? because the ciphertext was formed from homomorphic Paillier operations, not just encrypting alpha
     pub alpha_plaintext: Plaintext,
-    pub alpha_randomness: paillier_k256::Randomness,
+    pub alpha_randomness: paillier::Randomness,
     pub(crate) beta_secret: mta::Secret,
 }
 
@@ -348,7 +348,7 @@ mod malicious {
     use super::R6;
     use crate::{
         mta::Secret,
-        paillier_k256::Plaintext,
+        paillier::Plaintext,
         refactor::{
             collections::{Subset, TypedUsize},
             sdk::api::TofnResult,

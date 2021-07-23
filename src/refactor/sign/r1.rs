@@ -3,7 +3,7 @@ use crate::{
     crypto_tools::vss,
     hash,
     k256_serde::to_bytes,
-    paillier_k256,
+    paillier,
     refactor::{
         collections::TypedUsize,
         keygen::{KeygenPartyIndex, SecretKeyShare},
@@ -40,12 +40,12 @@ pub struct R1 {
 #[allow(non_snake_case)]
 pub struct Bcast {
     pub Gamma_i_commit: hash::Output,
-    pub k_i_ciphertext: paillier_k256::Ciphertext,
+    pub k_i_ciphertext: paillier::Ciphertext,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct P2p {
-    pub range_proof: paillier_k256::zk::range::Proof,
+    pub range_proof: paillier::zk::range::Proof,
 }
 
 impl no_messages::Executer for R1 {
@@ -101,11 +101,11 @@ impl no_messages::Executer for R1 {
                 .zkp();
 
             let range_proof = peer_zkp.range_proof(
-                &paillier_k256::zk::range::Statement {
+                &paillier::zk::range::Statement {
                     ciphertext: &k_i_ciphertext,
                     ek,
                 },
-                &paillier_k256::zk::range::Witness {
+                &paillier::zk::range::Witness {
                     msg: &k_i,
                     randomness: &k_i_randomness,
                 },
@@ -156,7 +156,7 @@ impl no_messages::Executer for R1 {
 mod malicious {
     use super::R1;
     use crate::{
-        paillier_k256::{self, zk::range},
+        paillier::{self, zk::range},
         refactor::{
             collections::TypedUsize,
             sign::{
@@ -201,7 +201,7 @@ mod malicious {
             if let Behaviour::R1BadProof { victim } = self.behaviour {
                 if victim == recipient {
                     log_confess_info(me, &self.behaviour, "");
-                    return paillier_k256::zk::range::malicious::corrupt_proof(&range_proof);
+                    return paillier::zk::range::malicious::corrupt_proof(&range_proof);
                 }
             }
             range_proof

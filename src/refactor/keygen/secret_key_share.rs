@@ -1,7 +1,7 @@
 use super::{KeygenPartyIndex, KeygenPartyShareCounts, RealKeygenPartyIndex, SecretRecoveryKey};
 use crate::{
     crypto_tools::vss,
-    k256_serde, paillier_k256,
+    k256_serde, paillier,
     refactor::{
         collections::{TypedUsize, VecMap},
         sdk::api::{TofnFatal, TofnResult},
@@ -38,8 +38,8 @@ pub struct GroupPublicInfo {
 #[allow(non_snake_case)]
 pub struct SharePublicInfo {
     X_i: k256_serde::ProjectivePoint,
-    ek: paillier_k256::EncryptionKey,
-    zkp: paillier_k256::zk::ZkSetup,
+    ek: paillier::EncryptionKey,
+    zkp: paillier::zk::ZkSetup,
 }
 
 /// `ShareSecretInfo` secret info unique to each share
@@ -50,7 +50,7 @@ pub struct SharePublicInfo {
 #[zeroize(drop)]
 pub struct ShareSecretInfo {
     index: TypedUsize<KeygenPartyIndex>,
-    dk: paillier_k256::DecryptionKey,
+    dk: paillier::DecryptionKey,
     x_i: k256_serde::Scalar,
 }
 
@@ -62,7 +62,7 @@ pub struct ShareSecretInfo {
 pub struct KeyShareRecoveryInfo {
     index: TypedUsize<KeygenPartyIndex>,
     share: SharePublicInfo,
-    x_i_ciphertext: paillier_k256::Ciphertext,
+    x_i_ciphertext: paillier::Ciphertext,
 }
 
 impl GroupPublicInfo {
@@ -104,16 +104,16 @@ impl SharePublicInfo {
     pub fn X_i(&self) -> &k256_serde::ProjectivePoint {
         &self.X_i
     }
-    pub fn ek(&self) -> &paillier_k256::EncryptionKey {
+    pub fn ek(&self) -> &paillier::EncryptionKey {
         &self.ek
     }
-    pub fn zkp(&self) -> &paillier_k256::zk::ZkSetup {
+    pub fn zkp(&self) -> &paillier::zk::ZkSetup {
         &self.zkp
     }
     pub(super) fn new(
         X_i: k256_serde::ProjectivePoint,
-        ek: paillier_k256::EncryptionKey,
-        zkp: paillier_k256::zk::ZkSetup,
+        ek: paillier::EncryptionKey,
+        zkp: paillier::zk::ZkSetup,
     ) -> Self {
         Self { X_i, ek, zkp }
     }
@@ -125,7 +125,7 @@ impl ShareSecretInfo {
     }
     pub(super) fn new(
         index: TypedUsize<KeygenPartyIndex>,
-        dk: paillier_k256::DecryptionKey,
+        dk: paillier::DecryptionKey,
         x_i: k256_serde::Scalar,
     ) -> Self {
         Self { index, dk, x_i }
@@ -137,7 +137,7 @@ impl ShareSecretInfo {
         &self.x_i
     }
 
-    pub(crate) fn dk(&self) -> &paillier_k256::DecryptionKey {
+    pub(crate) fn dk(&self) -> &paillier::DecryptionKey {
         &self.dk
     }
 }
@@ -207,7 +207,7 @@ impl SecretKeyShare {
         };
 
         // recover my Paillier keys
-        let (ek, dk) = paillier_k256::keygen_unsafe(&mut ChaCha20Rng::from_seed(rng_seed(
+        let (ek, dk) = paillier::keygen_unsafe(&mut ChaCha20Rng::from_seed(rng_seed(
             secret_recovery_key,
             session_nonce,
         )));

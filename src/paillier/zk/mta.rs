@@ -1,6 +1,6 @@
 use crate::{
     k256_serde,
-    paillier_k256::{
+    paillier::{
         to_bigint, to_scalar, to_vec,
         zk::{mulm, random, ZkSetup},
         BigInt, Ciphertext, EncryptionKey, Plaintext, Randomness,
@@ -275,7 +275,7 @@ pub(crate) mod tests {
         malicious::{corrupt_proof, corrupt_proof_wc},
         BigInt, Statement, StatementWc, Witness, ZkSetup,
     };
-    use crate::paillier_k256::{keygen_unsafe, zk::random, Ciphertext, Plaintext};
+    use crate::paillier::{keygen_unsafe, zk::random, Ciphertext, Plaintext};
     use ecdsa::elliptic_curve::Field;
     use tracing_test::traced_test; // enable logs in tests
 

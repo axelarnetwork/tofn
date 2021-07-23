@@ -1,6 +1,6 @@
 use crate::{
     hash::Randomness,
-    mta, paillier_k256,
+    mta, paillier,
     refactor::{
         collections::{FillVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
@@ -31,7 +31,7 @@ pub struct R7 {
     pub Gamma_i_reveal: Randomness,
     pub w_i: Scalar,
     pub k_i: Scalar,
-    pub k_i_randomness: paillier_k256::Randomness,
+    pub k_i_randomness: paillier::Randomness,
     pub sigma_i: Scalar,
     pub l_i: Scalar,
     pub T_i: ProjectivePoint,

@@ -3,7 +3,7 @@ use crate::{
     hash::{self, Randomness},
     k256_serde,
     mta::Secret,
-    paillier_k256::{self, zk},
+    paillier::{self, zk},
     refactor::{
         collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
@@ -34,7 +34,7 @@ pub struct R5 {
     pub Gamma_i_reveal: Randomness,
     pub w_i: Scalar,
     pub k_i: Scalar,
-    pub k_i_randomness: paillier_k256::Randomness,
+    pub k_i_randomness: paillier::Randomness,
     pub sigma_i: Scalar,
     pub l_i: Scalar,
     pub T_i: ProjectivePoint,
@@ -187,7 +187,7 @@ impl bcast_only::Executer for R5 {
 mod malicious {
     use super::R5;
     use crate::{
-        paillier_k256::zk::range,
+        paillier::zk::range,
         refactor::{
             collections::TypedUsize,
             sign::{

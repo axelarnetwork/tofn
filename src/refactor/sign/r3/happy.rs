@@ -4,7 +4,7 @@ use crate::{
     hash::Randomness,
     k256_serde,
     mta::Secret,
-    paillier_k256,
+    paillier,
     refactor::{
         collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
@@ -39,7 +39,7 @@ pub struct R3 {
     pub Gamma_i_reveal: Randomness,
     pub w_i: Scalar,
     pub k_i: Scalar,
-    pub k_i_randomness: paillier_k256::Randomness,
+    pub k_i_randomness: paillier::Randomness,
     pub(crate) beta_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub(crate) nu_secrets: HoleVecMap<SignParticipantIndex, Secret>,
     pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
@@ -147,7 +147,7 @@ impl bcast_and_p2p::Executer for R3 {
         for (sign_peer_id, &keygen_peer_id) in &self.peers {
             let p2p_in = p2ps_in.get(sign_peer_id, sign_id)?;
 
-            let peer_stmt = paillier_k256::zk::mta::Statement {
+            let peer_stmt = paillier::zk::mta::Statement {
                 ciphertext1: &self.r1bcasts.get(sign_id)?.k_i_ciphertext,
                 ciphertext2: &p2p_in.alpha_ciphertext,
                 ek,
@@ -184,8 +184,8 @@ impl bcast_and_p2p::Executer for R3 {
                 .unwrap()
                 * peer_lambda_i_S;
 
-            let peer_stmt = paillier_k256::zk::mta::StatementWc {
-                stmt: paillier_k256::zk::mta::Statement {
+            let peer_stmt = paillier::zk::mta::StatementWc {
+                stmt: paillier::zk::mta::Statement {
                     ciphertext1: &self.r1bcasts.get(sign_id)?.k_i_ciphertext,
                     ciphertext2: &p2p_in.mu_ciphertext,
                     ek,

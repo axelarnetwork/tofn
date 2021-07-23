@@ -1,7 +1,7 @@
 use crate::{
     crypto_tools::vss,
     hash::Randomness,
-    k256_serde, paillier_k256,
+    k256_serde, paillier,
     refactor::{
         collections::{FillVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
@@ -33,7 +33,7 @@ pub struct R8 {
     pub Gamma_i_reveal: Randomness,
     pub w_i: Scalar,
     pub k_i: Scalar,
-    pub k_i_randomness: paillier_k256::Randomness,
+    pub k_i_randomness: paillier::Randomness,
     pub sigma_i: Scalar,
     pub l_i: Scalar,
     pub T_i: ProjectivePoint,

@@ -1,6 +1,6 @@
 use crate::{
     hash::Randomness,
-    paillier_k256,
+    paillier,
     refactor::{
         collections::{FillVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
@@ -31,7 +31,7 @@ pub struct R3 {
     pub Gamma_i_reveal: Randomness,
     pub w_i: Scalar,
     pub k_i: Scalar,
-    pub k_i_randomness: paillier_k256::Randomness,
+    pub k_i_randomness: paillier::Randomness,
     pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
     pub r1p2ps: P2ps<SignParticipantIndex, r1::P2p>,
 
@@ -101,7 +101,7 @@ impl bcast_and_p2p::Executer for R3 {
                     .ek();
                 let accused_k_i_ciphertext = &self.r1bcasts.get(accused_sign_id)?.k_i_ciphertext;
 
-                let accused_stmt = &paillier_k256::zk::range::Statement {
+                let accused_stmt = &paillier::zk::range::Statement {
                     ciphertext: accused_k_i_ciphertext,
                     ek: accused_ek,
                 };

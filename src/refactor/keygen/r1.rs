@@ -1,7 +1,7 @@
 use crate::{
     corrupt,
     crypto_tools::vss,
-    hash, k256_serde, paillier_k256,
+    hash, k256_serde, paillier,
     refactor::{
         keygen::SecretKeyShare,
         sdk::{
@@ -31,10 +31,10 @@ pub struct R1 {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bcast {
     pub y_i_commit: hash::Output,
-    pub ek: paillier_k256::EncryptionKey,
-    pub ek_proof: paillier_k256::zk::EncryptionKeyProof,
-    pub zkp: paillier_k256::zk::ZkSetup,
-    pub zkp_proof: paillier_k256::zk::ZkSetupProof,
+    pub ek: paillier::EncryptionKey,
+    pub ek_proof: paillier::zk::EncryptionKeyProof,
+    pub zkp: paillier::zk::ZkSetup,
+    pub zkp_proof: paillier::zk::ZkSetupProof,
 }
 
 impl no_messages::Executer for R1 {
@@ -56,8 +56,8 @@ impl no_messages::Executer for R1 {
         );
 
         let mut rng = rng::rng_from_seed(self.rng_seed.clone());
-        let (ek, dk) = paillier_k256::keygen_unsafe(&mut rng);
-        let (zkp, zkp_proof) = paillier_k256::zk::ZkSetup::new_unsafe(&mut rng);
+        let (ek, dk) = paillier::keygen_unsafe(&mut rng);
+        let (zkp, zkp_proof) = paillier::zk::ZkSetup::new_unsafe(&mut rng);
         let ek_proof = dk.correctness_proof();
 
         corrupt!(ek_proof, self.corrupt_ek_proof(_info.share_id(), ek_proof));
@@ -94,8 +94,8 @@ mod malicious {
     use super::R1;
     use crate::{
         hash::Output,
-        paillier_k256,
-        paillier_k256::zk::{EncryptionKeyProof, ZkSetupProof},
+        paillier,
+        paillier::zk::{EncryptionKeyProof, ZkSetupProof},
         refactor::collections::TypedUsize,
         refactor::keygen::malicious::Behaviour,
         refactor::keygen::KeygenPartyIndex,
@@ -123,7 +123,7 @@ mod malicious {
         ) -> EncryptionKeyProof {
             if let Behaviour::R1BadEncryptionKeyProof = self.behaviour {
                 info!("malicious party {} do {:?}", my_index, self.behaviour);
-                paillier_k256::zk::malicious::corrupt_ek_proof(ek_proof)
+                paillier::zk::malicious::corrupt_ek_proof(ek_proof)
             } else {
                 ek_proof
             }
@@ -136,7 +136,7 @@ mod malicious {
         ) -> ZkSetupProof {
             if let Behaviour::R1BadZkSetupProof = self.behaviour {
                 info!("malicious party {} do {:?}", my_index, self.behaviour);
-                paillier_k256::zk::malicious::corrupt_zksetup_proof(zkp_proof)
+                paillier::zk::malicious::corrupt_zksetup_proof(zkp_proof)
             } else {
                 zkp_proof
             }

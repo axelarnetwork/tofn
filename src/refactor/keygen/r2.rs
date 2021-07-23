@@ -4,7 +4,7 @@ use tracing::warn;
 use crate::{
     corrupt,
     crypto_tools::vss,
-    hash, paillier_k256,
+    hash, paillier,
     refactor::collections::{FillVecMap, VecMap},
     refactor::{
         keygen::{r3, SecretKeyShare},
@@ -28,13 +28,13 @@ pub struct Bcast {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct P2p {
-    pub u_i_share_ciphertext: paillier_k256::Ciphertext,
+    pub u_i_share_ciphertext: paillier::Ciphertext,
 }
 
 pub struct R2 {
     pub threshold: usize,
     pub party_share_counts: KeygenPartyShareCounts,
-    pub dk: paillier_k256::DecryptionKey,
+    pub dk: paillier::DecryptionKey,
     pub u_i_vss: vss::Vss,
     pub y_i_reveal: hash::Randomness,
 
@@ -127,7 +127,7 @@ impl bcast_only::Executer for R2 {
 mod malicious {
     use crate::{
         crypto_tools::vss::Share,
-        paillier_k256::Ciphertext,
+        paillier::Ciphertext,
         refactor::keygen::KeygenPartyIndex,
         refactor::{
             collections::{HoleVecMap, TypedUsize},

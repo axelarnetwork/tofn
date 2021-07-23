@@ -2,7 +2,7 @@ use std::ops::Neg;
 
 use crate::{
     k256_serde,
-    paillier_k256::{
+    paillier::{
         to_bigint, to_scalar, to_vec,
         zk::{random, ZkSetup},
         BigInt, Ciphertext, EncryptionKey, Plaintext, Randomness,
@@ -215,7 +215,7 @@ pub mod malicious {
 }
 #[cfg(test)]
 pub mod tests {
-    use crate::paillier_k256::keygen_unsafe;
+    use crate::paillier::keygen_unsafe;
 
     use super::{
         ZkSetup,

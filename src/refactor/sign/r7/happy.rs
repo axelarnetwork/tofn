@@ -1,7 +1,7 @@
 use crate::{
     corrupt,
     hash::Randomness,
-    k256_serde, paillier_k256,
+    k256_serde, paillier,
     refactor::{
         collections::{FillHoleVecMap, FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
@@ -35,7 +35,7 @@ pub struct R7 {
     pub Gamma_i_reveal: Randomness,
     pub w_i: Scalar,
     pub k_i: Scalar,
-    pub k_i_randomness: paillier_k256::Randomness,
+    pub k_i_randomness: paillier::Randomness,
     pub sigma_i: Scalar,
     pub l_i: Scalar,
     pub T_i: ProjectivePoint,
@@ -69,7 +69,7 @@ pub struct BcastHappy {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BcastSad {
     pub k_i: k256_serde::Scalar,
-    pub k_i_randomness: paillier_k256::Randomness,
+    pub k_i_randomness: paillier::Randomness,
     pub proof: chaum_pedersen_k256::Proof,
     pub mta_wc_plaintexts: HoleVecMap<SignParticipantIndex, MtaWcPlaintext>,
 }
@@ -79,8 +79,8 @@ pub struct MtaWcPlaintext {
     // mu_plaintext instead of mu
     // because mu_plaintext may differ from mu
     // why? because the ciphertext was formed from homomorphic Paillier operations, not just encrypting mu
-    pub mu_plaintext: paillier_k256::Plaintext,
-    pub mu_randomness: paillier_k256::Randomness,
+    pub mu_plaintext: paillier::Plaintext,
+    pub mu_randomness: paillier::Randomness,
 }
 
 impl bcast_only::Executer for R7 {

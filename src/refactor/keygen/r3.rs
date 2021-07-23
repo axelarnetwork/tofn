@@ -6,7 +6,7 @@ use crate::{
     crypto_tools::vss,
     hash,
     k256_serde::to_bytes,
-    paillier_k256,
+    paillier,
     refactor::collections::{FillVecMap, P2ps, VecMap},
     refactor::{
         keygen::{r4, SecretKeyShare},
@@ -45,13 +45,13 @@ pub struct BcastSad {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShareInfo {
     pub share: vss::Share,
-    pub randomness: paillier_k256::Randomness,
+    pub randomness: paillier::Randomness,
 }
 
 pub struct R3 {
     pub threshold: usize,
     pub party_share_counts: KeygenPartyShareCounts,
-    pub dk: paillier_k256::DecryptionKey,
+    pub dk: paillier::DecryptionKey,
     pub u_i_my_share: vss::Share,
     pub r1bcasts: VecMap<KeygenPartyIndex, r1::Bcast>,
 

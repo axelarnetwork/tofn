@@ -1,6 +1,6 @@
 use crate::{
     corrupt, hash, mta,
-    paillier_k256::{self, Ciphertext},
+    paillier::{self, Ciphertext},
     refactor::{
         collections::{FillHoleVecMap, P2ps, Subset, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
@@ -33,7 +33,7 @@ pub struct R2 {
     pub Gamma_i_reveal: hash::Randomness,
     pub w_i: Scalar,
     pub k_i: Scalar,
-    pub k_i_randomness: paillier_k256::Randomness,
+    pub k_i_randomness: paillier::Randomness,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
@@ -59,9 +59,9 @@ pub enum P2p {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct P2pHappy {
     pub alpha_ciphertext: Ciphertext,
-    pub alpha_proof: paillier_k256::zk::mta::Proof,
+    pub alpha_proof: paillier::zk::mta::Proof,
     pub mu_ciphertext: Ciphertext,
-    pub mu_proof: paillier_k256::zk::mta::ProofWc,
+    pub mu_proof: paillier::zk::mta::ProofWc,
 }
 
 impl bcast_and_p2p::Executer for R2 {
@@ -97,7 +97,7 @@ impl bcast_and_p2p::Executer for R2 {
                 .ek();
             let peer_k_i_ciphertext = &bcasts_in.get(sign_peer_id)?.k_i_ciphertext;
 
-            let peer_stmt = &paillier_k256::zk::range::Statement {
+            let peer_stmt = &paillier::zk::range::Statement {
                 ciphertext: peer_k_i_ciphertext,
                 ek: peer_ek,
             };
@@ -248,7 +248,7 @@ impl bcast_and_p2p::Executer for R2 {
 #[cfg(feature = "malicious")]
 mod malicious {
     use crate::{
-        paillier_k256::zk::mta,
+        paillier::zk::mta,
         refactor::{
             collections::{Subset, TypedUsize},
             sdk::api::TofnResult,

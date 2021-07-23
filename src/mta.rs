@@ -1,6 +1,6 @@
 use crate::{
     k256_serde,
-    paillier_k256::{
+    paillier::{
         zk::{mta, ZkSetup},
         Ciphertext, EncryptionKey, Plaintext, Randomness,
     },
@@ -119,7 +119,7 @@ mod tests {
     use ecdsa::elliptic_curve::Field;
 
     use super::{mta_response_with_proof_wc, verify_mta_response};
-    use crate::paillier_k256::{
+    use crate::paillier::{
         keygen_unsafe,
         zk::{mta, range, ZkSetup},
     };
