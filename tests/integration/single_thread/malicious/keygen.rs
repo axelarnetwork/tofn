@@ -1,6 +1,6 @@
-use tofn::refactor::{
+use tofn::{
     collections::{FillVecMap, TypedUsize, VecMap},
-    keygen::{
+    gg20::keygen::{
         malicious::Behaviour::{self, *},
         new_keygen, KeygenPartyIndex, KeygenProtocol, RealKeygenPartyIndex, SecretKeyShare,
     },

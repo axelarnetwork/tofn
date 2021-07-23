@@ -3,12 +3,16 @@ use crate::{
     single_thread::{execute::execute_protocol, set_up_logs},
 };
 use std::convert::TryFrom;
-use tofn::refactor::{
+use tofn::{
     collections::{FillVecMap, TypedUsize, VecMap},
-    keygen::RealKeygenPartyIndex,
+    gg20::{
+        keygen::RealKeygenPartyIndex,
+        sign::{
+            malicious::Behaviour::{self, *},
+            new_sign, MessageDigest, RealSignParticipantIndex, SignParticipantIndex, SignParties,
+        },
+    },
     sdk::api::{BytesVec, Fault, PartyShareCounts, Protocol::*, ProtocolOutput},
-    sign::malicious::Behaviour::{self, *},
-    sign::{new_sign, MessageDigest, RealSignParticipantIndex, SignParticipantIndex, SignParties},
 };
 use tracing::info;
 

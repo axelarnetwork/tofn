@@ -5,8 +5,8 @@ use std::sync::mpsc::Receiver;
 // `use` statements for type aliased enums :(
 // https://github.com/rust-lang/rust/issues/83248
 use tofn::{
-    refactor::collections::TypedUsize,
-    refactor::sdk::api::{BytesVec, Protocol, ProtocolOutput, TofnResult},
+    collections::TypedUsize,
+    sdk::api::{BytesVec, Protocol, ProtocolOutput, TofnResult},
 };
 
 #[derive(Clone)]
