@@ -7,7 +7,6 @@ use tofn::{
     sdk::api::{Fault, PartyShareCounts, Protocol::*, ProtocolOutput},
 };
 use tracing::info;
-// use tracing_test::traced_test;
 
 use crate::{
     common::malicious::dummy_secret_recovery_key,
@@ -15,24 +14,23 @@ use crate::{
 };
 
 #[test]
-// #[traced_test]
 fn single_faults() {
     set_up_logs();
     execute_test_case_list(&single_fault_test_case_list())
 }
 
 pub fn single_fault_test_case_list() -> Vec<TestCase> {
-    let zero = TypedUsize::from_usize(0);
-    let one = TypedUsize::from_usize(1);
+    // let zero = TypedUsize::from_usize(0);
+    // let one = TypedUsize::from_usize(1);
     vec![
         single_fault_test_case(R1BadCommit),
-        single_fault_test_case(R1BadEncryptionKeyProof),
-        single_fault_test_case(R1BadZkSetupProof),
-        single_fault_test_case(R2BadShare { victim: zero }),
-        single_fault_test_case(R2BadEncryption { victim: zero }),
-        single_fault_test_case(R3FalseAccusation { victim: zero }),
-        single_fault_test_case(R3FalseAccusation { victim: one }), // self accusation
-        single_fault_test_case(R3BadXIWitness),
+        // single_fault_test_case(R1BadEncryptionKeyProof),
+        // single_fault_test_case(R1BadZkSetupProof),
+        // single_fault_test_case(R2BadShare { victim: zero }),
+        // single_fault_test_case(R2BadEncryption { victim: zero }),
+        // single_fault_test_case(R3FalseAccusation { victim: zero }),
+        // single_fault_test_case(R3FalseAccusation { victim: one }), // self accusation
+        // single_fault_test_case(R3BadXIWitness),
     ]
 }
 

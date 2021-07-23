@@ -25,19 +25,26 @@ fn basic_correctness() {
     // keygen
     debug!("start keygen");
     let keygen_shares = keygen::initialize_honest_parties(&party_share_counts, threshold);
-    let (broadcaster, receivers) = Broadcaster::new(party_share_counts.total_share_count());
-    let (result_sender, result_receiver) = mpsc::channel();
-    for ((_, keygen_share), receiver) in keygen_shares.into_iter().zip(receivers.into_iter()) {
-        let broadcaster = broadcaster.clone();
-        let result_sender = result_sender.clone();
+    let (keygen_broadcaster, keygen_receivers) =
+        Broadcaster::new(party_share_counts.total_share_count());
+    let (keygen_result_sender, keygen_result_receiver) = mpsc::channel();
+    for ((_, keygen_share), keygen_receiver) in
+        keygen_shares.into_iter().zip(keygen_receivers.into_iter())
+    {
+        let keygen_broadcaster = keygen_broadcaster.clone();
+        let keygen_result_sender = keygen_result_sender.clone();
         thread::spawn(move || {
-            result_sender.send(party::execute_protocol(keygen_share, receiver, broadcaster))
+            keygen_result_sender.send(party::execute_protocol(
+                keygen_share,
+                keygen_receiver,
+                keygen_broadcaster,
+            ))
         });
     }
-    drop(result_sender); // so that result_receiver can close
+    drop(keygen_result_sender); // so that result_receiver can close
 
     // collect keygen output
-    let mut secret_key_shares_unsorted: Vec<SecretKeyShare> = result_receiver
+    let mut secret_key_shares_unsorted: Vec<SecretKeyShare> = keygen_result_receiver
         .into_iter()
         .map(|output| {
             output
@@ -92,19 +99,24 @@ fn basic_correctness() {
         )
         .unwrap()
     });
-    let (broadcaster, receivers) = Broadcaster::new(sign_shares.len());
-    let (result_sender, result_receiver) = mpsc::channel();
-    for ((_, sign_share), receiver) in sign_shares.into_iter().zip(receivers.into_iter()) {
-        let broadcaster = broadcaster.clone();
-        let result_sender = result_sender.clone();
+    let (sign_broadcaster, sign_receivers) = Broadcaster::new(sign_shares.len());
+    let (sign_result_sender, sign_result_receiver) = mpsc::channel();
+    for ((_, sign_share), sign_receiver) in sign_shares.into_iter().zip(sign_receivers.into_iter())
+    {
+        let sign_broadcaster = sign_broadcaster.clone();
+        let sign_result_sender = sign_result_sender.clone();
         thread::spawn(move || {
-            result_sender.send(party::execute_protocol(sign_share, receiver, broadcaster))
+            sign_result_sender.send(party::execute_protocol(
+                sign_share,
+                sign_receiver,
+                sign_broadcaster,
+            ))
         });
     }
-    drop(result_sender); // so that result_receiver can close
+    drop(sign_result_sender); // so that result_receiver can close
 
     // collect sign output
-    let signatures: VecMap<SignParticipantIndex, _> = result_receiver
+    let signatures: VecMap<SignParticipantIndex, _> = sign_result_receiver
         .into_iter()
         .map(|output| {
             output
