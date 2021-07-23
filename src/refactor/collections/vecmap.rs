@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::iter::FromIterator;
 use tracing::error;
+use zeroize::Zeroize;
 
 use crate::refactor::sdk::api::{TofnFatal, TofnResult};
 
@@ -8,6 +9,15 @@ use super::{vecmap_iter::VecMapIter, HoleVecMap, TypedUsize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct VecMap<K, V>(Vec<V>, std::marker::PhantomData<TypedUsize<K>>);
+
+impl<K, V> Zeroize for VecMap<K, V>
+where
+    V: Zeroize,
+{
+    fn zeroize(&mut self) {
+        self.0.zeroize()
+    }
+}
 
 impl<K, V> VecMap<K, V> {
     pub fn from_vec(vec: Vec<V>) -> Self {

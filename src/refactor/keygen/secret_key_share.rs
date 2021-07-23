@@ -13,16 +13,18 @@ use rand_chacha::ChaCha20Rng;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use tracing::error;
+use zeroize::Zeroize;
 
 /// final output of keygen: store this struct in tofnd kvstore
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Zeroize)]
+#[zeroize(drop)]
 pub struct SecretKeyShare {
     group: GroupPublicInfo,
     share: ShareSecretInfo,
 }
 
 /// `GroupPublicInfo` is the same for all shares
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Zeroize)]
 pub struct GroupPublicInfo {
     party_share_counts: KeygenPartyShareCounts,
     threshold: usize,
@@ -32,7 +34,7 @@ pub struct GroupPublicInfo {
 
 /// `SharePublicInfo` public info unique to each share
 /// all parties store a list of `SharePublicInfo`
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Zeroize)]
 #[allow(non_snake_case)]
 pub struct SharePublicInfo {
     X_i: k256_serde::ProjectivePoint,
@@ -44,7 +46,8 @@ pub struct SharePublicInfo {
 /// `index` is not secret but it's stored here anyway
 /// because it's an essential part of secret data
 /// and parties need a way to know their own index
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Zeroize)]
+#[zeroize(drop)]
 pub struct ShareSecretInfo {
     index: TypedUsize<KeygenPartyIndex>,
     dk: paillier_k256::DecryptionKey,

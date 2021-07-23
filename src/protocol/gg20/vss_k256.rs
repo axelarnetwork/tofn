@@ -1,10 +1,12 @@
 //! Helpers for verifiable secret sharing
 use k256::elliptic_curve::Field;
 use serde::{Deserialize, Serialize};
+use zeroize::Zeroize;
 
 use crate::k256_serde;
 
-#[derive(Debug)]
+#[derive(Debug, Zeroize)]
+#[zeroize(drop)]
 pub struct Vss {
     secret_coeffs: Vec<k256::Scalar>,
 }
@@ -86,7 +88,8 @@ impl Commit {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Zeroize)]
+#[zeroize(drop)]
 pub struct Share {
     scalar: k256_serde::Scalar,
     index: usize,
