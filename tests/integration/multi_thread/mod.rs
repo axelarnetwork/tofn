@@ -53,22 +53,12 @@ fn basic_correctness() {
         })
         .collect();
     debug!("end keygen");
-    let indices_unsorted: Vec<_> = secret_key_shares_unsorted
-        .iter()
-        .map(|s| s.share().index())
-        .collect();
-    debug!("secret_key_shares_unsorted: {:?}", indices_unsorted);
     secret_key_shares_unsorted.sort_by(|a, b| {
         a.share()
             .index()
             .as_usize()
             .cmp(&b.share().index().as_usize())
     });
-    let indices_sorted: Vec<_> = secret_key_shares_unsorted
-        .iter()
-        .map(|s| s.share().index())
-        .collect();
-    debug!("secret_key_shares_sorted: {:?}", indices_sorted);
     let secret_key_shares = VecMap::<KeygenPartyIndex, _>::from_vec(secret_key_shares_unsorted);
 
     // sign participants: 0,1,3 out of 0,1,2,3
@@ -82,7 +72,6 @@ fn basic_correctness() {
     let keygen_share_ids = VecMap::<SignParticipantIndex, _>::from_vec(
         party_share_counts.share_id_subset(&sign_parties).unwrap(),
     );
-    debug!("keygen_share_ids: {:?}", keygen_share_ids);
 
     // sign
     debug!("start sign");
