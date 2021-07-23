@@ -3,15 +3,19 @@ use std::convert::TryFrom;
 use crate::common::keygen;
 use ecdsa::{elliptic_curve::sec1::FromEncodedPoint, hazmat::VerifyPrimitive};
 use execute::*;
-use tofn::refactor::{
-    collections::{TypedUsize, VecMap},
-    keygen::{KeygenPartyIndex, SecretKeyShare},
-    sdk::api::{PartyShareCounts, Protocol},
-    sign::{new_sign, MessageDigest, SignParticipantIndex, SignParties},
+use tofn::{
+    gg20::{
+        keygen::{KeygenPartyIndex, SecretKeyShare},
+        sign::{new_sign, MessageDigest, SignParticipantIndex, SignParties},
+    },
+    refactor::{
+        collections::{TypedUsize, VecMap},
+        sdk::api::{PartyShareCounts, Protocol},
+    },
 };
 
 #[cfg(feature = "malicious")]
-use tofn::refactor::sign;
+use tofn::gg20::sign;
 
 // use test_env_log::test;
 // use tracing_test::traced_test; // enable logs in tests

@@ -1,15 +1,12 @@
 pub mod keygen {
     use rand::RngCore;
     use tofn::{
-        refactor::collections::VecMap,
-        refactor::{
-            keygen::{new_keygen, KeygenPartyIndex, KeygenProtocol, RealKeygenPartyIndex},
-            sdk::api::PartyShareCounts,
-        },
+        gg20::keygen::{new_keygen, KeygenPartyIndex, KeygenProtocol, RealKeygenPartyIndex},
+        refactor::{collections::VecMap, sdk::api::PartyShareCounts},
     };
 
     #[cfg(feature = "malicious")]
-    use tofn::refactor::keygen::malicious::Behaviour;
+    use tofn::gg20::keygen::malicious::Behaviour;
 
     pub fn initialize_honest_parties(
         party_share_counts: &PartyShareCounts<RealKeygenPartyIndex>,
@@ -45,7 +42,7 @@ pub mod keygen {
 
 #[cfg(feature = "malicious")]
 pub mod malicious {
-    use tofn::refactor::{collections::TypedUsize, keygen::SecretRecoveryKey};
+    use tofn::{gg20::keygen::SecretRecoveryKey, refactor::collections::TypedUsize};
 
     /// return the all-zero array with the first bytes set to the bytes of `index`
     pub fn dummy_secret_recovery_key<K>(index: TypedUsize<K>) -> SecretRecoveryKey {
