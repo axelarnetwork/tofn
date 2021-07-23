@@ -1,7 +1,7 @@
 use crate::{
+    crypto_tools::vss,
     hash::Randomness,
     paillier_k256,
-    protocol::gg20::vss,
     refactor::{
         collections::{FillVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},

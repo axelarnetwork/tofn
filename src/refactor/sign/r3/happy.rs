@@ -1,10 +1,10 @@
 use crate::{
     corrupt,
+    crypto_tools::vss,
     hash::Randomness,
     k256_serde,
     mta::Secret,
     paillier_k256,
-    protocol::gg20::vss,
     refactor::{
         collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},

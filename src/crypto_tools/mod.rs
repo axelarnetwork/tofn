@@ -1,1 +1,1 @@
-mod vss;
+pub mod vss;

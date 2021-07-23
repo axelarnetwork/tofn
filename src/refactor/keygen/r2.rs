@@ -2,8 +2,9 @@ use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 use crate::{
-    corrupt, hash, paillier_k256,
-    protocol::gg20::vss,
+    corrupt,
+    crypto_tools::vss,
+    hash, paillier_k256,
     refactor::collections::{FillVecMap, VecMap},
     refactor::{
         keygen::{r3, SecretKeyShare},
@@ -125,8 +126,8 @@ impl bcast_only::Executer for R2 {
 #[cfg(feature = "malicious")]
 mod malicious {
     use crate::{
+        crypto_tools::vss::Share,
         paillier_k256::Ciphertext,
-        protocol::gg20::vss::Share,
         refactor::keygen::KeygenPartyIndex,
         refactor::{
             collections::{HoleVecMap, TypedUsize},

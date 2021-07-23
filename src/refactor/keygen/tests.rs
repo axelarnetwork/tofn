@@ -1,6 +1,6 @@
 use super::*;
 use crate::{
-    protocol::gg20::vss,
+    crypto_tools::vss,
     refactor::collections::{zip2, HoleVecMap, TypedUsize, VecMap},
     refactor::sdk::api::{BytesVec, Protocol},
 };

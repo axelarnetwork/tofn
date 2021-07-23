@@ -2,10 +2,11 @@ use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 use crate::{
-    corrupt, hash,
+    corrupt,
+    crypto_tools::vss,
+    hash,
     k256_serde::to_bytes,
     paillier_k256,
-    protocol::gg20::vss,
     refactor::collections::{FillVecMap, P2ps, VecMap},
     refactor::{
         keygen::{r4, SecretKeyShare},
@@ -198,7 +199,7 @@ impl bcast_and_p2p::Executer for R3 {
 mod malicious {
     use super::{ShareInfo, R3};
     use crate::{
-        protocol::gg20::vss,
+        crypto_tools::vss,
         refactor::{
             collections::{FillVecMap, HoleVecMap, TypedUsize},
             keygen::KeygenPartyIndex,

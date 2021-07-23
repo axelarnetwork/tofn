@@ -1,6 +1,7 @@
 use crate::{
-    corrupt, hash, k256_serde, paillier_k256,
-    protocol::gg20::vss,
+    corrupt,
+    crypto_tools::vss,
+    hash, k256_serde, paillier_k256,
     refactor::{
         keygen::SecretKeyShare,
         sdk::{
