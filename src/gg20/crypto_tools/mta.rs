@@ -6,8 +6,10 @@ use crate::gg20::crypto_tools::{
     },
 };
 use serde::{Deserialize, Serialize};
+use zeroize::Zeroize;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Zeroize)]
+#[zeroize(drop)]
 pub struct Secret {
     pub beta: k256_serde::Scalar,
     pub beta_prime: Plaintext,

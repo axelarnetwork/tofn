@@ -243,7 +243,7 @@ impl<F, K, P> Round<F, K, P> {
                 bcast_out,
                 p2ps_out,
                 bcasts_in: FillVecMap::with_size(len),
-                p2ps_in: FillP2ps::with_size(len),
+                p2ps_in: FillP2ps::with_size(len)?,
             }),
         ))
     }
@@ -291,7 +291,7 @@ impl<F, K, P> Round<F, K, P> {
             RoundType::P2pOnly(P2pOnlyRound {
                 round,
                 p2ps_out,
-                p2ps_in: FillP2ps::with_size(len),
+                p2ps_in: FillP2ps::with_size(len)?,
             }),
         ))
     }

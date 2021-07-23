@@ -1,5 +1,5 @@
 use crate::{
-    collections::{FillHoleVecMap, HoleVecMap, P2ps, Subset, TypedUsize, VecMap},
+    collections::{HoleVecMap, P2ps, Subset, TypedUsize, VecMap},
     corrupt,
     gg20::{
         crypto_tools::{
@@ -205,9 +205,7 @@ impl bcast_and_p2p::Executer for R6 {
         if R_i_sum != _curve_generator {
             warn!("peer {} says: 'type 5' fault detected", sign_id);
 
-            let mut mta_plaintexts = FillHoleVecMap::with_size(participants_count, sign_id)?;
-
-            for (sign_peer_id, _) in &self.peers {
+            let mta_plaintexts = self.beta_secrets.map_ref(|(sign_peer_id, beta_secret)| {
                 let r2p2p = self.r2p2ps.get(sign_peer_id, sign_id)?;
 
                 let (alpha_plaintext, alpha_randomness) = self
@@ -221,23 +219,19 @@ impl bcast_and_p2p::Executer for R6 {
                     self.corrupt_alpha_plaintext(info.share_id(), sign_peer_id, alpha_plaintext)
                 );
 
-                let beta_secret = self.beta_secrets.get(sign_peer_id)?.clone();
+                let beta_secret = beta_secret.clone();
 
                 corrupt!(
                     beta_secret,
                     self.corrupt_beta_secret(info.share_id(), sign_peer_id, beta_secret)
                 );
 
-                let mta_plaintext = MtaPlaintext {
+                Ok(MtaPlaintext {
                     alpha_plaintext,
                     alpha_randomness,
                     beta_secret,
-                };
-
-                mta_plaintexts.set(sign_peer_id, mta_plaintext)?;
-            }
-
-            let mta_plaintexts = mta_plaintexts.unwrap_all()?;
+                })
+            })?;
 
             let k_i = self.k_i;
             corrupt!(k_i, self.corrupt_k_i(info.share_id(), k_i));
@@ -272,6 +266,7 @@ impl bcast_and_p2p::Executer for R6 {
                     delta_inv: self.delta_inv,
                     R: self.R,
                     r5bcasts: bcasts_in,
+                    r5p2ps: p2ps_in,
 
                     #[cfg(feature = "malicious")]
                     behaviour: self.behaviour,

@@ -1,5 +1,5 @@
 use crate::{
-    collections::{FillHoleVecMap, P2ps, Subset, TypedUsize, VecMap},
+    collections::{P2ps, Subset, TypedUsize, VecMap},
     corrupt,
     gg20::{
         crypto_tools::{
@@ -82,8 +82,8 @@ impl bcast_and_p2p::Executer for R2 {
 
         let mut zkp_complaints = Subset::with_max_size(participants_count);
 
-        let mut beta_secrets = FillHoleVecMap::with_size(participants_count, sign_id)?;
-        let mut nu_secrets = FillHoleVecMap::with_size(participants_count, sign_id)?;
+        let mut beta_secrets = info.create_fill_hole_map(participants_count)?;
+        let mut nu_secrets = info.create_fill_hole_map(participants_count)?;
 
         // step 2 for MtA protocols:
         // 1. k_i (other) * gamma_j (me)
@@ -159,7 +159,7 @@ impl bcast_and_p2p::Executer for R2 {
             }));
         }
 
-        let mut p2ps_out = FillHoleVecMap::with_size(participants_count, sign_id)?;
+        let mut p2ps_out = info.create_fill_hole_map(participants_count)?;
 
         for (sign_peer_id, &keygen_peer_id) in &self.peers {
             // MtA step 2 for k_i * gamma_j

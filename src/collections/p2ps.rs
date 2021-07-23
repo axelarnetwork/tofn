@@ -100,15 +100,12 @@ impl<'a, K, V> IntoIterator for &'a P2ps<K, V> {
 pub struct FillP2ps<K, V>(VecMap<K, FillHoleVecMap<K, V>>);
 
 impl<K, V> FillP2ps<K, V> {
-    pub fn with_size(len: usize) -> Self {
-        Self(
+    pub fn with_size(len: usize) -> TofnResult<Self> {
+        Ok(Self(
             (0..len)
-                .map(|hole| {
-                    FillHoleVecMap::with_size(len, TypedUsize::from_usize(hole))
-                        .expect("hole out of bounds")
-                })
-                .collect(),
-        )
+                .map(|hole| FillHoleVecMap::with_size(len, TypedUsize::from_usize(hole)))
+                .collect::<TofnResult<_>>()?,
+        ))
     }
     pub fn set(&mut self, from: TypedUsize<K>, to: TypedUsize<K>, value: V) -> TofnResult<()> {
         self.0.get_mut(from)?.set(to, value)
@@ -186,7 +183,7 @@ mod tests {
         let one = TypedUsize::from_usize(1);
         let two = TypedUsize::from_usize(2);
 
-        let mut fill_p2ps: FillP2ps<TestIndex, usize> = FillP2ps::with_size(3);
+        let mut fill_p2ps: FillP2ps<TestIndex, usize> = FillP2ps::with_size(3).expect("bad hole");
         fill_p2ps.set(zero, one, 0).unwrap();
         fill_p2ps.set(zero, two, 1).unwrap();
         fill_p2ps.set(one, zero, 2).unwrap();

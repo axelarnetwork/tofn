@@ -1,5 +1,5 @@
 use crate::{
-    collections::{FillVecMap, TypedUsize},
+    collections::{FillHoleVecMap, FillVecMap, TypedUsize},
     sdk::{api::TofnResult, protocol::ProtocolOutput, protocol_builder::ProtocolBuilderOutput},
 };
 
@@ -23,8 +23,13 @@ impl<K> ProtocolInfo<K> {
     pub fn share_count(&self) -> usize {
         self.share_count
     }
+
     pub fn share_id(&self) -> TypedUsize<K> {
         self.share_id
+    }
+
+    pub fn create_fill_hole_map<V>(&self, len: usize) -> TofnResult<FillHoleVecMap<K, V>> {
+        FillHoleVecMap::with_size(len, self.share_id)
     }
 }
 

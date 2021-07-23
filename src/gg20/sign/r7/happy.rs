@@ -1,5 +1,5 @@
 use crate::{
-    collections::{FillHoleVecMap, FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
+    collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
     corrupt,
     gg20::{
         crypto_tools::{
@@ -54,7 +54,6 @@ pub struct R7 {
     pub behaviour: Behaviour,
 }
 
-// TODO: Should we box the BcastSad enum?
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Bcast {
@@ -104,9 +103,8 @@ impl bcast_only::Executer for R7 {
             .iter()
             .any(|(_, bcast)| matches!(bcast, r6::Bcast::Sad(_)))
         {
-            // TODO: do we prioritize sad or type 5 path?
             warn!(
-                "peer {} says: received an R6 complaint from others",
+                "peer {} says: received an R6 complaint from others while in happy path",
                 sign_id,
             );
 
@@ -150,7 +148,6 @@ impl bcast_only::Executer for R7 {
                 r6::Bcast::Happy(bcast) => {
                     bcasts.set(sign_peer_id, bcast)?;
                 }
-                r6::Bcast::Sad(_) => unreachable!(),
                 r6::Bcast::SadType5(_) => {
                     warn!(
                         "peer {} says: peer {} broadcasted a 'type 5' failure",
@@ -158,6 +155,7 @@ impl bcast_only::Executer for R7 {
                     );
                     faulters.set(sign_peer_id, ProtocolFault)?;
                 }
+                r6::Bcast::Sad(_) => return Err(TofnFatal), // This should never occur at this stage
             }
         }
 
@@ -201,27 +199,19 @@ impl bcast_only::Executer for R7 {
         if &S_i_sum != self.secret_key_share.group().y().unwrap() {
             warn!("peer {} says: 'type 7' fault detected", sign_id);
 
-            let mut mta_wc_plaintexts = FillHoleVecMap::with_size(participants_count, sign_id)?;
-
-            for (sign_peer_id, _) in &self.peers {
-                let r2p2p = self.r2p2ps.get(sign_peer_id, sign_id)?;
-
-                // recover encryption randomness for mu; need to decrypt again to do so
+            // recover encryption randomness for mu; need to decrypt again to do so
+            let mta_wc_plaintexts = self.r2p2ps.map_to_me(sign_id, |p2p| {
                 let (mu_plaintext, mu_randomness) = self
                     .secret_key_share
                     .share()
                     .dk()
-                    .decrypt_with_randomness(&r2p2p.mu_ciphertext);
+                    .decrypt_with_randomness(&p2p.mu_ciphertext);
 
-                let mta_wc_plaintext = MtaWcPlaintext {
+                MtaWcPlaintext {
                     mu_plaintext,
                     mu_randomness,
-                };
-
-                mta_wc_plaintexts.set(sign_peer_id, mta_wc_plaintext)?;
-            }
-
-            let mta_wc_plaintexts = mta_wc_plaintexts.unwrap_all()?;
+                }
+            })?;
 
             let proof = chaum_pedersen_k256::prove(
                 &chaum_pedersen_k256::Statement {
@@ -247,6 +237,7 @@ impl bcast_only::Executer for R7 {
                     secret_key_share: self.secret_key_share,
                     msg_to_sign: self.msg_to_sign,
                     peers: self.peers,
+                    participants: self.participants,
                     keygen_id: self.keygen_id,
                     gamma_i: self.gamma_i,
                     Gamma_i: self.Gamma_i,
