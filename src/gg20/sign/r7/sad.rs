@@ -95,20 +95,20 @@ impl bcast_only::Executer for R7 {
 
         let mut faulters = FillVecMap::with_size(participants_count);
 
-        // TODO: What do we do if there is a Type5 fault?
         // check if there are no complaints
         if bcasts_in
             .iter()
             .all(|(_, bcast)| !matches!(bcast, r6::Bcast::Sad(_)))
         {
             error!(
-                "peer {} says: received no R6 complaints from others in R7 failure protocol",
+                "peer {} says: received no R6 complaints from others while in sad path",
                 sign_id,
             );
 
             return Err(TofnFatal);
         }
 
+        // We prioritize complaints over type 5 faults and happy bcasts, so ignore those
         let accusations_iter =
             bcasts_in
                 .into_iter()

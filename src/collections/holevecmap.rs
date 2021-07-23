@@ -79,11 +79,10 @@ impl<K, V> HoleVecMap<K, V> {
     where
         F: Fn((TypedUsize<K>, &V)) -> TofnResult<W>,
     {
-        Ok(HoleVecMap::<K, W>::from_vecmap(
+        HoleVecMap::<K, W>::from_vecmap(
             self.iter().map(f).collect::<TofnResult<VecMap<K, W>>>()?,
             self.hole,
         )
-        .expect("hole out of bounds"))
     }
 
     pub fn map<W, F>(self, f: F) -> HoleVecMap<K, W>
@@ -98,13 +97,12 @@ impl<K, V> HoleVecMap<K, V> {
         F: FnMut((TypedUsize<K>, V)) -> TofnResult<W>,
     {
         let hole = self.hole;
-        Ok(HoleVecMap::<K, W>::from_vecmap(
+        HoleVecMap::<K, W>::from_vecmap(
             self.into_iter()
                 .map(f)
                 .collect::<TofnResult<VecMap<K, W>>>()?,
             hole,
         )
-        .expect("hole out of bounds"))
     }
 }
 

@@ -3,7 +3,7 @@ use crate::{
     gg20::{
         crypto_tools::{hash::Randomness, k256_serde, paillier, vss, zkp::chaum_pedersen_k256},
         keygen::{KeygenPartyIndex, SecretKeyShare},
-        sign::{r2, r3, r4},
+        sign::{r2, r3, r4, Participants},
     },
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
@@ -24,6 +24,7 @@ pub struct R8 {
     pub secret_key_share: SecretKeyShare,
     pub msg_to_sign: Scalar,
     pub peers: Peers,
+    pub participants: Participants,
     pub keygen_id: TypedUsize<KeygenPartyIndex>,
     pub gamma_i: Scalar,
     pub Gamma_i: ProjectivePoint,
@@ -114,7 +115,7 @@ impl bcast_only::Executer for R8 {
 
             // verify R8 peer data is consistent with earlier messages:
             // 1. k_i
-            let keygen_peer_id = *self.peers.get(sign_peer_id)?;
+            let keygen_peer_id = *self.participants.get(sign_peer_id)?;
 
             let peer_ek = &self
                 .secret_key_share
@@ -201,7 +202,7 @@ impl bcast_only::Executer for R8 {
                     .collect::<Vec<_>>(),
             );
 
-            let keygen_peer_id = *self.peers.get(sign_peer_id)?;
+            let keygen_peer_id = *self.participants.get(sign_peer_id)?;
 
             let peer_W_i = self
                 .secret_key_share
