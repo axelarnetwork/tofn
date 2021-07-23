@@ -1,4 +1,4 @@
-use crate::k256_serde;
+use crate::crypto_tools::k256_serde;
 use ecdsa::{elliptic_curve::Field, hazmat::FromDigest};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};

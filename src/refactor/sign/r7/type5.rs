@@ -1,6 +1,5 @@
 use crate::{
-    hash::Randomness,
-    mta, paillier,
+    crypto_tools::{hash::Randomness, mta, paillier},
     refactor::{
         collections::{FillVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},

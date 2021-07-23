@@ -1,7 +1,6 @@
 use crate::{
     corrupt,
-    crypto_tools::vss,
-    hash, k256_serde, paillier,
+    crypto_tools::{hash, k256_serde, paillier, vss},
     refactor::{
         keygen::SecretKeyShare,
         sdk::{
@@ -93,9 +92,11 @@ impl no_messages::Executer for R1 {
 mod malicious {
     use super::R1;
     use crate::{
-        hash::Output,
-        paillier,
-        paillier::zk::{EncryptionKeyProof, ZkSetupProof},
+        crypto_tools::{
+            hash::Output,
+            paillier,
+            paillier::zk::{EncryptionKeyProof, ZkSetupProof},
+        },
         refactor::collections::TypedUsize,
         refactor::keygen::malicious::Behaviour,
         refactor::keygen::KeygenPartyIndex,

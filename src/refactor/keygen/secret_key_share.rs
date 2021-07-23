@@ -1,7 +1,6 @@
 use super::{KeygenPartyIndex, KeygenPartyShareCounts, RealKeygenPartyIndex, SecretRecoveryKey};
 use crate::{
-    crypto_tools::vss,
-    k256_serde, paillier,
+    crypto_tools::{k256_serde, paillier, vss},
     refactor::{
         collections::{TypedUsize, VecMap},
         sdk::api::{TofnFatal, TofnResult},

@@ -1,9 +1,6 @@
 use crate::{
     corrupt,
-    hash::Randomness,
-    k256_serde,
-    mta::Secret,
-    paillier,
+    crypto_tools::{hash::Randomness, k256_serde, mta::Secret, paillier, zkp::pedersen_k256},
     refactor::{
         collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
@@ -13,7 +10,6 @@ use crate::{
         },
         sign::{r4, Participants},
     },
-    zkp::pedersen_k256,
 };
 use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
@@ -193,7 +189,7 @@ impl bcast_only::Executer for R4 {
 mod malicious {
     use super::R4;
     use crate::{
-        hash::Randomness,
+        crypto_tools::hash::Randomness,
         refactor::{
             collections::TypedUsize,
             sign::{

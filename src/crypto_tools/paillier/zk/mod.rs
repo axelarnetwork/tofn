@@ -140,7 +140,7 @@ fn secp256k1_modulus_cubed() -> BigInt {
 #[cfg(test)]
 mod tests {
     use super::secp256k1_modulus_cubed;
-    use crate::paillier::secp256k1_modulus;
+    use crate::crypto_tools::paillier::secp256k1_modulus;
 
     #[test]
     fn q_cubed() {

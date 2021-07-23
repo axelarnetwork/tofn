@@ -1,6 +1,6 @@
 use std::ops::Neg;
 
-use crate::{
+use crate::crypto_tools::{
     k256_serde,
     paillier::{
         to_bigint, to_scalar, to_vec,
@@ -193,7 +193,7 @@ impl ZkSetup {
 // in non-malicious test build to avoid code-duplication for malicious tests.
 #[cfg(any(test, feature = "malicious"))]
 pub mod malicious {
-    use crate::k256_serde::ProjectivePoint;
+    use crate::crypto_tools::k256_serde::ProjectivePoint;
 
     use super::*;
 
@@ -215,7 +215,7 @@ pub mod malicious {
 }
 #[cfg(test)]
 pub mod tests {
-    use crate::paillier::keygen_unsafe;
+    use crate::crypto_tools::paillier::keygen_unsafe;
 
     use super::{
         ZkSetup,

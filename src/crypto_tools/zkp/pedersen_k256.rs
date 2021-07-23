@@ -1,4 +1,4 @@
-use crate::k256_serde;
+use crate::crypto_tools::k256_serde;
 use ecdsa::{
     elliptic_curve::{sec1::FromEncodedPoint, Field},
     hazmat::FromDigest,

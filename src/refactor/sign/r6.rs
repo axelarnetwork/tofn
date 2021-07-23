@@ -1,9 +1,12 @@
 use crate::{
     corrupt,
-    hash::Randomness,
-    k256_serde,
-    mta::{self, Secret},
-    paillier::{self, zk, Plaintext},
+    crypto_tools::{
+        hash::Randomness,
+        k256_serde,
+        mta::{self, Secret},
+        paillier::{self, zk, Plaintext},
+        zkp::pedersen_k256,
+    },
     refactor::{
         collections::{FillHoleVecMap, HoleVecMap, P2ps, Subset, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
@@ -14,7 +17,6 @@ use crate::{
             },
         },
     },
-    zkp::pedersen_k256,
 };
 use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
@@ -347,8 +349,7 @@ impl bcast_and_p2p::Executer for R6 {
 mod malicious {
     use super::R6;
     use crate::{
-        mta::Secret,
-        paillier::Plaintext,
+        crypto_tools::{mta::Secret, paillier::Plaintext, zkp::pedersen_k256},
         refactor::{
             collections::{Subset, TypedUsize},
             sdk::api::TofnResult,
@@ -357,7 +358,6 @@ mod malicious {
                 SignParticipantIndex,
             },
         },
-        zkp::pedersen_k256,
     };
 
     impl R6 {

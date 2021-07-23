@@ -3,8 +3,7 @@ use tracing::warn;
 
 use crate::{
     corrupt,
-    crypto_tools::vss,
-    hash, paillier,
+    crypto_tools::{hash, paillier, vss},
     refactor::collections::{FillVecMap, VecMap},
     refactor::{
         keygen::{r3, SecretKeyShare},
@@ -126,8 +125,7 @@ impl bcast_only::Executer for R2 {
 #[cfg(feature = "malicious")]
 mod malicious {
     use crate::{
-        crypto_tools::vss::Share,
-        paillier::Ciphertext,
+        crypto_tools::{paillier::Ciphertext, vss::Share},
         refactor::keygen::KeygenPartyIndex,
         refactor::{
             collections::{HoleVecMap, TypedUsize},

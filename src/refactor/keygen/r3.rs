@@ -3,10 +3,7 @@ use tracing::warn;
 
 use crate::{
     corrupt,
-    crypto_tools::vss,
-    hash,
-    k256_serde::to_bytes,
-    paillier,
+    crypto_tools::{hash, k256_serde::to_bytes, paillier, vss, zkp::schnorr_k256},
     refactor::collections::{FillVecMap, P2ps, VecMap},
     refactor::{
         keygen::{r4, SecretKeyShare},
@@ -18,7 +15,6 @@ use crate::{
             },
         },
     },
-    zkp::schnorr_k256,
 };
 
 use super::{r1, r2, KeygenPartyIndex, KeygenPartyShareCounts, KeygenProtocolBuilder};

@@ -1,4 +1,4 @@
-use crate::{
+use crate::crypto_tools::{
     k256_serde,
     paillier::{
         zk::{mta, ZkSetup},
@@ -119,7 +119,7 @@ mod tests {
     use ecdsa::elliptic_curve::Field;
 
     use super::{mta_response_with_proof_wc, verify_mta_response};
-    use crate::paillier::{
+    use crate::crypto_tools::paillier::{
         keygen_unsafe,
         zk::{mta, range, ZkSetup},
     };

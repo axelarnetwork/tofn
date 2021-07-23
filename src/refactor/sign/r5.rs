@@ -1,9 +1,11 @@
 use crate::{
     corrupt,
-    hash::{self, Randomness},
-    k256_serde,
-    mta::Secret,
-    paillier::{self, zk},
+    crypto_tools::{
+        hash::{self, Randomness},
+        k256_serde,
+        mta::Secret,
+        paillier::{self, zk},
+    },
     refactor::{
         collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
@@ -187,7 +189,7 @@ impl bcast_only::Executer for R5 {
 mod malicious {
     use super::R5;
     use crate::{
-        paillier::zk::range,
+        crypto_tools::paillier::zk::range,
         refactor::{
             collections::TypedUsize,
             sign::{

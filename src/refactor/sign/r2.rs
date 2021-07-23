@@ -1,6 +1,9 @@
 use crate::{
-    corrupt, hash, mta,
-    paillier::{self, Ciphertext},
+    corrupt,
+    crypto_tools::{
+        hash, mta,
+        paillier::{self, Ciphertext},
+    },
     refactor::{
         collections::{FillHoleVecMap, P2ps, Subset, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
@@ -248,7 +251,7 @@ impl bcast_and_p2p::Executer for R2 {
 #[cfg(feature = "malicious")]
 mod malicious {
     use crate::{
-        paillier::zk::mta,
+        crypto_tools::paillier::zk::mta,
         refactor::{
             collections::{Subset, TypedUsize},
             sdk::api::TofnResult,

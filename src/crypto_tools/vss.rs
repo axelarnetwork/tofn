@@ -3,7 +3,7 @@ use k256::elliptic_curve::Field;
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
-use crate::k256_serde;
+use crate::crypto_tools::k256_serde;
 
 #[derive(Debug, Zeroize)]
 #[zeroize(drop)]

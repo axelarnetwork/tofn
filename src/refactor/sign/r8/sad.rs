@@ -1,7 +1,5 @@
 use crate::{
-    crypto_tools::vss,
-    hash::Randomness,
-    k256_serde, paillier,
+    crypto_tools::{hash::Randomness, k256_serde, paillier, vss, zkp::chaum_pedersen_k256},
     refactor::{
         collections::{FillVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
@@ -11,7 +9,6 @@ use crate::{
         },
         sign::{r2, r3, r4},
     },
-    zkp::chaum_pedersen_k256,
 };
 use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};

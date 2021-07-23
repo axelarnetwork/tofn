@@ -1,7 +1,10 @@
 use crate::{
     corrupt,
-    hash::Randomness,
-    k256_serde, paillier,
+    crypto_tools::{
+        hash::Randomness,
+        k256_serde, paillier,
+        zkp::{chaum_pedersen_k256, pedersen_k256},
+    },
     refactor::{
         collections::{FillHoleVecMap, FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
@@ -11,7 +14,6 @@ use crate::{
         },
         sign::{r4, r7, Participants, SignParticipantIndex},
     },
-    zkp::{chaum_pedersen_k256, pedersen_k256},
 };
 use ecdsa::elliptic_curve::sec1::ToEncodedPoint;
 use k256::{ProjectivePoint, Scalar};

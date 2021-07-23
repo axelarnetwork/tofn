@@ -1,7 +1,7 @@
 use tracing::warn;
 
 use crate::{
-    paillier,
+    crypto_tools::{paillier, zkp::schnorr_k256},
     refactor::collections::{FillVecMap, P2ps, VecMap},
     refactor::{
         keygen::{
@@ -13,7 +13,6 @@ use crate::{
             implementer_api::{bcast_only, log_fault_warn, ProtocolBuilder, ProtocolInfo},
         },
     },
-    zkp::schnorr_k256,
 };
 
 #[cfg(feature = "malicious")]
