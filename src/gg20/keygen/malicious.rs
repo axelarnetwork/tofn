@@ -2,7 +2,7 @@
 
 use tracing::info;
 
-use crate::refactor::collections::TypedUsize;
+use crate::collections::TypedUsize;
 
 use super::KeygenPartyIndex;
 

@@ -1,6 +1,6 @@
 use tracing::{error, warn};
 
-use crate::refactor::{
+use crate::{
     collections::{FillP2ps, FillVecMap, HoleVecMap, TypedUsize},
     sdk::api::{BytesVec, Fault, Protocol, ProtocolFaulters, TofnFatal, TofnResult},
 };
@@ -321,7 +321,7 @@ impl<F, K, P> Round<F, K, P> {
 pub mod malicious {
     use tracing::{error, info};
 
-    use crate::refactor::sdk::{
+    use crate::sdk::{
         api::TofnFatal,
         round::RoundType,
         wire_bytes::{

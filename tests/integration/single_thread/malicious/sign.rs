@@ -4,6 +4,7 @@ use crate::{
 };
 use std::convert::TryFrom;
 use tofn::{
+    collections::{FillVecMap, TypedUsize, VecMap},
     gg20::{
         keygen::RealKeygenPartyIndex,
         sign::{
@@ -11,10 +12,7 @@ use tofn::{
             new_sign, MessageDigest, RealSignParticipantIndex, SignParticipantIndex, SignParties,
         },
     },
-    refactor::{
-        collections::{FillVecMap, TypedUsize, VecMap},
-        sdk::api::{BytesVec, Fault, PartyShareCounts, Protocol::*, ProtocolOutput},
-    },
+    sdk::api::{BytesVec, Fault, PartyShareCounts, Protocol::*, ProtocolOutput},
 };
 use tracing::info;
 

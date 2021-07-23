@@ -1,15 +1,13 @@
 use crate::{
+    collections::{FillVecMap, P2ps, TypedUsize, VecMap},
     gg20::{
         crypto_tools::{hash::Randomness, paillier},
         keygen::{KeygenPartyIndex, SecretKeyShare},
         sign::Participants,
     },
-    refactor::{
-        collections::{FillVecMap, P2ps, TypedUsize, VecMap},
-        sdk::{
-            api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
-            implementer_api::{bcast_and_p2p, log_fault_info, ProtocolBuilder, ProtocolInfo},
-        },
+    sdk::{
+        api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
+        implementer_api::{bcast_and_p2p, log_fault_info, ProtocolBuilder, ProtocolInfo},
     },
 };
 use k256::{ProjectivePoint, Scalar};

@@ -4,7 +4,7 @@ use crate::{
         crypto_tools::{hash, k256_serde, paillier, vss},
         keygen::SecretKeyShare,
     },
-    refactor::sdk::{
+    sdk::{
         api::TofnResult,
         implementer_api::{no_messages, serialize, ProtocolBuilder::*, ProtocolInfo, RoundBuilder},
     },
@@ -90,6 +90,7 @@ impl no_messages::Executer for R1 {
 mod malicious {
     use super::R1;
     use crate::{
+        collections::TypedUsize,
         gg20::{
             crypto_tools::{
                 hash::Output,
@@ -98,7 +99,6 @@ mod malicious {
             },
             keygen::{malicious::Behaviour, KeygenPartyIndex},
         },
-        refactor::collections::TypedUsize,
     };
     use tracing::info;
 

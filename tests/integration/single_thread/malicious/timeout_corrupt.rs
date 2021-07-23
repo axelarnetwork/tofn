@@ -2,7 +2,7 @@
 //! with a missing or corrupted message
 
 use self::{FaultType::*, MsgType::*};
-use tofn::refactor::{
+use tofn::{
     collections::{FillVecMap, HoleVecMap, TypedUsize, VecMap},
     sdk::api::{
         BytesVec, Fault, MsgType, PartyShareCounts, Protocol, ProtocolFaulters, TofnResult,

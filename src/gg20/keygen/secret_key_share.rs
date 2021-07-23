@@ -1,10 +1,8 @@
 use super::{KeygenPartyIndex, KeygenPartyShareCounts, RealKeygenPartyIndex, SecretRecoveryKey};
 use crate::{
+    collections::{TypedUsize, VecMap},
     gg20::crypto_tools::{k256_serde, paillier, vss},
-    refactor::{
-        collections::{TypedUsize, VecMap},
-        sdk::api::{TofnFatal, TofnResult},
-    },
+    sdk::api::{TofnFatal, TofnResult},
 };
 use hmac::{Hmac, Mac, NewMac};
 use rand::SeedableRng;

@@ -1,7 +1,7 @@
 use crate::common::keygen;
 use broadcaster::Broadcaster;
 use std::{sync::mpsc, thread};
-use tofn::{gg20::keygen::SecretKeyShare, refactor::sdk::api::PartyShareCounts};
+use tofn::{gg20::keygen::SecretKeyShare, sdk::api::PartyShareCounts};
 
 #[test]
 fn basic_correctness() {

@@ -1,4 +1,5 @@
 use crate::{
+    collections::{FillHoleVecMap, P2ps, Subset, TypedUsize, VecMap},
     corrupt,
     gg20::{
         crypto_tools::{
@@ -7,14 +8,9 @@ use crate::{
         },
         keygen::{KeygenPartyIndex, SecretKeyShare},
     },
-    refactor::{
-        collections::{FillHoleVecMap, P2ps, Subset, TypedUsize, VecMap},
-        sdk::{
-            api::{BytesVec, TofnResult},
-            implementer_api::{
-                bcast_and_p2p, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder,
-            },
-        },
+    sdk::{
+        api::{BytesVec, TofnResult},
+        implementer_api::{bcast_and_p2p, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder},
     },
 };
 use k256::{ProjectivePoint, Scalar};
@@ -253,6 +249,7 @@ impl bcast_and_p2p::Executer for R2 {
 #[cfg(feature = "malicious")]
 mod malicious {
     use crate::{
+        collections::{Subset, TypedUsize},
         gg20::{
             crypto_tools::paillier::zk::mta,
             sign::{
@@ -260,10 +257,7 @@ mod malicious {
                 SignParticipantIndex,
             },
         },
-        refactor::{
-            collections::{Subset, TypedUsize},
-            sdk::api::TofnResult,
-        },
+        sdk::api::TofnResult,
     };
 
     use super::R2;

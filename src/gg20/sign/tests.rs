@@ -2,18 +2,12 @@ use std::convert::TryFrom;
 
 use super::*;
 use crate::{
+    collections::{FillVecMap, HoleVecMap, Subset, TypedUsize, VecMap},
     gg20::{
         keygen::{tests::execute_keygen, KeygenPartyIndex, KeygenPartyShareCounts, SecretKeyShare},
         sign::api::{new_sign, SignParticipantIndex},
     },
-    refactor::{
-        collections::Subset,
-        sdk::api::{BytesVec, Protocol},
-    },
-    refactor::{
-        collections::{FillVecMap, HoleVecMap, TypedUsize, VecMap},
-        sdk::api::{Fault, Round},
-    },
+    sdk::api::{BytesVec, Fault, Protocol, Round},
 };
 use ecdsa::{elliptic_curve::sec1::ToEncodedPoint, hazmat::VerifyPrimitive};
 use k256::{ecdsa::Signature, ProjectivePoint};

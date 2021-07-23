@@ -1,4 +1,4 @@
-use crate::refactor::{
+use crate::{
     collections::{FillVecMap, TypedUsize},
     sdk::{api::TofnResult, protocol::ProtocolOutput, protocol_builder::ProtocolBuilderOutput},
 };

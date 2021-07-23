@@ -2,13 +2,13 @@ use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 use crate::{
+    collections::{FillVecMap, VecMap},
     corrupt,
     gg20::{
         crypto_tools::{hash, paillier, vss},
         keygen::{r3, SecretKeyShare},
     },
-    refactor::collections::{FillVecMap, VecMap},
-    refactor::sdk::{
+    sdk::{
         api::{Fault::ProtocolFault, TofnResult},
         implementer_api::{bcast_only, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder},
     },
@@ -125,14 +125,12 @@ impl bcast_only::Executer for R2 {
 #[cfg(feature = "malicious")]
 mod malicious {
     use crate::{
+        collections::{HoleVecMap, TypedUsize},
         gg20::{
             crypto_tools::{paillier::Ciphertext, vss::Share},
             keygen::{malicious::Behaviour, KeygenPartyIndex},
         },
-        refactor::{
-            collections::{HoleVecMap, TypedUsize},
-            sdk::api::TofnResult,
-        },
+        sdk::api::TofnResult,
     };
 
     use super::R2;

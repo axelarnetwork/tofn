@@ -1,14 +1,12 @@
 use crate::{
+    collections::{FillVecMap, TypedUsize, VecMap},
     gg20::{
         crypto_tools::{hash::Randomness, k256_serde, paillier},
         keygen::{KeygenPartyIndex, SecretKeyShare},
     },
-    refactor::{
-        collections::{FillVecMap, TypedUsize, VecMap},
-        sdk::{
-            api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
-            implementer_api::{bcast_only, ProtocolBuilder, ProtocolInfo},
-        },
+    sdk::{
+        api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
+        implementer_api::{bcast_only, ProtocolBuilder, ProtocolInfo},
     },
 };
 use ecdsa::hazmat::VerifyPrimitive;

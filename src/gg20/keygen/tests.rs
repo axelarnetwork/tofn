@@ -1,8 +1,8 @@
 use super::*;
 use crate::{
+    collections::{zip2, HoleVecMap, TypedUsize, VecMap},
     gg20::crypto_tools::vss,
-    refactor::collections::{zip2, HoleVecMap, TypedUsize, VecMap},
-    refactor::sdk::api::{BytesVec, Protocol},
+    sdk::api::{BytesVec, Protocol},
 };
 use rand::prelude::SliceRandom;
 use tracing_test::traced_test;

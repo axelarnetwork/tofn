@@ -4,14 +4,12 @@ use crate::common::keygen;
 use ecdsa::{elliptic_curve::sec1::FromEncodedPoint, hazmat::VerifyPrimitive};
 use execute::*;
 use tofn::{
+    collections::{TypedUsize, VecMap},
     gg20::{
         keygen::{KeygenPartyIndex, SecretKeyShare},
         sign::{new_sign, MessageDigest, SignParticipantIndex, SignParties},
     },
-    refactor::{
-        collections::{TypedUsize, VecMap},
-        sdk::api::{PartyShareCounts, Protocol},
-    },
+    sdk::api::{PartyShareCounts, Protocol},
 };
 
 #[cfg(feature = "malicious")]

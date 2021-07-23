@@ -2,7 +2,7 @@
 use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
 
-use crate::refactor::sdk::api::{TofnFatal, TofnResult};
+use crate::sdk::api::{TofnFatal, TofnResult};
 
 use super::{vecmap_iter::VecMapIter, TypedUsize, VecMap};
 

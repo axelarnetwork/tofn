@@ -1,7 +1,11 @@
 use super::{r1, rng, SecretKeyShare};
-use crate::refactor::collections::TypedUsize;
-use crate::refactor::sdk::api::{PartyShareCounts, Protocol, TofnFatal, TofnResult};
-use crate::refactor::sdk::implementer_api::{new_protocol, ProtocolBuilder};
+use crate::{
+    collections::TypedUsize,
+    sdk::{
+        api::{PartyShareCounts, Protocol, TofnFatal, TofnResult},
+        implementer_api::{new_protocol, ProtocolBuilder},
+    },
+};
 use serde::{Deserialize, Serialize};
 use tracing::error;
 

@@ -1,17 +1,13 @@
 use crate::{
+    collections::TypedUsize,
     corrupt,
     gg20::{
         crypto_tools::{hash, k256_serde::to_bytes, paillier, vss},
         keygen::{KeygenPartyIndex, SecretKeyShare},
     },
-    refactor::{
-        collections::TypedUsize,
-        sdk::{
-            api::{BytesVec, TofnResult},
-            implementer_api::{
-                no_messages, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder,
-            },
-        },
+    sdk::{
+        api::{BytesVec, TofnResult},
+        implementer_api::{no_messages, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder},
     },
 };
 use ecdsa::elliptic_curve::Field;
@@ -155,6 +151,7 @@ impl no_messages::Executer for R1 {
 mod malicious {
     use super::R1;
     use crate::{
+        collections::TypedUsize,
         gg20::{
             crypto_tools::paillier::{self, zk::range},
             sign::{
@@ -162,7 +159,6 @@ mod malicious {
                 SignParticipantIndex,
             },
         },
-        refactor::collections::TypedUsize,
     };
 
     impl R1 {

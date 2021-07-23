@@ -1,6 +1,4 @@
-use crate::refactor::sdk::{
-    api::TofnResult, implementer_api::ProtocolBuilder, protocol_info::ProtocolInfo,
-};
+use crate::sdk::{api::TofnResult, implementer_api::ProtocolBuilder, protocol_info::ProtocolInfo};
 
 pub trait Executer: Send + Sync {
     type FinalOutput;

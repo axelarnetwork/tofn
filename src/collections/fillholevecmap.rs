@@ -1,7 +1,7 @@
 //! A fillable Vec
 use tracing::{error, warn};
 
-use crate::refactor::sdk::api::{TofnFatal, TofnResult};
+use crate::sdk::api::{TofnFatal, TofnResult};
 
 use super::{holevecmap_iter::HoleVecMapIter, HoleVecMap, TypedUsize, VecMap};
 

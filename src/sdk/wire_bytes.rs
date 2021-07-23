@@ -1,4 +1,4 @@
-use crate::refactor::collections::TypedUsize;
+use crate::collections::TypedUsize;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
@@ -72,7 +72,7 @@ struct BytesVecVersioned {
 pub mod malicious {
     use tracing::error;
 
-    use crate::refactor::sdk::api::{BytesVec, TofnFatal, TofnResult};
+    use crate::sdk::api::{BytesVec, TofnFatal, TofnResult};
 
     use super::{unwrap, wrap};
 

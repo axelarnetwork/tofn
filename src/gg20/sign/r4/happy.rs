@@ -1,16 +1,14 @@
 use crate::{
+    collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
     corrupt,
     gg20::{
         crypto_tools::{hash::Randomness, k256_serde, mta::Secret, paillier, zkp::pedersen_k256},
         keygen::{KeygenPartyIndex, SecretKeyShare},
         sign::{r4, Participants},
     },
-    refactor::{
-        collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
-        sdk::{
-            api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
-            implementer_api::{bcast_only, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder},
-        },
+    sdk::{
+        api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
+        implementer_api::{bcast_only, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder},
     },
 };
 use k256::{ProjectivePoint, Scalar};
@@ -191,6 +189,7 @@ impl bcast_only::Executer for R4 {
 mod malicious {
     use super::R4;
     use crate::{
+        collections::TypedUsize,
         gg20::{
             crypto_tools::hash::Randomness,
             sign::{
@@ -198,7 +197,6 @@ mod malicious {
                 SignParticipantIndex,
             },
         },
-        refactor::collections::TypedUsize,
     };
 
     impl R4 {

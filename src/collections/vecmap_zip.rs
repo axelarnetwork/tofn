@@ -43,7 +43,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::refactor::collections::vecmap::VecMap;
+    use crate::collections::vecmap::VecMap;
 
     use super::zip2;
 

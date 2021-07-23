@@ -1,8 +1,9 @@
 pub mod keygen {
     use rand::RngCore;
     use tofn::{
+        collections::VecMap,
         gg20::keygen::{new_keygen, KeygenPartyIndex, KeygenProtocol, RealKeygenPartyIndex},
-        refactor::{collections::VecMap, sdk::api::PartyShareCounts},
+        sdk::api::PartyShareCounts,
     };
 
     #[cfg(feature = "malicious")]
@@ -42,7 +43,7 @@ pub mod keygen {
 
 #[cfg(feature = "malicious")]
 pub mod malicious {
-    use tofn::{gg20::keygen::SecretRecoveryKey, refactor::collections::TypedUsize};
+    use tofn::{collections::TypedUsize, gg20::keygen::SecretRecoveryKey};
 
     /// return the all-zero array with the first bytes set to the bytes of `index`
     pub fn dummy_secret_recovery_key<K>(index: TypedUsize<K>) -> SecretRecoveryKey {

@@ -1,9 +1,9 @@
 use tracing::error;
 
 use crate::{
+    collections::{FillVecMap, P2ps, VecMap},
     gg20::keygen::{r1, r2, r3, KeygenPartyIndex, KeygenProtocolBuilder, SecretKeyShare},
-    refactor::collections::{FillVecMap, P2ps, VecMap},
-    refactor::sdk::{
+    sdk::{
         api::{Fault::ProtocolFault, TofnFatal, TofnResult},
         implementer_api::{bcast_only, log_fault_info, ProtocolBuilder, ProtocolInfo},
     },

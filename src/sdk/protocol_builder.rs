@@ -1,4 +1,4 @@
-use crate::refactor::collections::{FillVecMap, HoleVecMap};
+use crate::collections::{FillVecMap, HoleVecMap};
 
 use super::{
     api::{BytesVec, TofnResult},

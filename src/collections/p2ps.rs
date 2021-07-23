@@ -1,6 +1,6 @@
 use tracing::error;
 
-use crate::refactor::{
+use crate::{
     collections::{FillHoleVecMap, HoleVecMap, TypedUsize, VecMap},
     sdk::api::{TofnFatal, TofnResult},
 };
@@ -176,7 +176,7 @@ impl<'a, K, V> IntoIterator for &'a FillP2ps<K, V> {
 #[cfg(test)]
 mod tests {
     use super::FillP2ps;
-    use crate::refactor::collections::TypedUsize;
+    use crate::collections::TypedUsize;
 
     struct TestIndex;
 

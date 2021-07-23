@@ -1,4 +1,5 @@
 use crate::{
+    collections::{FillHoleVecMap, FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
     corrupt,
     gg20::{
         crypto_tools::{
@@ -9,12 +10,9 @@ use crate::{
         keygen::{KeygenPartyIndex, SecretKeyShare},
         sign::{r4, r7, Participants, SignParticipantIndex},
     },
-    refactor::{
-        collections::{FillHoleVecMap, FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
-        sdk::{
-            api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
-            implementer_api::{bcast_only, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder},
-        },
+    sdk::{
+        api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
+        implementer_api::{bcast_only, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder},
     },
 };
 use ecdsa::elliptic_curve::sec1::ToEncodedPoint;
@@ -333,11 +331,11 @@ impl bcast_only::Executer for R7 {
 mod malicious {
     use super::R7;
     use crate::{
+        collections::TypedUsize,
         gg20::sign::{
             malicious::{log_confess_info, Behaviour::*},
             SignParticipantIndex,
         },
-        refactor::collections::TypedUsize,
     };
 
     impl R7 {

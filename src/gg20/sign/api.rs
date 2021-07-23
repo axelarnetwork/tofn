@@ -4,15 +4,13 @@ use std::{
 };
 
 use crate::{
+    collections::{HoleVecMap, Subset, TypedUsize, VecMap},
     gg20::keygen::{
         GroupPublicInfo, KeygenPartyIndex, RealKeygenPartyIndex, SecretKeyShare, ShareSecretInfo,
     },
-    refactor::{
-        collections::{HoleVecMap, Subset, TypedUsize, VecMap},
-        sdk::{
-            api::{BytesVec, PartyShareCounts, Protocol, TofnFatal, TofnResult},
-            implementer_api::{new_protocol, ProtocolBuilder},
-        },
+    sdk::{
+        api::{BytesVec, PartyShareCounts, Protocol, TofnFatal, TofnResult},
+        implementer_api::{new_protocol, ProtocolBuilder},
     },
 };
 use serde::{Deserialize, Serialize};

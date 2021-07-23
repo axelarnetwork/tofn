@@ -1,12 +1,10 @@
 use tofn::{
+    collections::{FillVecMap, TypedUsize, VecMap},
     gg20::keygen::{
         malicious::Behaviour::{self, *},
         new_keygen, KeygenPartyIndex, KeygenProtocol, RealKeygenPartyIndex, SecretKeyShare,
     },
-    refactor::{
-        collections::{FillVecMap, TypedUsize, VecMap},
-        sdk::api::{Fault, PartyShareCounts, Protocol::*, ProtocolOutput},
-    },
+    sdk::api::{Fault, PartyShareCounts, Protocol::*, ProtocolOutput},
 };
 use tracing::info;
 // use tracing_test::traced_test;

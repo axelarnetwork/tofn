@@ -2,7 +2,7 @@ use super::{
     api::TofnResult, implementer_api::no_messages, party_share_counts::PartyShareCounts,
     protocol_info::ProtocolInfoDeluxe, round::Round,
 };
-use crate::refactor::collections::{FillVecMap, TypedUsize};
+use crate::collections::{FillVecMap, TypedUsize};
 use serde::{Deserialize, Serialize};
 
 pub enum Protocol<F, K, P> {

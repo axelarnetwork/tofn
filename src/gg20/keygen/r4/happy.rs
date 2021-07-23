@@ -1,6 +1,7 @@
 use tracing::warn;
 
 use crate::{
+    collections::{FillVecMap, P2ps, VecMap},
     gg20::{
         crypto_tools::{paillier, zkp::schnorr_k256},
         keygen::{
@@ -8,8 +9,7 @@ use crate::{
             KeygenProtocolBuilder, SecretKeyShare, SharePublicInfo, ShareSecretInfo,
         },
     },
-    refactor::collections::{FillVecMap, P2ps, VecMap},
-    refactor::sdk::{
+    sdk::{
         api::{Fault::ProtocolFault, TofnResult},
         implementer_api::{bcast_only, log_fault_warn, ProtocolBuilder, ProtocolInfo},
     },

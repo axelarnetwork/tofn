@@ -1,6 +1,6 @@
 //! A subset of typed indices
 use super::{FillVecMap, TypedUsize};
-use crate::refactor::sdk::api::TofnResult;
+use crate::sdk::api::TofnResult;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -2,13 +2,13 @@ use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 use crate::{
+    collections::{FillVecMap, P2ps, VecMap},
     corrupt,
     gg20::{
         crypto_tools::{hash, k256_serde::to_bytes, paillier, vss, zkp::schnorr_k256},
         keygen::{r4, SecretKeyShare},
     },
-    refactor::collections::{FillVecMap, P2ps, VecMap},
-    refactor::sdk::{
+    sdk::{
         api::{Fault::ProtocolFault, TofnResult},
         implementer_api::{
             bcast_and_p2p, log_accuse_warn, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder,
@@ -194,11 +194,9 @@ impl bcast_and_p2p::Executer for R3 {
 mod malicious {
     use super::{ShareInfo, R3};
     use crate::{
+        collections::{FillVecMap, HoleVecMap, TypedUsize},
         gg20::{crypto_tools::vss, keygen::KeygenPartyIndex},
-        refactor::{
-            collections::{FillVecMap, HoleVecMap, TypedUsize},
-            sdk::api::TofnResult,
-        },
+        sdk::api::TofnResult,
     };
 
     use super::super::malicious::{log_confess_info, Behaviour};
