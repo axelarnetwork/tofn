@@ -270,6 +270,15 @@ impl bcast_and_p2p::Executer for R3 {
             },
         );
 
+        // many malicious behaviours require corrupt delta_i to prepare
+        corrupt!(delta_i, self.corrupt_delta_i(info.share_id(), delta_i));
+        corrupt!(
+            delta_i,
+            self.corrupt_k_i(info.share_id(), delta_i, self.gamma_i)
+        );
+        corrupt!(delta_i, self.corrupt_alpha(info.share_id(), delta_i));
+        corrupt!(delta_i, self.corrupt_beta(info.share_id(), delta_i));
+
         // compute sigma_i = k_i * w_i + sum_{j != i} mu_ij + nu_ji
         let sigma_i = mus.into_iter().zip(self.nu_secrets.iter()).fold(
             self.k_i * self.w_i,
@@ -287,6 +296,11 @@ impl bcast_and_p2p::Executer for R3 {
                 msg: &sigma_i,
                 randomness: &l_i,
             },
+        );
+
+        corrupt!(
+            T_i_proof,
+            self.corrupt_T_i_proof(info.share_id(), T_i_proof)
         );
 
         let bcast_out = serialize(&Bcast::Happy(BcastHappy {
@@ -331,10 +345,13 @@ impl bcast_and_p2p::Executer for R3 {
 #[cfg(feature = "malicious")]
 mod malicious {
     use super::{Accusation, R3};
-    use crate::refactor::{
-        collections::{FillVecMap, TypedUsize},
-        sdk::api::TofnResult,
-        sign::SignParticipantIndex,
+    use crate::{
+        refactor::{
+            collections::{FillVecMap, TypedUsize},
+            sdk::api::TofnResult,
+            sign::SignParticipantIndex,
+        },
+        zkp::pedersen_k256,
     };
     use k256::Scalar;
 
@@ -363,6 +380,74 @@ mod malicious {
                 }
             }
             Ok(mta_complaints)
+        }
+
+        #[allow(non_snake_case)]
+        pub fn corrupt_T_i_proof(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            T_i_proof: pedersen_k256::Proof,
+        ) -> pedersen_k256::Proof {
+            if let R3BadProof = self.behaviour {
+                log_confess_info(me, &self.behaviour, "");
+                return pedersen_k256::malicious::corrupt_proof(&T_i_proof);
+            }
+            T_i_proof
+        }
+
+        pub fn corrupt_delta_i(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            mut delta_i: k256::Scalar,
+        ) -> k256::Scalar {
+            if let R3BadDeltaI = self.behaviour {
+                log_confess_info(me, &self.behaviour, "");
+                delta_i += k256::Scalar::one();
+            }
+            delta_i
+        }
+
+        /// later we will corrupt k_i by adding 1
+        /// => need to add gamma_i to delta_i to maintain consistency
+        pub fn corrupt_k_i(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            mut delta_i: k256::Scalar,
+            gamma_i: k256::Scalar,
+        ) -> k256::Scalar {
+            if let R3BadKI = self.behaviour {
+                log_confess_info(me, &self.behaviour, "step 1/2: delta_i");
+                delta_i += gamma_i;
+            }
+            delta_i
+        }
+
+        /// later we will corrupt alpha_ij by adding 1
+        /// => need to add 1 delta_i to maintain consistency
+        pub fn corrupt_alpha(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            mut delta_i: k256::Scalar,
+        ) -> k256::Scalar {
+            if let R3BadAlpha { victim: _ } = self.behaviour {
+                log_confess_info(me, &self.behaviour, "step 1/2: delta_i");
+                delta_i += k256::Scalar::one();
+            }
+            delta_i
+        }
+
+        /// later we will corrupt beta_ij by adding 1
+        /// => need to add 1 delta_i to maintain consistency
+        pub fn corrupt_beta(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            mut delta_i: k256::Scalar,
+        ) -> k256::Scalar {
+            if let R3BadBeta { victim: _ } = self.behaviour {
+                log_confess_info(me, &self.behaviour, "step 1/2: delta_i");
+                delta_i += k256::Scalar::one();
+            }
+            delta_i
         }
 
         pub fn corrupt_sigma(

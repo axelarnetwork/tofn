@@ -1,4 +1,5 @@
 use crate::{
+    corrupt,
     hash::Randomness,
     k256_serde,
     mta::Secret,
@@ -142,9 +143,15 @@ impl bcast_only::Executer for R4 {
             return Err(TofnFatal);
         }
 
+        let Gamma_i_reveal = self.Gamma_i_reveal.clone();
+        corrupt!(
+            Gamma_i_reveal,
+            self.corrupt_Gamma_i_reveal(info.share_id(), Gamma_i_reveal)
+        );
+
         let bcast_out = serialize(&Bcast {
             Gamma_i: self.Gamma_i.into(),
-            Gamma_i_reveal: self.Gamma_i_reveal.clone(),
+            Gamma_i_reveal: Gamma_i_reveal.clone(),
         })?;
 
         Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
@@ -156,7 +163,7 @@ impl bcast_only::Executer for R4 {
                 keygen_id: self.keygen_id,
                 gamma_i: self.gamma_i,
                 Gamma_i: self.Gamma_i,
-                Gamma_i_reveal: self.Gamma_i_reveal,
+                Gamma_i_reveal,
                 w_i: self.w_i,
                 k_i: self.k_i,
                 k_i_randomness: self.k_i_randomness,
@@ -179,5 +186,35 @@ impl bcast_only::Executer for R4 {
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+}
+
+#[cfg(feature = "malicious")]
+mod malicious {
+    use super::R4;
+    use crate::{
+        hash::Randomness,
+        refactor::{
+            collections::TypedUsize,
+            sign::{
+                malicious::{log_confess_info, Behaviour::*},
+                SignParticipantIndex,
+            },
+        },
+    };
+
+    impl R4 {
+        #[allow(non_snake_case)]
+        pub fn corrupt_Gamma_i_reveal(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            mut Gamma_i_reveal: Randomness,
+        ) -> Randomness {
+            if let R4BadReveal = self.behaviour {
+                log_confess_info(me, &self.behaviour, "");
+                Gamma_i_reveal.corrupt();
+            }
+            Gamma_i_reveal
+        }
     }
 }

@@ -1,4 +1,5 @@
 use crate::{
+    corrupt,
     hash::Randomness,
     k256_serde,
     mta::{self, Secret},
@@ -146,6 +147,11 @@ impl bcast_and_p2p::Executer for R6 {
             }
         }
 
+        corrupt!(
+            zkp_complaints,
+            self.corrupt_zkp_complaints(info.share_id(), zkp_complaints)?
+        );
+
         if !zkp_complaints.is_empty() {
             let bcast_out = serialize(&Bcast::Sad(BcastSad { zkp_complaints }))?;
 
@@ -188,8 +194,15 @@ impl bcast_and_p2p::Executer for R6 {
                 acc + bcast.R_i.unwrap()
             });
 
+        // malicious actor falsely claim type 5 fault by comparing against a corrupted curve generator
+        let _curve_generator = ProjectivePoint::generator();
+        corrupt!(
+            _curve_generator,
+            self.corrupt_curve_generator(info.share_id())
+        );
+
         // check for type 5 fault
-        if R_i_sum != ProjectivePoint::generator() {
+        if R_i_sum != _curve_generator {
             warn!("peer {} says: 'type 5' fault detected", sign_id);
 
             let mut mta_plaintexts = FillHoleVecMap::with_size(participants_count, sign_id)?;
@@ -203,7 +216,17 @@ impl bcast_and_p2p::Executer for R6 {
                     .dk()
                     .decrypt_with_randomness(&r2p2p.alpha_ciphertext);
 
+                corrupt!(
+                    alpha_plaintext,
+                    self.corrupt_alpha_plaintext(info.share_id(), sign_peer_id, alpha_plaintext)
+                );
+
                 let beta_secret = self.beta_secrets.get(sign_peer_id)?.clone();
+
+                corrupt!(
+                    beta_secret,
+                    self.corrupt_beta_secret(info.share_id(), sign_peer_id, beta_secret)
+                );
 
                 let mta_plaintext = MtaPlaintext {
                     alpha_plaintext,
@@ -216,14 +239,16 @@ impl bcast_and_p2p::Executer for R6 {
 
             let mta_plaintexts = mta_plaintexts.unwrap_all()?;
 
+            let k_i = self.k_i;
+            corrupt!(k_i, self.corrupt_k_i(info.share_id(), k_i));
+
             let bcast_out = serialize(&Bcast::SadType5(BcastSadType5 {
-                k_i: self.k_i.into(),
+                k_i: k_i.into(),
                 k_i_randomness: self.k_i_randomness.clone(),
                 gamma_i: self.gamma_i.into(),
                 mta_plaintexts,
             }))?;
 
-            // TODO: Move to sad path
             return Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
                 round: Box::new(r7::type5::R7 {
                     secret_key_share: self.secret_key_share,
@@ -270,6 +295,11 @@ impl bcast_and_p2p::Executer for R6 {
             },
         );
 
+        corrupt!(
+            S_i_proof_wc,
+            self.corrupt_S_i_proof_wc(info.share_id(), S_i_proof_wc)
+        );
+
         let bcast_out = serialize(&Bcast::Happy(BcastHappy {
             S_i: S_i.into(),
             S_i_proof_wc,
@@ -310,5 +340,110 @@ impl bcast_and_p2p::Executer for R6 {
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+}
+
+#[cfg(feature = "malicious")]
+mod malicious {
+    use super::R6;
+    use crate::{
+        mta::Secret,
+        paillier_k256::Plaintext,
+        refactor::{
+            collections::{Subset, TypedUsize},
+            sdk::api::TofnResult,
+            sign::{
+                malicious::{log_confess_info, Behaviour::*},
+                SignParticipantIndex,
+            },
+        },
+        zkp::pedersen_k256,
+    };
+
+    impl R6 {
+        /// earlier we prepared to corrupt k_i by corrupting delta_i
+        pub fn corrupt_k_i(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            mut k_i: k256::Scalar,
+        ) -> k256::Scalar {
+            if let R3BadKI = self.behaviour {
+                log_confess_info(me, &self.behaviour, "step 2/2: k_i");
+                k_i += k256::Scalar::one();
+            }
+            k_i
+        }
+        /// earlier we prepared to corrupt alpha_plaintext by corrupting delta_i
+        pub fn corrupt_alpha_plaintext(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            recipient: TypedUsize<SignParticipantIndex>,
+            mut alpha_plaintext: Plaintext,
+        ) -> Plaintext {
+            if let R3BadAlpha { victim } = self.behaviour {
+                if victim == recipient {
+                    log_confess_info(me, &self.behaviour, "step 2/2: alpha_plaintext");
+                    alpha_plaintext.corrupt();
+                }
+            }
+            alpha_plaintext
+        }
+        /// earlier we prepared to corrupt beta_secret by corrupting delta_i
+        pub fn corrupt_beta_secret(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            recipient: TypedUsize<SignParticipantIndex>,
+            mut beta_secret: Secret,
+        ) -> Secret {
+            if let R3BadBeta { victim } = self.behaviour {
+                if victim == recipient {
+                    log_confess_info(me, &self.behaviour, "step 2/2: beta_secret");
+                    *beta_secret.beta.unwrap_mut() += k256::Scalar::one();
+                }
+            }
+            beta_secret
+        }
+        pub fn corrupt_zkp_complaints(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            mut zkp_complaints: Subset<SignParticipantIndex>,
+        ) -> TofnResult<Subset<SignParticipantIndex>> {
+            if let R6FalseAccusation { victim } = self.behaviour {
+                if zkp_complaints.is_member(victim)? {
+                    log_confess_info(me, &self.behaviour, "but the accusation is true");
+                } else if victim == me {
+                    log_confess_info(me, &self.behaviour, "self accusation");
+                    zkp_complaints.add(me)?;
+                } else {
+                    log_confess_info(me, &self.behaviour, "");
+                    zkp_complaints.add(victim)?;
+                }
+            }
+            Ok(zkp_complaints)
+        }
+
+        #[allow(non_snake_case)]
+        pub fn corrupt_S_i_proof_wc(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            range_proof: pedersen_k256::ProofWc,
+        ) -> pedersen_k256::ProofWc {
+            if let R6BadProof = self.behaviour {
+                log_confess_info(me, &self.behaviour, "");
+                return pedersen_k256::malicious::corrupt_proof_wc(&range_proof);
+            }
+            range_proof
+        }
+
+        pub fn corrupt_curve_generator(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+        ) -> k256::ProjectivePoint {
+            if let R6FalseFailRandomizer = self.behaviour {
+                log_confess_info(me, &self.behaviour, "");
+                return k256::ProjectivePoint::identity();
+            }
+            k256::ProjectivePoint::generator()
+        }
     }
 }

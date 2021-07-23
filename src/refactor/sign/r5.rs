@@ -1,4 +1,5 @@
 use crate::{
+    corrupt,
     hash::{self, Randomness},
     k256_serde,
     mta::Secret,
@@ -124,7 +125,7 @@ impl bcast_only::Executer for R5 {
             randomness: &self.k_i_randomness,
         };
 
-        let p2ps_out = self.peers.map_ref(|(_, &keygen_peer_id)| {
+        let p2ps_out = self.peers.map_ref(|(_sign_peer_id, &keygen_peer_id)| {
             let peer_zkp = &self
                 .secret_key_share
                 .group()
@@ -133,6 +134,11 @@ impl bcast_only::Executer for R5 {
                 .zkp();
 
             let k_i_range_proof_wc = peer_zkp.range_proof_wc(stmt_wc, wit);
+
+            corrupt!(
+                k_i_range_proof_wc,
+                self.corrupt_k_i_range_proof_wc(info.share_id(), _sign_peer_id, k_i_range_proof_wc)
+            );
 
             serialize(&P2p { k_i_range_proof_wc })
         })?;
@@ -174,5 +180,37 @@ impl bcast_only::Executer for R5 {
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+}
+
+#[cfg(feature = "malicious")]
+mod malicious {
+    use super::R5;
+    use crate::{
+        paillier_k256::zk::range,
+        refactor::{
+            collections::TypedUsize,
+            sign::{
+                malicious::{log_confess_info, Behaviour::*},
+                SignParticipantIndex,
+            },
+        },
+    };
+
+    impl R5 {
+        pub fn corrupt_k_i_range_proof_wc(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            recipient: TypedUsize<SignParticipantIndex>,
+            range_proof: range::ProofWc,
+        ) -> range::ProofWc {
+            if let R5BadProof { victim } = self.behaviour {
+                if victim == recipient {
+                    log_confess_info(me, &self.behaviour, "");
+                    return range::malicious::corrupt_proof_wc(&range_proof);
+                }
+            }
+            range_proof
+        }
     }
 }
