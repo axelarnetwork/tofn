@@ -109,7 +109,7 @@ impl ZkSetup {
         let rho_prime = random(&self.q3_n_tilde);
 
         let beta = stmt.ek.sample_randomness();
-        let gamma = Plaintext(stmt.ek.sample_randomness().0);
+        let gamma = Plaintext(stmt.ek.sample_randomness().0.clone());
 
         let x_bigint = to_bigint(&wit.x);
 
@@ -150,7 +150,7 @@ impl ZkSetup {
         ));
         let s1 = &e * &x_bigint + alpha;
         let s2 = &e * rho + rho_prime;
-        let t1 = Plaintext(&e * &wit.msg.0 + gamma.0);
+        let t1 = Plaintext(&e * &wit.msg.0 + gamma.0.clone());
         let t2 = e * sigma + tau;
 
         (
@@ -284,7 +284,7 @@ pub(crate) mod tests {
     fn basic_correctness() {
         // create a (statement, witness) pair
         let (ek, _dk) = &keygen_unsafe(&mut rand::thread_rng());
-        let msg = &Plaintext(ek.sample_randomness().0);
+        let msg = &Plaintext(ek.sample_randomness().0.clone());
         let x = &k256::Scalar::random(rand::thread_rng());
         let x_g = &(k256::ProjectivePoint::generator() * x);
         let randomness = &ek.sample_randomness();

@@ -15,10 +15,10 @@ hmac = "0"
 zeroize = { version = "1.4", features = ["zeroize_derive"] }
 
 # k256 baggage
-k256 = { version = "0", features = ["zeroize"] }
+k256 = { version = "0", features = ["ecdsa", "zeroize"], default-features = false }
+ecdsa = { version = "0", features = ["digest"], default-features = false } # needed only for FromDigest trait
 rand = "0"
-sha2 = "0"
-ecdsa = "0" # needed only for FromDigest trait
+sha2 = { version = "0", features = ["std", "asm"], default-features = false }
 
 # logging
 log = "0.4"
@@ -28,10 +28,6 @@ tracing = {version = "0", default-features = false}
 # TODO need a better Paillier library
 paillier = { git = "https://github.com/axelarnetwork/rust-paillier"}
 
-# iterate enums
-strum = "0.20"
-strum_macros = "0.20"
-
 [dev-dependencies]
 lazy_static = "1.4"
 tracing-test = "0" # enable logging for tests
@@ -39,6 +35,12 @@ tracing-test = "0" # enable logging for tests
 tracing-subscriber = {version = "0", default-features = false, features = ["env-filter", "fmt"]}
 # test-env-log = {version = "0", default-features = false, features = ["trace"]}
 
+# Don't abort in case there is a panic to clean up data
+[profile.dev]
+panic = "unwind"
+
+[profile.release]
+panic = "unwind"
 
 [features]
 malicious = []

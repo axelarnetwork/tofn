@@ -135,13 +135,6 @@ impl ProjectivePoint {
     }
 }
 
-// TODO: This might be optimized away since ProjectivePoint itself doesn't implement Zeroize
-impl Zeroize for ProjectivePoint {
-    fn zeroize(&mut self) {
-        self.0 = k256::ProjectivePoint::identity();
-    }
-}
-
 pub fn to_bytes(p: &k256::ProjectivePoint) -> Vec<u8> {
     p.to_affine().to_encoded_point(true).as_bytes().to_vec()
 }

@@ -20,14 +20,6 @@ pub fn keygen_unsafe(rng: &mut (impl CryptoRng + RngCore)) -> (EncryptionKey, De
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EncryptionKey(paillier::EncryptionKey);
 
-// TODO: This might be optimized away since BigInt itself doesn't implement Zeroize
-impl Zeroize for EncryptionKey {
-    fn zeroize(&mut self) {
-        self.0.n = BigInt::zero();
-        self.0.nn = BigInt::zero();
-    }
-}
-
 impl EncryptionKey {
     pub fn sample_randomness(&self) -> Randomness {
         Randomness(paillier::Randomness::sample(&self.0).0)
@@ -104,6 +96,12 @@ impl Zeroize for DecryptionKey {
     }
 }
 
+impl Drop for DecryptionKey {
+    fn drop(&mut self) {
+        self.zeroize()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Plaintext(paillier::BigInt);
 
@@ -136,15 +134,14 @@ impl Zeroize for Plaintext {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Ciphertext(paillier::BigInt);
-
-// TODO: This might be optimized away since BigInt itself doesn't implement Zeroize
-impl Zeroize for Ciphertext {
-    fn zeroize(&mut self) {
-        self.0 = BigInt::zero();
+impl Drop for Plaintext {
+    fn drop(&mut self) {
+        self.zeroize()
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Ciphertext(paillier::BigInt);
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Randomness(paillier::BigInt);
@@ -153,6 +150,12 @@ pub struct Randomness(paillier::BigInt);
 impl Zeroize for Randomness {
     fn zeroize(&mut self) {
         self.0 = BigInt::zero();
+    }
+}
+
+impl Drop for Randomness {
+    fn drop(&mut self) {
+        self.zeroize()
     }
 }
 

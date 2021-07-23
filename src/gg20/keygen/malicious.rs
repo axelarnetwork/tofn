@@ -1,5 +1,3 @@
-// use strum_macros::EnumIter;
-
 use tracing::info;
 
 use crate::collections::TypedUsize;
@@ -35,28 +33,6 @@ impl Behaviour {
         matches!(self, Self::Honest)
     }
 }
-
-// #[derive(Clone, Debug)]
-// pub enum MsgType {
-//     R1Bcast,
-//     R2Bcast,
-//     R2P2p { to: TypedUsize<KeygenPartyIndex> },
-//     R3Bcast,
-//     R3FailBcast,
-// }
-
-// `EnumIter` derivation for `Behaviour` requires `Default` impls
-// https://docs.rs/strum/0.14.0/strum/?search=#strum-macros
-// impl Default for MsgType {
-//     fn default() -> Self {
-//         MsgType::R1Bcast
-//     }
-// }
-// impl Default for Index<KeygenPartyIndex> {
-//     fn default() -> Self {
-//         Self::from_usize(0)
-//     }
-// }
 
 pub(crate) fn log_confess_info<K>(me: TypedUsize<K>, behaviour: &Behaviour, msg: &str) {
     if msg.is_empty() {
