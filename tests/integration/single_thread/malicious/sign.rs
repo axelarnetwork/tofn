@@ -94,7 +94,7 @@ fn single_fault_test_cases() -> SingleFaultTestCaseList {
         .unwrap();
 
     let zero = TypedUsize::from_usize(0);
-    // let three = TypedUsize::from_usize(3);
+    let three = TypedUsize::from_usize(3);
 
     let cases = vec![
         // R1BadProof { victim: zero },
@@ -113,7 +113,9 @@ fn single_fault_test_cases() -> SingleFaultTestCaseList {
         // R3BadAlpha { victim: zero },
         // R3BadBeta { victim: zero },
         // R4BadReveal,
-        R5BadProof { victim: zero },
+        // R5BadProof { victim: zero },
+        R6FalseAccusation { victim: zero },
+        R6FalseAccusation { victim: three }, // self accusation
     ];
 
     SingleFaultTestCaseList {
