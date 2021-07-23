@@ -10,6 +10,7 @@ use tofn::{
     },
     sdk::api::PartyShareCounts,
 };
+use tracing::debug;
 
 #[cfg(feature = "malicious")]
 use tofn::gg20::sign;
@@ -22,6 +23,7 @@ fn basic_correctness() {
     let threshold = 5;
 
     // keygen
+    debug!("start keygen");
     let keygen_shares = keygen::initialize_honest_parties(&party_share_counts, threshold);
     let (broadcaster, receivers) = Broadcaster::new(party_share_counts.total_share_count());
     let (result_sender, result_receiver) = mpsc::channel();
@@ -39,16 +41,27 @@ fn basic_correctness() {
         .into_iter()
         .map(|output| {
             output
-                .expect("internal tofn error")
-                .expect("party finished in sad path")
+                .expect("keygen internal tofn error")
+                .expect("keygen party finished in sad path")
         })
         .collect();
+    debug!("end keygen");
+    let indices_unsorted: Vec<_> = secret_key_shares_unsorted
+        .iter()
+        .map(|s| s.share().index())
+        .collect();
+    debug!("secret_key_shares_unsorted: {:?}", indices_unsorted);
     secret_key_shares_unsorted.sort_by(|a, b| {
         a.share()
             .index()
             .as_usize()
             .cmp(&b.share().index().as_usize())
     });
+    let indices_sorted: Vec<_> = secret_key_shares_unsorted
+        .iter()
+        .map(|s| s.share().index())
+        .collect();
+    debug!("secret_key_shares_sorted: {:?}", indices_sorted);
     let secret_key_shares = VecMap::<KeygenPartyIndex, _>::from_vec(secret_key_shares_unsorted);
 
     // sign participants: 0,1,3 out of 0,1,2,3
@@ -62,13 +75,10 @@ fn basic_correctness() {
     let keygen_share_ids = VecMap::<SignParticipantIndex, _>::from_vec(
         party_share_counts.share_id_subset(&sign_parties).unwrap(),
     );
-    let sign_share_count = party_share_counts
-        .subset(&sign_parties)
-        .unwrap()
-        .into_iter()
-        .sum();
+    debug!("keygen_share_ids: {:?}", keygen_share_ids);
 
     // sign
+    debug!("start sign");
     let msg_to_sign = MessageDigest::try_from(&[42; 32][..]).unwrap();
     let sign_shares = keygen_share_ids.map(|keygen_share_id| {
         let secret_key_share = secret_key_shares.get(keygen_share_id).unwrap();
@@ -82,7 +92,7 @@ fn basic_correctness() {
         )
         .unwrap()
     });
-    let (broadcaster, receivers) = Broadcaster::new(sign_share_count);
+    let (broadcaster, receivers) = Broadcaster::new(sign_shares.len());
     let (result_sender, result_receiver) = mpsc::channel();
     for ((_, sign_share), receiver) in sign_shares.into_iter().zip(receivers.into_iter()) {
         let broadcaster = broadcaster.clone();
@@ -98,10 +108,11 @@ fn basic_correctness() {
         .into_iter()
         .map(|output| {
             output
-                .expect("internal tofn error")
-                .expect("party finished in sad path")
+                .expect("sign internal tofn error")
+                .expect("sign party finished in sad path")
         })
         .collect();
+    debug!("end sign");
 
     // grab pubkey bytes from one of the shares
     let pubkey_bytes = secret_key_shares
