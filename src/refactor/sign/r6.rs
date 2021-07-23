@@ -289,6 +289,11 @@ impl bcast_and_p2p::Executer for R6 {
             },
         );
 
+        corrupt!(
+            S_i_proof_wc,
+            self.corrupt_S_i_proof_wc(info.share_id(), S_i_proof_wc)
+        );
+
         let bcast_out = serialize(&Bcast::Happy(BcastHappy {
             S_i: S_i.into(),
             S_i_proof_wc,
@@ -346,6 +351,7 @@ mod malicious {
                 SignParticipantIndex,
             },
         },
+        zkp::pedersen_k256,
     };
 
     impl R6 {
@@ -408,6 +414,19 @@ mod malicious {
                 }
             }
             Ok(zkp_complaints)
+        }
+
+        #[allow(non_snake_case)]
+        pub fn corrupt_S_i_proof_wc(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            range_proof: pedersen_k256::ProofWc,
+        ) -> pedersen_k256::ProofWc {
+            if let R6BadProof = self.behaviour {
+                log_confess_info(me, &self.behaviour, "");
+                return pedersen_k256::malicious::corrupt_proof_wc(&range_proof);
+            }
+            range_proof
         }
     }
 }
