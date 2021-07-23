@@ -194,8 +194,15 @@ impl bcast_and_p2p::Executer for R6 {
                 acc + bcast.R_i.unwrap()
             });
 
+        // malicious actor falsely claim type 5 fault by comparing against a corrupted curve generator
+        let _curve_generator = ProjectivePoint::generator();
+        corrupt!(
+            _curve_generator,
+            self.corrupt_curve_generator(info.share_id())
+        );
+
         // check for type 5 fault
-        if R_i_sum != ProjectivePoint::generator() {
+        if R_i_sum != _curve_generator {
             warn!("peer {} says: 'type 5' fault detected", sign_id);
 
             let mut mta_plaintexts = FillHoleVecMap::with_size(participants_count, sign_id)?;
@@ -242,7 +249,6 @@ impl bcast_and_p2p::Executer for R6 {
                 mta_plaintexts,
             }))?;
 
-            // TODO: Move to sad path
             return Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
                 round: Box::new(r7::type5::R7 {
                     secret_key_share: self.secret_key_share,
@@ -427,6 +433,17 @@ mod malicious {
                 return pedersen_k256::malicious::corrupt_proof_wc(&range_proof);
             }
             range_proof
+        }
+
+        pub fn corrupt_curve_generator(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+        ) -> k256::ProjectivePoint {
+            if let R6FalseFailRandomizer = self.behaviour {
+                log_confess_info(me, &self.behaviour, "");
+                return k256::ProjectivePoint::identity();
+            }
+            k256::ProjectivePoint::generator()
         }
     }
 }
