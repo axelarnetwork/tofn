@@ -1,4 +1,4 @@
-pub mod crypto_tools;
+mod crypto_tools;
 pub mod keygen;
 pub mod sign;
 
