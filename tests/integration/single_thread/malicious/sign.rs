@@ -93,31 +93,32 @@ fn single_fault_test_cases() -> SingleFaultTestCaseList {
         .set(TypedUsize::from_usize(1), Fault::ProtocolFault)
         .unwrap();
 
-    let zero = TypedUsize::from_usize(0);
-    let three = TypedUsize::from_usize(3);
+    // let zero = TypedUsize::from_usize(0);
+    // let three = TypedUsize::from_usize(3);
 
     let cases = vec![
-        R1BadProof { victim: zero },
-        R1BadGammaI,
-        R2FalseAccusation { victim: zero },
-        R2FalseAccusation { victim: three }, // self accusation
-        R2BadMta { victim: zero },
-        R2BadMtaWc { victim: zero },
-        R3FalseAccusationMta { victim: zero },
-        R3FalseAccusationMta { victim: three }, // self accusation
-        R3FalseAccusationMtaWc { victim: zero },
-        R3FalseAccusationMtaWc { victim: three }, // self accusation
-        R3BadProof,
-        R3BadDeltaI,
-        R3BadKI,
-        R3BadAlpha { victim: zero },
-        R3BadBeta { victim: zero },
-        R4BadReveal,
-        R5BadProof { victim: zero },
-        R6FalseAccusation { victim: zero },
-        R6FalseAccusation { victim: three }, // self accusation
-        R6BadProof,
-        R6FalseFailRandomizer,
+        // R1BadProof { victim: zero },
+        // R1BadGammaI,
+        // R2FalseAccusation { victim: zero },
+        // R2FalseAccusation { victim: three }, // self accusation
+        // R2BadMta { victim: zero },
+        // R2BadMtaWc { victim: zero },
+        // R3FalseAccusationMta { victim: zero },
+        // R3FalseAccusationMta { victim: three }, // self accusation
+        // R3FalseAccusationMtaWc { victim: zero },
+        // R3FalseAccusationMtaWc { victim: three }, // self accusation
+        // R3BadProof,
+        // R3BadDeltaI,
+        // R3BadKI,
+        // R3BadAlpha { victim: zero },
+        // R3BadBeta { victim: zero },
+        // R4BadReveal,
+        // R5BadProof { victim: zero },
+        // R6FalseAccusation { victim: zero },
+        // R6FalseAccusation { victim: three }, // self accusation
+        // R6BadProof,
+        // R6FalseFailRandomizer,
+        R7BadSI,
     ];
 
     SingleFaultTestCaseList {

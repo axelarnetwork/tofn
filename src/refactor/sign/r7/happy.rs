@@ -1,4 +1,5 @@
 use crate::{
+    corrupt,
     hash::Randomness,
     k256_serde, paillier_k256,
     refactor::{
@@ -285,6 +286,8 @@ impl bcast_only::Executer for R7 {
 
         let s_i = self.msg_to_sign * self.k_i + r * self.sigma_i;
 
+        corrupt!(s_i, self.corrupt_s_i(info.share_id(), s_i));
+
         let bcast_out = serialize(&Bcast::Happy(BcastHappy { s_i: s_i.into() }))?;
 
         Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
@@ -319,5 +322,31 @@ impl bcast_only::Executer for R7 {
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+}
+
+#[cfg(feature = "malicious")]
+mod malicious {
+    use super::R7;
+    use crate::refactor::{
+        collections::TypedUsize,
+        sign::{
+            malicious::{log_confess_info, Behaviour::*},
+            SignParticipantIndex,
+        },
+    };
+
+    impl R7 {
+        pub fn corrupt_s_i(
+            &self,
+            me: TypedUsize<SignParticipantIndex>,
+            mut s_i: k256::Scalar,
+        ) -> k256::Scalar {
+            if let R7BadSI = self.behaviour {
+                log_confess_info(me, &self.behaviour, "");
+                s_i += k256::Scalar::one();
+            }
+            s_i
+        }
     }
 }
