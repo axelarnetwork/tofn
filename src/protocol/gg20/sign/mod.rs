@@ -1,4 +1,4 @@
-use super::{vss_k256, GroupPublicInfo, MessageDigest, SecretKeyShare, ShareSecretInfo};
+use super::{vss, GroupPublicInfo, MessageDigest, SecretKeyShare, ShareSecretInfo};
 use crate::{fillvec::FillVec, paillier_k256, protocol::MsgBytes};
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
@@ -242,7 +242,7 @@ impl Sign {
     }
 
     fn lagrange_coefficient_k256(&self, participant_index: usize) -> k256::Scalar {
-        vss_k256::lagrange_coefficient(participant_index, &self.participant_indices)
+        vss::lagrange_coefficient(participant_index, &self.participant_indices)
     }
     // fn my_lagrange_coefficient_k256(&self) -> k256::Scalar {
     //     self.lagrange_coefficient_k256(self.my_participant_index)

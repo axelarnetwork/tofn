@@ -1,4 +1,4 @@
-use super::{vss_k256, GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo};
+use super::{vss, GroupPublicInfo, SecretKeyShare, SharePublicInfo, ShareSecretInfo};
 use crate::{fillvec::FillVec, paillier_k256, protocol::MsgBytes};
 use hmac::{Hmac, Mac, NewMac};
 use rand::SeedableRng;
@@ -291,10 +291,10 @@ impl SecretKeyShare {
             .decrypt(&recovery_infos_sorted[index].x_i_ciphertext)
             .to_scalar()
             .into();
-        let y = vss_k256::recover_secret_commit(
+        let y = vss::recover_secret_commit(
             &recovery_infos_sorted
                 .iter()
-                .map(|info| vss_k256::ShareCommit::from_point(info.share.X_i.clone(), info.index))
+                .map(|info| vss::ShareCommit::from_point(info.share.X_i.clone(), info.index))
                 .collect::<Vec<_>>(),
             threshold,
         )

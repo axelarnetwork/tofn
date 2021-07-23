@@ -5,7 +5,7 @@ use crate::{
     corrupt, hash,
     k256_serde::to_bytes,
     paillier_k256,
-    protocol::gg20::vss_k256,
+    protocol::gg20::vss,
     refactor::collections::{FillVecMap, P2ps, VecMap},
     refactor::{
         keygen::{r4, SecretKeyShare},
@@ -43,7 +43,7 @@ pub struct BcastSad {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShareInfo {
-    pub share: vss_k256::Share,
+    pub share: vss::Share,
     pub randomness: paillier_k256::Randomness,
 }
 
@@ -51,7 +51,7 @@ pub struct R3 {
     pub threshold: usize,
     pub party_share_counts: KeygenPartyShareCounts,
     pub dk: paillier_k256::DecryptionKey,
-    pub u_i_my_share: vss_k256::Share,
+    pub u_i_my_share: vss::Share,
     pub r1bcasts: VecMap<KeygenPartyIndex, r1::Bcast>,
 
     #[cfg(feature = "malicious")]
@@ -90,7 +90,7 @@ impl bcast_and_p2p::Executer for R3 {
         let share_infos = p2ps_in.map_to_me(info.share_id(), |p2p| {
             let (u_i_share_plaintext, u_i_share_randomness) =
                 self.dk.decrypt_with_randomness(&p2p.u_i_share_ciphertext);
-            let u_i_share = vss_k256::Share::from_scalar(
+            let u_i_share = vss::Share::from_scalar(
                 u_i_share_plaintext.to_scalar(),
                 info.share_id().as_usize(),
             );
@@ -198,7 +198,7 @@ impl bcast_and_p2p::Executer for R3 {
 mod malicious {
     use super::{ShareInfo, R3};
     use crate::{
-        protocol::gg20::vss_k256,
+        protocol::gg20::vss,
         refactor::{
             collections::{FillVecMap, HoleVecMap, TypedUsize},
             keygen::KeygenPartyIndex,
@@ -235,7 +235,7 @@ mod malicious {
                     vss_complaints.set(
                         victim,
                         ShareInfo {
-                            share: vss_k256::Share::from_scalar(k256::Scalar::one(), 1), // junk data
+                            share: vss::Share::from_scalar(k256::Scalar::one(), 1), // junk data
                             randomness: self.r1bcasts.get(index)?.ek.sample_randomness(), // junk data
                         },
                     )?;

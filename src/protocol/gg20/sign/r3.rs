@@ -2,7 +2,7 @@ use super::{Sign, Status};
 use crate::fillvec::FillVec;
 use crate::k256_serde;
 use crate::paillier_k256;
-use crate::protocol::gg20::vss_k256;
+use crate::protocol::gg20::vss;
 use crate::zkp::pedersen_k256;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
@@ -98,7 +98,7 @@ impl Sign {
             let other_g_w_i = self.my_secret_key_share.group.all_shares[*participant_index]
                 .X_i
                 .unwrap()
-                * &vss_k256::lagrange_coefficient(i, &self.participant_indices);
+                * &vss::lagrange_coefficient(i, &self.participant_indices);
             self.my_zkp_k256()
                 .verify_mta_proof_wc(
                     &paillier_k256::zk::mta::StatementWc {

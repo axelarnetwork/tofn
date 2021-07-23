@@ -1,7 +1,7 @@
 use crate::{
     hash::Randomness,
     paillier_k256,
-    protocol::gg20::vss_k256,
+    protocol::gg20::vss,
     refactor::{
         collections::{FillVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
@@ -120,7 +120,7 @@ impl bcast_only::Executer for R4 {
                         )
                     }
                     r3::happy::Accusation::MtAwc => {
-                        let accused_lambda_i_S = &vss_k256::lagrange_coefficient(
+                        let accused_lambda_i_S = &vss::lagrange_coefficient(
                             accused_sign_id.as_usize(),
                             &self
                                 .participants

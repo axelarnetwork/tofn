@@ -1,7 +1,7 @@
 use super::*;
 use crate::protocol::gg20::{
     tests::keygen::{TEST_CASES, TEST_CASES_INVALID},
-    vss_k256,
+    vss,
 };
 use rand::RngCore;
 use tracing_test::traced_test;
@@ -163,11 +163,11 @@ pub(crate) fn execute_keygen_from_recovery(
         .iter()
         .fold(k256::Scalar::zero(), |acc, &x| acc + x);
 
-    let all_shares: Vec<vss_k256::Share> = all_secret_key_shares
+    let all_shares: Vec<vss::Share> = all_secret_key_shares
         .iter()
-        .map(|k| vss_k256::Share::from_scalar(*k.share.x_i.unwrap(), k.share.index))
+        .map(|k| vss::Share::from_scalar(*k.share.x_i.unwrap(), k.share.index))
         .collect();
-    let secret_key_recovered = vss_k256::recover_secret(&all_shares, threshold);
+    let secret_key_recovered = vss::recover_secret(&all_shares, threshold);
 
     assert_eq!(secret_key_recovered, secret_key_sum_u);
 

@@ -4,7 +4,7 @@ use crate::{
     k256_serde,
     mta::Secret,
     paillier_k256,
-    protocol::gg20::vss_k256,
+    protocol::gg20::vss,
     refactor::{
         collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
@@ -166,7 +166,7 @@ impl bcast_and_p2p::Executer for R3 {
             }
 
             // verify zk proof for step 2 of MtAwc k_i * w_j
-            let peer_lambda_i_S = &vss_k256::lagrange_coefficient(
+            let peer_lambda_i_S = &vss::lagrange_coefficient(
                 sign_peer_id.as_usize(),
                 &self
                     .participants

@@ -1,6 +1,6 @@
 use crate::{
     corrupt, hash, k256_serde, paillier_k256,
-    protocol::gg20::vss_k256,
+    protocol::gg20::vss,
     refactor::{
         keygen::SecretKeyShare,
         sdk::{
@@ -44,7 +44,7 @@ impl no_messages::Executer for R1 {
         self: Box<Self>,
         _info: &ProtocolInfo<Self::Index>,
     ) -> TofnResult<KeygenProtocolBuilder> {
-        let u_i_vss = vss_k256::Vss::new(self.threshold);
+        let u_i_vss = vss::Vss::new(self.threshold);
         let (y_i_commit, y_i_reveal) = hash::commit(k256_serde::to_bytes(
             &(k256::ProjectivePoint::generator() * u_i_vss.get_secret()),
         ));

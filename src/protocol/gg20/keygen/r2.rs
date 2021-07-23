@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 use super::{crimes::Crime, Keygen, Status};
-use crate::{fillvec::FillVec, hash, paillier_k256, protocol::gg20::vss_k256};
+use crate::{fillvec::FillVec, hash, paillier_k256, protocol::gg20::vss};
 
 #[cfg(feature = "malicious")]
 use {super::malicious::Behaviour, tracing::info};
@@ -10,7 +10,7 @@ use {super::malicious::Behaviour, tracing::info};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(super) struct Bcast {
     pub(super) y_i_reveal_k256: hash::Randomness,
-    pub(super) u_i_share_commits_k256: vss_k256::Commit,
+    pub(super) u_i_share_commits_k256: vss::Commit,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -20,7 +20,7 @@ pub(crate) struct P2p {
 
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub(super) struct State {
-    pub(super) my_share_of_my_u_i_k256: vss_k256::Share,
+    pub(super) my_share_of_my_u_i_k256: vss::Share,
 }
 
 pub(super) enum Output {
@@ -74,10 +74,7 @@ impl Keygen {
                 .enumerate()
                 .map(|(i, s)| {
                     if i == victim {
-                        vss_k256::Share::from_scalar(
-                            s.get_scalar() + k256::Scalar::one(),
-                            s.get_index(),
-                        )
+                        vss::Share::from_scalar(s.get_scalar() + k256::Scalar::one(), s.get_index())
                     } else {
                         s.clone()
                     }

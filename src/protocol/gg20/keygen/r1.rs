@@ -1,5 +1,5 @@
 use super::{Keygen, Status};
-use crate::{hash, k256_serde::to_bytes, paillier_k256, protocol::gg20::vss_k256};
+use crate::{hash, k256_serde::to_bytes, paillier_k256, protocol::gg20::vss};
 use rand::SeedableRng;
 use rand_chacha::ChaCha20Rng;
 use serde::{Deserialize, Serialize};
@@ -18,7 +18,7 @@ pub(super) struct Bcast {
 #[derive(Debug)] // do not derive Clone, Serialize, Deserialize
 pub(super) struct State {
     pub(super) dk_k256: paillier_k256::DecryptionKey,
-    pub(super) my_u_i_vss_k256: vss_k256::Vss,
+    pub(super) my_u_i_vss_k256: vss::Vss,
     pub(super) my_y_i_reveal_k256: hash::Randomness,
 }
 
@@ -27,7 +27,7 @@ impl Keygen {
         assert!(matches!(self.status, Status::New));
 
         // k256
-        let u_i_vss = vss_k256::Vss::new(self.threshold);
+        let u_i_vss = vss::Vss::new(self.threshold);
         let (y_i_commit, y_i_reveal) = hash::commit(to_bytes(
             &(k256::ProjectivePoint::generator() * u_i_vss.get_secret()),
         ));

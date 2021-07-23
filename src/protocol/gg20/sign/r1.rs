@@ -2,9 +2,7 @@ use k256::elliptic_curve::Field;
 use serde::{Deserialize, Serialize};
 
 use super::{Sign, Status};
-use crate::{
-    fillvec::FillVec, hash, k256_serde::to_bytes, paillier_k256, protocol::gg20::vss_k256,
-};
+use crate::{fillvec::FillVec, hash, k256_serde::to_bytes, paillier_k256, protocol::gg20::vss};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(non_snake_case)]
@@ -33,7 +31,7 @@ impl Sign {
         assert!(matches!(self.status, Status::New));
 
         let w_i_k256 = self.my_secret_key_share.share.x_i.unwrap()
-            * &vss_k256::lagrange_coefficient(self.my_participant_index, &self.participant_indices);
+            * &vss::lagrange_coefficient(self.my_participant_index, &self.participant_indices);
         let k_i_k256 = k256::Scalar::random(rand::thread_rng());
         let gamma_i_k256 = k256::Scalar::random(rand::thread_rng());
         let Gamma_i_k256 = k256::ProjectivePoint::generator() * gamma_i_k256;

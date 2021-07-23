@@ -1,7 +1,7 @@
 use crate::{
     hash::Randomness,
     k256_serde, paillier_k256,
-    protocol::gg20::vss_k256,
+    protocol::gg20::vss,
     refactor::{
         collections::{FillVecMap, P2ps, TypedUsize, VecMap},
         keygen::{KeygenPartyIndex, SecretKeyShare},
@@ -193,7 +193,7 @@ impl bcast_only::Executer for R8 {
             )?;
 
             // compute W_i
-            let peer_lambda_i_S = &vss_k256::lagrange_coefficient(
+            let peer_lambda_i_S = &vss::lagrange_coefficient(
                 sign_peer_id.as_usize(),
                 &self
                     .peers

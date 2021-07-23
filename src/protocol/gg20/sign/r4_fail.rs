@@ -1,6 +1,6 @@
 use super::{crimes::Crime, r3, Sign, Status};
 use crate::paillier_k256::zk;
-use crate::protocol::gg20::vss_k256;
+use crate::protocol::gg20::vss;
 use tracing::info;
 
 impl Sign {
@@ -87,7 +87,7 @@ impl Sign {
                                 [prover_party_index]
                                 .X_i
                                 .unwrap()
-                                * &vss_k256::lagrange_coefficient(
+                                * &vss::lagrange_coefficient(
                                     accused.participant_index,
                                     &self.participant_indices,
                                 );

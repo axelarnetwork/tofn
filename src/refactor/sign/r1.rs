@@ -2,7 +2,7 @@ use crate::{
     corrupt, hash,
     k256_serde::to_bytes,
     paillier_k256,
-    protocol::gg20::vss_k256,
+    protocol::gg20::vss,
     refactor::{
         collections::TypedUsize,
         keygen::{KeygenPartyIndex, SecretKeyShare},
@@ -58,7 +58,7 @@ impl no_messages::Executer for R1 {
     ) -> TofnResult<SignProtocolBuilder> {
         let sign_id = info.share_id();
 
-        let lambda_i_S = &vss_k256::lagrange_coefficient(
+        let lambda_i_S = &vss::lagrange_coefficient(
             sign_id.as_usize(),
             &self
                 .participants

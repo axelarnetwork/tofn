@@ -3,7 +3,7 @@ use tracing::warn;
 
 use crate::{
     corrupt, hash, paillier_k256,
-    protocol::gg20::vss_k256,
+    protocol::gg20::vss,
     refactor::collections::{FillVecMap, VecMap},
     refactor::{
         keygen::{r3, SecretKeyShare},
@@ -22,7 +22,7 @@ use super::malicious::Behaviour;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Bcast {
     pub y_i_reveal: hash::Randomness,
-    pub u_i_vss_commit: vss_k256::Commit,
+    pub u_i_vss_commit: vss::Commit,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -34,7 +34,7 @@ pub struct R2 {
     pub threshold: usize,
     pub party_share_counts: KeygenPartyShareCounts,
     pub dk: paillier_k256::DecryptionKey,
-    pub u_i_vss: vss_k256::Vss,
+    pub u_i_vss: vss::Vss,
     pub y_i_reveal: hash::Randomness,
 
     #[cfg(feature = "malicious")]
@@ -126,7 +126,7 @@ impl bcast_only::Executer for R2 {
 mod malicious {
     use crate::{
         paillier_k256::Ciphertext,
-        protocol::gg20::vss_k256::Share,
+        protocol::gg20::vss::Share,
         refactor::keygen::KeygenPartyIndex,
         refactor::{
             collections::{HoleVecMap, TypedUsize},

@@ -1,7 +1,5 @@
 use super::{crimes::Crime, Keygen, Status};
-use crate::{
-    hash, k256_serde::to_bytes, paillier_k256, protocol::gg20::vss_k256, zkp::schnorr_k256,
-};
+use crate::{hash, k256_serde::to_bytes, paillier_k256, protocol::gg20::vss, zkp::schnorr_k256};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
@@ -28,7 +26,7 @@ pub struct BcastFail {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Complaint {
     pub criminal_index: usize,
-    pub vss_share_k256: vss_k256::Share,
+    pub vss_share_k256: vss::Share,
     pub vss_share_randomness_k256: paillier_k256::Randomness,
 }
 
@@ -90,7 +88,7 @@ impl Keygen {
                 .dk_k256
                 .decrypt_with_randomness(&my_r2p2p.u_i_share_ciphertext_k256);
             let u_i_share_k256 =
-                vss_k256::Share::from_scalar(u_i_share_plaintext_k256.to_scalar(), self.my_index);
+                vss::Share::from_scalar(u_i_share_plaintext_k256.to_scalar(), self.my_index);
 
             // k256: validate share
             let vss_valid = r2bcast
@@ -142,7 +140,7 @@ impl Keygen {
                 );
                 vss_failures.push(Complaint {
                     criminal_index: self.my_index,
-                    vss_share_k256: vss_k256::Share::from_scalar(k256::Scalar::one(), 1), // doesn't matter what we put here
+                    vss_share_k256: vss::Share::from_scalar(k256::Scalar::one(), 1), // doesn't matter what we put here
                     vss_share_randomness_k256: self.in_r1bcasts.vec_ref()[self.my_index]
                         .as_ref()
                         .unwrap()

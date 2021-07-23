@@ -1,7 +1,7 @@
 use super::{KeygenPartyIndex, KeygenPartyShareCounts, RealKeygenPartyIndex, SecretRecoveryKey};
 use crate::{
     k256_serde, paillier_k256,
-    protocol::gg20::vss_k256,
+    protocol::gg20::vss,
     refactor::{
         collections::{TypedUsize, VecMap},
         sdk::api::{TofnFatal, TofnResult},
@@ -223,11 +223,11 @@ impl SecretKeyShare {
             .decrypt(&recovery_infos_sorted[share_id.as_usize()].x_i_ciphertext)
             .to_scalar()
             .into();
-        let y = vss_k256::recover_secret_commit(
+        let y = vss::recover_secret_commit(
             &recovery_infos_sorted
                 .iter()
                 .map(|info| {
-                    vss_k256::ShareCommit::from_point(info.share.X_i.clone(), info.index.as_usize())
+                    vss::ShareCommit::from_point(info.share.X_i.clone(), info.index.as_usize())
                 })
                 .collect::<Vec<_>>(),
             threshold,
