@@ -1,4 +1,4 @@
-use crate::gg20::crypto_tools::k256_serde;
+use crate::gg20::{constants, crypto_tools::k256_serde};
 use ecdsa::{
     elliptic_curve::{sec1::FromEncodedPoint, Field},
     hazmat::FromDigest,
@@ -110,6 +110,7 @@ fn prove_inner(
     let beta = msg_g_g.map(|(_, g)| g * &a);
     let c = k256::Scalar::from_digest(
         Sha256::new()
+            .chain(constants::PEDERSEN_PROOF_TAG.to_le_bytes())
             .chain(k256_serde::to_bytes(&stmt.commit))
             .chain(&msg_g_g.map_or(Vec::new(), |(msg_g, _)| k256_serde::to_bytes(msg_g)))
             .chain(&msg_g_g.map_or(Vec::new(), |(_, g)| k256_serde::to_bytes(g)))
@@ -137,6 +138,7 @@ fn verify_inner(
 ) -> Result<(), &'static str> {
     let c = k256::Scalar::from_digest(
         Sha256::new()
+            .chain(constants::PEDERSEN_PROOF_TAG.to_le_bytes())
             .chain(k256_serde::to_bytes(&stmt.commit))
             .chain(&msg_g_g_beta.map_or(Vec::new(), |(msg_g, _, _)| k256_serde::to_bytes(msg_g)))
             .chain(&msg_g_g_beta.map_or(Vec::new(), |(_, g, _)| k256_serde::to_bytes(g)))

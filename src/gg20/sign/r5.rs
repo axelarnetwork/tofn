@@ -2,6 +2,7 @@ use crate::{
     collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
     corrupt,
     gg20::{
+        constants,
         crypto_tools::{
             hash::{self, Randomness},
             k256_serde,
@@ -79,8 +80,11 @@ impl bcast_only::Executer for R5 {
 
         // verify commits
         for (sign_peer_id, bcast) in &bcasts_in {
-            let peer_Gamma_i_commit =
-                hash::commit_with_randomness(bcast.Gamma_i.bytes(), &bcast.Gamma_i_reveal);
+            let peer_Gamma_i_commit = hash::commit_with_randomness(
+                constants::GAMMA_I_COMMIT_TAG,
+                bcast.Gamma_i.bytes(),
+                &bcast.Gamma_i_reveal,
+            );
 
             if peer_Gamma_i_commit != self.r1bcasts.get(sign_peer_id)?.Gamma_i_commit {
                 warn!(

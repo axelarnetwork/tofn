@@ -5,6 +5,7 @@ use crate::{
     collections::{FillVecMap, P2ps, VecMap},
     corrupt,
     gg20::{
+        constants,
         crypto_tools::{hash, k256_serde::to_bytes, paillier, vss, zkp::schnorr_k256},
         keygen::{r4, SecretKeyShare},
     },
@@ -72,7 +73,11 @@ impl bcast_and_p2p::Executer for R3 {
         // check y_i commits  // TODO: Why are we verifying our own bcast?
         for (from, bcast) in bcasts_in.iter() {
             let y_i = bcast.u_i_vss_commit.secret_commit();
-            let y_i_commit = hash::commit_with_randomness(to_bytes(y_i), &bcast.y_i_reveal);
+            let y_i_commit = hash::commit_with_randomness(
+                constants::Y_I_COMMIT_TAG,
+                to_bytes(y_i),
+                &bcast.y_i_reveal,
+            );
             if y_i_commit != self.r1bcasts.get(from)?.y_i_commit {
                 warn!("party {} detect bad reveal by {}", info.share_id(), from);
                 faulters.set(from, ProtocolFault)?;

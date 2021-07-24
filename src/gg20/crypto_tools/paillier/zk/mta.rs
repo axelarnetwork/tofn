@@ -1,9 +1,12 @@
-use crate::gg20::crypto_tools::{
-    k256_serde,
-    paillier::{
-        to_bigint, to_scalar, to_vec,
-        zk::{mulm, random, ZkSetup},
-        BigInt, Ciphertext, EncryptionKey, Plaintext, Randomness,
+use crate::gg20::{
+    constants,
+    crypto_tools::{
+        k256_serde,
+        paillier::{
+            to_bigint, to_scalar, to_vec,
+            zk::{mulm, random, ZkSetup},
+            BigInt, Ciphertext, EncryptionKey, Plaintext, Randomness,
+        },
     },
 };
 use ecdsa::hazmat::FromDigest;
@@ -131,6 +134,7 @@ impl ZkSetup {
 
         let e = to_bigint(&k256::Scalar::from_digest(
             Sha256::new()
+                .chain(constants::MTA_PROOF_TAG.to_le_bytes())
                 .chain(to_vec(&stmt.ek.0.n))
                 .chain(to_vec(&stmt.ciphertext1.0))
                 .chain(to_vec(&stmt.ciphertext2.0))
@@ -181,6 +185,7 @@ impl ZkSetup {
         }
         let e = k256::Scalar::from_digest(
             Sha256::new()
+                .chain(constants::MTA_PROOF_TAG.to_le_bytes())
                 .chain(to_vec(&stmt.ek.0.n))
                 .chain(to_vec(&stmt.ciphertext1.0))
                 .chain(to_vec(&stmt.ciphertext2.0))

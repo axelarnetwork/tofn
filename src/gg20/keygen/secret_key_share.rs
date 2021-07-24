@@ -1,14 +1,13 @@
-use super::{KeygenPartyIndex, KeygenPartyShareCounts, RealKeygenPartyIndex, SecretRecoveryKey};
+use super::{
+    rng::rng_seed, KeygenPartyIndex, KeygenPartyShareCounts, RealKeygenPartyIndex,
+    SecretRecoveryKey,
+};
 use crate::{
     collections::{TypedUsize, VecMap},
     gg20::crypto_tools::{k256_serde, paillier, vss},
     sdk::api::{TofnFatal, TofnResult},
 };
-use hmac::{Hmac, Mac, NewMac};
-use rand::SeedableRng;
-use rand_chacha::ChaCha20Rng;
 use serde::{Deserialize, Serialize};
-use sha2::Sha256;
 use tracing::error;
 use zeroize::Zeroize;
 
@@ -248,15 +247,9 @@ impl SecretKeyShare {
 
         // recover my Paillier keys
         let (ek, dk) = if use_safe_primes {
-            paillier::keygen(&mut ChaCha20Rng::from_seed(rng_seed(
-                secret_recovery_key,
-                session_nonce,
-            )))
+            paillier::keygen(&mut rng_seed(secret_recovery_key, session_nonce))
         } else {
-            paillier::keygen_unsafe(&mut ChaCha20Rng::from_seed(rng_seed(
-                secret_recovery_key,
-                session_nonce,
-            )))
+            paillier::keygen_unsafe(&mut rng_seed(secret_recovery_key, session_nonce))
         };
 
         // verify recovery of the correct Paillier keys
@@ -309,13 +302,4 @@ impl SecretKeyShare {
     pub(in super::super) fn new(group: GroupPublicInfo, share: ShareSecretInfo) -> Self {
         Self { group, share }
     }
-}
-
-fn rng_seed(
-    secret_recovery_key: &SecretRecoveryKey,
-    session_nonce: &[u8],
-) -> <ChaCha20Rng as SeedableRng>::Seed {
-    let mut prf = Hmac::<Sha256>::new(secret_recovery_key[..].into());
-    prf.update(session_nonce);
-    prf.finalize().into_bytes().into()
 }

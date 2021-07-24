@@ -1,11 +1,14 @@
 use std::ops::Neg;
 
-use crate::gg20::crypto_tools::{
-    k256_serde,
-    paillier::{
-        to_bigint, to_scalar, to_vec,
-        zk::{random, ZkSetup},
-        BigInt, Ciphertext, EncryptionKey, Plaintext, Randomness,
+use crate::gg20::{
+    constants,
+    crypto_tools::{
+        k256_serde,
+        paillier::{
+            to_bigint, to_scalar, to_vec,
+            zk::{random, ZkSetup},
+            BigInt, Ciphertext, EncryptionKey, Plaintext, Randomness,
+        },
     },
 };
 use ecdsa::hazmat::FromDigest;
@@ -105,6 +108,7 @@ impl ZkSetup {
 
         let e = k256::Scalar::from_digest(
             Sha256::new()
+                .chain(constants::RANGE_PROOF_TAG.to_le_bytes())
                 .chain(to_vec(&stmt.ek.0.n))
                 .chain(to_vec(&stmt.ciphertext.0))
                 .chain(&msg_g_g.map_or(Vec::new(), |(msg_g, _)| k256_serde::to_bytes(&msg_g)))
@@ -142,6 +146,7 @@ impl ZkSetup {
         }
         let e = k256::Scalar::from_digest(
             Sha256::new()
+                .chain(constants::RANGE_PROOF_TAG.to_le_bytes())
                 .chain(to_vec(&stmt.ek.0.n))
                 .chain(to_vec(&stmt.ciphertext.0))
                 .chain(&msg_g_g_u1.map_or(Vec::new(), |(msg_g, _, _)| k256_serde::to_bytes(&msg_g)))
