@@ -66,7 +66,7 @@ pub struct Bcast {
 impl bcast_only::Executer for R8 {
     type FinalOutput = BytesVec;
     type Index = SignParticipantIndex;
-    type Bcast = r7::happy::Bcast;
+    type Bcast = r7::Bcast;
 
     #[allow(non_snake_case)]
     fn execute(
@@ -83,10 +83,10 @@ impl bcast_only::Executer for R8 {
         // our check for 'type 7` error failed, so any peer broadcasting a success is a faulter
         for (sign_peer_id, bcast) in bcasts_in.into_iter() {
             match bcast {
-                r7::happy::Bcast::Happy(bcast) => {
+                r7::Bcast::Happy(bcast) => {
                     bcasts.set(sign_peer_id, bcast)?;
                 }
-                r7::happy::Bcast::Sad(_) => {
+                r7::Bcast::Sad(_) => {
                     warn!(
                         "peer {} says: peer {} broadcasted a 'type 7' failure",
                         sign_id, sign_peer_id

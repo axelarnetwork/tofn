@@ -104,13 +104,13 @@ impl bcast_only::Executer for R7 {
         }
 
         let mut faulters = FillVecMap::with_size(participants_count);
-        let mut bcasts = FillVecMap::with_size(participants_count);
+        let mut bcasts_sad = FillVecMap::with_size(participants_count);
 
         // our check for 'type 5` error failed, so any peer broadcasting a success is a faulter
         for (sign_peer_id, bcast) in bcasts_in.into_iter() {
             match bcast {
                 r6::Bcast::SadType5(bcast) => {
-                    bcasts.set(sign_peer_id, bcast)?;
+                    bcasts_sad.set(sign_peer_id, bcast)?;
                 }
                 r6::Bcast::Sad(_) => return Err(TofnFatal), // This should never happen
                 r6::Bcast::Happy(_) => {
@@ -122,12 +122,11 @@ impl bcast_only::Executer for R7 {
                 }
             }
         }
-
         if !faulters.is_empty() {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
-        let bcasts_in = bcasts.unwrap_all()?;
+        let bcasts_in = bcasts_sad.unwrap_all()?;
 
         // verify that each participant's data is consistent with earlier messages:
         for (sign_peer_id, bcast) in &bcasts_in {
@@ -135,8 +134,11 @@ impl bcast_only::Executer for R7 {
 
             if mta_plaintexts.len() != self.peers.len() {
                 warn!(
-                    "peer {} says: peer {} did not send all the MtA plaintexts",
-                    sign_id, sign_peer_id
+                    "peer {} says: peer {} sent {} MtA plaintexts, expected {}",
+                    sign_id,
+                    sign_peer_id,
+                    mta_plaintexts.len(),
+                    self.peers.len()
                 );
                 faulters.set(sign_peer_id, ProtocolFault)?;
                 continue;

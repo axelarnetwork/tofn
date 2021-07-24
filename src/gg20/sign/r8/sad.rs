@@ -57,7 +57,7 @@ pub struct Bcast {
 impl bcast_only::Executer for R8 {
     type FinalOutput = BytesVec;
     type Index = SignParticipantIndex;
-    type Bcast = r7::happy::Bcast;
+    type Bcast = r7::Bcast;
 
     #[allow(non_snake_case)]
     fn execute(
@@ -70,30 +70,28 @@ impl bcast_only::Executer for R8 {
 
         // execute blame protocol from section 4.3 of https://eprint.iacr.org/2020/540.pdf
         let mut faulters = FillVecMap::with_size(participants_count);
+        let mut bcasts_sad = FillVecMap::with_size(participants_count);
 
-        let mut bcasts = FillVecMap::with_size(participants_count);
-
-        // our check for 'type 7` error failed, so any peer broadcasting a success is a faulter
+        // any peer who did not detect 'type 7' is a faulter
         for (sign_peer_id, bcast) in bcasts_in.into_iter() {
             match bcast {
-                r7::happy::Bcast::Sad(bcast) => {
-                    bcasts.set(sign_peer_id, bcast)?;
+                r7::Bcast::Sad(bcast_sad) => {
+                    bcasts_sad.set(sign_peer_id, bcast_sad)?;
                 }
-                r7::happy::Bcast::Happy(_) => {
+                r7::Bcast::Happy(_) => {
                     warn!(
-                        "peer {} says: peer {} did not broadcast a 'type 7' failure",
+                        "peer {} detect failure to detect 'type 7' fault by peer {}",
                         sign_id, sign_peer_id
                     );
                     faulters.set(sign_peer_id, ProtocolFault)?;
                 }
             }
         }
-
         if !faulters.is_empty() {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
-        let bcasts_in = bcasts.unwrap_all()?;
+        let bcasts_in = bcasts_sad.unwrap_all()?;
 
         // verify that each participant's data is consistent with earlier messages:
         // 1. ecdsa_nonce_summand (k_i)
@@ -101,13 +99,16 @@ impl bcast_only::Executer for R8 {
         //
         // TODO this code for k_i faults is identical to that of r7_fail_type5
         // TODO maybe you can test this path by choosing fake k_i', w_i' such that k_i'*w_i' == k_i*w_i
-        for (sign_peer_id, bcast) in &bcasts_in {
+        for (sign_peer_id, bcast) in bcasts_in.iter() {
             let mta_wc_plaintexts = &bcast.mta_wc_plaintexts;
 
             if mta_wc_plaintexts.len() != self.peers.len() {
                 warn!(
-                    "peer {} says: peer {} did not send all the MtA plaintexts",
-                    sign_id, sign_peer_id
+                    "peer {} says: peer {} sent {} MtA plaintexts, expected {}",
+                    sign_id,
+                    sign_peer_id,
+                    mta_wc_plaintexts.len(),
+                    self.peers.len()
                 );
                 faulters.set(sign_peer_id, ProtocolFault)?;
                 continue;
