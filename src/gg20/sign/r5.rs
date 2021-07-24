@@ -9,7 +9,7 @@ use crate::{
             mta::Secret,
             paillier::{self, zk},
         },
-        keygen::{KeygenPartyIndex, SecretKeyShare},
+        keygen::{KeygenShareId, SecretKeyShare},
     },
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnResult},
@@ -20,7 +20,7 @@ use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::{r1, r2, r3, r4, r6, Participants, Peers, SignParticipantIndex, SignProtocolBuilder};
+use super::{r1, r2, r3, r4, r6, Participants, Peers, SignShareId, SignProtocolBuilder};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -31,7 +31,7 @@ pub struct R5 {
     pub msg_to_sign: Scalar,
     pub peers: Peers,
     pub participants: Participants,
-    pub keygen_id: TypedUsize<KeygenPartyIndex>,
+    pub keygen_id: TypedUsize<KeygenShareId>,
     pub gamma_i: Scalar,
     pub Gamma_i: ProjectivePoint,
     pub Gamma_i_reveal: Randomness,
@@ -41,10 +41,10 @@ pub struct R5 {
     pub sigma_i: Scalar,
     pub l_i: Scalar,
     pub T_i: ProjectivePoint,
-    pub(crate) beta_secrets: HoleVecMap<SignParticipantIndex, Secret>,
-    pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
-    pub r2p2ps: P2ps<SignParticipantIndex, r2::P2pHappy>,
-    pub r3bcasts: VecMap<SignParticipantIndex, r3::happy::BcastHappy>,
+    pub(crate) beta_secrets: HoleVecMap<SignShareId, Secret>,
+    pub r1bcasts: VecMap<SignShareId, r1::Bcast>,
+    pub r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
+    pub r3bcasts: VecMap<SignShareId, r3::happy::BcastHappy>,
     pub delta_inv: Scalar,
 
     #[cfg(feature = "malicious")]
@@ -64,7 +64,7 @@ pub struct P2p {
 
 impl bcast_only::Executer for R5 {
     type FinalOutput = BytesVec;
-    type Index = SignParticipantIndex;
+    type Index = SignShareId;
     type Bcast = r4::happy::Bcast;
 
     #[allow(non_snake_case)]
@@ -198,7 +198,7 @@ mod malicious {
             crypto_tools::paillier::zk::range,
             sign::{
                 malicious::{log_confess_info, Behaviour::*},
-                SignParticipantIndex,
+                SignShareId,
             },
         },
     };
@@ -206,8 +206,8 @@ mod malicious {
     impl R5 {
         pub fn corrupt_k_i_range_proof_wc(
             &self,
-            me: TypedUsize<SignParticipantIndex>,
-            recipient: TypedUsize<SignParticipantIndex>,
+            me: TypedUsize<SignShareId>,
+            recipient: TypedUsize<SignShareId>,
             range_proof: range::ProofWc,
         ) -> range::ProofWc {
             if let R5BadProof { victim } = self.behaviour {

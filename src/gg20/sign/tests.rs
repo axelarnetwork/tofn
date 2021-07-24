@@ -4,8 +4,8 @@ use super::*;
 use crate::{
     collections::{FillVecMap, HoleVecMap, Subset, TypedUsize, VecMap},
     gg20::{
-        keygen::{tests::execute_keygen, KeygenPartyIndex, KeygenPartyShareCounts, SecretKeyShare},
-        sign::api::{new_sign, SignParticipantIndex},
+        keygen::{tests::execute_keygen, KeygenPartyShareCounts, KeygenShareId, SecretKeyShare},
+        sign::api::{new_sign, SignShareId},
     },
     sdk::api::{BytesVec, Fault, Protocol, Round},
 };
@@ -17,12 +17,11 @@ use tracing_test::traced_test;
 #[cfg(feature = "malicious")]
 use crate::gg20::sign::malicious::Behaviour::Honest;
 
-type Party = Round<BytesVec, SignParticipantIndex, RealSignParticipantIndex>;
+type Party = Round<BytesVec, SignShareId, SignPartyId>;
 type Parties = Vec<Party>;
-type PartyBcast = Result<VecMap<SignParticipantIndex, BytesVec>, ()>;
-type PartyP2p =
-    Result<VecMap<SignParticipantIndex, HoleVecMap<SignParticipantIndex, BytesVec>>, ()>;
-type PartyResult = Result<BytesVec, FillVecMap<RealSignParticipantIndex, Fault>>;
+type PartyBcast = Result<VecMap<SignShareId, BytesVec>, ()>;
+type PartyP2p = Result<VecMap<SignShareId, HoleVecMap<SignShareId, BytesVec>>, ()>;
+type PartyResult = Result<BytesVec, FillVecMap<SignPartyId, Fault>>;
 struct TestCase {
     party_share_counts: KeygenPartyShareCounts,
     threshold: usize,
@@ -107,7 +106,7 @@ fn execute_sign(
     }
 
     let sign_parties_share_ids =
-        VecMap::<TypedUsize<SignParticipantIndex>, TypedUsize<KeygenPartyIndex>>::from_vec(
+        VecMap::<TypedUsize<SignShareId>, TypedUsize<KeygenShareId>>::from_vec(
             test_case
                 .party_share_counts
                 .share_id_subset(&sign_parties)
@@ -303,7 +302,7 @@ fn retrieve_and_set_bcasts(
 
     debug!("Round {}: broadcasting messages for next round", round_num);
 
-    let bcasts: VecMap<SignParticipantIndex, _> = parties
+    let bcasts: VecMap<SignShareId, _> = parties
         .iter()
         .map(|party| (party.info().party_id(), party.bcast_out().unwrap().clone()))
         .collect();
@@ -324,7 +323,7 @@ fn retrieve_and_set_p2ps(parties: &mut Parties, expect_p2p: bool, round_num: usi
 
     debug!("Round {}: sending p2p messages for next round", round_num);
 
-    let all_p2ps: VecMap<SignParticipantIndex, _> = parties
+    let all_p2ps: VecMap<SignShareId, _> = parties
         .iter()
         .map(|party| (party.info().party_id(), party.p2ps_out().unwrap().clone()))
         .collect();

@@ -2,7 +2,7 @@ use crate::{
     collections::{FillVecMap, TypedUsize, VecMap},
     gg20::{
         crypto_tools::{hash::Randomness, k256_serde, paillier},
-        keygen::{KeygenPartyIndex, SecretKeyShare},
+        keygen::{KeygenShareId, SecretKeyShare},
     },
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
 use zeroize::Zeroize;
 
-use super::super::{r1, r5, r6, r7, Peers, SignParticipantIndex, SignProtocolBuilder};
+use super::super::{r1, r5, r6, r7, Peers, SignProtocolBuilder, SignShareId};
 
 #[cfg(feature = "malicious")]
 use super::super::malicious::Behaviour;
@@ -25,7 +25,7 @@ pub struct R8 {
     pub secret_key_share: SecretKeyShare,
     pub msg_to_sign: Scalar,
     pub peers: Peers,
-    pub keygen_id: TypedUsize<KeygenPartyIndex>,
+    pub keygen_id: TypedUsize<KeygenShareId>,
     pub gamma_i: Scalar,
     pub Gamma_i: ProjectivePoint,
     pub Gamma_i_reveal: Randomness,
@@ -35,12 +35,12 @@ pub struct R8 {
     pub sigma_i: Scalar,
     pub l_i: Scalar,
     pub T_i: ProjectivePoint,
-    pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
+    pub r1bcasts: VecMap<SignShareId, r1::Bcast>,
     pub delta_inv: Scalar,
     pub R: ProjectivePoint,
     pub r: Scalar,
-    pub r5bcasts: VecMap<SignParticipantIndex, r5::Bcast>,
-    pub r6bcasts: VecMap<SignParticipantIndex, r6::BcastHappy>,
+    pub r5bcasts: VecMap<SignShareId, r5::Bcast>,
+    pub r6bcasts: VecMap<SignShareId, r6::BcastHappy>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
@@ -65,7 +65,7 @@ pub struct Bcast {
 
 impl bcast_only::Executer for R8 {
     type FinalOutput = BytesVec;
-    type Index = SignParticipantIndex;
+    type Index = SignShareId;
     type Bcast = r7::Bcast;
 
     #[allow(non_snake_case)]

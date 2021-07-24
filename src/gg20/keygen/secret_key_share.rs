@@ -1,6 +1,5 @@
 use super::{
-    rng::rng_seed, KeygenPartyIndex, KeygenPartyShareCounts, RealKeygenPartyIndex,
-    SecretRecoveryKey,
+    rng::rng_seed, KeygenPartyId, KeygenPartyShareCounts, KeygenShareId, SecretRecoveryKey,
 };
 use crate::{
     collections::{TypedUsize, VecMap},
@@ -24,7 +23,7 @@ pub struct GroupPublicInfo {
     party_share_counts: KeygenPartyShareCounts,
     threshold: usize,
     y: k256_serde::ProjectivePoint,
-    all_shares: VecMap<KeygenPartyIndex, SharePublicInfo>,
+    all_shares: VecMap<KeygenShareId, SharePublicInfo>,
 }
 
 /// `SharePublicInfo` public info unique to each share
@@ -44,7 +43,7 @@ pub struct SharePublicInfo {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Zeroize)]
 #[zeroize(drop)]
 pub struct ShareSecretInfo {
-    index: TypedUsize<KeygenPartyIndex>,
+    index: TypedUsize<KeygenShareId>,
     dk: paillier::DecryptionKey,
     x_i: k256_serde::Scalar,
 }
@@ -55,7 +54,7 @@ pub struct ShareSecretInfo {
 /// this data + mnemonic can be used to recover a full `SecretKeyShare` struct.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KeyShareRecoveryInfo {
-    index: TypedUsize<KeygenPartyIndex>,
+    index: TypedUsize<KeygenShareId>,
     share: SharePublicInfo,
     x_i_ciphertext: paillier::Ciphertext,
 }
@@ -76,14 +75,14 @@ impl GroupPublicInfo {
     pub fn y(&self) -> &k256_serde::ProjectivePoint {
         &self.y
     }
-    pub fn all_shares(&self) -> &VecMap<KeygenPartyIndex, SharePublicInfo> {
+    pub fn all_shares(&self) -> &VecMap<KeygenShareId, SharePublicInfo> {
         &self.all_shares
     }
     pub(super) fn new(
         party_share_counts: KeygenPartyShareCounts,
         threshold: usize,
         y: k256_serde::ProjectivePoint,
-        all_shares: VecMap<KeygenPartyIndex, SharePublicInfo>,
+        all_shares: VecMap<KeygenShareId, SharePublicInfo>,
     ) -> Self {
         Self {
             party_share_counts,
@@ -115,11 +114,11 @@ impl SharePublicInfo {
 }
 
 impl ShareSecretInfo {
-    pub fn index(&self) -> TypedUsize<KeygenPartyIndex> {
+    pub fn index(&self) -> TypedUsize<KeygenShareId> {
         self.index
     }
     pub(super) fn new(
-        index: TypedUsize<KeygenPartyIndex>,
+        index: TypedUsize<KeygenShareId>,
         dk: paillier::DecryptionKey,
         x_i: k256_serde::Scalar,
     ) -> Self {
@@ -161,7 +160,7 @@ impl SecretKeyShare {
         secret_recovery_key: &SecretRecoveryKey,
         session_nonce: &[u8],
         recovery_infos: &[KeyShareRecoveryInfo],
-        party_id: TypedUsize<RealKeygenPartyIndex>,
+        party_id: TypedUsize<KeygenPartyId>,
         subshare_id: usize, // in 0..party_share_counts[party_id]
         party_share_counts: KeygenPartyShareCounts,
         threshold: usize,
@@ -182,7 +181,7 @@ impl SecretKeyShare {
         secret_recovery_key: &SecretRecoveryKey,
         session_nonce: &[u8],
         recovery_infos: &[KeyShareRecoveryInfo],
-        party_id: TypedUsize<RealKeygenPartyIndex>,
+        party_id: TypedUsize<KeygenPartyId>,
         subshare_id: usize, // in 0..party_share_counts[party_id]
         party_share_counts: KeygenPartyShareCounts,
         threshold: usize,
@@ -204,7 +203,7 @@ impl SecretKeyShare {
         secret_recovery_key: &SecretRecoveryKey,
         session_nonce: &[u8],
         recovery_infos: &[KeyShareRecoveryInfo],
-        party_id: TypedUsize<RealKeygenPartyIndex>,
+        party_id: TypedUsize<KeygenPartyId>,
         subshare_id: usize, // in 0..party_share_counts[party_id]
         party_share_counts: KeygenPartyShareCounts,
         threshold: usize,
@@ -273,7 +272,7 @@ impl SecretKeyShare {
             threshold,
         )
         .into();
-        let all_shares: VecMap<KeygenPartyIndex, SharePublicInfo> = recovery_infos_sorted
+        let all_shares: VecMap<KeygenShareId, SharePublicInfo> = recovery_infos_sorted
             .into_iter()
             .map(|info| SharePublicInfo {
                 X_i: info.share.X_i,

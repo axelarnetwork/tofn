@@ -6,8 +6,8 @@ use execute::*;
 use tofn::{
     collections::{TypedUsize, VecMap},
     gg20::{
-        keygen::{KeygenPartyIndex, SecretKeyShare},
-        sign::{new_sign, MessageDigest, SignParticipantIndex, SignParties},
+        keygen::{KeygenShareId, SecretKeyShare},
+        sign::{new_sign, MessageDigest, SignParties, SignShareId},
     },
     sdk::api::{PartyShareCounts, Protocol},
 };
@@ -42,7 +42,7 @@ fn basic_correctness() {
     let threshold = 5;
     let keygen_shares = keygen::initialize_honest_parties(&party_share_counts, threshold);
     let keygen_share_outputs = execute_protocol(keygen_shares).expect("internal tofn error");
-    let secret_key_shares: VecMap<KeygenPartyIndex, SecretKeyShare> =
+    let secret_key_shares: VecMap<KeygenShareId, SecretKeyShare> =
         keygen_share_outputs.map2(|(keygen_share_id, keygen_share)| match keygen_share {
             Protocol::NotDone(_) => panic!("share_id {} not done yet", keygen_share_id),
             Protocol::Done(result) => result.expect("share finished with error"),
@@ -56,7 +56,7 @@ fn basic_correctness() {
         sign_parties.add(TypedUsize::from_usize(3)).unwrap();
         sign_parties
     };
-    let keygen_share_ids = VecMap::<SignParticipantIndex, _>::from_vec(
+    let keygen_share_ids = VecMap::<SignShareId, _>::from_vec(
         party_share_counts.share_id_subset(&sign_parties).unwrap(),
     );
     let msg_to_sign = MessageDigest::try_from(&[42; 32][..]).unwrap();

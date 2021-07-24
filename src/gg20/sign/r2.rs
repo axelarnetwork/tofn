@@ -6,7 +6,7 @@ use crate::{
             hash, mta,
             paillier::{self, Ciphertext},
         },
-        keygen::{KeygenPartyIndex, SecretKeyShare},
+        keygen::{KeygenShareId, SecretKeyShare},
     },
     sdk::{
         api::{BytesVec, TofnResult},
@@ -17,7 +17,7 @@ use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::{r1, r3, Participants, Peers, SignParticipantIndex, SignProtocolBuilder};
+use super::{r1, r3, Participants, Peers, SignProtocolBuilder, SignShareId};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -28,7 +28,7 @@ pub struct R2 {
     pub msg_to_sign: Scalar,
     pub peers: Peers,
     pub participants: Participants,
-    pub keygen_id: TypedUsize<KeygenPartyIndex>,
+    pub keygen_id: TypedUsize<KeygenShareId>,
     pub gamma_i: Scalar,
     pub Gamma_i: ProjectivePoint,
     pub Gamma_i_reveal: hash::Randomness,
@@ -48,7 +48,7 @@ pub enum Bcast {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BcastSad {
-    pub zkp_complaints: Subset<SignParticipantIndex>,
+    pub zkp_complaints: Subset<SignShareId>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -67,7 +67,7 @@ pub struct P2pHappy {
 
 impl bcast_and_p2p::Executer for R2 {
     type FinalOutput = BytesVec;
-    type Index = SignParticipantIndex;
+    type Index = SignShareId;
     type Bcast = r1::Bcast;
     type P2p = r1::P2p;
 
@@ -254,7 +254,7 @@ mod malicious {
             crypto_tools::paillier::zk::mta,
             sign::{
                 malicious::{log_confess_info, Behaviour::*},
-                SignParticipantIndex,
+                SignShareId,
             },
         },
         sdk::api::TofnResult,
@@ -265,9 +265,9 @@ mod malicious {
     impl R2 {
         pub fn corrupt_complaint(
             &self,
-            me: TypedUsize<SignParticipantIndex>,
-            mut zkp_complaints: Subset<SignParticipantIndex>,
-        ) -> TofnResult<Subset<SignParticipantIndex>> {
+            me: TypedUsize<SignShareId>,
+            mut zkp_complaints: Subset<SignShareId>,
+        ) -> TofnResult<Subset<SignShareId>> {
             if let R2FalseAccusation { victim } = self.behaviour {
                 if zkp_complaints.is_member(victim)? {
                     log_confess_info(me, &self.behaviour, "but the accusation is true");
@@ -284,8 +284,8 @@ mod malicious {
 
         pub fn corrupt_alpha_proof(
             &self,
-            me: TypedUsize<SignParticipantIndex>,
-            recipient: TypedUsize<SignParticipantIndex>,
+            me: TypedUsize<SignShareId>,
+            recipient: TypedUsize<SignShareId>,
             alpha_proof: mta::Proof,
         ) -> mta::Proof {
             if let R2BadMta { victim } = self.behaviour {
@@ -299,8 +299,8 @@ mod malicious {
 
         pub fn corrupt_mu_proof(
             &self,
-            me: TypedUsize<SignParticipantIndex>,
-            recipient: TypedUsize<SignParticipantIndex>,
+            me: TypedUsize<SignShareId>,
+            recipient: TypedUsize<SignShareId>,
             mu_proof: mta::ProofWc,
         ) -> mta::ProofWc {
             if let R2BadMtaWc { victim } = self.behaviour {

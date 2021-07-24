@@ -5,7 +5,7 @@ use crate::{
         crypto_tools::{
             hash::Randomness, k256_serde, mta::Secret, paillier, vss, zkp::pedersen_k256,
         },
-        keygen::{KeygenPartyIndex, SecretKeyShare},
+        keygen::{KeygenShareId, SecretKeyShare},
         sign::{r3, r4, Participants},
     },
     sdk::{
@@ -17,7 +17,7 @@ use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::super::{r1, r2, Peers, SignParticipantIndex, SignProtocolBuilder};
+use super::super::{r1, r2, Peers, SignProtocolBuilder, SignShareId};
 
 #[cfg(feature = "malicious")]
 use super::super::malicious::Behaviour;
@@ -28,17 +28,17 @@ pub struct R3 {
     pub msg_to_sign: Scalar,
     pub peers: Peers,
     pub participants: Participants,
-    pub keygen_id: TypedUsize<KeygenPartyIndex>,
+    pub keygen_id: TypedUsize<KeygenShareId>,
     pub gamma_i: Scalar,
     pub Gamma_i: ProjectivePoint,
     pub Gamma_i_reveal: Randomness,
     pub w_i: Scalar,
     pub k_i: Scalar,
     pub k_i_randomness: paillier::Randomness,
-    pub(crate) beta_secrets: HoleVecMap<SignParticipantIndex, Secret>,
-    pub(crate) nu_secrets: HoleVecMap<SignParticipantIndex, Secret>,
-    pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
-    pub r1p2ps: P2ps<SignParticipantIndex, r1::P2p>,
+    pub(crate) beta_secrets: HoleVecMap<SignShareId, Secret>,
+    pub(crate) nu_secrets: HoleVecMap<SignShareId, Secret>,
+    pub r1bcasts: VecMap<SignShareId, r1::Bcast>,
+    pub r1p2ps: P2ps<SignShareId, r1::P2p>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
@@ -60,7 +60,7 @@ pub struct BcastHappy {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BcastSad {
-    pub mta_complaints: FillVecMap<SignParticipantIndex, Accusation>,
+    pub mta_complaints: FillVecMap<SignShareId, Accusation>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -71,7 +71,7 @@ pub enum Accusation {
 
 impl bcast_and_p2p::Executer for R3 {
     type FinalOutput = BytesVec;
-    type Index = SignParticipantIndex;
+    type Index = SignShareId;
     type Bcast = r2::Bcast;
     type P2p = r2::P2p;
 
@@ -342,7 +342,7 @@ mod malicious {
     use super::{Accusation, R3};
     use crate::{
         collections::{FillVecMap, TypedUsize},
-        gg20::{crypto_tools::zkp::pedersen_k256, sign::SignParticipantIndex},
+        gg20::{crypto_tools::zkp::pedersen_k256, sign::SignShareId},
         sdk::api::TofnResult,
     };
     use k256::Scalar;
@@ -352,9 +352,9 @@ mod malicious {
     impl R3 {
         pub fn corrupt_complaint(
             &self,
-            me: TypedUsize<SignParticipantIndex>,
-            mut mta_complaints: FillVecMap<SignParticipantIndex, Accusation>,
-        ) -> TofnResult<FillVecMap<SignParticipantIndex, Accusation>> {
+            me: TypedUsize<SignShareId>,
+            mut mta_complaints: FillVecMap<SignShareId, Accusation>,
+        ) -> TofnResult<FillVecMap<SignShareId, Accusation>> {
             let info = match self.behaviour {
                 R3FalseAccusationMta { victim } => Some((victim, Accusation::MtA)),
                 R3FalseAccusationMtaWc { victim } => Some((victim, Accusation::MtAwc)),
@@ -377,7 +377,7 @@ mod malicious {
         #[allow(non_snake_case)]
         pub fn corrupt_T_i_proof(
             &self,
-            me: TypedUsize<SignParticipantIndex>,
+            me: TypedUsize<SignShareId>,
             T_i_proof: pedersen_k256::Proof,
         ) -> pedersen_k256::Proof {
             if let R3BadProof = self.behaviour {
@@ -389,7 +389,7 @@ mod malicious {
 
         pub fn corrupt_delta_i(
             &self,
-            me: TypedUsize<SignParticipantIndex>,
+            me: TypedUsize<SignShareId>,
             mut delta_i: k256::Scalar,
         ) -> k256::Scalar {
             if let R3BadDeltaI = self.behaviour {
@@ -403,7 +403,7 @@ mod malicious {
         /// => need to add gamma_i to delta_i to maintain consistency
         pub fn corrupt_k_i(
             &self,
-            me: TypedUsize<SignParticipantIndex>,
+            me: TypedUsize<SignShareId>,
             mut delta_i: k256::Scalar,
             gamma_i: k256::Scalar,
         ) -> k256::Scalar {
@@ -418,7 +418,7 @@ mod malicious {
         /// => need to add 1 delta_i to maintain consistency
         pub fn corrupt_alpha(
             &self,
-            me: TypedUsize<SignParticipantIndex>,
+            me: TypedUsize<SignShareId>,
             mut delta_i: k256::Scalar,
         ) -> k256::Scalar {
             if let R3BadAlpha { victim: _ } = self.behaviour {
@@ -432,7 +432,7 @@ mod malicious {
         /// => need to add 1 delta_i to maintain consistency
         pub fn corrupt_beta(
             &self,
-            me: TypedUsize<SignParticipantIndex>,
+            me: TypedUsize<SignShareId>,
             mut delta_i: k256::Scalar,
         ) -> k256::Scalar {
             if let R3BadBeta { victim: _ } = self.behaviour {
@@ -444,7 +444,7 @@ mod malicious {
 
         pub fn corrupt_sigma(
             &self,
-            sign_id: TypedUsize<SignParticipantIndex>,
+            sign_id: TypedUsize<SignShareId>,
             mut sigma_i: Scalar,
         ) -> Scalar {
             if let R3BadSigmaI = self.behaviour {

@@ -5,7 +5,7 @@ use crate::{
     gg20::crypto_tools::{k256_serde, paillier, zkp::chaum_pedersen_k256},
 };
 
-use super::SignParticipantIndex;
+use super::SignShareId;
 
 pub mod happy;
 pub mod sad;
@@ -29,7 +29,7 @@ pub struct BcastSad {
     pub k_i: k256_serde::Scalar,
     pub k_i_randomness: paillier::Randomness,
     pub proof: chaum_pedersen_k256::Proof,
-    pub mta_wc_plaintexts: HoleVecMap<SignParticipantIndex, MtaWcPlaintext>,
+    pub mta_wc_plaintexts: HoleVecMap<SignShareId, MtaWcPlaintext>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

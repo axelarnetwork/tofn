@@ -14,7 +14,7 @@ use crate::{
     },
 };
 
-use super::{r1, KeygenPartyIndex, KeygenPartyShareCounts, KeygenProtocolBuilder};
+use super::{r1, KeygenPartyShareCounts, KeygenProtocolBuilder, KeygenShareId};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -43,7 +43,7 @@ pub struct R2 {
 
 impl bcast_only::Executer for R2 {
     type FinalOutput = SecretKeyShare;
-    type Index = KeygenPartyIndex;
+    type Index = KeygenShareId;
     type Bcast = r1::Bcast;
 
     fn execute(
@@ -128,7 +128,7 @@ mod malicious {
         collections::{HoleVecMap, TypedUsize},
         gg20::{
             crypto_tools::{paillier::Ciphertext, vss::Share},
-            keygen::{malicious::Behaviour, KeygenPartyIndex},
+            keygen::{malicious::Behaviour, KeygenShareId},
         },
         sdk::api::TofnResult,
     };
@@ -140,9 +140,9 @@ mod malicious {
     impl R2 {
         pub fn corrupt_share(
             &self,
-            my_index: TypedUsize<KeygenPartyIndex>,
-            mut other_shares: HoleVecMap<KeygenPartyIndex, Share>,
-        ) -> TofnResult<HoleVecMap<KeygenPartyIndex, Share>> {
+            my_index: TypedUsize<KeygenShareId>,
+            mut other_shares: HoleVecMap<KeygenShareId, Share>,
+        ) -> TofnResult<HoleVecMap<KeygenShareId, Share>> {
             if let Behaviour::R2BadShare { victim } = self.behaviour {
                 info!("malicious party {} do {:?}", my_index, self.behaviour);
                 other_shares.get_mut(victim)?.corrupt();
@@ -153,8 +153,8 @@ mod malicious {
 
         pub fn corrupt_ciphertext(
             &self,
-            my_index: TypedUsize<KeygenPartyIndex>,
-            target_index: TypedUsize<KeygenPartyIndex>,
+            my_index: TypedUsize<KeygenShareId>,
+            target_index: TypedUsize<KeygenShareId>,
             mut ciphertext: Ciphertext,
         ) -> Ciphertext {
             if let Behaviour::R2BadEncryption { victim } = self.behaviour {

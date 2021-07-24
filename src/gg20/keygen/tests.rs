@@ -45,7 +45,7 @@ pub fn execute_keygen(
 
 struct KeySharesWithRecovery {
     pub shares: Vec<SecretKeyShare>,
-    pub secret_recovery_keys: VecMap<RealKeygenPartyIndex, SecretRecoveryKey>,
+    pub secret_recovery_keys: VecMap<KeygenPartyId, SecretRecoveryKey>,
     pub session_nonce: Vec<u8>,
 }
 
@@ -75,7 +75,7 @@ fn execute_keygen_with_recovery(
 fn execute_keygen_from_recovery(
     party_share_counts: &KeygenPartyShareCounts,
     threshold: usize,
-    secret_recovery_keys: &VecMap<RealKeygenPartyIndex, SecretRecoveryKey>,
+    secret_recovery_keys: &VecMap<KeygenPartyId, SecretRecoveryKey>,
     session_nonce: &[u8],
 ) -> Vec<SecretKeyShare> {
     assert_eq!(secret_recovery_keys.len(), party_share_counts.party_count());
@@ -122,7 +122,7 @@ fn execute_keygen_from_recovery(
         .collect();
 
     // deliver r1 messages
-    let r1_bcasts: VecMap<KeygenPartyIndex, BytesVec> = r1_parties
+    let r1_bcasts: VecMap<KeygenShareId, BytesVec> = r1_parties
         .iter()
         .map(|party| party.bcast_out().unwrap().clone())
         .collect();
@@ -163,7 +163,7 @@ fn execute_keygen_from_recovery(
         .collect();
 
     // deliver r2 messages
-    let r2_bcasts: VecMap<KeygenPartyIndex, BytesVec> = r2_parties
+    let r2_bcasts: VecMap<KeygenShareId, BytesVec> = r2_parties
         .iter()
         .map(|party| party.bcast_out().unwrap().clone())
         .collect();
@@ -174,7 +174,7 @@ fn execute_keygen_from_recovery(
                 .unwrap();
         }
     }
-    let r2_p2ps: VecMap<KeygenPartyIndex, HoleVecMap<KeygenPartyIndex, BytesVec>> = r2_parties
+    let r2_p2ps: VecMap<KeygenShareId, HoleVecMap<KeygenShareId, BytesVec>> = r2_parties
         .iter()
         .map(|party| party.p2ps_out().unwrap().clone())
         .collect();
@@ -204,7 +204,7 @@ fn execute_keygen_from_recovery(
         .collect();
 
     // deliver r3 messages
-    let r3_bcasts: VecMap<KeygenPartyIndex, BytesVec> = r3_parties
+    let r3_bcasts: VecMap<KeygenShareId, BytesVec> = r3_parties
         .iter()
         .map(|party| party.bcast_out().unwrap().clone())
         .collect();

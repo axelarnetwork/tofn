@@ -6,7 +6,7 @@ use std::{
 use crate::{
     collections::{HoleVecMap, Subset, TypedUsize, VecMap},
     gg20::keygen::{
-        GroupPublicInfo, KeygenPartyIndex, RealKeygenPartyIndex, SecretKeyShare, ShareSecretInfo,
+        GroupPublicInfo, KeygenPartyId, KeygenShareId, SecretKeyShare, ShareSecretInfo,
     },
     sdk::{
         api::{BytesVec, PartyShareCounts, Protocol, TofnFatal, TofnResult},
@@ -21,17 +21,17 @@ use super::r1;
 #[cfg(feature = "malicious")]
 use super::malicious;
 
-pub type SignProtocol = Protocol<BytesVec, SignParticipantIndex, RealSignParticipantIndex>;
-pub type SignProtocolBuilder = ProtocolBuilder<BytesVec, SignParticipantIndex>;
-pub type Participants = VecMap<SignParticipantIndex, TypedUsize<KeygenPartyIndex>>;
-pub type SignParties = Subset<RealKeygenPartyIndex>;
-pub type Peers = HoleVecMap<SignParticipantIndex, TypedUsize<KeygenPartyIndex>>;
+pub type SignProtocol = Protocol<BytesVec, SignShareId, SignPartyId>;
+pub type SignProtocolBuilder = ProtocolBuilder<BytesVec, SignShareId>;
+pub type Participants = VecMap<SignShareId, TypedUsize<KeygenShareId>>;
+pub type SignParties = Subset<KeygenPartyId>;
+pub type Peers = HoleVecMap<SignShareId, TypedUsize<KeygenShareId>>;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SignParticipantIndex;
+pub struct SignShareId;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct RealSignParticipantIndex;
+pub struct SignPartyId;
 
 /// sign only 32-byte hash digests
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

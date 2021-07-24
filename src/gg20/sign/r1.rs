@@ -4,7 +4,7 @@ use crate::{
     gg20::{
         constants,
         crypto_tools::{hash, k256_serde::to_bytes, paillier, vss},
-        keygen::{KeygenPartyIndex, SecretKeyShare},
+        keygen::{KeygenShareId, SecretKeyShare},
     },
     sdk::{
         api::{BytesVec, TofnResult},
@@ -15,7 +15,7 @@ use ecdsa::elliptic_curve::Field;
 use k256::Scalar;
 use serde::{Deserialize, Serialize};
 
-use super::{r2, Participants, Peers, SignParticipantIndex, SignProtocolBuilder};
+use super::{r2, Participants, Peers, SignProtocolBuilder, SignShareId};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -26,7 +26,7 @@ pub struct R1 {
     pub msg_to_sign: Scalar,
     pub peers: Peers,
     pub participants: Participants,
-    pub keygen_id: TypedUsize<KeygenPartyIndex>,
+    pub keygen_id: TypedUsize<KeygenShareId>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
@@ -46,7 +46,7 @@ pub struct P2p {
 
 impl no_messages::Executer for R1 {
     type FinalOutput = BytesVec;
-    type Index = SignParticipantIndex;
+    type Index = SignShareId;
 
     #[allow(non_snake_case)]
     fn execute(
@@ -158,7 +158,7 @@ mod malicious {
             crypto_tools::paillier::{self, zk::range},
             sign::{
                 malicious::{log_confess_info, Behaviour},
-                SignParticipantIndex,
+                SignShareId,
             },
         },
     };
@@ -166,7 +166,7 @@ mod malicious {
     impl R1 {
         pub fn corrupt_gamma_i(
             &self,
-            me: TypedUsize<SignParticipantIndex>,
+            me: TypedUsize<SignShareId>,
             mut gamma_i: k256::Scalar,
         ) -> k256::Scalar {
             if let Behaviour::R1BadGammaI = self.behaviour {
@@ -191,8 +191,8 @@ mod malicious {
 
         pub fn corrupt_range_proof(
             &self,
-            me: TypedUsize<SignParticipantIndex>,
-            recipient: TypedUsize<SignParticipantIndex>,
+            me: TypedUsize<SignShareId>,
+            recipient: TypedUsize<SignShareId>,
             range_proof: range::Proof,
         ) -> range::Proof {
             if let Behaviour::R1BadProof { victim } = self.behaviour {

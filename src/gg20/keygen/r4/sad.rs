@@ -2,7 +2,7 @@ use tracing::error;
 
 use crate::{
     collections::{FillVecMap, P2ps, VecMap},
-    gg20::keygen::{r1, r2, r3, KeygenPartyIndex, KeygenProtocolBuilder, SecretKeyShare},
+    gg20::keygen::{r1, r2, r3, KeygenShareId, KeygenProtocolBuilder, SecretKeyShare},
     sdk::{
         api::{Fault::ProtocolFault, TofnFatal, TofnResult},
         implementer_api::{bcast_only, log_fault_info, ProtocolBuilder, ProtocolInfo},
@@ -11,14 +11,14 @@ use crate::{
 
 #[allow(non_snake_case)]
 pub struct R4Sad {
-    pub r1bcasts: VecMap<KeygenPartyIndex, r1::Bcast>,
-    pub r2bcasts: VecMap<KeygenPartyIndex, r2::Bcast>,
-    pub r2p2ps: P2ps<KeygenPartyIndex, r2::P2p>,
+    pub r1bcasts: VecMap<KeygenShareId, r1::Bcast>,
+    pub r2bcasts: VecMap<KeygenShareId, r2::Bcast>,
+    pub r2p2ps: P2ps<KeygenShareId, r2::P2p>,
 }
 
 impl bcast_only::Executer for R4Sad {
     type FinalOutput = SecretKeyShare;
-    type Index = KeygenPartyIndex;
+    type Index = KeygenShareId;
     type Bcast = r3::Bcast;
 
     #[allow(non_snake_case)]

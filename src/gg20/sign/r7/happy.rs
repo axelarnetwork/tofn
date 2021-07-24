@@ -7,11 +7,11 @@ use crate::{
             paillier,
             zkp::{chaum_pedersen_k256, pedersen_k256},
         },
-        keygen::{KeygenPartyIndex, SecretKeyShare},
+        keygen::{KeygenShareId, SecretKeyShare},
         sign::{
             r4,
             r7::{self, Bcast, BcastHappy, BcastSad, MtaWcPlaintext},
-            Participants, SignParticipantIndex,
+            Participants, SignShareId,
         },
     },
     sdk::{
@@ -34,7 +34,7 @@ pub struct R7 {
     pub msg_to_sign: Scalar,
     pub peers: Peers,
     pub participants: Participants,
-    pub keygen_id: TypedUsize<KeygenPartyIndex>,
+    pub keygen_id: TypedUsize<KeygenShareId>,
     pub gamma_i: Scalar,
     pub Gamma_i: ProjectivePoint,
     pub Gamma_i_reveal: Randomness,
@@ -44,14 +44,14 @@ pub struct R7 {
     pub sigma_i: Scalar,
     pub l_i: Scalar,
     pub T_i: ProjectivePoint,
-    pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
-    pub r2p2ps: P2ps<SignParticipantIndex, r2::P2pHappy>,
-    pub r3bcasts: VecMap<SignParticipantIndex, r3::happy::BcastHappy>,
-    pub r4bcasts: VecMap<SignParticipantIndex, r4::happy::Bcast>,
+    pub r1bcasts: VecMap<SignShareId, r1::Bcast>,
+    pub r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
+    pub r3bcasts: VecMap<SignShareId, r3::happy::BcastHappy>,
+    pub r4bcasts: VecMap<SignShareId, r4::happy::Bcast>,
     pub delta_inv: Scalar,
     pub R: ProjectivePoint,
-    pub r5bcasts: VecMap<SignParticipantIndex, r5::Bcast>,
-    pub r5p2ps: P2ps<SignParticipantIndex, r5::P2p>,
+    pub r5bcasts: VecMap<SignShareId, r5::Bcast>,
+    pub r5p2ps: P2ps<SignShareId, r5::P2p>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
@@ -59,7 +59,7 @@ pub struct R7 {
 
 impl bcast_only::Executer for R7 {
     type FinalOutput = BytesVec;
-    type Index = SignParticipantIndex;
+    type Index = SignShareId;
     type Bcast = r6::Bcast;
 
     #[allow(non_snake_case)]
@@ -298,14 +298,14 @@ mod malicious {
         collections::TypedUsize,
         gg20::sign::{
             malicious::{log_confess_info, Behaviour::*},
-            SignParticipantIndex,
+            SignShareId,
         },
     };
 
     impl R7 {
         pub fn corrupt_s_i(
             &self,
-            me: TypedUsize<SignParticipantIndex>,
+            me: TypedUsize<SignShareId>,
             mut s_i: k256::Scalar,
         ) -> k256::Scalar {
             if let R7BadSI = self.behaviour {

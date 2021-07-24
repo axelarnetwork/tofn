@@ -2,7 +2,7 @@ use crate::{
     collections::{FillVecMap, P2ps, TypedUsize, VecMap},
     gg20::{
         crypto_tools::{hash::Randomness, paillier, vss},
-        keygen::{KeygenPartyIndex, SecretKeyShare},
+        keygen::{KeygenShareId, SecretKeyShare},
         sign::Participants,
     },
     sdk::{
@@ -13,7 +13,7 @@ use crate::{
 use k256::{ProjectivePoint, Scalar};
 use tracing::error;
 
-use super::super::{r1, r2, r3, Peers, SignParticipantIndex, SignProtocolBuilder};
+use super::super::{r1, r2, r3, Peers, SignShareId, SignProtocolBuilder};
 
 #[cfg(feature = "malicious")]
 use super::super::malicious::Behaviour;
@@ -24,15 +24,15 @@ pub struct R4 {
     pub msg_to_sign: Scalar,
     pub peers: Peers,
     pub participants: Participants,
-    pub keygen_id: TypedUsize<KeygenPartyIndex>,
+    pub keygen_id: TypedUsize<KeygenShareId>,
     pub gamma_i: Scalar,
     pub Gamma_i: ProjectivePoint,
     pub Gamma_i_reveal: Randomness,
     pub w_i: Scalar,
     pub k_i: Scalar,
     pub k_i_randomness: paillier::Randomness,
-    pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
-    pub r2p2ps: P2ps<SignParticipantIndex, r2::P2pHappy>,
+    pub r1bcasts: VecMap<SignShareId, r1::Bcast>,
+    pub r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
@@ -40,7 +40,7 @@ pub struct R4 {
 
 impl bcast_only::Executer for R4 {
     type FinalOutput = BytesVec;
-    type Index = SignParticipantIndex;
+    type Index = SignShareId;
     type Bcast = r3::happy::Bcast;
 
     #[allow(non_snake_case)]

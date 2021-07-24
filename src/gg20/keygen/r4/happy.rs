@@ -5,7 +5,7 @@ use crate::{
     gg20::{
         crypto_tools::{paillier, zkp::schnorr_k256},
         keygen::{
-            r1, r2, r3, r4::sad::R4Sad, GroupPublicInfo, KeygenPartyIndex, KeygenPartyShareCounts,
+            r1, r2, r3, r4::sad::R4Sad, GroupPublicInfo, KeygenShareId, KeygenPartyShareCounts,
             KeygenProtocolBuilder, SecretKeyShare, SharePublicInfo, ShareSecretInfo,
         },
     },
@@ -23,12 +23,12 @@ pub struct R4 {
     pub threshold: usize,
     pub party_share_counts: KeygenPartyShareCounts,
     pub dk: paillier::DecryptionKey,
-    pub r1bcasts: VecMap<KeygenPartyIndex, r1::Bcast>,
-    pub r2bcasts: VecMap<KeygenPartyIndex, r2::Bcast>,
-    pub r2p2ps: P2ps<KeygenPartyIndex, r2::P2p>,
+    pub r1bcasts: VecMap<KeygenShareId, r1::Bcast>,
+    pub r2bcasts: VecMap<KeygenShareId, r2::Bcast>,
+    pub r2p2ps: P2ps<KeygenShareId, r2::P2p>,
     pub y: k256::ProjectivePoint,
     pub x_i: k256::Scalar,
-    pub all_X_i: VecMap<KeygenPartyIndex, k256::ProjectivePoint>,
+    pub all_X_i: VecMap<KeygenShareId, k256::ProjectivePoint>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
@@ -36,7 +36,7 @@ pub struct R4 {
 
 impl bcast_only::Executer for R4 {
     type FinalOutput = SecretKeyShare;
-    type Index = KeygenPartyIndex;
+    type Index = KeygenShareId;
     type Bcast = r3::Bcast;
 
     #[allow(non_snake_case)]

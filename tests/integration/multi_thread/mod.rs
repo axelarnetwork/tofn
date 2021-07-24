@@ -5,8 +5,8 @@ use std::{convert::TryFrom, sync::mpsc, thread};
 use tofn::{
     collections::{TypedUsize, VecMap},
     gg20::{
-        keygen::{KeygenPartyIndex, SecretKeyShare},
-        sign::{new_sign, MessageDigest, SignParticipantIndex, SignParties},
+        keygen::{KeygenShareId, SecretKeyShare},
+        sign::{new_sign, MessageDigest, SignParties, SignShareId},
     },
     sdk::api::PartyShareCounts,
 };
@@ -59,7 +59,7 @@ fn basic_correctness() {
             .as_usize()
             .cmp(&b.share().index().as_usize())
     });
-    let secret_key_shares = VecMap::<KeygenPartyIndex, _>::from_vec(secret_key_shares_unsorted);
+    let secret_key_shares = VecMap::<KeygenShareId, _>::from_vec(secret_key_shares_unsorted);
 
     // sign participants: 0,1,3 out of 0,1,2,3
     let sign_parties = {
@@ -69,7 +69,7 @@ fn basic_correctness() {
         sign_parties.add(TypedUsize::from_usize(3)).unwrap();
         sign_parties
     };
-    let keygen_share_ids = VecMap::<SignParticipantIndex, _>::from_vec(
+    let keygen_share_ids = VecMap::<SignShareId, _>::from_vec(
         party_share_counts.share_id_subset(&sign_parties).unwrap(),
     );
 

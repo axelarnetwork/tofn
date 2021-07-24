@@ -17,7 +17,7 @@ use crate::{
     },
 };
 
-use super::{r1, r2, KeygenPartyIndex, KeygenPartyShareCounts, KeygenProtocolBuilder};
+use super::{r1, r2, KeygenPartyShareCounts, KeygenProtocolBuilder, KeygenShareId};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -35,7 +35,7 @@ pub struct BcastHappy {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BcastSad {
-    pub vss_complaints: FillVecMap<KeygenPartyIndex, ShareInfo>,
+    pub vss_complaints: FillVecMap<KeygenShareId, ShareInfo>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -49,7 +49,7 @@ pub struct R3 {
     pub party_share_counts: KeygenPartyShareCounts,
     pub dk: paillier::DecryptionKey,
     pub u_i_my_share: vss::Share,
-    pub r1bcasts: VecMap<KeygenPartyIndex, r1::Bcast>,
+    pub r1bcasts: VecMap<KeygenShareId, r1::Bcast>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
@@ -57,7 +57,7 @@ pub struct R3 {
 
 impl bcast_and_p2p::Executer for R3 {
     type FinalOutput = SecretKeyShare;
-    type Index = KeygenPartyIndex;
+    type Index = KeygenShareId;
     type Bcast = r2::Bcast;
     type P2p = r2::P2p;
 
@@ -151,7 +151,7 @@ impl bcast_and_p2p::Executer for R3 {
             });
 
         // compute all_X_i
-        let all_X_i: VecMap<KeygenPartyIndex, k256::ProjectivePoint> = (0..info.share_count())
+        let all_X_i: VecMap<KeygenShareId, k256::ProjectivePoint> = (0..info.share_count())
             .map(|i| {
                 bcasts_in
                     .iter()
@@ -200,7 +200,7 @@ mod malicious {
     use super::{ShareInfo, R3};
     use crate::{
         collections::{FillVecMap, HoleVecMap, TypedUsize},
-        gg20::{crypto_tools::vss, keygen::KeygenPartyIndex},
+        gg20::{crypto_tools::vss, keygen::KeygenShareId},
         sdk::api::TofnResult,
     };
 
@@ -209,7 +209,7 @@ mod malicious {
     impl R3 {
         pub fn corrupt_scalar(
             &self,
-            my_index: TypedUsize<KeygenPartyIndex>,
+            my_index: TypedUsize<KeygenShareId>,
             mut x_i: k256::Scalar,
         ) -> k256::Scalar {
             if let Behaviour::R3BadXIWitness = self.behaviour {
@@ -221,10 +221,10 @@ mod malicious {
 
         pub fn corrupt_complaint(
             &self,
-            index: TypedUsize<KeygenPartyIndex>,
-            share_infos: &HoleVecMap<KeygenPartyIndex, ShareInfo>,
-            mut vss_complaints: FillVecMap<KeygenPartyIndex, ShareInfo>,
-        ) -> TofnResult<FillVecMap<KeygenPartyIndex, ShareInfo>> {
+            index: TypedUsize<KeygenShareId>,
+            share_infos: &HoleVecMap<KeygenShareId, ShareInfo>,
+            mut vss_complaints: FillVecMap<KeygenShareId, ShareInfo>,
+        ) -> TofnResult<FillVecMap<KeygenShareId, ShareInfo>> {
             if let Behaviour::R3FalseAccusation { victim } = self.behaviour {
                 if !vss_complaints.is_none(victim)? {
                     log_confess_info(index, &self.behaviour, "but the accusation is true");

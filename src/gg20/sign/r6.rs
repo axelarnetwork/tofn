@@ -9,7 +9,7 @@ use crate::{
             paillier::{self, zk, Plaintext},
             zkp::pedersen_k256,
         },
-        keygen::{KeygenPartyIndex, SecretKeyShare},
+        keygen::{KeygenShareId, SecretKeyShare},
     },
     sdk::{
         api::{BytesVec, TofnResult},
@@ -20,9 +20,7 @@ use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::{
-    r1, r2, r3, r4, r5, r7, Participants, Peers, SignParticipantIndex, SignProtocolBuilder,
-};
+use super::{r1, r2, r3, r4, r5, r7, Participants, Peers, SignProtocolBuilder, SignShareId};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -33,7 +31,7 @@ pub struct R6 {
     pub msg_to_sign: Scalar,
     pub peers: Peers,
     pub participants: Participants,
-    pub keygen_id: TypedUsize<KeygenPartyIndex>,
+    pub keygen_id: TypedUsize<KeygenShareId>,
     pub gamma_i: Scalar,
     pub Gamma_i: ProjectivePoint,
     pub Gamma_i_reveal: Randomness,
@@ -43,11 +41,11 @@ pub struct R6 {
     pub sigma_i: Scalar,
     pub l_i: Scalar,
     pub T_i: ProjectivePoint,
-    pub(crate) beta_secrets: HoleVecMap<SignParticipantIndex, Secret>,
-    pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
-    pub r2p2ps: P2ps<SignParticipantIndex, r2::P2pHappy>,
-    pub r3bcasts: VecMap<SignParticipantIndex, r3::happy::BcastHappy>,
-    pub r4bcasts: VecMap<SignParticipantIndex, r4::happy::Bcast>,
+    pub(crate) beta_secrets: HoleVecMap<SignShareId, Secret>,
+    pub r1bcasts: VecMap<SignShareId, r1::Bcast>,
+    pub r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
+    pub r3bcasts: VecMap<SignShareId, r3::happy::BcastHappy>,
+    pub r4bcasts: VecMap<SignShareId, r4::happy::Bcast>,
     pub delta_inv: Scalar,
     pub R: ProjectivePoint,
 
@@ -71,7 +69,7 @@ pub struct BcastHappy {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BcastSad {
-    pub zkp_complaints: Subset<SignParticipantIndex>,
+    pub zkp_complaints: Subset<SignShareId>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -79,7 +77,7 @@ pub struct BcastSadType5 {
     pub k_i: k256_serde::Scalar,
     pub k_i_randomness: paillier::Randomness,
     pub gamma_i: k256_serde::Scalar,
-    pub mta_plaintexts: HoleVecMap<SignParticipantIndex, MtaPlaintext>,
+    pub mta_plaintexts: HoleVecMap<SignShareId, MtaPlaintext>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -94,7 +92,7 @@ pub struct MtaPlaintext {
 
 impl bcast_and_p2p::Executer for R6 {
     type FinalOutput = BytesVec;
-    type Index = SignParticipantIndex;
+    type Index = SignShareId;
     type Bcast = r5::Bcast;
     type P2p = r5::P2p;
 
@@ -347,7 +345,7 @@ mod malicious {
             crypto_tools::{mta::Secret, paillier::Plaintext, zkp::pedersen_k256},
             sign::{
                 malicious::{log_confess_info, Behaviour::*},
-                SignParticipantIndex,
+                SignShareId,
             },
         },
         sdk::api::TofnResult,
@@ -357,7 +355,7 @@ mod malicious {
         /// earlier we prepared to corrupt k_i by corrupting delta_i
         pub fn corrupt_k_i(
             &self,
-            me: TypedUsize<SignParticipantIndex>,
+            me: TypedUsize<SignShareId>,
             mut k_i: k256::Scalar,
         ) -> k256::Scalar {
             if let R3BadKI = self.behaviour {
@@ -369,8 +367,8 @@ mod malicious {
         /// earlier we prepared to corrupt alpha_plaintext by corrupting delta_i
         pub fn corrupt_alpha_plaintext(
             &self,
-            me: TypedUsize<SignParticipantIndex>,
-            recipient: TypedUsize<SignParticipantIndex>,
+            me: TypedUsize<SignShareId>,
+            recipient: TypedUsize<SignShareId>,
             mut alpha_plaintext: Plaintext,
         ) -> Plaintext {
             if let R3BadAlpha { victim } = self.behaviour {
@@ -384,8 +382,8 @@ mod malicious {
         /// earlier we prepared to corrupt beta_secret by corrupting delta_i
         pub fn corrupt_beta_secret(
             &self,
-            me: TypedUsize<SignParticipantIndex>,
-            recipient: TypedUsize<SignParticipantIndex>,
+            me: TypedUsize<SignShareId>,
+            recipient: TypedUsize<SignShareId>,
             mut beta_secret: Secret,
         ) -> Secret {
             if let R3BadBeta { victim } = self.behaviour {
@@ -398,9 +396,9 @@ mod malicious {
         }
         pub fn corrupt_zkp_complaints(
             &self,
-            me: TypedUsize<SignParticipantIndex>,
-            mut zkp_complaints: Subset<SignParticipantIndex>,
-        ) -> TofnResult<Subset<SignParticipantIndex>> {
+            me: TypedUsize<SignShareId>,
+            mut zkp_complaints: Subset<SignShareId>,
+        ) -> TofnResult<Subset<SignShareId>> {
             if let R6FalseAccusation { victim } = self.behaviour {
                 if zkp_complaints.is_member(victim)? {
                     log_confess_info(me, &self.behaviour, "but the accusation is true");
@@ -418,7 +416,7 @@ mod malicious {
         #[allow(non_snake_case)]
         pub fn corrupt_S_i_proof_wc(
             &self,
-            me: TypedUsize<SignParticipantIndex>,
+            me: TypedUsize<SignShareId>,
             range_proof: pedersen_k256::ProofWc,
         ) -> pedersen_k256::ProofWc {
             if let R6BadProof = self.behaviour {
@@ -430,7 +428,7 @@ mod malicious {
 
         pub fn corrupt_curve_generator(
             &self,
-            me: TypedUsize<SignParticipantIndex>,
+            me: TypedUsize<SignShareId>,
         ) -> k256::ProjectivePoint {
             if let R6FalseFailRandomizer = self.behaviour {
                 log_confess_info(me, &self.behaviour, "");

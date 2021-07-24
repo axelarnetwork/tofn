@@ -12,7 +12,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::{r2, rng, KeygenPartyIndex, KeygenPartyShareCounts, KeygenProtocolBuilder};
+use super::{r2, rng, KeygenPartyShareCounts, KeygenProtocolBuilder, KeygenShareId};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -38,7 +38,7 @@ pub struct Bcast {
 
 impl no_messages::Executer for R1 {
     type FinalOutput = SecretKeyShare;
-    type Index = KeygenPartyIndex;
+    type Index = KeygenShareId;
 
     fn execute(
         self: Box<Self>,
@@ -109,7 +109,7 @@ mod malicious {
                 paillier,
                 paillier::zk::{EncryptionKeyProof, ZkSetupProof},
             },
-            keygen::{malicious::Behaviour, KeygenPartyIndex},
+            keygen::{malicious::Behaviour, KeygenShareId},
         },
     };
     use tracing::info;
@@ -117,7 +117,7 @@ mod malicious {
     impl R1 {
         pub fn corrupt_commit(
             &self,
-            my_index: TypedUsize<KeygenPartyIndex>,
+            my_index: TypedUsize<KeygenShareId>,
             commit: Output,
         ) -> Output {
             if let Behaviour::R1BadCommit = self.behaviour {
@@ -130,7 +130,7 @@ mod malicious {
 
         pub fn corrupt_ek_proof(
             &self,
-            my_index: TypedUsize<KeygenPartyIndex>,
+            my_index: TypedUsize<KeygenShareId>,
             ek_proof: EncryptionKeyProof,
         ) -> EncryptionKeyProof {
             if let Behaviour::R1BadEncryptionKeyProof = self.behaviour {
@@ -143,7 +143,7 @@ mod malicious {
 
         pub fn corrupt_zkp_proof(
             &self,
-            my_index: TypedUsize<KeygenPartyIndex>,
+            my_index: TypedUsize<KeygenShareId>,
             zkp_proof: ZkSetupProof,
         ) -> ZkSetupProof {
             if let Behaviour::R1BadZkSetupProof = self.behaviour {

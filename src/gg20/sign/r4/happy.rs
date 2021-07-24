@@ -3,7 +3,7 @@ use crate::{
     corrupt,
     gg20::{
         crypto_tools::{hash::Randomness, k256_serde, mta::Secret, paillier, zkp::pedersen_k256},
-        keygen::{KeygenPartyIndex, SecretKeyShare},
+        keygen::{KeygenShareId, SecretKeyShare},
         sign::{r4, Participants},
     },
     sdk::{
@@ -15,7 +15,7 @@ use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::super::{r1, r2, r3, r5, Peers, SignParticipantIndex, SignProtocolBuilder};
+use super::super::{r1, r2, r3, r5, Peers, SignShareId, SignProtocolBuilder};
 
 #[cfg(feature = "malicious")]
 use super::super::malicious::Behaviour;
@@ -26,7 +26,7 @@ pub struct R4 {
     pub msg_to_sign: Scalar,
     pub peers: Peers,
     pub participants: Participants,
-    pub keygen_id: TypedUsize<KeygenPartyIndex>,
+    pub keygen_id: TypedUsize<KeygenShareId>,
     pub gamma_i: Scalar,
     pub Gamma_i: ProjectivePoint,
     pub Gamma_i_reveal: Randomness,
@@ -36,9 +36,9 @@ pub struct R4 {
     pub sigma_i: Scalar,
     pub l_i: Scalar,
     pub(crate) _delta_i: Scalar, // TODO: This is only needed for tests
-    pub(crate) beta_secrets: HoleVecMap<SignParticipantIndex, Secret>,
-    pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
-    pub r2p2ps: P2ps<SignParticipantIndex, r2::P2pHappy>,
+    pub(crate) beta_secrets: HoleVecMap<SignShareId, Secret>,
+    pub r1bcasts: VecMap<SignShareId, r1::Bcast>,
+    pub r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
@@ -53,7 +53,7 @@ pub struct Bcast {
 
 impl bcast_only::Executer for R4 {
     type FinalOutput = BytesVec;
-    type Index = SignParticipantIndex;
+    type Index = SignShareId;
     type Bcast = r3::happy::Bcast;
 
     #[allow(non_snake_case)]
@@ -194,7 +194,7 @@ mod malicious {
             crypto_tools::hash::Randomness,
             sign::{
                 malicious::{log_confess_info, Behaviour::*},
-                SignParticipantIndex,
+                SignShareId,
             },
         },
     };
@@ -203,7 +203,7 @@ mod malicious {
         #[allow(non_snake_case)]
         pub fn corrupt_Gamma_i_reveal(
             &self,
-            me: TypedUsize<SignParticipantIndex>,
+            me: TypedUsize<SignShareId>,
             mut Gamma_i_reveal: Randomness,
         ) -> Randomness {
             if let R4BadReveal = self.behaviour {
