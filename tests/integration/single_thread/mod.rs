@@ -42,20 +42,11 @@ fn basic_correctness() {
     let threshold = 5;
     let keygen_shares = keygen::initialize_honest_parties(&party_share_counts, threshold);
     let keygen_share_outputs = execute_protocol(keygen_shares).expect("internal tofn error");
-    let secret_key_shares: VecMap<KeygenPartyIndex, SecretKeyShare> = keygen_share_outputs
-        .into_iter()
-        .map(|(i, party)| match party {
-            Protocol::NotDone(_) => panic!("share_id {} not done yet", i),
+    let secret_key_shares: VecMap<KeygenPartyIndex, SecretKeyShare> =
+        keygen_share_outputs.map2(|(keygen_share_id, keygen_share)| match keygen_share {
+            Protocol::NotDone(_) => panic!("share_id {} not done yet", keygen_share_id),
             Protocol::Done(result) => result.expect("share finished with error"),
-        })
-        .collect();
-
-    // save a copy of the generated pubkey
-    let pubkey_bytes = secret_key_shares
-        .get(TypedUsize::from_usize(0))
-        .unwrap()
-        .group()
-        .pubkey_bytes();
+        });
 
     // sign
     let sign_parties = {
@@ -86,6 +77,13 @@ fn basic_correctness() {
         Protocol::NotDone(_) => panic!("sign share not done yet"),
         Protocol::Done(result) => result.expect("sign share finished with error"),
     });
+
+    // grab pubkey bytes from one of the shares
+    let pubkey_bytes = secret_key_shares
+        .get(TypedUsize::from_usize(0))
+        .unwrap()
+        .group()
+        .pubkey_bytes();
 
     // verify a signature
     let pubkey = k256::AffinePoint::from_encoded_point(

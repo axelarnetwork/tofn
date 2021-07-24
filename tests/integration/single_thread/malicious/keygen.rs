@@ -7,7 +7,6 @@ use tofn::{
     sdk::api::{Fault, PartyShareCounts, Protocol::*, ProtocolOutput},
 };
 use tracing::info;
-// use tracing_test::traced_test;
 
 use crate::{
     common::malicious::dummy_secret_recovery_key,
@@ -15,7 +14,6 @@ use crate::{
 };
 
 #[test]
-// #[traced_test]
 fn single_faults() {
     set_up_logs();
     execute_test_case_list(&single_fault_test_case_list())
