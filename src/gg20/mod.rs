@@ -1,3 +1,4 @@
+pub mod constants;
 mod crypto_tools;
 pub mod keygen;
 pub mod sign;

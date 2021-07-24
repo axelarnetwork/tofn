@@ -2,6 +2,7 @@ use crate::{
     collections::TypedUsize,
     corrupt,
     gg20::{
+        constants,
         crypto_tools::{hash, k256_serde::to_bytes, paillier, vss},
         keygen::{KeygenPartyIndex, SecretKeyShare},
     },
@@ -68,7 +69,8 @@ impl no_messages::Executer for R1 {
         let k_i = k256::Scalar::random(rand::thread_rng());
         let gamma_i = k256::Scalar::random(rand::thread_rng());
         let Gamma_i = k256::ProjectivePoint::generator() * gamma_i;
-        let (Gamma_i_commit, Gamma_i_reveal) = hash::commit(to_bytes(&Gamma_i));
+        let (Gamma_i_commit, Gamma_i_reveal) =
+            hash::commit(constants::GAMMA_I_COMMIT_TAG, to_bytes(&Gamma_i));
 
         corrupt!(gamma_i, self.corrupt_gamma_i(info.share_id(), gamma_i));
 

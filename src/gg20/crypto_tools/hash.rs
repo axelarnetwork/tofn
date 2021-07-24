@@ -12,15 +12,16 @@ pub struct Output([u8; 32]);
 #[zeroize(drop)]
 pub struct Randomness([u8; 32]);
 
-pub fn commit(msg: impl AsRef<[u8]>) -> (Output, Randomness) {
+pub fn commit(tag: u8, msg: impl AsRef<[u8]>) -> (Output, Randomness) {
     let mut randomness = Randomness([0; 32]);
     rand::thread_rng().fill_bytes(&mut randomness.0);
-    (commit_with_randomness(msg, &randomness), randomness)
+    (commit_with_randomness(tag, msg, &randomness), randomness)
 }
 
-pub fn commit_with_randomness(msg: impl AsRef<[u8]>, randomness: &Randomness) -> Output {
+pub fn commit_with_randomness(tag: u8, msg: impl AsRef<[u8]>, randomness: &Randomness) -> Output {
     Output(
         Sha256::new()
+            .chain(tag.to_le_bytes())
             .chain(msg)
             .chain(randomness.0)
             .finalize()

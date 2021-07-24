@@ -1,4 +1,4 @@
-use crate::gg20::crypto_tools::k256_serde;
+use crate::gg20::{constants, crypto_tools::k256_serde};
 use ecdsa::{elliptic_curve::Field, hazmat::FromDigest};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -25,6 +25,7 @@ pub fn prove(stmt: &Statement, wit: &Witness) -> Proof {
     let alpha = stmt.base * &a;
     let c = k256::Scalar::from_digest(
         Sha256::new()
+            .chain(constants::SCHNORR_PROOF_TAG.to_le_bytes())
             .chain(k256_serde::to_bytes(&stmt.base))
             .chain(k256_serde::to_bytes(&stmt.target))
             .chain(k256_serde::to_bytes(&alpha)),
@@ -39,6 +40,7 @@ pub fn verify(stmt: &Statement, proof: &Proof) -> Result<(), &'static str> {
     let alpha = stmt.base * proof.t.unwrap() + stmt.target * proof.c.unwrap();
     let c_check = k256::Scalar::from_digest(
         Sha256::new()
+            .chain(constants::SCHNORR_PROOF_TAG.to_le_bytes())
             .chain(k256_serde::to_bytes(&stmt.base))
             .chain(k256_serde::to_bytes(&stmt.target))
             .chain(k256_serde::to_bytes(&alpha)),

@@ -1,6 +1,7 @@
 use crate::{
     corrupt,
     gg20::{
+        constants,
         crypto_tools::{hash, k256_serde, paillier, vss},
         keygen::SecretKeyShare,
     },
@@ -44,9 +45,10 @@ impl no_messages::Executer for R1 {
         _info: &ProtocolInfo<Self::Index>,
     ) -> TofnResult<KeygenProtocolBuilder> {
         let u_i_vss = vss::Vss::new(self.threshold);
-        let (y_i_commit, y_i_reveal) = hash::commit(k256_serde::to_bytes(
-            &(k256::ProjectivePoint::generator() * u_i_vss.get_secret()),
-        ));
+        let (y_i_commit, y_i_reveal) = hash::commit(
+            constants::Y_I_COMMIT_TAG,
+            k256_serde::to_bytes(&(k256::ProjectivePoint::generator() * u_i_vss.get_secret())),
+        );
 
         corrupt!(
             y_i_commit,
