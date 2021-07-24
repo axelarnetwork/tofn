@@ -88,7 +88,7 @@ fn basic_correctness() {
         )
         .unwrap()
     });
-    info!("Sign removed from this test because the full test fails on github workflow but passes on everyone's local machine.  Uncomment the rest of this test (and `use` statements in this module) to sign a message.");
+    info!("Sign removed from this test because of a nondeterministic bug: https://github.com/axelarnetwork/tofn/issues/102 .  Uncomment the rest of this test (and `use` statements in this module) to sign a message.");
 
     // let (sign_broadcaster, sign_receivers) = Broadcaster::new(sign_shares.len());
     // let (sign_result_sender, sign_result_receiver) = mpsc::channel();

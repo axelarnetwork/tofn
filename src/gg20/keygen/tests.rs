@@ -86,7 +86,7 @@ fn execute_keygen_from_recovery(
         .map(|(party_id, &party_share_count)| {
             (0..party_share_count).map(move |subshare_id| {
                 // each party use the same secret recovery key for all its subshares
-                match new_keygen(
+                match new_keygen_unsafe(
                     party_share_counts.clone(),
                     threshold,
                     party_id,
@@ -316,10 +316,7 @@ fn share_recovery() {
         .iter()
         .map(|(party_id, &secret_recovery_key)| {
             (0..party_share_counts.party_share_count(party_id).unwrap()).map(move |subshare_id| {
-                // let share_id = party_share_counts
-                //     .party_to_share_id(party_id, subshare_id)
-                //     .unwrap();
-                SecretKeyShare::recover(
+                SecretKeyShare::recover_unsafe(
                     &secret_recovery_key,
                     session_nonce,
                     &recovery_infos,

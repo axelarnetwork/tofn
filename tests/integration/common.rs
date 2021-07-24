@@ -2,7 +2,7 @@ pub mod keygen {
     use rand::RngCore;
     use tofn::{
         collections::VecMap,
-        gg20::keygen::{new_keygen, KeygenPartyIndex, KeygenProtocol, RealKeygenPartyIndex},
+        gg20::keygen::{new_keygen_unsafe, KeygenPartyIndex, KeygenProtocol, RealKeygenPartyIndex},
         sdk::api::PartyShareCounts,
     };
 
@@ -23,7 +23,7 @@ pub mod keygen {
                 rand::thread_rng().fill_bytes(&mut secret_recovery_key);
 
                 (0..party_share_count).map(move |subshare_id| {
-                    new_keygen(
+                    new_keygen_unsafe(
                         party_share_counts.clone(),
                         threshold,
                         party_id,

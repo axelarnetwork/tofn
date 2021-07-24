@@ -41,6 +41,52 @@ pub fn new_keygen(
     session_nonce: &[u8],
     #[cfg(feature = "malicious")] behaviour: malicious::Behaviour,
 ) -> TofnResult<KeygenProtocol> {
+    new_keygen_impl(
+        party_share_counts,
+        threshold,
+        my_party_id,
+        my_subshare_id,
+        secret_recovery_key,
+        session_nonce,
+        true,
+        #[cfg(feature = "malicious")]
+        behaviour,
+    )
+}
+
+pub fn new_keygen_unsafe(
+    party_share_counts: KeygenPartyShareCounts,
+    threshold: usize,
+    my_party_id: TypedUsize<RealKeygenPartyIndex>,
+    my_subshare_id: usize, // in 0..party_share_counts[my_party_id]
+    secret_recovery_key: &SecretRecoveryKey,
+    session_nonce: &[u8],
+    #[cfg(feature = "malicious")] behaviour: malicious::Behaviour,
+) -> TofnResult<KeygenProtocol> {
+    new_keygen_impl(
+        party_share_counts,
+        threshold,
+        my_party_id,
+        my_subshare_id,
+        secret_recovery_key,
+        session_nonce,
+        false,
+        #[cfg(feature = "malicious")]
+        behaviour,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn new_keygen_impl(
+    party_share_counts: KeygenPartyShareCounts,
+    threshold: usize,
+    my_party_id: TypedUsize<RealKeygenPartyIndex>,
+    my_subshare_id: usize, // in 0..party_share_counts[my_party_id]
+    secret_recovery_key: &SecretRecoveryKey,
+    session_nonce: &[u8],
+    use_safe_primes: bool,
+    #[cfg(feature = "malicious")] behaviour: malicious::Behaviour,
+) -> TofnResult<KeygenProtocol> {
     // validate args
     if party_share_counts
         .iter()
@@ -81,6 +127,7 @@ pub fn new_keygen(
             threshold,
             party_share_counts,
             rng_seed,
+            use_safe_primes,
             #[cfg(feature = "malicious")]
             behaviour,
         }),

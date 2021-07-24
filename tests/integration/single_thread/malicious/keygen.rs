@@ -2,7 +2,7 @@ use tofn::{
     collections::{FillVecMap, TypedUsize, VecMap},
     gg20::keygen::{
         malicious::Behaviour::{self, *},
-        new_keygen, KeygenPartyIndex, KeygenProtocol, RealKeygenPartyIndex, SecretKeyShare,
+        new_keygen_unsafe, KeygenPartyIndex, KeygenProtocol, RealKeygenPartyIndex, SecretKeyShare,
     },
     sdk::api::{Fault, PartyShareCounts, Protocol::*, ProtocolOutput},
 };
@@ -84,7 +84,7 @@ impl TestCase {
                     .party_share_counts
                     .share_to_party_subshare_ids(share_id)
                     .unwrap();
-                new_keygen(
+                new_keygen_unsafe(
                     self.party_share_counts.clone(),
                     self.threshold,
                     party_id,

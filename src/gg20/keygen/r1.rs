@@ -20,6 +20,7 @@ pub struct R1 {
     pub threshold: usize,
     pub party_share_counts: KeygenPartyShareCounts,
     pub rng_seed: rng::Seed,
+    pub use_safe_primes: bool,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
@@ -53,9 +54,17 @@ impl no_messages::Executer for R1 {
         );
 
         let mut rng = rng::rng_from_seed(self.rng_seed.clone());
-        // TODO safe primes
-        let (ek, dk) = paillier::keygen_unsafe(&mut rng);
-        let (zkp, zkp_proof) = paillier::zk::ZkSetup::new_unsafe(&mut rng);
+        let ((ek, dk), (zkp, zkp_proof)) = if self.use_safe_primes {
+            (
+                paillier::keygen(&mut rng),
+                paillier::zk::ZkSetup::new(&mut rng),
+            )
+        } else {
+            (
+                paillier::keygen_unsafe(&mut rng),
+                paillier::zk::ZkSetup::new_unsafe(&mut rng),
+            )
+        };
         let ek_proof = dk.correctness_proof();
 
         corrupt!(ek_proof, self.corrupt_ek_proof(_info.share_id(), ek_proof));
