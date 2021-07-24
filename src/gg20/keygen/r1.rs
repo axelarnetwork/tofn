@@ -53,6 +53,7 @@ impl no_messages::Executer for R1 {
         );
 
         let mut rng = rng::rng_from_seed(self.rng_seed.clone());
+        // TODO safe primes
         let (ek, dk) = paillier::keygen_unsafe(&mut rng);
         let (zkp, zkp_proof) = paillier::zk::ZkSetup::new_unsafe(&mut rng);
         let ek_proof = dk.correctness_proof();

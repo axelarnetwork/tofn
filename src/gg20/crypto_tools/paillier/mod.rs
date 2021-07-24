@@ -16,6 +16,10 @@ pub fn keygen_unsafe(rng: &mut (impl CryptoRng + RngCore)) -> (EncryptionKey, De
     let (ek, dk) = Paillier::keypair(rng).keys();
     (EncryptionKey(ek), DecryptionKey(dk))
 }
+pub fn keygen(rng: &mut (impl CryptoRng + RngCore)) -> (EncryptionKey, DecryptionKey) {
+    let (ek, dk) = Paillier::keypair_safe_primes(rng).keys();
+    (EncryptionKey(ek), DecryptionKey(dk))
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EncryptionKey(paillier::EncryptionKey);

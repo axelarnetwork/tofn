@@ -1,5 +1,5 @@
 //! Minimize direct use of paillier, zk_paillier crates
-use super::{keygen_unsafe, BigInt, DecryptionKey, EncryptionKey};
+use super::{keygen, keygen_unsafe, BigInt, DecryptionKey, EncryptionKey};
 use paillier::zk::{CompositeDLogProof, DLogStatement, NICorrectKeyProof};
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
@@ -34,6 +34,9 @@ impl Zeroize for ZkSetup {
 impl ZkSetup {
     pub fn new_unsafe(rng: &mut (impl CryptoRng + RngCore)) -> (ZkSetup, ZkSetupProof) {
         Self::from_keypair(keygen_unsafe(rng))
+    }
+    pub fn new(rng: &mut (impl CryptoRng + RngCore)) -> (ZkSetup, ZkSetupProof) {
+        Self::from_keypair(keygen(rng))
     }
 
     fn from_keypair(
