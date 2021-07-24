@@ -1,12 +1,12 @@
 //! A fillable VecMap
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tracing::{error, warn};
 
 use crate::sdk::api::{TofnFatal, TofnResult};
 
 use super::{vecmap_iter::VecMapIter, TypedUsize, VecMap};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FillVecMap<K, V> {
     vec: VecMap<K, Option<V>>,
     some_count: usize,
@@ -22,9 +22,6 @@ impl<K, V> FillVecMap<K, V> {
     pub fn size(&self) -> usize {
         self.vec.len()
     }
-    // pub fn get(&self, index: Index<K>) -> &Option<V> {
-    //     self.vec.get(index)
-    // }
     pub fn set(&mut self, index: TypedUsize<K>, value: V) -> TofnResult<()> {
         self.set_impl(index, value, false)
     }
@@ -103,5 +100,36 @@ impl<'a, K, V> IntoIterator for &'a FillVecMap<K, V> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
+    }
+}
+
+/// custom implementations of `Serialize`, `Deserialize`
+/// that do not send `some_count` over the wire
+impl<K, V> Serialize for FillVecMap<K, V>
+where
+    V: Serialize,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.vec.serialize(serializer)
+    }
+}
+
+impl<'de, K, V> Deserialize<'de> for FillVecMap<K, V>
+where
+    V: Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let vec = VecMap::deserialize(deserializer)?;
+        let some_count = vec
+            .iter()
+            .filter(|v: &(_, &Option<_>)| v.1.is_some())
+            .count();
+        Ok(Self { vec, some_count })
     }
 }

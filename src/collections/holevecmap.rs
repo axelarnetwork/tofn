@@ -6,7 +6,7 @@ use crate::sdk::api::{TofnFatal, TofnResult};
 use super::{holevecmap_iter::HoleVecMapIter, TypedUsize, VecMap};
 
 // TODO do not derive serde: `hole` might be an attack vector
-// Instead use `forget` and `remember` to convert to/from `VecMap`
+// see https://github.com/axelarnetwork/tofn/issues/105
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HoleVecMap<K, V> {
     vec: VecMap<K, V>,
