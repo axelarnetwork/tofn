@@ -45,11 +45,11 @@ pub struct ShareInfo {
 }
 
 pub struct R3 {
-    pub threshold: usize,
-    pub party_share_counts: KeygenPartyShareCounts,
-    pub dk: paillier::DecryptionKey,
-    pub u_i_my_share: vss::Share,
-    pub r1bcasts: VecMap<KeygenShareId, r1::Bcast>,
+    pub(crate) threshold: usize,
+    pub(crate) party_share_counts: KeygenPartyShareCounts,
+    pub(crate) dk: paillier::DecryptionKey,
+    pub(crate) u_i_my_share: vss::Share,
+    pub(crate) r1bcasts: VecMap<KeygenShareId, r1::Bcast>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,

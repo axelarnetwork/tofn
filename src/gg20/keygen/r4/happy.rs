@@ -20,15 +20,15 @@ use crate::gg20::keygen::malicious::Behaviour;
 
 #[allow(non_snake_case)]
 pub struct R4 {
-    pub threshold: usize,
-    pub party_share_counts: KeygenPartyShareCounts,
-    pub dk: paillier::DecryptionKey,
-    pub r1bcasts: VecMap<KeygenShareId, r1::Bcast>,
-    pub r2bcasts: VecMap<KeygenShareId, r2::Bcast>,
-    pub r2p2ps: P2ps<KeygenShareId, r2::P2p>,
-    pub y: k256::ProjectivePoint,
-    pub x_i: k256::Scalar,
-    pub all_X_i: VecMap<KeygenShareId, k256::ProjectivePoint>,
+    pub(crate) threshold: usize,
+    pub(crate) party_share_counts: KeygenPartyShareCounts,
+    pub(crate) dk: paillier::DecryptionKey,
+    pub(crate) r1bcasts: VecMap<KeygenShareId, r1::Bcast>,
+    pub(crate) r2bcasts: VecMap<KeygenShareId, r2::Bcast>,
+    pub(crate) r2p2ps: P2ps<KeygenShareId, r2::P2p>,
+    pub(crate) y: k256::ProjectivePoint,
+    pub(crate) x_i: k256::Scalar,
+    pub(crate) all_X_i: VecMap<KeygenShareId, k256::ProjectivePoint>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,

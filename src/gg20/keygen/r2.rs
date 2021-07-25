@@ -31,11 +31,11 @@ pub struct P2p {
 }
 
 pub struct R2 {
-    pub threshold: usize,
-    pub party_share_counts: KeygenPartyShareCounts,
-    pub dk: paillier::DecryptionKey,
-    pub u_i_vss: vss::Vss,
-    pub y_i_reveal: hash::Randomness,
+    pub(crate) threshold: usize,
+    pub(crate) party_share_counts: KeygenPartyShareCounts,
+    pub(crate) dk: paillier::DecryptionKey,
+    pub(crate) u_i_vss: vss::Vss,
+    pub(crate) y_i_reveal: hash::Randomness,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,

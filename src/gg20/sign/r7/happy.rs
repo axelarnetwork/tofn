@@ -226,7 +226,7 @@ impl bcast_only::Executer for R7Happy {
                 r6bcasts: bcasts_in,
 
                 #[cfg(feature = "malicious")]
-                _behaviour: self.behaviour,
+                behaviour: self.behaviour,
             }),
             bcast_out,
         }))

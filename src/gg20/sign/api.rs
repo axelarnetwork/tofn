@@ -23,9 +23,13 @@ use super::malicious;
 
 pub type SignProtocol = Protocol<BytesVec, SignShareId, SignPartyId>;
 pub type SignProtocolBuilder = ProtocolBuilder<BytesVec, SignShareId>;
+
+// This includes all shares participating in the current signing protocol
 pub type Participants = VecMap<SignShareId, TypedUsize<KeygenShareId>>;
-pub type SignParties = Subset<KeygenPartyId>;
+// This includes all shares (excluding self) participating in the current signing protocol
 pub type Peers = HoleVecMap<SignShareId, TypedUsize<KeygenShareId>>;
+// This is the set of parties participating in the current signing protocol
+pub type SignParties = Subset<KeygenPartyId>;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SignShareId;
@@ -44,6 +48,7 @@ impl TryFrom<&[u8]> for MessageDigest {
     }
 }
 
+// TODO: Investigate the hash-to-field draft to produce an even less biased sample.
 impl From<&MessageDigest> for k256::Scalar {
     fn from(v: &MessageDigest) -> Self {
         k256::Scalar::from_bytes_reduced(k256::FieldBytes::from_slice(&v.0[..]))

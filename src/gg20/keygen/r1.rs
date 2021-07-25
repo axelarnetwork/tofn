@@ -18,10 +18,10 @@ use super::{r2, rng, KeygenPartyShareCounts, KeygenProtocolBuilder, KeygenShareI
 use super::malicious::Behaviour;
 
 pub struct R1 {
-    pub threshold: usize,
-    pub party_share_counts: KeygenPartyShareCounts,
-    pub rng_seed: rng::Seed,
-    pub use_safe_primes: bool,
+    pub(crate) threshold: usize,
+    pub(crate) party_share_counts: KeygenPartyShareCounts,
+    pub(crate) rng_seed: rng::Seed,
+    pub(crate) use_safe_primes: bool,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,

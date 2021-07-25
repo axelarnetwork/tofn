@@ -11,9 +11,9 @@ use crate::{
 
 #[allow(non_snake_case)]
 pub struct R4Sad {
-    pub r1bcasts: VecMap<KeygenShareId, r1::Bcast>,
-    pub r2bcasts: VecMap<KeygenShareId, r2::Bcast>,
-    pub r2p2ps: P2ps<KeygenShareId, r2::P2p>,
+    pub(crate) r1bcasts: VecMap<KeygenShareId, r1::Bcast>,
+    pub(crate) r2bcasts: VecMap<KeygenShareId, r2::Bcast>,
+    pub(crate) r2p2ps: P2ps<KeygenShareId, r2::P2p>,
 }
 
 impl bcast_only::Executer for R4Sad {

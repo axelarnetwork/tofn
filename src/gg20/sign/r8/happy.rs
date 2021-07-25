@@ -18,15 +18,15 @@ use super::super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
 pub struct R8Happy {
-    pub secret_key_share: SecretKeyShare,
-    pub msg_to_sign: Scalar,
-    pub R: ProjectivePoint,
-    pub r: Scalar,
-    pub r5bcasts: VecMap<SignShareId, r5::Bcast>,
-    pub r6bcasts: VecMap<SignShareId, r6::BcastHappy>,
+    pub(crate) secret_key_share: SecretKeyShare,
+    pub(crate) msg_to_sign: Scalar,
+    pub(crate) R: ProjectivePoint,
+    pub(crate) r: Scalar,
+    pub(crate) r5bcasts: VecMap<SignShareId, r5::Bcast>,
+    pub(crate) r6bcasts: VecMap<SignShareId, r6::BcastHappy>,
 
     #[cfg(feature = "malicious")]
-    pub _behaviour: Behaviour,
+    pub behaviour: Behaviour,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
