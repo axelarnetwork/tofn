@@ -23,22 +23,22 @@ use super::super::{r1, r2, Peers, SignProtocolBuilder, SignShareId};
 use super::super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
-pub struct R3 {
-    pub secret_key_share: SecretKeyShare,
-    pub msg_to_sign: Scalar,
-    pub peers: Peers,
-    pub participants: Participants,
-    pub keygen_id: TypedUsize<KeygenShareId>,
-    pub gamma_i: Scalar,
-    pub Gamma_i: ProjectivePoint,
-    pub Gamma_i_reveal: Randomness,
-    pub w_i: Scalar,
-    pub k_i: Scalar,
-    pub k_i_randomness: paillier::Randomness,
+pub struct R3Happy {
+    pub(crate) secret_key_share: SecretKeyShare,
+    pub(crate) msg_to_sign: Scalar,
+    pub(crate) peers: Peers,
+    pub(crate) participants: Participants,
+    pub(crate) keygen_id: TypedUsize<KeygenShareId>,
+    pub(crate) gamma_i: Scalar,
+    pub(crate) Gamma_i: ProjectivePoint,
+    pub(crate) Gamma_i_reveal: Randomness,
+    pub(crate) w_i: Scalar,
+    pub(crate) k_i: Scalar,
+    pub(crate) k_i_randomness: paillier::Randomness,
     pub(crate) beta_secrets: HoleVecMap<SignShareId, Secret>,
     pub(crate) nu_secrets: HoleVecMap<SignShareId, Secret>,
-    pub r1bcasts: VecMap<SignShareId, r1::Bcast>,
-    pub r1p2ps: P2ps<SignShareId, r1::P2p>,
+    pub(crate) r1bcasts: VecMap<SignShareId, r1::Bcast>,
+    pub(crate) r1p2ps: P2ps<SignShareId, r1::P2p>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
@@ -69,7 +69,7 @@ pub enum Accusation {
     MtAwc,
 }
 
-impl bcast_and_p2p::Executer for R3 {
+impl bcast_and_p2p::Executer for R3Happy {
     type FinalOutput = BytesVec;
     type Index = SignShareId;
     type Bcast = r2::Bcast;
@@ -96,18 +96,9 @@ impl bcast_and_p2p::Executer for R3 {
                 sign_id,
             );
 
-            return Box::new(r3::sad::R3 {
+            return Box::new(r3::R3Sad {
                 secret_key_share: self.secret_key_share,
-                msg_to_sign: self.msg_to_sign,
-                peers: self.peers,
                 participants: self.participants,
-                keygen_id: self.keygen_id,
-                gamma_i: self.gamma_i,
-                Gamma_i: self.Gamma_i,
-                Gamma_i_reveal: self.Gamma_i_reveal,
-                w_i: self.w_i,
-                k_i: self.k_i,
-                k_i_randomness: self.k_i_randomness,
                 r1bcasts: self.r1bcasts,
                 r1p2ps: self.r1p2ps,
 
@@ -209,18 +200,9 @@ impl bcast_and_p2p::Executer for R3 {
             let bcast_out = serialize(&Bcast::Sad(BcastSad { mta_complaints }))?;
 
             return Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
-                round: Box::new(r4::sad::R4 {
+                round: Box::new(r4::R4Sad {
                     secret_key_share: self.secret_key_share,
-                    msg_to_sign: self.msg_to_sign,
-                    peers: self.peers,
                     participants: self.participants,
-                    keygen_id: self.keygen_id,
-                    gamma_i: self.gamma_i,
-                    Gamma_i: self.Gamma_i,
-                    Gamma_i_reveal: self.Gamma_i_reveal,
-                    w_i: self.w_i,
-                    k_i: self.k_i,
-                    k_i_randomness: self.k_i_randomness,
                     r1bcasts: self.r1bcasts,
                     r2p2ps: p2ps_in,
 
@@ -305,7 +287,7 @@ impl bcast_and_p2p::Executer for R3 {
         }))?;
 
         Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
-            round: Box::new(r4::happy::R4 {
+            round: Box::new(r4::R4Happy {
                 secret_key_share: self.secret_key_share,
                 msg_to_sign: self.msg_to_sign,
                 peers: self.peers,
@@ -314,7 +296,6 @@ impl bcast_and_p2p::Executer for R3 {
                 gamma_i: self.gamma_i,
                 Gamma_i: self.Gamma_i,
                 Gamma_i_reveal: self.Gamma_i_reveal,
-                w_i: self.w_i,
                 k_i: self.k_i,
                 k_i_randomness: self.k_i_randomness,
                 sigma_i,
@@ -339,7 +320,7 @@ impl bcast_and_p2p::Executer for R3 {
 
 #[cfg(feature = "malicious")]
 mod malicious {
-    use super::{Accusation, R3};
+    use super::{Accusation, R3Happy};
     use crate::{
         collections::{FillVecMap, TypedUsize},
         gg20::{crypto_tools::zkp::pedersen_k256, sign::SignShareId},
@@ -349,7 +330,7 @@ mod malicious {
 
     use super::super::super::malicious::{log_confess_info, Behaviour::*};
 
-    impl R3 {
+    impl R3Happy {
         pub fn corrupt_complaint(
             &self,
             me: TypedUsize<SignShareId>,

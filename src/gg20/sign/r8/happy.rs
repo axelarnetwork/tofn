@@ -1,9 +1,6 @@
 use crate::{
-    collections::{FillVecMap, TypedUsize, VecMap},
-    gg20::{
-        crypto_tools::{hash::Randomness, k256_serde, paillier},
-        keygen::{KeygenShareId, SecretKeyShare},
-    },
+    collections::{FillVecMap, VecMap},
+    gg20::{crypto_tools::k256_serde, keygen::SecretKeyShare},
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
         implementer_api::{bcast_only, ProtocolBuilder, ProtocolInfo},
@@ -13,48 +10,23 @@ use ecdsa::hazmat::VerifyPrimitive;
 use k256::{ecdsa::Signature, ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
-use zeroize::Zeroize;
 
-use super::super::{r1, r5, r6, r7, Peers, SignProtocolBuilder, SignShareId};
+use super::super::{r5, r6, r7, SignProtocolBuilder, SignShareId};
 
 #[cfg(feature = "malicious")]
 use super::super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
-pub struct R8 {
+pub struct R8Happy {
     pub secret_key_share: SecretKeyShare,
     pub msg_to_sign: Scalar,
-    pub peers: Peers,
-    pub keygen_id: TypedUsize<KeygenShareId>,
-    pub gamma_i: Scalar,
-    pub Gamma_i: ProjectivePoint,
-    pub Gamma_i_reveal: Randomness,
-    pub w_i: Scalar,
-    pub k_i: Scalar,
-    pub k_i_randomness: paillier::Randomness,
-    pub sigma_i: Scalar,
-    pub l_i: Scalar,
-    pub T_i: ProjectivePoint,
-    pub r1bcasts: VecMap<SignShareId, r1::Bcast>,
-    pub delta_inv: Scalar,
     pub R: ProjectivePoint,
     pub r: Scalar,
     pub r5bcasts: VecMap<SignShareId, r5::Bcast>,
     pub r6bcasts: VecMap<SignShareId, r6::BcastHappy>,
 
     #[cfg(feature = "malicious")]
-    pub behaviour: Behaviour,
-}
-
-// Zeroize the auxiliary secret information
-impl Drop for R8 {
-    fn drop(&mut self) {
-        self.gamma_i.zeroize();
-        self.k_i.zeroize();
-        self.w_i.zeroize();
-        self.sigma_i.zeroize();
-        self.l_i.zeroize();
-    }
+    pub _behaviour: Behaviour,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,7 +35,7 @@ pub struct Bcast {
     pub s_i: k256_serde::Scalar,
 }
 
-impl bcast_only::Executer for R8 {
+impl bcast_only::Executer for R8Happy {
     type FinalOutput = BytesVec;
     type Index = SignShareId;
     type Bcast = r7::Bcast;
@@ -86,7 +58,7 @@ impl bcast_only::Executer for R8 {
                 r7::Bcast::Happy(bcast) => {
                     bcasts.set(sign_peer_id, bcast)?;
                 }
-                r7::Bcast::Sad(_) => {
+                r7::Bcast::SadType7(_) => {
                     warn!(
                         "peer {} says: peer {} broadcasted a 'type 7' failure",
                         sign_id, sign_peer_id

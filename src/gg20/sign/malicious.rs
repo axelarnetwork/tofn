@@ -12,42 +12,22 @@ use super::SignShareId;
 #[derive(Clone, Debug)]
 pub enum Behaviour {
     Honest,
-    R1BadProof {
-        victim: TypedUsize<SignShareId>,
-    },
+    R1BadProof { victim: TypedUsize<SignShareId> },
     R1BadGammaI, // triggers r6::Output::FailType5
-    R2FalseAccusation {
-        victim: TypedUsize<SignShareId>,
-    },
-    R2BadMta {
-        victim: TypedUsize<SignShareId>,
-    },
-    R2BadMtaWc {
-        victim: TypedUsize<SignShareId>,
-    },
+    R2FalseAccusation { victim: TypedUsize<SignShareId> },
+    R2BadMta { victim: TypedUsize<SignShareId> },
+    R2BadMtaWc { victim: TypedUsize<SignShareId> },
     R3BadSigmaI, // triggers r7::Output::FailType7
-    R3FalseAccusationMta {
-        victim: TypedUsize<SignShareId>,
-    },
-    R3FalseAccusationMtaWc {
-        victim: TypedUsize<SignShareId>,
-    },
+    R3FalseAccusationMta { victim: TypedUsize<SignShareId> },
+    R3FalseAccusationMtaWc { victim: TypedUsize<SignShareId> },
     R3BadProof,
-    R3BadDeltaI, // triggers r6::Output::FailType5
-    R3BadKI,     // triggers r6::Output::FailType5
-    R3BadAlpha {
-        victim: TypedUsize<SignShareId>,
-    }, // triggers r6::Output::FailType5
-    R3BadBeta {
-        victim: TypedUsize<SignShareId>,
-    }, // triggers r6::Output::FailType5
+    R3BadDeltaI,                                    // triggers r6::Output::FailType5
+    R3BadKI,                                        // triggers r6::Output::FailType5
+    R3BadAlpha { victim: TypedUsize<SignShareId> }, // triggers r6::Output::FailType5
+    R3BadBeta { victim: TypedUsize<SignShareId> },  // triggers r6::Output::FailType5
     R4BadReveal,
-    R5BadProof {
-        victim: TypedUsize<SignShareId>,
-    },
-    R6FalseAccusation {
-        victim: TypedUsize<SignShareId>,
-    },
+    R5BadProof { victim: TypedUsize<SignShareId> },
+    R6FalseAccusation { victim: TypedUsize<SignShareId> },
     R6BadProof,
     R6FalseFailRandomizer,
     R7BadSI,

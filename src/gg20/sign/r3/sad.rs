@@ -1,44 +1,31 @@
 use crate::{
-    collections::{FillVecMap, P2ps, TypedUsize, VecMap},
-    gg20::{
-        crypto_tools::{hash::Randomness, paillier},
-        keygen::{KeygenShareId, SecretKeyShare},
-        sign::Participants,
-    },
+    collections::{FillVecMap, P2ps, VecMap},
+    gg20::{crypto_tools::paillier, keygen::SecretKeyShare, sign::Participants},
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
         implementer_api::{bcast_and_p2p, log_fault_info, ProtocolBuilder, ProtocolInfo},
     },
 };
-use k256::{ProjectivePoint, Scalar};
+
 use tracing::error;
 
-use super::super::{r1, r2, Peers, SignProtocolBuilder, SignShareId};
+use super::super::{r1, r2, SignProtocolBuilder, SignShareId};
 
 #[cfg(feature = "malicious")]
 use super::super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
-pub struct R3 {
-    pub secret_key_share: SecretKeyShare,
-    pub msg_to_sign: Scalar,
-    pub peers: Peers,
-    pub participants: Participants,
-    pub keygen_id: TypedUsize<KeygenShareId>,
-    pub gamma_i: Scalar,
-    pub Gamma_i: ProjectivePoint,
-    pub Gamma_i_reveal: Randomness,
-    pub w_i: Scalar,
-    pub k_i: Scalar,
-    pub k_i_randomness: paillier::Randomness,
-    pub r1bcasts: VecMap<SignShareId, r1::Bcast>,
-    pub r1p2ps: P2ps<SignShareId, r1::P2p>,
+pub struct R3Sad {
+    pub(crate) secret_key_share: SecretKeyShare,
+    pub(crate) participants: Participants,
+    pub(crate) r1bcasts: VecMap<SignShareId, r1::Bcast>,
+    pub(crate) r1p2ps: P2ps<SignShareId, r1::P2p>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
 }
 
-impl bcast_and_p2p::Executer for R3 {
+impl bcast_and_p2p::Executer for R3Sad {
     type FinalOutput = BytesVec;
     type Index = SignShareId;
     type Bcast = r2::Bcast;

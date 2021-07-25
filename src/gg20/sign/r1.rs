@@ -22,11 +22,11 @@ use super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
 pub struct R1 {
-    pub secret_key_share: SecretKeyShare,
-    pub msg_to_sign: Scalar,
-    pub peers: Peers,
-    pub participants: Participants,
-    pub keygen_id: TypedUsize<KeygenShareId>,
+    pub(crate) secret_key_share: SecretKeyShare,
+    pub(crate) msg_to_sign: Scalar,
+    pub(crate) peers: Peers,
+    pub(crate) participants: Participants,
+    pub(crate) keygen_id: TypedUsize<KeygenShareId>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,

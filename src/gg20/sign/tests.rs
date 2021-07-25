@@ -166,14 +166,14 @@ fn execute_sign(
     // TEST: MtA for delta_i, sigma_i
     let k_gamma = r3_parties
         .iter()
-        .map(|party| round_cast::<r4::happy::R4>(party)._delta_i)
+        .map(|party| round_cast::<r4::R4Happy>(party)._delta_i)
         .fold(k256::Scalar::zero(), |acc, delta_i| acc + delta_i);
 
     assert_eq!(k_gamma, k * gamma);
 
     let k_x = r3_parties
         .iter()
-        .map(|party| round_cast::<r4::happy::R4>(party).sigma_i)
+        .map(|party| round_cast::<r4::R4Happy>(party).sigma_i)
         .fold(k256::Scalar::zero(), |acc, sigma_i| acc + sigma_i);
 
     assert_eq!(k_x, k * x);

@@ -1,9 +1,9 @@
 use crate::{
     collections::{FillVecMap, P2ps, TypedUsize, VecMap},
     gg20::{
-        crypto_tools::{hash::Randomness, k256_serde, paillier, vss, zkp::chaum_pedersen_k256},
+        crypto_tools::{k256_serde, vss, zkp::chaum_pedersen_k256},
         keygen::{KeygenShareId, SecretKeyShare},
-        sign::{r2, r3, r4, Participants},
+        sign::{r2, Participants},
     },
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
@@ -14,35 +14,21 @@ use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
 
-use super::super::{r1, r5, r6, r7, Peers, SignProtocolBuilder, SignShareId};
+use super::super::{r1, r6, r7, Peers, SignProtocolBuilder, SignShareId};
 
 #[cfg(feature = "malicious")]
 use super::super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
-pub struct R8 {
-    pub secret_key_share: SecretKeyShare,
-    pub msg_to_sign: Scalar,
-    pub peers: Peers,
-    pub participants: Participants,
-    pub keygen_id: TypedUsize<KeygenShareId>,
-    pub gamma_i: Scalar,
-    pub Gamma_i: ProjectivePoint,
-    pub Gamma_i_reveal: Randomness,
-    pub w_i: Scalar,
-    pub k_i: Scalar,
-    pub k_i_randomness: paillier::Randomness,
-    pub sigma_i: Scalar,
-    pub l_i: Scalar,
-    pub T_i: ProjectivePoint,
-    pub r1bcasts: VecMap<SignShareId, r1::Bcast>,
-    pub r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
-    pub r3bcasts: VecMap<SignShareId, r3::happy::BcastHappy>,
-    pub r4bcasts: VecMap<SignShareId, r4::happy::Bcast>,
-    pub delta_inv: Scalar,
-    pub R: ProjectivePoint,
-    pub r5bcasts: VecMap<SignShareId, r5::Bcast>,
-    pub r6bcasts: VecMap<SignShareId, r6::BcastHappy>,
+pub struct R8Type7 {
+    pub(crate) secret_key_share: SecretKeyShare,
+    pub(crate) peers: Peers,
+    pub(crate) participants: Participants,
+    pub(crate) keygen_id: TypedUsize<KeygenShareId>,
+    pub(crate) r1bcasts: VecMap<SignShareId, r1::Bcast>,
+    pub(crate) r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
+    pub(crate) R: ProjectivePoint,
+    pub(crate) r6bcasts: VecMap<SignShareId, r6::BcastHappy>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
@@ -54,7 +40,7 @@ pub struct Bcast {
     pub s_i: k256_serde::Scalar,
 }
 
-impl bcast_only::Executer for R8 {
+impl bcast_only::Executer for R8Type7 {
     type FinalOutput = BytesVec;
     type Index = SignShareId;
     type Bcast = r7::Bcast;
@@ -75,7 +61,7 @@ impl bcast_only::Executer for R8 {
         // any peer who did not detect 'type 7' is a faulter
         for (sign_peer_id, bcast) in bcasts_in.into_iter() {
             match bcast {
-                r7::Bcast::Sad(bcast_sad) => {
+                r7::Bcast::SadType7(bcast_sad) => {
                     bcasts_sad.set(sign_peer_id, bcast_sad)?;
                 }
                 r7::Bcast::Happy(_) => {

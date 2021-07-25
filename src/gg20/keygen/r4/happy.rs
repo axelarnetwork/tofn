@@ -5,8 +5,8 @@ use crate::{
     gg20::{
         crypto_tools::{paillier, zkp::schnorr_k256},
         keygen::{
-            r1, r2, r3, r4::sad::R4Sad, GroupPublicInfo, KeygenShareId, KeygenPartyShareCounts,
-            KeygenProtocolBuilder, SecretKeyShare, SharePublicInfo, ShareSecretInfo,
+            r1, r2, r3, r4::sad::R4Sad, GroupPublicInfo, KeygenPartyShareCounts,
+            KeygenProtocolBuilder, KeygenShareId, SecretKeyShare, SharePublicInfo, ShareSecretInfo,
         },
     },
     sdk::{

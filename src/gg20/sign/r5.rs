@@ -4,7 +4,7 @@ use crate::{
     gg20::{
         constants,
         crypto_tools::{
-            hash::{self, Randomness},
+            hash::{self},
             k256_serde,
             mta::Secret,
             paillier::{self, zk},
@@ -20,32 +20,28 @@ use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::{r1, r2, r3, r4, r6, Participants, Peers, SignShareId, SignProtocolBuilder};
+use super::{r1, r2, r3, r4, r6, Participants, Peers, SignProtocolBuilder, SignShareId};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
 pub struct R5 {
-    pub secret_key_share: SecretKeyShare,
-    pub msg_to_sign: Scalar,
-    pub peers: Peers,
-    pub participants: Participants,
-    pub keygen_id: TypedUsize<KeygenShareId>,
-    pub gamma_i: Scalar,
-    pub Gamma_i: ProjectivePoint,
-    pub Gamma_i_reveal: Randomness,
-    pub w_i: Scalar,
-    pub k_i: Scalar,
-    pub k_i_randomness: paillier::Randomness,
-    pub sigma_i: Scalar,
-    pub l_i: Scalar,
-    pub T_i: ProjectivePoint,
+    pub(crate) secret_key_share: SecretKeyShare,
+    pub(crate) msg_to_sign: Scalar,
+    pub(crate) peers: Peers,
+    pub(crate) participants: Participants,
+    pub(crate) keygen_id: TypedUsize<KeygenShareId>,
+    pub(crate) gamma_i: Scalar,
+    pub(crate) k_i: Scalar,
+    pub(crate) k_i_randomness: paillier::Randomness,
+    pub(crate) sigma_i: Scalar,
+    pub(crate) l_i: Scalar,
     pub(crate) beta_secrets: HoleVecMap<SignShareId, Secret>,
-    pub r1bcasts: VecMap<SignShareId, r1::Bcast>,
-    pub r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
-    pub r3bcasts: VecMap<SignShareId, r3::happy::BcastHappy>,
-    pub delta_inv: Scalar,
+    pub(crate) r1bcasts: VecMap<SignShareId, r1::Bcast>,
+    pub(crate) r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
+    pub(crate) r3bcasts: VecMap<SignShareId, r3::BcastHappy>,
+    pub(crate) delta_inv: Scalar,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
@@ -65,7 +61,7 @@ pub struct P2p {
 impl bcast_only::Executer for R5 {
     type FinalOutput = BytesVec;
     type Index = SignShareId;
-    type Bcast = r4::happy::Bcast;
+    type Bcast = r4::Bcast;
 
     #[allow(non_snake_case)]
     fn execute(
@@ -159,20 +155,15 @@ impl bcast_only::Executer for R5 {
                 participants: self.participants,
                 keygen_id: self.keygen_id,
                 gamma_i: self.gamma_i,
-                Gamma_i: self.Gamma_i,
-                Gamma_i_reveal: self.Gamma_i_reveal,
-                w_i: self.w_i,
                 k_i: self.k_i,
                 k_i_randomness: self.k_i_randomness,
                 sigma_i: self.sigma_i,
                 l_i: self.l_i,
-                T_i: self.T_i,
                 beta_secrets: self.beta_secrets,
                 r1bcasts: self.r1bcasts,
                 r2p2ps: self.r2p2ps,
                 r3bcasts: self.r3bcasts,
                 r4bcasts: bcasts_in,
-                delta_inv: self.delta_inv,
                 R,
 
                 #[cfg(feature = "malicious")]

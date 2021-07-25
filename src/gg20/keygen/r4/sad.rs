@@ -2,7 +2,7 @@ use tracing::error;
 
 use crate::{
     collections::{FillVecMap, P2ps, VecMap},
-    gg20::keygen::{r1, r2, r3, KeygenShareId, KeygenProtocolBuilder, SecretKeyShare},
+    gg20::keygen::{r1, r2, r3, KeygenProtocolBuilder, KeygenShareId, SecretKeyShare},
     sdk::{
         api::{Fault::ProtocolFault, TofnFatal, TofnResult},
         implementer_api::{bcast_only, log_fault_info, ProtocolBuilder, ProtocolInfo},

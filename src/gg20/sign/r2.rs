@@ -24,22 +24,24 @@ use super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
 pub struct R2 {
-    pub secret_key_share: SecretKeyShare,
-    pub msg_to_sign: Scalar,
-    pub peers: Peers,
-    pub participants: Participants,
-    pub keygen_id: TypedUsize<KeygenShareId>,
-    pub gamma_i: Scalar,
-    pub Gamma_i: ProjectivePoint,
-    pub Gamma_i_reveal: hash::Randomness,
-    pub w_i: Scalar,
-    pub k_i: Scalar,
-    pub k_i_randomness: paillier::Randomness,
+    pub(crate) secret_key_share: SecretKeyShare,
+    pub(crate) msg_to_sign: Scalar,
+    pub(crate) peers: Peers,
+    pub(crate) participants: Participants,
+    pub(crate) keygen_id: TypedUsize<KeygenShareId>,
+    pub(crate) gamma_i: Scalar,
+    pub(crate) Gamma_i: ProjectivePoint,
+    pub(crate) Gamma_i_reveal: hash::Randomness,
+    pub(crate) w_i: Scalar,
+    pub(crate) k_i: Scalar,
+    pub(crate) k_i_randomness: paillier::Randomness,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
 }
 
+// TODO: Since the happy path expects P2ps only, switch to using P2ps for issuing complaints
+// so that we don't have an empty Bcast::Happy in the happy path
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Bcast {
     Happy,
@@ -136,18 +138,9 @@ impl bcast_and_p2p::Executer for R2 {
             let p2ps_out = self.peers.map_ref(|_| serialize(&P2p::Sad))?;
 
             return Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastAndP2p {
-                round: Box::new(r3::sad::R3 {
+                round: Box::new(r3::R3Sad {
                     secret_key_share: self.secret_key_share,
-                    msg_to_sign: self.msg_to_sign,
-                    peers: self.peers,
                     participants: self.participants,
-                    keygen_id: self.keygen_id,
-                    gamma_i: self.gamma_i,
-                    Gamma_i: self.Gamma_i,
-                    Gamma_i_reveal: self.Gamma_i_reveal,
-                    w_i: self.w_i,
-                    k_i: self.k_i,
-                    k_i_randomness: self.k_i_randomness,
                     r1bcasts: bcasts_in,
                     r1p2ps: p2ps_in,
 
@@ -215,7 +208,7 @@ impl bcast_and_p2p::Executer for R2 {
         let bcast_out = serialize(&Bcast::Happy)?;
 
         Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastAndP2p {
-            round: Box::new(r3::happy::R3 {
+            round: Box::new(r3::R3Happy {
                 secret_key_share: self.secret_key_share,
                 msg_to_sign: self.msg_to_sign,
                 peers: self.peers,

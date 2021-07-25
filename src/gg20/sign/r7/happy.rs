@@ -3,14 +3,12 @@ use crate::{
     corrupt,
     gg20::{
         crypto_tools::{
-            hash::Randomness,
             paillier,
             zkp::{chaum_pedersen_k256, pedersen_k256},
         },
         keygen::{KeygenShareId, SecretKeyShare},
         sign::{
-            r4,
-            r7::{self, Bcast, BcastHappy, BcastSad, MtaWcPlaintext},
+            r7::{self, Bcast, BcastHappy, BcastSadType7, MtaWcPlaintext},
             Participants, SignShareId,
         },
     },
@@ -29,35 +27,27 @@ use super::super::{r1, r2, r3, r5, r6, r8, Peers, SignProtocolBuilder};
 use super::super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
-pub struct R7 {
-    pub secret_key_share: SecretKeyShare,
-    pub msg_to_sign: Scalar,
-    pub peers: Peers,
-    pub participants: Participants,
-    pub keygen_id: TypedUsize<KeygenShareId>,
-    pub gamma_i: Scalar,
-    pub Gamma_i: ProjectivePoint,
-    pub Gamma_i_reveal: Randomness,
-    pub w_i: Scalar,
-    pub k_i: Scalar,
-    pub k_i_randomness: paillier::Randomness,
-    pub sigma_i: Scalar,
-    pub l_i: Scalar,
-    pub T_i: ProjectivePoint,
-    pub r1bcasts: VecMap<SignShareId, r1::Bcast>,
-    pub r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
-    pub r3bcasts: VecMap<SignShareId, r3::happy::BcastHappy>,
-    pub r4bcasts: VecMap<SignShareId, r4::happy::Bcast>,
-    pub delta_inv: Scalar,
-    pub R: ProjectivePoint,
-    pub r5bcasts: VecMap<SignShareId, r5::Bcast>,
-    pub r5p2ps: P2ps<SignShareId, r5::P2p>,
+pub struct R7Happy {
+    pub(crate) secret_key_share: SecretKeyShare,
+    pub(crate) msg_to_sign: Scalar,
+    pub(crate) peers: Peers,
+    pub(crate) participants: Participants,
+    pub(crate) keygen_id: TypedUsize<KeygenShareId>,
+    pub(crate) k_i: Scalar,
+    pub(crate) k_i_randomness: paillier::Randomness,
+    pub(crate) sigma_i: Scalar,
+    pub(crate) r1bcasts: VecMap<SignShareId, r1::Bcast>,
+    pub(crate) r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
+    pub(crate) r3bcasts: VecMap<SignShareId, r3::BcastHappy>,
+    pub(crate) R: ProjectivePoint,
+    pub(crate) r5bcasts: VecMap<SignShareId, r5::Bcast>,
+    pub(crate) r5p2ps: P2ps<SignShareId, r5::P2p>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
 }
 
-impl bcast_only::Executer for R7 {
+impl bcast_only::Executer for R7Happy {
     type FinalOutput = BytesVec;
     type Index = SignShareId;
     type Bcast = r6::Bcast;
@@ -81,26 +71,10 @@ impl bcast_only::Executer for R7 {
                 sign_id,
             );
 
-            return Box::new(r7::sad::R7 {
+            return Box::new(r7::sad::R7Sad {
                 secret_key_share: self.secret_key_share,
-                msg_to_sign: self.msg_to_sign,
-                peers: self.peers,
                 participants: self.participants,
-                keygen_id: self.keygen_id,
-                gamma_i: self.gamma_i,
-                Gamma_i: self.Gamma_i,
-                Gamma_i_reveal: self.Gamma_i_reveal,
-                w_i: self.w_i,
-                k_i: self.k_i,
-                k_i_randomness: self.k_i_randomness,
-                sigma_i: self.sigma_i,
-                l_i: self.l_i,
-                T_i: self.T_i,
                 r1bcasts: self.r1bcasts,
-                r2p2ps: self.r2p2ps,
-                r3bcasts: self.r3bcasts,
-                r4bcasts: self.r4bcasts,
-                delta_inv: self.delta_inv,
                 R: self.R,
                 r5bcasts: self.r5bcasts,
                 r5p2ps: self.r5p2ps,
@@ -198,7 +172,7 @@ impl bcast_only::Executer for R7 {
                 },
             );
 
-            let bcast_out = serialize(&Bcast::Sad(BcastSad {
+            let bcast_out = serialize(&Bcast::SadType7(BcastSadType7 {
                 k_i: self.k_i.into(),
                 k_i_randomness: self.k_i_randomness.clone(),
                 proof,
@@ -206,28 +180,14 @@ impl bcast_only::Executer for R7 {
             }))?;
 
             return Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
-                round: Box::new(r8::sad::R8 {
+                round: Box::new(r8::R8Type7 {
                     secret_key_share: self.secret_key_share,
-                    msg_to_sign: self.msg_to_sign,
                     peers: self.peers,
                     participants: self.participants,
                     keygen_id: self.keygen_id,
-                    gamma_i: self.gamma_i,
-                    Gamma_i: self.Gamma_i,
-                    Gamma_i_reveal: self.Gamma_i_reveal,
-                    w_i: self.w_i,
-                    k_i: self.k_i,
-                    k_i_randomness: self.k_i_randomness,
-                    sigma_i: self.sigma_i,
-                    l_i: self.l_i,
-                    T_i: self.T_i,
                     r1bcasts: self.r1bcasts,
                     r2p2ps: self.r2p2ps,
-                    r3bcasts: self.r3bcasts,
-                    r4bcasts: self.r4bcasts,
-                    delta_inv: self.delta_inv,
                     R: self.R,
-                    r5bcasts: self.r5bcasts,
                     r6bcasts: bcasts_in,
 
                     #[cfg(feature = "malicious")]
@@ -257,29 +217,16 @@ impl bcast_only::Executer for R7 {
         let bcast_out = serialize(&Bcast::Happy(BcastHappy { s_i: s_i.into() }))?;
 
         Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
-            round: Box::new(r8::happy::R8 {
+            round: Box::new(r8::R8Happy {
                 secret_key_share: self.secret_key_share,
                 msg_to_sign: self.msg_to_sign,
-                peers: self.peers,
-                keygen_id: self.keygen_id,
-                gamma_i: self.gamma_i,
-                Gamma_i: self.Gamma_i,
-                Gamma_i_reveal: self.Gamma_i_reveal,
-                w_i: self.w_i,
-                k_i: self.k_i,
-                k_i_randomness: self.k_i_randomness,
-                sigma_i: self.sigma_i,
-                l_i: self.l_i,
-                T_i: self.T_i,
-                r1bcasts: self.r1bcasts,
-                delta_inv: self.delta_inv,
                 R: self.R,
                 r,
                 r5bcasts: self.r5bcasts,
                 r6bcasts: bcasts_in,
 
                 #[cfg(feature = "malicious")]
-                behaviour: self.behaviour,
+                _behaviour: self.behaviour,
             }),
             bcast_out,
         }))
@@ -293,7 +240,7 @@ impl bcast_only::Executer for R7 {
 
 #[cfg(feature = "malicious")]
 mod malicious {
-    use super::R7;
+    use super::R7Happy;
     use crate::{
         collections::TypedUsize,
         gg20::sign::{
@@ -302,7 +249,7 @@ mod malicious {
         },
     };
 
-    impl R7 {
+    impl R7Happy {
         pub fn corrupt_s_i(
             &self,
             me: TypedUsize<SignShareId>,
