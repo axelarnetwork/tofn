@@ -4,7 +4,7 @@ use crate::{
     gg20::{
         crypto_tools::{
             paillier,
-            zkp::{chaum_pedersen_k256, pedersen_k256},
+            zkp::{chaum_pedersen, pedersen},
         },
         keygen::{KeygenShareId, SecretKeyShare},
         sign::{
@@ -114,15 +114,15 @@ impl bcast_only::Executer for R7Happy {
 
         // verify proofs
         for (sign_peer_id, bcast) in &bcasts_in {
-            let peer_stmt = &pedersen_k256::StatementWc {
-                stmt: pedersen_k256::Statement {
+            let peer_stmt = &pedersen::StatementWc {
+                stmt: pedersen::Statement {
                     commit: &self.r3bcasts.get(sign_peer_id)?.T_i.unwrap(),
                 },
                 msg_g: bcast.S_i.unwrap(),
                 g: &self.R,
             };
 
-            if let Err(err) = pedersen_k256::verify_wc(&peer_stmt, &bcast.S_i_proof_wc) {
+            if let Err(err) = pedersen::verify_wc(&peer_stmt, &bcast.S_i_proof_wc) {
                 warn!(
                     "peer {} says: pedersen proof wc failed to verify for peer {} because [{}]",
                     sign_id, sign_peer_id, err
@@ -160,14 +160,14 @@ impl bcast_only::Executer for R7Happy {
                 }
             })?;
 
-            let proof = chaum_pedersen_k256::prove(
-                &chaum_pedersen_k256::Statement {
+            let proof = chaum_pedersen::prove(
+                &chaum_pedersen::Statement {
                     base1: &k256::ProjectivePoint::generator(),
                     base2: &self.R,
                     target1: &(k256::ProjectivePoint::generator() * self.sigma_i),
                     target2: bcasts_in.get(sign_id)?.S_i.unwrap(),
                 },
-                &chaum_pedersen_k256::Witness {
+                &chaum_pedersen::Witness {
                     scalar: &self.sigma_i,
                 },
             );

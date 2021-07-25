@@ -2,9 +2,7 @@ use crate::{
     collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
     corrupt,
     gg20::{
-        crypto_tools::{
-            hash::Randomness, k256_serde, mta::Secret, paillier, vss, zkp::pedersen_k256,
-        },
+        crypto_tools::{hash::Randomness, k256_serde, mta::Secret, paillier, vss, zkp::pedersen},
         keygen::{KeygenShareId, SecretKeyShare},
         sign::{r3, r4, Participants},
     },
@@ -55,7 +53,7 @@ pub enum Bcast {
 pub struct BcastHappy {
     pub delta_i: k256_serde::Scalar,
     pub T_i: k256_serde::ProjectivePoint,
-    pub T_i_proof: pedersen_k256::Proof,
+    pub T_i_proof: pedersen::Proof,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -266,10 +264,10 @@ impl bcast_and_p2p::Executer for R3Happy {
 
         corrupt!(sigma_i, self.corrupt_sigma(sign_id, sigma_i));
 
-        let (T_i, l_i) = pedersen_k256::commit(&sigma_i);
-        let T_i_proof = pedersen_k256::prove(
-            &pedersen_k256::Statement { commit: &T_i },
-            &pedersen_k256::Witness {
+        let (T_i, l_i) = pedersen::commit(&sigma_i);
+        let T_i_proof = pedersen::prove(
+            &pedersen::Statement { commit: &T_i },
+            &pedersen::Witness {
                 msg: &sigma_i,
                 randomness: &l_i,
             },
@@ -323,7 +321,7 @@ mod malicious {
     use super::{Accusation, R3Happy};
     use crate::{
         collections::{FillVecMap, TypedUsize},
-        gg20::{crypto_tools::zkp::pedersen_k256, sign::SignShareId},
+        gg20::{crypto_tools::zkp::pedersen, sign::SignShareId},
         sdk::api::TofnResult,
     };
     use k256::Scalar;
@@ -359,11 +357,11 @@ mod malicious {
         pub fn corrupt_T_i_proof(
             &self,
             me: TypedUsize<SignShareId>,
-            T_i_proof: pedersen_k256::Proof,
-        ) -> pedersen_k256::Proof {
+            T_i_proof: pedersen::Proof,
+        ) -> pedersen::Proof {
             if let R3BadProof = self.behaviour {
                 log_confess_info(me, &self.behaviour, "");
-                return pedersen_k256::malicious::corrupt_proof(&T_i_proof);
+                return pedersen::malicious::corrupt_proof(&T_i_proof);
             }
             T_i_proof
         }

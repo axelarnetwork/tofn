@@ -183,7 +183,7 @@ mod malicious {
         // ) -> EncryptionKeyProof {
         //     if let Behaviour::R1BadEncryptionKeyProof = self.behaviour {
         //         info!("malicious party {} do {:?}", my_index, self.behaviour);
-        //         paillier_k256::zk::malicious::corrupt_ek_proof(ek_proof)
+        //         paillier::zk::malicious::corrupt_ek_proof(ek_proof)
         //     } else {
         //         ek_proof
         //     }

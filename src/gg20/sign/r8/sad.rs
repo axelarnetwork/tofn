@@ -1,7 +1,7 @@
 use crate::{
     collections::{FillVecMap, P2ps, TypedUsize, VecMap},
     gg20::{
-        crypto_tools::{k256_serde, vss, zkp::chaum_pedersen_k256},
+        crypto_tools::{k256_serde, vss, zkp::chaum_pedersen},
         keygen::{KeygenShareId, SecretKeyShare},
         sign::{r2, Participants},
     },
@@ -204,14 +204,14 @@ impl bcast_only::Executer for R8Type7 {
             let peer_g_sigma_i = peer_W_i * k + ProjectivePoint::generator() * peer_mu_sum;
 
             // verify zkp
-            let peer_stmt = &chaum_pedersen_k256::Statement {
+            let peer_stmt = &chaum_pedersen::Statement {
                 base1: &k256::ProjectivePoint::generator(),
                 base2: &self.R,
                 target1: &peer_g_sigma_i, // sigma_i * G
                 target2: &self.r6bcasts.get(sign_peer_id)?.S_i.unwrap(), // sigma_i * R == S_i
             };
 
-            if let Err(err) = chaum_pedersen_k256::verify(peer_stmt, &bcast.proof) {
+            if let Err(err) = chaum_pedersen::verify(peer_stmt, &bcast.proof) {
                 warn!(
                     "peer {} says: chaum_pedersen proof from peer {} failed to verify because [{}]",
                     sign_id, sign_peer_id, err

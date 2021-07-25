@@ -6,7 +6,7 @@ use crate::{
             k256_serde,
             mta::{self, Secret},
             paillier::{self, zk, Plaintext},
-            zkp::pedersen_k256,
+            zkp::pedersen,
         },
         keygen::{KeygenShareId, SecretKeyShare},
     },
@@ -58,7 +58,7 @@ pub enum Bcast {
 #[allow(non_snake_case)]
 pub struct BcastHappy {
     pub S_i: k256_serde::ProjectivePoint,
-    pub S_i_proof_wc: pedersen_k256::ProofWc,
+    pub S_i_proof_wc: pedersen::ProofWc,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -240,15 +240,15 @@ impl bcast_and_p2p::Executer for R6 {
         }
 
         let S_i = self.R * self.sigma_i;
-        let S_i_proof_wc = pedersen_k256::prove_wc(
-            &pedersen_k256::StatementWc {
-                stmt: pedersen_k256::Statement {
+        let S_i_proof_wc = pedersen::prove_wc(
+            &pedersen::StatementWc {
+                stmt: pedersen::Statement {
                     commit: &self.r3bcasts.get(sign_id)?.T_i.unwrap(),
                 },
                 msg_g: &S_i,
                 g: &self.R,
             },
-            &pedersen_k256::Witness {
+            &pedersen::Witness {
                 msg: &self.sigma_i,
                 randomness: &self.l_i,
             },
@@ -300,7 +300,7 @@ mod malicious {
     use crate::{
         collections::{Subset, TypedUsize},
         gg20::{
-            crypto_tools::{mta::Secret, paillier::Plaintext, zkp::pedersen_k256},
+            crypto_tools::{mta::Secret, paillier::Plaintext, zkp::pedersen},
             sign::{
                 malicious::{log_confess_info, Behaviour::*},
                 SignShareId,
@@ -375,11 +375,11 @@ mod malicious {
         pub fn corrupt_S_i_proof_wc(
             &self,
             me: TypedUsize<SignShareId>,
-            range_proof: pedersen_k256::ProofWc,
-        ) -> pedersen_k256::ProofWc {
+            range_proof: pedersen::ProofWc,
+        ) -> pedersen::ProofWc {
             if let R6BadProof = self.behaviour {
                 log_confess_info(me, &self.behaviour, "");
-                return pedersen_k256::malicious::corrupt_proof_wc(&range_proof);
+                return pedersen::malicious::corrupt_proof_wc(&range_proof);
             }
             range_proof
         }

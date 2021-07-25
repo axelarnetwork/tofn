@@ -6,7 +6,7 @@ use crate::{
     corrupt,
     gg20::{
         constants,
-        crypto_tools::{hash, k256_serde::to_bytes, paillier, vss, zkp::schnorr_k256},
+        crypto_tools::{hash, k256_serde::to_bytes, paillier, vss, zkp::schnorr},
         keygen::{r4, SecretKeyShare},
     },
     sdk::{
@@ -30,7 +30,7 @@ pub enum Bcast {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BcastHappy {
-    pub x_i_proof: schnorr_k256::Proof,
+    pub x_i_proof: schnorr::Proof,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -163,12 +163,12 @@ impl bcast_and_p2p::Executer for R3 {
 
         corrupt!(x_i, self.corrupt_scalar(info.share_id(), x_i));
 
-        let x_i_proof = schnorr_k256::prove(
-            &schnorr_k256::Statement {
+        let x_i_proof = schnorr::prove(
+            &schnorr::Statement {
                 base: &k256::ProjectivePoint::generator(),
                 target: all_X_i.get(info.share_id())?,
             },
-            &schnorr_k256::Witness { scalar: &x_i },
+            &schnorr::Witness { scalar: &x_i },
         );
 
         Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {

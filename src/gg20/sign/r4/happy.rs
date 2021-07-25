@@ -2,7 +2,7 @@ use crate::{
     collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
     corrupt,
     gg20::{
-        crypto_tools::{hash::Randomness, k256_serde, mta::Secret, paillier, zkp::pedersen_k256},
+        crypto_tools::{hash::Randomness, k256_serde, mta::Secret, paillier, zkp::pedersen},
         keygen::{KeygenShareId, SecretKeyShare},
         sign::{r4, Participants},
     },
@@ -95,12 +95,12 @@ impl bcast_only::Executer for R4Happy {
         })?;
 
         for (sign_peer_id, bcast) in &bcasts_in {
-            let peer_stmt = pedersen_k256::Statement {
+            let peer_stmt = pedersen::Statement {
                 commit: bcast.T_i.unwrap(),
             };
 
             // verify zk proof for step 2 of MtA k_i * gamma_j
-            if let Err(err) = pedersen_k256::verify(&peer_stmt, &bcast.T_i_proof) {
+            if let Err(err) = pedersen::verify(&peer_stmt, &bcast.T_i_proof) {
                 warn!(
                     "peer {} says: pedersen proof failed to verify for peer {} because [{}]",
                     sign_id, sign_peer_id, err

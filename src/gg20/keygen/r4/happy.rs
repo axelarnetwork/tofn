@@ -3,7 +3,7 @@ use tracing::warn;
 use crate::{
     collections::{FillVecMap, P2ps, VecMap},
     gg20::{
-        crypto_tools::{paillier, zkp::schnorr_k256},
+        crypto_tools::{paillier, zkp::schnorr},
         keygen::{
             r1, r2, r3, r4::sad::R4Sad, GroupPublicInfo, KeygenPartyShareCounts,
             KeygenProtocolBuilder, KeygenShareId, SecretKeyShare, SharePublicInfo, ShareSecretInfo,
@@ -74,8 +74,8 @@ impl bcast_only::Executer for R4 {
         // verify proofs
         let mut faulters = FillVecMap::with_size(info.share_count());
         for (from, bcast) in bcasts_in.iter() {
-            if schnorr_k256::verify(
-                &schnorr_k256::Statement {
+            if schnorr::verify(
+                &schnorr::Statement {
                     base: &k256::ProjectivePoint::generator(),
                     target: self.all_X_i.get(from)?,
                 },
