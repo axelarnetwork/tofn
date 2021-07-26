@@ -121,6 +121,12 @@ impl bcast_only::Executer for R4Happy {
             })
             .invert();
 
+        // TODO: A malicious attacker can make it so that the delta_i sum is equal to 0,
+        // so that delta_inv is not defined. While the protocol accounts for maliciously
+        // chosen delta_i values, it only does this verification later, and we need to
+        // compute delta_inv to reach that stage. So, this seems to be an oversight in the
+        // protocol spec. While the fix to identify the faulter is easy, this will be changed
+        // after discussion with the authors.
         if bool::from(delta_inv.is_none()) {
             warn!("peer {} says: delta inv computation failed", sign_id);
             return Err(TofnFatal);

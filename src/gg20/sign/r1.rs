@@ -20,6 +20,7 @@ use super::{r2, Participants, Peers, SignProtocolBuilder, SignShareId};
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
 
+// TODO: Look into using the secrecy crate for better handling of secrets
 #[allow(non_snake_case)]
 pub struct R1 {
     pub(crate) secret_key_share: SecretKeyShare,

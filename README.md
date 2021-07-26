@@ -12,6 +12,10 @@ Tofn provides the following:
     ```
     brew install gmp
     ```
+On Ubuntu:
+    ```
+    sudo apt install libgmp-dev
+    ```
 
 # Demo and tests
 
@@ -234,7 +238,7 @@ For example, `keygen` could be invoked with 5 parties having share counts `2,3,6
 
 # Security notes
 
-TODO: more to come
+* In our security model, we don't guarantee security if the attacker has access to the device.
 
 ## Message authenticity and integrity
 

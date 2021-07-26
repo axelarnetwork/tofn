@@ -50,6 +50,11 @@ impl<K, V> HoleVecMap<K, V> {
         vec.insert(self.hole.as_usize(), val);
         VecMap::from_vec(vec)
     }
+
+    pub fn get_hole(&self) -> TypedUsize<K> {
+        self.hole
+    }
+
     pub fn forget_hole(self) -> VecMap<K, V> {
         self.vec
     }
@@ -89,6 +94,7 @@ impl<K, V> HoleVecMap<K, V> {
     where
         F: FnMut(V) -> W,
     {
+        // TODO: Return a Result instead
         HoleVecMap::<K, W>::from_vecmap(self.vec.map(f), self.hole).expect("hole out of bounds")
     }
 

@@ -56,7 +56,8 @@ impl<K, V> FillHoleVecMap<K, V> {
             error!("self is not full");
             return Err(TofnFatal);
         }
-        Ok(self.hole_vec.map(|x| f(x.unwrap())))
+        self.hole_vec
+            .map2_result(|(_, x)| Ok(f(x.ok_or(TofnFatal)?)))
     }
     pub fn unwrap_all(self) -> TofnResult<HoleVecMap<K, V>> {
         self.unwrap_all_map(std::convert::identity)

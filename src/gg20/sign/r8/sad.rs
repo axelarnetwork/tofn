@@ -74,6 +74,7 @@ impl bcast_only::Executer for R8Type7 {
                 }
             }
         }
+
         if !faulters.is_empty() {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
@@ -96,6 +97,18 @@ impl bcast_only::Executer for R8Type7 {
                     sign_peer_id,
                     peer_mta_wc_plaintexts.len(),
                     self.peers.len()
+                );
+
+                faulters.set(sign_peer_id, ProtocolFault)?;
+                continue;
+            }
+
+            if peer_mta_wc_plaintexts.get_hole() != sign_peer_id {
+                warn!(
+                    "peer {} says: peer {} sent MtAwc plaintexts with an unexpected hole {}",
+                    sign_id,
+                    sign_peer_id,
+                    peer_mta_wc_plaintexts.get_hole()
                 );
 
                 faulters.set(sign_peer_id, ProtocolFault)?;

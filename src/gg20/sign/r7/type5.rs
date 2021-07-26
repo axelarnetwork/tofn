@@ -113,6 +113,19 @@ impl bcast_only::Executer for R7Type5 {
                     peer_mta_plaintexts.len(),
                     self.peers.len()
                 );
+
+                faulters.set(sign_peer_id, ProtocolFault)?;
+                continue;
+            }
+
+            if peer_mta_plaintexts.get_hole() != sign_peer_id {
+                warn!(
+                    "peer {} says: peer {} sent MtA plaintexts with an unexpected hole {}",
+                    sign_id,
+                    sign_peer_id,
+                    peer_mta_plaintexts.get_hole()
+                );
+
                 faulters.set(sign_peer_id, ProtocolFault)?;
                 continue;
             }

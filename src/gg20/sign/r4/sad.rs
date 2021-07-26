@@ -68,6 +68,17 @@ impl bcast_only::Executer for R4Sad {
 
         // verify complaints
         for (accuser_sign_id, accusations) in accusations_iter {
+            if accusations.mta_complaints.size() != participants_count {
+                log_fault_info(
+                    sign_id,
+                    accuser_sign_id,
+                    "incorrect size of complaints vector",
+                );
+
+                faulters.set(accuser_sign_id, ProtocolFault)?;
+                continue;
+            }
+
             if accusations.mta_complaints.is_empty() {
                 log_fault_info(sign_id, accuser_sign_id, "no accusation found");
 

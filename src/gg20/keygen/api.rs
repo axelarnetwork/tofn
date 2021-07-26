@@ -54,6 +54,9 @@ pub fn new_keygen(
     )
 }
 
+// BEWARE: This is only made visible for faster integration testing
+// TODO: Use a better way to hide this from the API, while allowing it for integration tests
+// since #[cfg(tests)] only works for unit tests
 pub fn new_keygen_unsafe(
     party_share_counts: KeygenPartyShareCounts,
     threshold: usize,
@@ -112,6 +115,10 @@ fn new_keygen_impl(
         );
         return Err(TofnFatal);
     }
+
+    // TODO: Enforce a sufficient minimum length as a sanity check against collisions.
+    // While reusing Paillier keys is not known to be insecure, there's also no security proof for it.
+    // This task primarily requires a review of axelar-core to see if it's providing long random nonces.
     if session_nonce.is_empty() {
         error!("invalid session_nonce length: {}", session_nonce.len());
         return Err(TofnFatal);

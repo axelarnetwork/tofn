@@ -71,7 +71,7 @@ impl bcast_and_p2p::Executer for R3 {
         let keygen_id = info.share_id();
         let mut faulters = FillVecMap::with_size(info.share_count());
 
-        // check y_i commits  // TODO: Why are we verifying our own bcast?
+        // check y_i commits
         for (keygen_peer_id, bcast) in bcasts_in.iter() {
             let peer_y_i = bcast.u_i_vss_commit.secret_commit();
             let peer_y_i_commit = hash::commit_with_randomness(
