@@ -24,6 +24,7 @@ pub fn wrap<K>(
     })
 }
 
+// TODO: Look into using bincode::config::Bounded to limit the max pre-allocation size
 /// deserialization failures are non-fatal: do not return TofnResult
 pub fn unwrap<K>(bytes: &[u8]) -> Option<WireBytes<K>> {
     let bytes_versioned: BytesVecVersioned = bincode::deserialize(bytes)

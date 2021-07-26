@@ -42,6 +42,7 @@ pub struct R2 {
 
 // TODO: Since the happy path expects P2ps only, switch to using P2ps for issuing complaints
 // so that we don't have an empty Bcast::Happy in the happy path
+// https://github.com/axelarnetwork/tofn/issues/94
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Bcast {
     Happy,

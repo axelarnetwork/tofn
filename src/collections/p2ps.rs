@@ -28,6 +28,7 @@ impl<K, V> P2ps<K, V> {
             if k == me {
                 None
             } else {
+                // TODO: Remove possible panic using Result
                 Some((k, hole_vec.get(me).expect("index out of bounds")))
             }
         }))

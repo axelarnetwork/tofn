@@ -61,7 +61,7 @@ impl<T: Executer> ExecuterRaw for T {
         for (from, bcast) in bcasts_in.iter() {
             if bcast.is_none() {
                 warn!(
-                    "party {} detect missing bcast from {}",
+                    "peer {} says: detected missing bcast from peer {}",
                     info.share_id(),
                     from
                 );
@@ -71,7 +71,7 @@ impl<T: Executer> ExecuterRaw for T {
         for (from, to, p2p) in p2ps_in.iter() {
             if p2p.is_none() {
                 warn!(
-                    "party {} detect missing p2p from {} to {}",
+                    "peer {} says: detected missing p2p from peer {} to peer {}",
                     info.share_id(),
                     from,
                     to
@@ -93,7 +93,7 @@ impl<T: Executer> ExecuterRaw for T {
         for (from, bcast) in bcasts_deserialized.iter() {
             if bcast.is_err() {
                 warn!(
-                    "party {} detect corrupted bcast from {}",
+                    "peer {} says: detected corrupted bcast from peer {}",
                     info.share_id(),
                     from
                 );
@@ -103,7 +103,7 @@ impl<T: Executer> ExecuterRaw for T {
         for (from, to, p2p) in p2ps_deserialized.iter() {
             if p2p.is_err() {
                 warn!(
-                    "party {} detect corrupted p2p from {} to {}",
+                    "peer {} says: detected corrupted p2p from peer {} to peer {}",
                     info.share_id(),
                     from,
                     to

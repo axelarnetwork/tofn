@@ -51,6 +51,17 @@ impl bcast_only::Executer for R4Sad {
 
         // verify complaints
         for (accuser_keygen_id, accusations) in accusations_iter {
+            if accusations.vss_complaints.size() != info.share_count() {
+                log_fault_info(
+                    keygen_id,
+                    accuser_keygen_id,
+                    "incorrect size of complaints vector",
+                );
+
+                faulters.set(accuser_keygen_id, ProtocolFault)?;
+                continue;
+            }
+
             if accusations.vss_complaints.is_empty() {
                 log_fault_info(keygen_id, accuser_keygen_id, "no accusation found");
 

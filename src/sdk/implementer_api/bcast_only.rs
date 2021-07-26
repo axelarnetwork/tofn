@@ -57,13 +57,14 @@ impl<T: Executer> ExecuterRaw for T {
         for (from, bcast) in bcasts_in.iter() {
             if bcast.is_none() {
                 warn!(
-                    "party {} detect missing bcast from {}",
+                    "peer {} says: detected missing bcast from peer {}",
                     info.share_id(),
                     from
                 );
                 faulters.set(from, Fault::MissingMessage)?;
             }
         }
+
         if !faulters.is_empty() {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
@@ -76,7 +77,7 @@ impl<T: Executer> ExecuterRaw for T {
         for (from, bcast) in bcasts_deserialized.iter() {
             if bcast.is_err() {
                 warn!(
-                    "party {} detect corrupted bcast from {}",
+                    "peer {} says: detected corrupted bcast from peer {}",
                     info.share_id(),
                     from
                 );

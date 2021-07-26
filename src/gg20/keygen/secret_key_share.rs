@@ -125,8 +125,6 @@ impl ShareSecretInfo {
         Self { index, dk, x_i }
     }
 
-    // expose secret info only in tests `#[cfg(test)]` and never outside this crate `pub(super)`
-    // TODO: #[cfg(test)]  // We need this in R1
     pub(crate) fn x_i(&self) -> &k256_serde::Scalar {
         &self.x_i
     }
@@ -177,6 +175,9 @@ impl SecretKeyShare {
         )
     }
 
+    // BEWARE: This is only made visible for faster integration testing
+    // TODO: Use a better way to hide this from the API, while allowing it for integration tests
+    // since #[cfg(tests)] only works for unit tests
     pub fn recover_unsafe(
         secret_recovery_key: &SecretRecoveryKey,
         session_nonce: &[u8],

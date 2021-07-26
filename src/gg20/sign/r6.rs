@@ -71,6 +71,8 @@ pub struct BcastSadType5 {
     pub k_i: k256_serde::Scalar,
     pub k_i_randomness: paillier::Randomness,
     pub gamma_i: k256_serde::Scalar,
+    // TODO: Switch away from serializing a HoleVecMap since it's an attack vector due to it's
+    // internal hole being serialized: https://github.com/axelarnetwork/tofn/issues/105
     pub mta_plaintexts: HoleVecMap<SignShareId, MtaPlaintext>,
 }
 
