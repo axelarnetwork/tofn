@@ -212,7 +212,7 @@ impl bcast_only::Executer for R7Happy {
 
         let s_i = self.msg_to_sign * self.k_i + r * self.sigma_i;
 
-        corrupt!(s_i, self.corrupt_s_i(info.share_id(), s_i));
+        corrupt!(s_i, self.corrupt_s_i(sign_id, s_i));
 
         let bcast_out = serialize(&Bcast::Happy(BcastHappy { s_i: s_i.into() }))?;
 
@@ -252,11 +252,11 @@ mod malicious {
     impl R7Happy {
         pub fn corrupt_s_i(
             &self,
-            me: TypedUsize<SignShareId>,
+            sign_id: TypedUsize<SignShareId>,
             mut s_i: k256::Scalar,
         ) -> k256::Scalar {
             if let R7BadSI = self.behaviour {
-                log_confess_info(me, &self.behaviour, "");
+                log_confess_info(sign_id, &self.behaviour, "");
                 s_i += k256::Scalar::one();
             }
             s_i

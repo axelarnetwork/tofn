@@ -94,6 +94,7 @@ impl bcast_only::Executer for R7Type5 {
                 }
             }
         }
+
         if !faulters.is_empty() {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
@@ -102,14 +103,14 @@ impl bcast_only::Executer for R7Type5 {
 
         // verify that each participant's data is consistent with earlier messages:
         for (sign_peer_id, bcast) in &bcasts_in {
-            let mta_plaintexts = &bcast.mta_plaintexts;
+            let peer_mta_plaintexts = &bcast.mta_plaintexts;
 
-            if mta_plaintexts.len() != self.peers.len() {
+            if peer_mta_plaintexts.len() != self.peers.len() {
                 warn!(
                     "peer {} says: peer {} sent {} MtA plaintexts, expected {}",
                     sign_id,
                     sign_peer_id,
-                    mta_plaintexts.len(),
+                    peer_mta_plaintexts.len(),
                     self.peers.len()
                 );
                 faulters.set(sign_peer_id, ProtocolFault)?;
@@ -117,7 +118,7 @@ impl bcast_only::Executer for R7Type5 {
             }
 
             // verify correct computation of delta_i
-            let delta_i = mta_plaintexts.iter().fold(
+            let delta_i = peer_mta_plaintexts.iter().fold(
                 bcast.k_i.unwrap() * bcast.gamma_i.unwrap(),
                 |acc, (_, mta_plaintext)| {
                     acc + mta_plaintext.alpha_plaintext.to_scalar()
@@ -172,54 +173,54 @@ impl bcast_only::Executer for R7Type5 {
             }
 
             // beta_ij, alpha_ij
-            for (sign_party_id, mta_plaintext) in mta_plaintexts {
-                let keygen_party_id = *self.participants.get(sign_party_id)?;
+            for (sign_peer2_id, peer_mta_plaintext) in peer_mta_plaintexts {
+                let keygen_peer2_id = *self.participants.get(sign_peer2_id)?;
 
                 // beta_ij
-                let party_ek = &self
+                let peer2_ek = &self
                     .secret_key_share
                     .group()
                     .all_shares()
-                    .get(keygen_party_id)?
+                    .get(keygen_peer2_id)?
                     .ek();
-                let party_k_i_ciphertext = &self.r1bcasts.get(sign_party_id)?.k_i_ciphertext;
-                let party_alpha_ciphertext = &self
+                let peer2_k_i_ciphertext = &self.r1bcasts.get(sign_peer2_id)?.k_i_ciphertext;
+                let peer2_alpha_ciphertext = &self
                     .r2p2ps
-                    .get(sign_peer_id, sign_party_id)?
+                    .get(sign_peer_id, sign_peer2_id)?
                     .alpha_ciphertext;
 
                 if !mta::verify_mta_response(
-                    party_ek,
-                    party_k_i_ciphertext,
+                    peer2_ek,
+                    peer2_k_i_ciphertext,
                     bcast.gamma_i.unwrap(),
-                    party_alpha_ciphertext,
-                    &mta_plaintext.beta_secret,
+                    peer2_alpha_ciphertext,
+                    &peer_mta_plaintext.beta_secret,
                 ) {
-                    // TODO: Who's responsible for the failure here?
                     warn!(
                         "peer {} says: invalid beta from peer {} to victim peer {}",
-                        sign_id, sign_peer_id, sign_party_id
+                        sign_id, sign_peer_id, sign_peer2_id
                     );
+
                     faulters.set(sign_peer_id, ProtocolFault)?;
                     continue;
                 }
 
                 // alpha_ij
                 let peer_alpha_ciphertext = peer_ek.encrypt_with_randomness(
-                    &mta_plaintext.alpha_plaintext,
-                    &mta_plaintext.alpha_randomness,
+                    &peer_mta_plaintext.alpha_plaintext,
+                    &peer_mta_plaintext.alpha_randomness,
                 );
                 if peer_alpha_ciphertext
                     != self
                         .r2p2ps
-                        .get(sign_party_id, sign_peer_id)?
+                        .get(sign_peer2_id, sign_peer_id)?
                         .alpha_ciphertext
                 {
-                    // TODO: Who's responsible for the failure here?
                     warn!(
                         "peer {} says: invalid alpha from peer {} to victim peer {}",
-                        sign_id, sign_peer_id, sign_party_id
+                        sign_id, sign_peer_id, sign_peer2_id
                     );
+
                     faulters.set(sign_peer_id, ProtocolFault)?;
                     continue;
                 }

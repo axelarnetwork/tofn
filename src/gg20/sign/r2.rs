@@ -126,15 +126,12 @@ impl bcast_and_p2p::Executer for R2 {
 
         corrupt!(
             zkp_complaints,
-            self.corrupt_complaint(info.share_id(), zkp_complaints)?
+            self.corrupt_complaint(sign_id, zkp_complaints)?
         );
 
         if !zkp_complaints.is_empty() {
             let bcast_out = serialize(&Bcast::Sad(BcastSad { zkp_complaints }))?;
 
-            // TODO: Since R3 expects P2ps in the happy path but Bcast in the sad path
-            // we always send bcasts and p2ps to R3, using empty P2ps and Bcasts in
-            // the respective path. This adds some network overhead, so investigate a better approach.
             let p2ps_out = self.peers.map_ref(|_| serialize(&P2p::Sad))?;
 
             return Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastAndP2p {
@@ -175,7 +172,7 @@ impl bcast_and_p2p::Executer for R2 {
 
             corrupt!(
                 alpha_proof,
-                self.corrupt_alpha_proof(info.share_id(), sign_peer_id, alpha_proof)
+                self.corrupt_alpha_proof(sign_id, sign_peer_id, alpha_proof)
             );
 
             beta_secrets.set(sign_peer_id, beta_secret)?;
@@ -186,7 +183,7 @@ impl bcast_and_p2p::Executer for R2 {
 
             corrupt!(
                 mu_proof,
-                self.corrupt_mu_proof(info.share_id(), sign_peer_id, mu_proof)
+                self.corrupt_mu_proof(sign_id, sign_peer_id, mu_proof)
             );
 
             nu_secrets.set(sign_peer_id, nu_secret)?;
@@ -258,17 +255,17 @@ mod malicious {
     impl R2 {
         pub fn corrupt_complaint(
             &self,
-            me: TypedUsize<SignShareId>,
+            sign_id: TypedUsize<SignShareId>,
             mut zkp_complaints: Subset<SignShareId>,
         ) -> TofnResult<Subset<SignShareId>> {
             if let R2FalseAccusation { victim } = self.behaviour {
                 if zkp_complaints.is_member(victim)? {
-                    log_confess_info(me, &self.behaviour, "but the accusation is true");
-                } else if victim == me {
-                    log_confess_info(me, &self.behaviour, "self accusation");
-                    zkp_complaints.add(me)?;
+                    log_confess_info(sign_id, &self.behaviour, "but the accusation is true");
+                } else if victim == sign_id {
+                    log_confess_info(sign_id, &self.behaviour, "self accusation");
+                    zkp_complaints.add(sign_id)?;
                 } else {
-                    log_confess_info(me, &self.behaviour, "");
+                    log_confess_info(sign_id, &self.behaviour, "");
                     zkp_complaints.add(victim)?;
                 }
             }
@@ -277,13 +274,13 @@ mod malicious {
 
         pub fn corrupt_alpha_proof(
             &self,
-            me: TypedUsize<SignShareId>,
+            sign_id: TypedUsize<SignShareId>,
             recipient: TypedUsize<SignShareId>,
             alpha_proof: mta::Proof,
         ) -> mta::Proof {
             if let R2BadMta { victim } = self.behaviour {
                 if victim == recipient {
-                    log_confess_info(me, &self.behaviour, "");
+                    log_confess_info(sign_id, &self.behaviour, "");
                     return mta::malicious::corrupt_proof(&alpha_proof);
                 }
             }
@@ -292,13 +289,13 @@ mod malicious {
 
         pub fn corrupt_mu_proof(
             &self,
-            me: TypedUsize<SignShareId>,
+            sign_id: TypedUsize<SignShareId>,
             recipient: TypedUsize<SignShareId>,
             mu_proof: mta::ProofWc,
         ) -> mta::ProofWc {
             if let R2BadMtaWc { victim } = self.behaviour {
                 if victim == recipient {
-                    log_confess_info(me, &self.behaviour, "");
+                    log_confess_info(sign_id, &self.behaviour, "");
                     return mta::malicious::corrupt_proof_wc(&mu_proof);
                 }
             }

@@ -56,8 +56,6 @@ impl bcast_and_p2p::Executer for R3Sad {
             return Err(TofnFatal);
         }
 
-        // TODO: do we check that P2ps are also Sad?
-
         let accusations_iter =
             bcasts_in
                 .into_iter()
@@ -68,6 +66,13 @@ impl bcast_and_p2p::Executer for R3Sad {
 
         // verify complaints
         for (accuser_sign_id, accusations) in accusations_iter {
+            if accusations.zkp_complaints.is_empty() {
+                log_fault_info(sign_id, accuser_sign_id, "no accusation found");
+
+                faulters.set(accuser_sign_id, ProtocolFault)?;
+                continue;
+            }
+
             for accused_sign_id in accusations.zkp_complaints.iter() {
                 if accuser_sign_id == accused_sign_id {
                     log_fault_info(sign_id, accuser_sign_id, "self accusation");

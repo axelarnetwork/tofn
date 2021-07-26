@@ -39,10 +39,10 @@ impl Behaviour {
     }
 }
 
-pub(crate) fn log_confess_info<K>(me: TypedUsize<K>, behaviour: &Behaviour, msg: &str) {
+pub(crate) fn log_confess_info<K>(sign_id: TypedUsize<K>, behaviour: &Behaviour, msg: &str) {
     if msg.is_empty() {
-        info!("malicious peer {} does {:?}", me, behaviour);
+        info!("malicious peer {} does {:?}", sign_id, behaviour);
     } else {
-        info!("malicious peer {} does {:?} [{}]", me, behaviour, msg);
+        info!("malicious peer {} does {:?} [{}]", sign_id, behaviour, msg);
     }
 }

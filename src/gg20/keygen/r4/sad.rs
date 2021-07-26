@@ -27,14 +27,16 @@ impl bcast_only::Executer for R4Sad {
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
     ) -> TofnResult<KeygenProtocolBuilder> {
+        let keygen_id = info.share_id();
+
         // check for no complaints
         if bcasts_in
             .iter()
             .all(|(_, bcast)| matches!(bcast, r3::Bcast::Happy(_)))
         {
             error!(
-                "party {} entered r4 sad path with no complaints",
-                info.share_id()
+                "peer {} says: entered R4 sad path with no complaints",
+                keygen_id
             );
             return Err(TofnFatal);
         }
@@ -48,42 +50,64 @@ impl bcast_only::Executer for R4Sad {
             });
 
         // verify complaints
-        for (accuser, accusations) in accusations_iter {
-            for (accused, accusation) in accusations.vss_complaints.into_iter_some() {
-                if accuser == accused {
-                    log_fault_info(info.share_id(), accuser, "self accusation");
-                    faulters.set(accuser, ProtocolFault)?;
+        for (accuser_keygen_id, accusations) in accusations_iter {
+            if accusations.vss_complaints.is_empty() {
+                log_fault_info(keygen_id, accuser_keygen_id, "no accusation found");
+
+                faulters.set(accuser_keygen_id, ProtocolFault)?;
+                continue;
+            }
+
+            for (accused_keygen_id, accusation) in accusations.vss_complaints.into_iter_some() {
+                if accuser_keygen_id == accused_keygen_id {
+                    log_fault_info(keygen_id, accuser_keygen_id, "self accusation");
+
+                    faulters.set(accuser_keygen_id, ProtocolFault)?;
                     continue;
                 }
 
                 // verify encryption
-                let accuser_ek = &self.r1bcasts.get(accuser)?.ek;
+                let accuser_ek = &self.r1bcasts.get(accuser_keygen_id)?.ek;
                 let share_ciphertext = accuser_ek.encrypt_with_randomness(
                     &accusation.share.get_scalar().into(),
                     &accusation.randomness,
                 );
-                if share_ciphertext != self.r2p2ps.get(accused, accuser)?.u_i_share_ciphertext {
-                    log_fault_info(info.share_id(), accused, "bad encryption");
-                    faulters.set(accused, ProtocolFault)?;
+
+                if share_ciphertext
+                    != self
+                        .r2p2ps
+                        .get(accused_keygen_id, accuser_keygen_id)?
+                        .u_i_share_ciphertext
+                {
+                    log_fault_info(keygen_id, accused_keygen_id, "bad encryption");
+
+                    faulters.set(accused_keygen_id, ProtocolFault)?;
                     continue;
                 }
 
                 // verify share commitment
-                let accused_vss_commit = &self.r2bcasts.get(accused)?.u_i_vss_commit;
+                let accused_vss_commit = &self.r2bcasts.get(accused_keygen_id)?.u_i_vss_commit;
+
                 if accused_vss_commit.validate_share(&accusation.share) {
-                    log_fault_info(info.share_id(), accuser, "false accusation");
-                    faulters.set(accuser, ProtocolFault)?;
+                    log_fault_info(keygen_id, accuser_keygen_id, "false accusation");
+
+                    faulters.set(accuser_keygen_id, ProtocolFault)?;
                 } else {
-                    log_fault_info(info.share_id(), accused, "invalid vss share");
-                    faulters.set(accused, ProtocolFault)?;
+                    log_fault_info(keygen_id, accused_keygen_id, "invalid vss share");
+
+                    faulters.set(accused_keygen_id, ProtocolFault)?;
                 }
             }
         }
 
         if faulters.is_empty() {
-            error!("party {} r4 sad path found no faulters", info.share_id());
+            error!(
+                "peer {} says: R4 failure protocol found no faulters",
+                keygen_id
+            );
             return Err(TofnFatal);
         }
+
         Ok(ProtocolBuilder::Done(Err(faulters)))
     }
 

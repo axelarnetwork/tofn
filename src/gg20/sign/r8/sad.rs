@@ -69,6 +69,7 @@ impl bcast_only::Executer for R8Type7 {
                         "peer {} detect failure to detect 'type 7' fault by peer {}",
                         sign_id, sign_peer_id
                     );
+
                     faulters.set(sign_peer_id, ProtocolFault)?;
                 }
             }
@@ -86,16 +87,17 @@ impl bcast_only::Executer for R8Type7 {
         // TODO this code for k_i faults is identical to that of r7_fail_type5
         // TODO maybe you can test this path by choosing fake k_i', w_i' such that k_i'*w_i' == k_i*w_i
         for (sign_peer_id, bcast) in bcasts_in.iter() {
-            let mta_wc_plaintexts = &bcast.mta_wc_plaintexts;
+            let peer_mta_wc_plaintexts = &bcast.mta_wc_plaintexts;
 
-            if mta_wc_plaintexts.len() != self.peers.len() {
+            if peer_mta_wc_plaintexts.len() != self.peers.len() {
                 warn!(
                     "peer {} says: peer {} sent {} MtA plaintexts, expected {}",
                     sign_id,
                     sign_peer_id,
-                    mta_wc_plaintexts.len(),
+                    peer_mta_wc_plaintexts.len(),
                     self.peers.len()
                 );
+
                 faulters.set(sign_peer_id, ProtocolFault)?;
                 continue;
             }
@@ -119,23 +121,24 @@ impl bcast_only::Executer for R8Type7 {
                     "peer {} says: invalid k_i detected from peer {}",
                     sign_id, sign_peer_id
                 );
+
                 faulters.set(sign_peer_id, ProtocolFault)?;
                 continue;
             }
 
             // mu_ij
-            for (sign_party_id, mta_wc_plaintext) in mta_wc_plaintexts {
+            for (sign_peer2_id, peer_mta_wc_plaintext) in peer_mta_wc_plaintexts {
                 let peer_mu_ciphertext = peer_ek.encrypt_with_randomness(
-                    &mta_wc_plaintext.mu_plaintext,
-                    &mta_wc_plaintext.mu_randomness,
+                    &peer_mta_wc_plaintext.mu_plaintext,
+                    &peer_mta_wc_plaintext.mu_randomness,
                 );
-                if peer_mu_ciphertext != self.r2p2ps.get(sign_party_id, sign_peer_id)?.mu_ciphertext
+                if peer_mu_ciphertext != self.r2p2ps.get(sign_peer2_id, sign_peer_id)?.mu_ciphertext
                 {
-                    // TODO: Who's responsible for the failure here?
                     warn!(
                         "peer {} says: invalid mu from peer {} to victim peer {}",
-                        sign_id, sign_peer_id, sign_party_id
+                        sign_id, sign_peer_id, sign_peer2_id
                     );
+
                     faulters.set(sign_peer_id, ProtocolFault)?;
                     continue;
                 }

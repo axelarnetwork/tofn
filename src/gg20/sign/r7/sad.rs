@@ -71,9 +71,17 @@ impl bcast_only::Executer for R7Sad {
 
         // verify complaints
         for (accuser_sign_id, accusations) in accusations_iter {
+            if accusations.zkp_complaints.is_empty() {
+                log_fault_info(sign_id, accuser_sign_id, "no accusation found");
+
+                faulters.set(accuser_sign_id, ProtocolFault)?;
+                continue;
+            }
+
             for accused_sign_id in accusations.zkp_complaints.iter() {
                 if accuser_sign_id == accused_sign_id {
                     log_fault_info(sign_id, accuser_sign_id, "self accusation");
+
                     faulters.set(accuser_sign_id, ProtocolFault)?;
                     continue;
                 }

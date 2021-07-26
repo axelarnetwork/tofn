@@ -141,7 +141,7 @@ impl bcast_and_p2p::Executer for R6 {
 
         corrupt!(
             zkp_complaints,
-            self.corrupt_zkp_complaints(info.share_id(), zkp_complaints)?
+            self.corrupt_zkp_complaints(sign_id, zkp_complaints)?
         );
 
         if !zkp_complaints.is_empty() {
@@ -192,14 +192,14 @@ impl bcast_and_p2p::Executer for R6 {
 
                 corrupt!(
                     alpha_plaintext,
-                    self.corrupt_alpha_plaintext(info.share_id(), sign_peer_id, alpha_plaintext)
+                    self.corrupt_alpha_plaintext(sign_id, sign_peer_id, alpha_plaintext)
                 );
 
                 let beta_secret = beta_secret.clone();
 
                 corrupt!(
                     beta_secret,
-                    self.corrupt_beta_secret(info.share_id(), sign_peer_id, beta_secret)
+                    self.corrupt_beta_secret(sign_id, sign_peer_id, beta_secret)
                 );
 
                 Ok(MtaPlaintext {
@@ -210,7 +210,7 @@ impl bcast_and_p2p::Executer for R6 {
             })?;
 
             let k_i = self.k_i;
-            corrupt!(k_i, self.corrupt_k_i(info.share_id(), k_i));
+            corrupt!(k_i, self.corrupt_k_i(sign_id, k_i));
 
             let bcast_out = serialize(&Bcast::SadType5(BcastSadType5 {
                 k_i: k_i.into(),
@@ -256,7 +256,7 @@ impl bcast_and_p2p::Executer for R6 {
 
         corrupt!(
             S_i_proof_wc,
-            self.corrupt_S_i_proof_wc(info.share_id(), S_i_proof_wc)
+            self.corrupt_S_i_proof_wc(sign_id, S_i_proof_wc)
         );
 
         let bcast_out = serialize(&Bcast::Happy(BcastHappy {
@@ -313,11 +313,11 @@ mod malicious {
         /// earlier we prepared to corrupt k_i by corrupting delta_i
         pub fn corrupt_k_i(
             &self,
-            me: TypedUsize<SignShareId>,
+            sign_id: TypedUsize<SignShareId>,
             mut k_i: k256::Scalar,
         ) -> k256::Scalar {
             if let R3BadKI = self.behaviour {
-                log_confess_info(me, &self.behaviour, "step 2/2: k_i");
+                log_confess_info(sign_id, &self.behaviour, "step 2/2: k_i");
                 k_i += k256::Scalar::one();
             }
             k_i
@@ -325,13 +325,13 @@ mod malicious {
         /// earlier we prepared to corrupt alpha_plaintext by corrupting delta_i
         pub fn corrupt_alpha_plaintext(
             &self,
-            me: TypedUsize<SignShareId>,
+            sign_id: TypedUsize<SignShareId>,
             recipient: TypedUsize<SignShareId>,
             mut alpha_plaintext: Plaintext,
         ) -> Plaintext {
             if let R3BadAlpha { victim } = self.behaviour {
                 if victim == recipient {
-                    log_confess_info(me, &self.behaviour, "step 2/2: alpha_plaintext");
+                    log_confess_info(sign_id, &self.behaviour, "step 2/2: alpha_plaintext");
                     alpha_plaintext.corrupt();
                 }
             }
@@ -340,13 +340,13 @@ mod malicious {
         /// earlier we prepared to corrupt beta_secret by corrupting delta_i
         pub fn corrupt_beta_secret(
             &self,
-            me: TypedUsize<SignShareId>,
+            sign_id: TypedUsize<SignShareId>,
             recipient: TypedUsize<SignShareId>,
             mut beta_secret: Secret,
         ) -> Secret {
             if let R3BadBeta { victim } = self.behaviour {
                 if victim == recipient {
-                    log_confess_info(me, &self.behaviour, "step 2/2: beta_secret");
+                    log_confess_info(sign_id, &self.behaviour, "step 2/2: beta_secret");
                     *beta_secret.beta.unwrap_mut() += k256::Scalar::one();
                 }
             }
@@ -354,17 +354,17 @@ mod malicious {
         }
         pub fn corrupt_zkp_complaints(
             &self,
-            me: TypedUsize<SignShareId>,
+            sign_id: TypedUsize<SignShareId>,
             mut zkp_complaints: Subset<SignShareId>,
         ) -> TofnResult<Subset<SignShareId>> {
             if let R6FalseAccusation { victim } = self.behaviour {
                 if zkp_complaints.is_member(victim)? {
-                    log_confess_info(me, &self.behaviour, "but the accusation is true");
-                } else if victim == me {
-                    log_confess_info(me, &self.behaviour, "self accusation");
-                    zkp_complaints.add(me)?;
+                    log_confess_info(sign_id, &self.behaviour, "but the accusation is true");
+                } else if victim == sign_id {
+                    log_confess_info(sign_id, &self.behaviour, "self accusation");
+                    zkp_complaints.add(sign_id)?;
                 } else {
-                    log_confess_info(me, &self.behaviour, "");
+                    log_confess_info(sign_id, &self.behaviour, "");
                     zkp_complaints.add(victim)?;
                 }
             }
@@ -374,11 +374,11 @@ mod malicious {
         #[allow(non_snake_case)]
         pub fn corrupt_S_i_proof_wc(
             &self,
-            me: TypedUsize<SignShareId>,
+            sign_id: TypedUsize<SignShareId>,
             range_proof: pedersen::ProofWc,
         ) -> pedersen::ProofWc {
             if let R6BadProof = self.behaviour {
-                log_confess_info(me, &self.behaviour, "");
+                log_confess_info(sign_id, &self.behaviour, "");
                 return pedersen::malicious::corrupt_proof_wc(&range_proof);
             }
             range_proof
@@ -386,10 +386,10 @@ mod malicious {
 
         pub fn corrupt_curve_generator(
             &self,
-            me: TypedUsize<SignShareId>,
+            sign_id: TypedUsize<SignShareId>,
         ) -> k256::ProjectivePoint {
             if let R6FalseFailRandomizer = self.behaviour {
-                log_confess_info(me, &self.behaviour, "");
+                log_confess_info(sign_id, &self.behaviour, "");
                 return k256::ProjectivePoint::identity();
             }
             k256::ProjectivePoint::generator()

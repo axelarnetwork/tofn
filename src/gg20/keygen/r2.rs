@@ -51,48 +51,58 @@ impl bcast_only::Executer for R2 {
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
     ) -> TofnResult<KeygenProtocolBuilder> {
+        let keygen_id = info.share_id();
         let mut faulters = FillVecMap::with_size(info.share_count());
 
         // check Paillier proofs
-        for (from, bcast) in bcasts_in.iter() {
+        for (keygen_peer_id, bcast) in bcasts_in.iter() {
             if !bcast.ek.verify(&bcast.ek_proof) {
-                warn!("party {} detect bad ek proof by {}", info.share_id(), from);
-                faulters.set(from, ProtocolFault)?;
+                warn!(
+                    "peer {} says: ek proof from peer {} failed to verify",
+                    keygen_id, keygen_peer_id
+                );
+
+                faulters.set(keygen_peer_id, ProtocolFault)?;
+                continue;
             }
+
             if !bcast.zkp.verify(&bcast.zkp_proof) {
                 warn!(
-                    "party {} detect bad zk setup proof by {}",
-                    info.share_id(),
-                    from
+                    "peer {} says: zk setup proof from peer {} failed to verify",
+                    keygen_id, keygen_peer_id,
                 );
-                faulters.set(from, ProtocolFault)?;
+
+                faulters.set(keygen_peer_id, ProtocolFault)?;
+                continue;
             }
         }
+
         if !faulters.is_empty() {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
-        let (u_i_other_shares, u_i_my_share) =
-            VecMap::from_vec(self.u_i_vss.shares(info.share_count()))
-                .puncture_hole(info.share_id())?;
+        let (peer_u_i_shares, u_i_share) =
+            VecMap::from_vec(self.u_i_vss.shares(info.share_count())).puncture_hole(keygen_id)?;
 
         corrupt!(
-            u_i_other_shares,
-            self.corrupt_share(info.share_id(), u_i_other_shares)?
+            peer_u_i_shares,
+            self.corrupt_share(keygen_id, peer_u_i_shares)?
         );
 
-        let p2ps_out = u_i_other_shares.map2_result(|(i, share)| {
+        let p2ps_out = peer_u_i_shares.map2_result(|(keygen_peer_id, share)| {
             // encrypt the share for party i
-            let (u_i_share_ciphertext, _) =
-                bcasts_in.get(i)?.ek.encrypt(&share.get_scalar().into());
+            let (peer_u_i_share_ciphertext, _) = bcasts_in
+                .get(keygen_peer_id)?
+                .ek
+                .encrypt(&share.get_scalar().into());
 
             corrupt!(
-                u_i_share_ciphertext,
-                self.corrupt_ciphertext(info.share_id(), i, u_i_share_ciphertext)
+                peer_u_i_share_ciphertext,
+                self.corrupt_ciphertext(keygen_id, keygen_peer_id, peer_u_i_share_ciphertext)
             );
 
             serialize(&P2p {
-                u_i_share_ciphertext,
+                u_i_share_ciphertext: peer_u_i_share_ciphertext,
             })
         })?;
 
@@ -106,7 +116,7 @@ impl bcast_only::Executer for R2 {
                 threshold: self.threshold,
                 party_share_counts: self.party_share_counts,
                 dk: self.dk,
-                u_i_my_share,
+                u_i_share,
                 r1bcasts: bcasts_in,
                 #[cfg(feature = "malicious")]
                 behaviour: self.behaviour,
@@ -140,11 +150,11 @@ mod malicious {
     impl R2 {
         pub fn corrupt_share(
             &self,
-            my_index: TypedUsize<KeygenShareId>,
+            keygen_id: TypedUsize<KeygenShareId>,
             mut other_shares: HoleVecMap<KeygenShareId, Share>,
         ) -> TofnResult<HoleVecMap<KeygenShareId, Share>> {
             if let Behaviour::R2BadShare { victim } = self.behaviour {
-                info!("malicious party {} do {:?}", my_index, self.behaviour);
+                info!("malicious peer {} does {:?}", keygen_id, self.behaviour);
                 other_shares.get_mut(victim)?.corrupt();
             }
 
@@ -153,13 +163,13 @@ mod malicious {
 
         pub fn corrupt_ciphertext(
             &self,
-            my_index: TypedUsize<KeygenShareId>,
+            keygen_id: TypedUsize<KeygenShareId>,
             target_index: TypedUsize<KeygenShareId>,
             mut ciphertext: Ciphertext,
         ) -> Ciphertext {
             if let Behaviour::R2BadEncryption { victim } = self.behaviour {
                 if victim == target_index {
-                    info!("malicious party {} do {:?}", my_index, self.behaviour);
+                    info!("malicious peer {} does {:?}", keygen_id, self.behaviour);
                     ciphertext.corrupt();
                 }
             }

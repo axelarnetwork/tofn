@@ -48,7 +48,7 @@ pub struct R3 {
     pub(crate) threshold: usize,
     pub(crate) party_share_counts: KeygenPartyShareCounts,
     pub(crate) dk: paillier::DecryptionKey,
-    pub(crate) u_i_my_share: vss::Share,
+    pub(crate) u_i_share: vss::Share,
     pub(crate) r1bcasts: VecMap<KeygenShareId, r1::Bcast>,
 
     #[cfg(feature = "malicious")]
@@ -68,33 +68,40 @@ impl bcast_and_p2p::Executer for R3 {
         bcasts_in: VecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<KeygenProtocolBuilder> {
+        let keygen_id = info.share_id();
         let mut faulters = FillVecMap::with_size(info.share_count());
 
         // check y_i commits  // TODO: Why are we verifying our own bcast?
-        for (from, bcast) in bcasts_in.iter() {
-            let y_i = bcast.u_i_vss_commit.secret_commit();
-            let y_i_commit = hash::commit_with_randomness(
+        for (keygen_peer_id, bcast) in bcasts_in.iter() {
+            let peer_y_i = bcast.u_i_vss_commit.secret_commit();
+            let peer_y_i_commit = hash::commit_with_randomness(
                 constants::Y_I_COMMIT_TAG,
-                to_bytes(y_i),
+                to_bytes(peer_y_i),
                 &bcast.y_i_reveal,
             );
-            if y_i_commit != self.r1bcasts.get(from)?.y_i_commit {
-                warn!("party {} detect bad reveal by {}", info.share_id(), from);
-                faulters.set(from, ProtocolFault)?;
+
+            if peer_y_i_commit != self.r1bcasts.get(keygen_peer_id)?.y_i_commit {
+                warn!(
+                    "peer {} says: invalid y_i reveal by peer {}",
+                    keygen_id, keygen_peer_id
+                );
+
+                faulters.set(keygen_peer_id, ProtocolFault)?;
             }
         }
+
         if !faulters.is_empty() {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
         // decrypt shares
-        let share_infos = p2ps_in.map_to_me(info.share_id(), |p2p| {
+        let share_infos = p2ps_in.map_to_me(keygen_id, |p2p| {
             let (u_i_share_plaintext, u_i_share_randomness) =
                 self.dk.decrypt_with_randomness(&p2p.u_i_share_ciphertext);
-            let u_i_share = vss::Share::from_scalar(
-                u_i_share_plaintext.to_scalar(),
-                info.share_id().as_usize(),
-            );
+
+            let u_i_share =
+                vss::Share::from_scalar(u_i_share_plaintext.to_scalar(), keygen_id.as_usize());
+
             ShareInfo {
                 share: u_i_share,
                 randomness: u_i_share_randomness,
@@ -103,15 +110,16 @@ impl bcast_and_p2p::Executer for R3 {
 
         // validate shares
         let mut vss_complaints = FillVecMap::with_size(info.share_count());
-        for (from, share_info) in share_infos.iter() {
+        for (keygen_peer_id, share_info) in share_infos.iter() {
             if !bcasts_in
-                .get(from)?
+                .get(keygen_peer_id)?
                 .u_i_vss_commit
                 .validate_share(&share_info.share)
             {
-                log_accuse_warn(info.share_id(), from, "invalid vss share");
+                log_accuse_warn(keygen_id, keygen_peer_id, "invalid vss share");
+
                 vss_complaints.set(
-                    from,
+                    keygen_peer_id,
                     ShareInfo {
                         share: share_info.share.clone(),
                         randomness: share_info.randomness.clone(),
@@ -122,24 +130,26 @@ impl bcast_and_p2p::Executer for R3 {
 
         corrupt!(
             vss_complaints,
-            self.corrupt_complaint(info.share_id(), &share_infos, vss_complaints)?
+            self.corrupt_complaint(keygen_id, &share_infos, vss_complaints)?
         );
 
         if !vss_complaints.is_empty() {
+            let bcast_out = serialize(&Bcast::Sad(BcastSad { vss_complaints }))?;
+
             return Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
-                round: Box::new(r4::sad::R4Sad {
+                round: Box::new(r4::R4Sad {
                     r1bcasts: self.r1bcasts,
                     r2bcasts: bcasts_in,
                     r2p2ps: p2ps_in,
                 }),
-                bcast_out: serialize(&Bcast::Sad(BcastSad { vss_complaints }))?,
+                bcast_out,
             }));
         }
 
         // compute x_i
         let x_i = share_infos
             .into_iter()
-            .fold(*self.u_i_my_share.get_scalar(), |acc, (_, share_info)| {
+            .fold(*self.u_i_share.get_scalar(), |acc, (_, share_info)| {
                 acc + share_info.share.get_scalar()
             });
 
@@ -161,18 +171,20 @@ impl bcast_and_p2p::Executer for R3 {
             })
             .collect();
 
-        corrupt!(x_i, self.corrupt_scalar(info.share_id(), x_i));
+        corrupt!(x_i, self.corrupt_scalar(keygen_id, x_i));
 
         let x_i_proof = schnorr::prove(
             &schnorr::Statement {
                 base: &k256::ProjectivePoint::generator(),
-                target: all_X_i.get(info.share_id())?,
+                target: all_X_i.get(keygen_id)?,
             },
             &schnorr::Witness { scalar: &x_i },
         );
 
+        let bcast_out = serialize(&Bcast::Happy(BcastHappy { x_i_proof }))?;
+
         Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
-            round: Box::new(r4::happy::R4 {
+            round: Box::new(r4::R4Happy {
                 threshold: self.threshold,
                 party_share_counts: self.party_share_counts,
                 dk: self.dk,
@@ -185,7 +197,7 @@ impl bcast_and_p2p::Executer for R3 {
                 #[cfg(feature = "malicious")]
                 behaviour: self.behaviour,
             }),
-            bcast_out: serialize(&Bcast::Happy(BcastHappy { x_i_proof }))?,
+            bcast_out,
         }))
     }
 
@@ -209,11 +221,11 @@ mod malicious {
     impl R3 {
         pub fn corrupt_scalar(
             &self,
-            my_index: TypedUsize<KeygenShareId>,
+            keygen_id: TypedUsize<KeygenShareId>,
             mut x_i: k256::Scalar,
         ) -> k256::Scalar {
             if let Behaviour::R3BadXIWitness = self.behaviour {
-                log_confess_info(my_index, &self.behaviour, "");
+                log_confess_info(keygen_id, &self.behaviour, "");
                 x_i += k256::Scalar::one();
             }
             x_i
@@ -221,24 +233,26 @@ mod malicious {
 
         pub fn corrupt_complaint(
             &self,
-            index: TypedUsize<KeygenShareId>,
+            keygen_id: TypedUsize<KeygenShareId>,
             share_infos: &HoleVecMap<KeygenShareId, ShareInfo>,
             mut vss_complaints: FillVecMap<KeygenShareId, ShareInfo>,
         ) -> TofnResult<FillVecMap<KeygenShareId, ShareInfo>> {
             if let Behaviour::R3FalseAccusation { victim } = self.behaviour {
                 if !vss_complaints.is_none(victim)? {
-                    log_confess_info(index, &self.behaviour, "but the accusation is true");
-                } else if victim == index {
-                    log_confess_info(index, &self.behaviour, "self accusation");
+                    log_confess_info(keygen_id, &self.behaviour, "but the accusation is true");
+                } else if victim == keygen_id {
+                    log_confess_info(keygen_id, &self.behaviour, "self accusation");
+
                     vss_complaints.set(
                         victim,
                         ShareInfo {
                             share: vss::Share::from_scalar(k256::Scalar::one(), 1), // junk data
-                            randomness: self.r1bcasts.get(index)?.ek.sample_randomness(), // junk data
+                            randomness: self.r1bcasts.get(keygen_id)?.ek.sample_randomness(), // junk data
                         },
                     )?;
                 } else {
-                    log_confess_info(index, &self.behaviour, "");
+                    log_confess_info(keygen_id, &self.behaviour, "");
+
                     vss_complaints.set(victim, share_infos.get(victim)?.clone())?;
                 }
             }

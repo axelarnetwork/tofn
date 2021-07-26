@@ -48,7 +48,7 @@ impl TryFrom<&[u8]> for MessageDigest {
     }
 }
 
-// TODO: Investigate the hash-to-field draft to produce an even less biased sample.
+// TODO: Implement the hash-to-field draft to produce an even less biased sample.
 impl From<&MessageDigest> for k256::Scalar {
     fn from(v: &MessageDigest) -> Self {
         k256::Scalar::from_bytes_reduced(k256::FieldBytes::from_slice(&v.0[..]))

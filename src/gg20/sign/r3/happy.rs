@@ -88,7 +88,6 @@ impl bcast_and_p2p::Executer for R3Happy {
             .iter()
             .any(|(_, bcast)| matches!(bcast, r2::Bcast::Sad(_)))
         {
-            // TODO: Should we check if this peer's P2p's are all Sad?
             warn!(
                 "peer {} says: received an R2 complaint from others",
                 sign_id,
@@ -106,7 +105,7 @@ impl bcast_and_p2p::Executer for R3Happy {
             .execute(info, bcasts_in, p2ps_in);
         }
 
-        // TODO: Should faults be returned for bad P2ps?
+        // TODO: This will be changed once we switch to using P2ps for complaints in R3
         let p2ps_in = p2ps_in.map2_result(|(_, p2p)| match p2p {
             r2::P2p::Happy(p) => Ok(p),
             r2::P2p::Sad => Err(TofnFatal),
@@ -191,7 +190,7 @@ impl bcast_and_p2p::Executer for R3Happy {
 
         corrupt!(
             mta_complaints,
-            self.corrupt_complaint(info.share_id(), mta_complaints)?
+            self.corrupt_complaint(sign_id, mta_complaints)?
         );
 
         if !mta_complaints.is_empty() {
@@ -246,13 +245,10 @@ impl bcast_and_p2p::Executer for R3Happy {
         );
 
         // many malicious behaviours require corrupt delta_i to prepare
-        corrupt!(delta_i, self.corrupt_delta_i(info.share_id(), delta_i));
-        corrupt!(
-            delta_i,
-            self.corrupt_k_i(info.share_id(), delta_i, self.gamma_i)
-        );
-        corrupt!(delta_i, self.corrupt_alpha(info.share_id(), delta_i));
-        corrupt!(delta_i, self.corrupt_beta(info.share_id(), delta_i));
+        corrupt!(delta_i, self.corrupt_delta_i(sign_id, delta_i));
+        corrupt!(delta_i, self.corrupt_k_i(sign_id, delta_i, self.gamma_i));
+        corrupt!(delta_i, self.corrupt_alpha(sign_id, delta_i));
+        corrupt!(delta_i, self.corrupt_beta(sign_id, delta_i));
 
         // compute sigma_i = k_i * w_i + sum_{j != i} mu_ij + nu_ji
         let sigma_i = mus.into_iter().zip(self.nu_secrets.iter()).fold(
@@ -273,10 +269,7 @@ impl bcast_and_p2p::Executer for R3Happy {
             },
         );
 
-        corrupt!(
-            T_i_proof,
-            self.corrupt_T_i_proof(info.share_id(), T_i_proof)
-        );
+        corrupt!(T_i_proof, self.corrupt_T_i_proof(sign_id, T_i_proof));
 
         let bcast_out = serialize(&Bcast::Happy(BcastHappy {
             delta_i: k256_serde::Scalar::from(delta_i),
@@ -331,7 +324,7 @@ mod malicious {
     impl R3Happy {
         pub fn corrupt_complaint(
             &self,
-            me: TypedUsize<SignShareId>,
+            sign_id: TypedUsize<SignShareId>,
             mut mta_complaints: FillVecMap<SignShareId, Accusation>,
         ) -> TofnResult<FillVecMap<SignShareId, Accusation>> {
             let info = match self.behaviour {
@@ -341,12 +334,12 @@ mod malicious {
             };
             if let Some((victim, accusation)) = info {
                 if !mta_complaints.is_none(victim)? {
-                    log_confess_info(me, &self.behaviour, "but the accusation is true");
-                } else if victim == me {
-                    log_confess_info(me, &self.behaviour, "self accusation");
-                    mta_complaints.set(me, accusation)?;
+                    log_confess_info(sign_id, &self.behaviour, "but the accusation is true");
+                } else if victim == sign_id {
+                    log_confess_info(sign_id, &self.behaviour, "self accusation");
+                    mta_complaints.set(sign_id, accusation)?;
                 } else {
-                    log_confess_info(me, &self.behaviour, "");
+                    log_confess_info(sign_id, &self.behaviour, "");
                     mta_complaints.set(victim, accusation)?;
                 }
             }
@@ -356,11 +349,11 @@ mod malicious {
         #[allow(non_snake_case)]
         pub fn corrupt_T_i_proof(
             &self,
-            me: TypedUsize<SignShareId>,
+            sign_id: TypedUsize<SignShareId>,
             T_i_proof: pedersen::Proof,
         ) -> pedersen::Proof {
             if let R3BadProof = self.behaviour {
-                log_confess_info(me, &self.behaviour, "");
+                log_confess_info(sign_id, &self.behaviour, "");
                 return pedersen::malicious::corrupt_proof(&T_i_proof);
             }
             T_i_proof
@@ -368,11 +361,11 @@ mod malicious {
 
         pub fn corrupt_delta_i(
             &self,
-            me: TypedUsize<SignShareId>,
+            sign_id: TypedUsize<SignShareId>,
             mut delta_i: k256::Scalar,
         ) -> k256::Scalar {
             if let R3BadDeltaI = self.behaviour {
-                log_confess_info(me, &self.behaviour, "");
+                log_confess_info(sign_id, &self.behaviour, "");
                 delta_i += k256::Scalar::one();
             }
             delta_i
@@ -382,12 +375,12 @@ mod malicious {
         /// => need to add gamma_i to delta_i to maintain consistency
         pub fn corrupt_k_i(
             &self,
-            me: TypedUsize<SignShareId>,
+            sign_id: TypedUsize<SignShareId>,
             mut delta_i: k256::Scalar,
             gamma_i: k256::Scalar,
         ) -> k256::Scalar {
             if let R3BadKI = self.behaviour {
-                log_confess_info(me, &self.behaviour, "step 1/2: delta_i");
+                log_confess_info(sign_id, &self.behaviour, "step 1/2: delta_i");
                 delta_i += gamma_i;
             }
             delta_i
@@ -397,11 +390,11 @@ mod malicious {
         /// => need to add 1 delta_i to maintain consistency
         pub fn corrupt_alpha(
             &self,
-            me: TypedUsize<SignShareId>,
+            sign_id: TypedUsize<SignShareId>,
             mut delta_i: k256::Scalar,
         ) -> k256::Scalar {
             if let R3BadAlpha { victim: _ } = self.behaviour {
-                log_confess_info(me, &self.behaviour, "step 1/2: delta_i");
+                log_confess_info(sign_id, &self.behaviour, "step 1/2: delta_i");
                 delta_i += k256::Scalar::one();
             }
             delta_i
@@ -411,11 +404,11 @@ mod malicious {
         /// => need to add 1 delta_i to maintain consistency
         pub fn corrupt_beta(
             &self,
-            me: TypedUsize<SignShareId>,
+            sign_id: TypedUsize<SignShareId>,
             mut delta_i: k256::Scalar,
         ) -> k256::Scalar {
             if let R3BadBeta { victim: _ } = self.behaviour {
-                log_confess_info(me, &self.behaviour, "step 1/2: delta_i");
+                log_confess_info(sign_id, &self.behaviour, "step 1/2: delta_i");
                 delta_i += k256::Scalar::one();
             }
             delta_i

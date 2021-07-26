@@ -34,7 +34,7 @@ pub struct R4Happy {
     pub(crate) k_i_randomness: paillier::Randomness,
     pub(crate) sigma_i: Scalar,
     pub(crate) l_i: Scalar,
-    pub(crate) _delta_i: Scalar, // TODO: This is only needed for tests
+    pub(crate) _delta_i: Scalar,
     pub(crate) beta_secrets: HoleVecMap<SignShareId, Secret>,
     pub(crate) r1bcasts: VecMap<SignShareId, r1::Bcast>,
     pub(crate) r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
@@ -71,7 +71,6 @@ impl bcast_only::Executer for R4Happy {
             .iter()
             .any(|(_, bcast)| matches!(bcast, r3::Bcast::Sad(_)))
         {
-            // TODO: Should we check if this peer's P2p's are all Sad?
             warn!(
                 "peer {} says: received an R3 complaint from others",
                 sign_id,
@@ -130,7 +129,7 @@ impl bcast_only::Executer for R4Happy {
         let Gamma_i_reveal = self.Gamma_i_reveal.clone();
         corrupt!(
             Gamma_i_reveal,
-            self.corrupt_Gamma_i_reveal(info.share_id(), Gamma_i_reveal)
+            self.corrupt_Gamma_i_reveal(sign_id, Gamma_i_reveal)
         );
 
         let bcast_out = serialize(&Bcast {
@@ -187,11 +186,11 @@ mod malicious {
         #[allow(non_snake_case)]
         pub fn corrupt_Gamma_i_reveal(
             &self,
-            me: TypedUsize<SignShareId>,
+            sign_id: TypedUsize<SignShareId>,
             mut Gamma_i_reveal: Randomness,
         ) -> Randomness {
             if let R4BadReveal = self.behaviour {
-                log_confess_info(me, &self.behaviour, "");
+                log_confess_info(sign_id, &self.behaviour, "");
                 Gamma_i_reveal.corrupt();
             }
             Gamma_i_reveal

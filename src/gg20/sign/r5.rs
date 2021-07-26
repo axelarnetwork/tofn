@@ -139,7 +139,7 @@ impl bcast_only::Executer for R5 {
 
             corrupt!(
                 k_i_range_proof_wc,
-                self.corrupt_k_i_range_proof_wc(info.share_id(), _sign_peer_id, k_i_range_proof_wc)
+                self.corrupt_k_i_range_proof_wc(sign_id, _sign_peer_id, k_i_range_proof_wc)
             );
 
             serialize(&P2p { k_i_range_proof_wc })
@@ -197,13 +197,13 @@ mod malicious {
     impl R5 {
         pub fn corrupt_k_i_range_proof_wc(
             &self,
-            me: TypedUsize<SignShareId>,
+            sign_id: TypedUsize<SignShareId>,
             recipient: TypedUsize<SignShareId>,
             range_proof: range::ProofWc,
         ) -> range::ProofWc {
             if let R5BadProof { victim } = self.behaviour {
                 if victim == recipient {
-                    log_confess_info(me, &self.behaviour, "");
+                    log_confess_info(sign_id, &self.behaviour, "");
                     return range::malicious::corrupt_proof_wc(&range_proof);
                 }
             }
