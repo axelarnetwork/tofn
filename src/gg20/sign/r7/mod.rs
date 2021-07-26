@@ -2,20 +2,23 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     collections::HoleVecMap,
-    gg20::crypto_tools::{k256_serde, paillier, zkp::chaum_pedersen_k256},
+    gg20::crypto_tools::{k256_serde, paillier, zkp::chaum_pedersen},
 };
 
-use super::SignParticipantIndex;
+use super::SignShareId;
 
-pub mod happy;
-pub mod sad;
-pub mod type5;
+mod happy;
+pub(super) use happy::R7Happy;
+mod sad;
+pub(super) use sad::R7Sad;
+mod type5;
+pub(super) use type5::R7Type5;
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Bcast {
     Happy(BcastHappy),
-    Sad(BcastSad),
+    SadType7(BcastSadType7),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -25,11 +28,11 @@ pub struct BcastHappy {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BcastSad {
+pub struct BcastSadType7 {
     pub k_i: k256_serde::Scalar,
     pub k_i_randomness: paillier::Randomness,
-    pub proof: chaum_pedersen_k256::Proof,
-    pub mta_wc_plaintexts: HoleVecMap<SignParticipantIndex, MtaWcPlaintext>,
+    pub proof: chaum_pedersen::Proof,
+    pub mta_wc_plaintexts: HoleVecMap<SignShareId, MtaWcPlaintext>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

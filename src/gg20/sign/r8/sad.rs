@@ -1,9 +1,9 @@
 use crate::{
     collections::{FillVecMap, P2ps, TypedUsize, VecMap},
     gg20::{
-        crypto_tools::{hash::Randomness, k256_serde, paillier, vss, zkp::chaum_pedersen_k256},
-        keygen::{KeygenPartyIndex, SecretKeyShare},
-        sign::{r2, r3, r4, Participants},
+        crypto_tools::{k256_serde, vss, zkp::chaum_pedersen},
+        keygen::{KeygenShareId, SecretKeyShare},
+        sign::{r2, Participants},
     },
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
@@ -14,35 +14,21 @@ use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
 
-use super::super::{r1, r5, r6, r7, Peers, SignParticipantIndex, SignProtocolBuilder};
+use super::super::{r1, r6, r7, Peers, SignProtocolBuilder, SignShareId};
 
 #[cfg(feature = "malicious")]
 use super::super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
-pub struct R8 {
-    pub secret_key_share: SecretKeyShare,
-    pub msg_to_sign: Scalar,
-    pub peers: Peers,
-    pub participants: Participants,
-    pub keygen_id: TypedUsize<KeygenPartyIndex>,
-    pub gamma_i: Scalar,
-    pub Gamma_i: ProjectivePoint,
-    pub Gamma_i_reveal: Randomness,
-    pub w_i: Scalar,
-    pub k_i: Scalar,
-    pub k_i_randomness: paillier::Randomness,
-    pub sigma_i: Scalar,
-    pub l_i: Scalar,
-    pub T_i: ProjectivePoint,
-    pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
-    pub r2p2ps: P2ps<SignParticipantIndex, r2::P2pHappy>,
-    pub r3bcasts: VecMap<SignParticipantIndex, r3::happy::BcastHappy>,
-    pub r4bcasts: VecMap<SignParticipantIndex, r4::happy::Bcast>,
-    pub delta_inv: Scalar,
-    pub R: ProjectivePoint,
-    pub r5bcasts: VecMap<SignParticipantIndex, r5::Bcast>,
-    pub r6bcasts: VecMap<SignParticipantIndex, r6::BcastHappy>,
+pub struct R8Type7 {
+    pub(crate) secret_key_share: SecretKeyShare,
+    pub(crate) peers: Peers,
+    pub(crate) participants: Participants,
+    pub(crate) keygen_id: TypedUsize<KeygenShareId>,
+    pub(crate) r1bcasts: VecMap<SignShareId, r1::Bcast>,
+    pub(crate) r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
+    pub(crate) R: ProjectivePoint,
+    pub(crate) r6bcasts: VecMap<SignShareId, r6::BcastHappy>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
@@ -54,9 +40,9 @@ pub struct Bcast {
     pub s_i: k256_serde::Scalar,
 }
 
-impl bcast_only::Executer for R8 {
+impl bcast_only::Executer for R8Type7 {
     type FinalOutput = BytesVec;
-    type Index = SignParticipantIndex;
+    type Index = SignShareId;
     type Bcast = r7::Bcast;
 
     #[allow(non_snake_case)]
@@ -75,7 +61,7 @@ impl bcast_only::Executer for R8 {
         // any peer who did not detect 'type 7' is a faulter
         for (sign_peer_id, bcast) in bcasts_in.into_iter() {
             match bcast {
-                r7::Bcast::Sad(bcast_sad) => {
+                r7::Bcast::SadType7(bcast_sad) => {
                     bcasts_sad.set(sign_peer_id, bcast_sad)?;
                 }
                 r7::Bcast::Happy(_) => {
@@ -83,6 +69,7 @@ impl bcast_only::Executer for R8 {
                         "peer {} detect failure to detect 'type 7' fault by peer {}",
                         sign_id, sign_peer_id
                     );
+
                     faulters.set(sign_peer_id, ProtocolFault)?;
                 }
             }
@@ -100,16 +87,17 @@ impl bcast_only::Executer for R8 {
         // TODO this code for k_i faults is identical to that of r7_fail_type5
         // TODO maybe you can test this path by choosing fake k_i', w_i' such that k_i'*w_i' == k_i*w_i
         for (sign_peer_id, bcast) in bcasts_in.iter() {
-            let mta_wc_plaintexts = &bcast.mta_wc_plaintexts;
+            let peer_mta_wc_plaintexts = &bcast.mta_wc_plaintexts;
 
-            if mta_wc_plaintexts.len() != self.peers.len() {
+            if peer_mta_wc_plaintexts.len() != self.peers.len() {
                 warn!(
                     "peer {} says: peer {} sent {} MtA plaintexts, expected {}",
                     sign_id,
                     sign_peer_id,
-                    mta_wc_plaintexts.len(),
+                    peer_mta_wc_plaintexts.len(),
                     self.peers.len()
                 );
+
                 faulters.set(sign_peer_id, ProtocolFault)?;
                 continue;
             }
@@ -133,23 +121,24 @@ impl bcast_only::Executer for R8 {
                     "peer {} says: invalid k_i detected from peer {}",
                     sign_id, sign_peer_id
                 );
+
                 faulters.set(sign_peer_id, ProtocolFault)?;
                 continue;
             }
 
             // mu_ij
-            for (sign_party_id, mta_wc_plaintext) in mta_wc_plaintexts {
+            for (sign_peer2_id, peer_mta_wc_plaintext) in peer_mta_wc_plaintexts {
                 let peer_mu_ciphertext = peer_ek.encrypt_with_randomness(
-                    &mta_wc_plaintext.mu_plaintext,
-                    &mta_wc_plaintext.mu_randomness,
+                    &peer_mta_wc_plaintext.mu_plaintext,
+                    &peer_mta_wc_plaintext.mu_randomness,
                 );
-                if peer_mu_ciphertext != self.r2p2ps.get(sign_party_id, sign_peer_id)?.mu_ciphertext
+                if peer_mu_ciphertext != self.r2p2ps.get(sign_peer2_id, sign_peer_id)?.mu_ciphertext
                 {
-                    // TODO: Who's responsible for the failure here?
                     warn!(
                         "peer {} says: invalid mu from peer {} to victim peer {}",
-                        sign_id, sign_peer_id, sign_party_id
+                        sign_id, sign_peer_id, sign_peer2_id
                     );
+
                     faulters.set(sign_peer_id, ProtocolFault)?;
                     continue;
                 }
@@ -218,14 +207,14 @@ impl bcast_only::Executer for R8 {
             let peer_g_sigma_i = peer_W_i * k + ProjectivePoint::generator() * peer_mu_sum;
 
             // verify zkp
-            let peer_stmt = &chaum_pedersen_k256::Statement {
+            let peer_stmt = &chaum_pedersen::Statement {
                 base1: &k256::ProjectivePoint::generator(),
                 base2: &self.R,
                 target1: &peer_g_sigma_i, // sigma_i * G
                 target2: &self.r6bcasts.get(sign_peer_id)?.S_i.unwrap(), // sigma_i * R == S_i
             };
 
-            if let Err(err) = chaum_pedersen_k256::verify(peer_stmt, &bcast.proof) {
+            if let Err(err) = chaum_pedersen::verify(peer_stmt, &bcast.proof) {
                 warn!(
                     "peer {} says: chaum_pedersen proof from peer {} failed to verify because [{}]",
                     sign_id, sign_peer_id, err

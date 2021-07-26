@@ -2,7 +2,7 @@ use tofn::{
     collections::{FillVecMap, TypedUsize, VecMap},
     gg20::keygen::{
         malicious::Behaviour::{self, *},
-        new_keygen_unsafe, KeygenPartyIndex, KeygenProtocol, RealKeygenPartyIndex, SecretKeyShare,
+        new_keygen_unsafe, KeygenPartyId, KeygenProtocol, KeygenShareId, SecretKeyShare,
     },
     sdk::api::{Fault, PartyShareCounts, Protocol::*, ProtocolOutput},
 };
@@ -50,17 +50,14 @@ fn single_fault_test_case(behaviour: Behaviour) -> TestCase {
 }
 
 pub struct TestCase {
-    pub party_share_counts: PartyShareCounts<RealKeygenPartyIndex>,
+    pub party_share_counts: PartyShareCounts<KeygenPartyId>,
     pub threshold: usize,
-    pub share_behaviours: VecMap<KeygenPartyIndex, Behaviour>,
-    pub expected_honest_output: ProtocolOutput<SecretKeyShare, RealKeygenPartyIndex>,
+    pub share_behaviours: VecMap<KeygenShareId, Behaviour>,
+    pub expected_honest_output: ProtocolOutput<SecretKeyShare, KeygenPartyId>,
 }
 
 impl TestCase {
-    pub fn assert_expected_output(
-        &self,
-        output: &ProtocolOutput<SecretKeyShare, RealKeygenPartyIndex>,
-    ) {
+    pub fn assert_expected_output(&self, output: &ProtocolOutput<SecretKeyShare, KeygenPartyId>) {
         match output {
             Ok(_) => assert!(
                 self.expected_honest_output.is_ok(),
@@ -75,7 +72,7 @@ impl TestCase {
             }
         }
     }
-    pub fn initialize_malicious_parties(&self) -> VecMap<KeygenPartyIndex, KeygenProtocol> {
+    pub fn initialize_malicious_parties(&self) -> VecMap<KeygenShareId, KeygenProtocol> {
         let session_nonce = b"foobar";
         self.share_behaviours
             .iter()

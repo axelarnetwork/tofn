@@ -62,11 +62,12 @@ impl ZkSetup {
     // used by Bob (the "respondent") in MtA protocol
     // MtA : Multiplicative to Additive
     pub fn mta_proof(&self, stmt: &Statement, wit: &Witness) -> Proof {
-        self.mta_proof_inner(stmt, None, wit).0
+        self.mta_proof_inner(constants::MTA_PROOF_TAG, stmt, None, wit)
+            .0
     }
 
     pub fn verify_mta_proof(&self, stmt: &Statement, proof: &Proof) -> Result<(), &'static str> {
-        self.verify_mta_proof_inner(stmt, proof, None)
+        self.verify_mta_proof_inner(constants::MTA_PROOF_TAG, stmt, proof, None)
     }
 
     // statement (ciphertext1, ciphertext2, ek, x_g), witness (x, msg, randomness)
@@ -77,7 +78,8 @@ impl ZkSetup {
     // used by Bob (the "respondent") in MtAwc protocol
     // MtAwc : Multiplicative to Additive with check
     pub fn mta_proof_wc(&self, stmt: &StatementWc, wit: &Witness) -> ProofWc {
-        let (proof, u) = self.mta_proof_inner(&stmt.stmt, Some(stmt.x_g), wit);
+        let (proof, u) =
+            self.mta_proof_inner(constants::MTA_PROOF_WC_TAG, &stmt.stmt, Some(stmt.x_g), wit);
         ProofWc {
             proof,
             u: k256_serde::ProjectivePoint::from(u.unwrap()),
@@ -90,6 +92,7 @@ impl ZkSetup {
         proof: &ProofWc,
     ) -> Result<(), &'static str> {
         self.verify_mta_proof_inner(
+            constants::MTA_PROOF_WC_TAG,
             &stmt.stmt,
             &proof.proof,
             Some((stmt.x_g, &proof.u.unwrap())),
@@ -99,6 +102,7 @@ impl ZkSetup {
     #[allow(clippy::many_single_char_names)]
     fn mta_proof_inner(
         &self,
+        tag: u8,
         stmt: &Statement,
         x_g: Option<&k256::ProjectivePoint>,
         wit: &Witness,
@@ -134,7 +138,7 @@ impl ZkSetup {
 
         let e = to_bigint(&k256::Scalar::from_digest(
             Sha256::new()
-                .chain(constants::MTA_PROOF_TAG.to_le_bytes())
+                .chain(tag.to_le_bytes())
                 .chain(to_vec(&stmt.ek.0.n))
                 .chain(to_vec(&stmt.ciphertext1.0))
                 .chain(to_vec(&stmt.ciphertext2.0))
@@ -176,6 +180,7 @@ impl ZkSetup {
 
     fn verify_mta_proof_inner(
         &self,
+        tag: u8,
         stmt: &Statement,
         proof: &Proof,
         x_g_u: Option<(&k256::ProjectivePoint, &k256::ProjectivePoint)>, // (x_g, u)
@@ -185,7 +190,7 @@ impl ZkSetup {
         }
         let e = k256::Scalar::from_digest(
             Sha256::new()
-                .chain(constants::MTA_PROOF_TAG.to_le_bytes())
+                .chain(tag.to_le_bytes())
                 .chain(to_vec(&stmt.ek.0.n))
                 .chain(to_vec(&stmt.ciphertext1.0))
                 .chain(to_vec(&stmt.ciphertext2.0))

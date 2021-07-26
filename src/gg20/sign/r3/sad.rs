@@ -1,46 +1,33 @@
 use crate::{
-    collections::{FillVecMap, P2ps, TypedUsize, VecMap},
-    gg20::{
-        crypto_tools::{hash::Randomness, paillier},
-        keygen::{KeygenPartyIndex, SecretKeyShare},
-        sign::Participants,
-    },
+    collections::{FillVecMap, P2ps, VecMap},
+    gg20::{crypto_tools::paillier, keygen::SecretKeyShare, sign::Participants},
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
         implementer_api::{bcast_and_p2p, log_fault_info, ProtocolBuilder, ProtocolInfo},
     },
 };
-use k256::{ProjectivePoint, Scalar};
+
 use tracing::error;
 
-use super::super::{r1, r2, Peers, SignParticipantIndex, SignProtocolBuilder};
+use super::super::{r1, r2, SignProtocolBuilder, SignShareId};
 
 #[cfg(feature = "malicious")]
 use super::super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
-pub struct R3 {
-    pub secret_key_share: SecretKeyShare,
-    pub msg_to_sign: Scalar,
-    pub peers: Peers,
-    pub participants: Participants,
-    pub keygen_id: TypedUsize<KeygenPartyIndex>,
-    pub gamma_i: Scalar,
-    pub Gamma_i: ProjectivePoint,
-    pub Gamma_i_reveal: Randomness,
-    pub w_i: Scalar,
-    pub k_i: Scalar,
-    pub k_i_randomness: paillier::Randomness,
-    pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
-    pub r1p2ps: P2ps<SignParticipantIndex, r1::P2p>,
+pub struct R3Sad {
+    pub(crate) secret_key_share: SecretKeyShare,
+    pub(crate) participants: Participants,
+    pub(crate) r1bcasts: VecMap<SignShareId, r1::Bcast>,
+    pub(crate) r1p2ps: P2ps<SignShareId, r1::P2p>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
 }
 
-impl bcast_and_p2p::Executer for R3 {
+impl bcast_and_p2p::Executer for R3Sad {
     type FinalOutput = BytesVec;
-    type Index = SignParticipantIndex;
+    type Index = SignShareId;
     type Bcast = r2::Bcast;
     type P2p = r2::P2p;
 
@@ -69,8 +56,6 @@ impl bcast_and_p2p::Executer for R3 {
             return Err(TofnFatal);
         }
 
-        // TODO: do we check that P2ps are also Sad?
-
         let accusations_iter =
             bcasts_in
                 .into_iter()
@@ -81,6 +66,13 @@ impl bcast_and_p2p::Executer for R3 {
 
         // verify complaints
         for (accuser_sign_id, accusations) in accusations_iter {
+            if accusations.zkp_complaints.is_empty() {
+                log_fault_info(sign_id, accuser_sign_id, "no accusation found");
+
+                faulters.set(accuser_sign_id, ProtocolFault)?;
+                continue;
+            }
+
             for accused_sign_id in accusations.zkp_complaints.iter() {
                 if accuser_sign_id == accused_sign_id {
                     log_fault_info(sign_id, accuser_sign_id, "self accusation");

@@ -1,8 +1,8 @@
 use crate::{
-    collections::{FillVecMap, P2ps, TypedUsize, VecMap},
+    collections::{FillVecMap, P2ps, VecMap},
     gg20::{
-        crypto_tools::{hash::Randomness, paillier, vss},
-        keygen::{KeygenPartyIndex, SecretKeyShare},
+        crypto_tools::{paillier, vss},
+        keygen::SecretKeyShare,
         sign::Participants,
     },
     sdk::{
@@ -10,38 +10,29 @@ use crate::{
         implementer_api::{bcast_only, log_fault_info, ProtocolBuilder, ProtocolInfo},
     },
 };
-use k256::{ProjectivePoint, Scalar};
+
 use tracing::error;
 
-use super::super::{r1, r2, r3, Peers, SignParticipantIndex, SignProtocolBuilder};
+use super::super::{r1, r2, r3, SignProtocolBuilder, SignShareId};
 
 #[cfg(feature = "malicious")]
 use super::super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
-pub struct R4 {
-    pub secret_key_share: SecretKeyShare,
-    pub msg_to_sign: Scalar,
-    pub peers: Peers,
-    pub participants: Participants,
-    pub keygen_id: TypedUsize<KeygenPartyIndex>,
-    pub gamma_i: Scalar,
-    pub Gamma_i: ProjectivePoint,
-    pub Gamma_i_reveal: Randomness,
-    pub w_i: Scalar,
-    pub k_i: Scalar,
-    pub k_i_randomness: paillier::Randomness,
-    pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
-    pub r2p2ps: P2ps<SignParticipantIndex, r2::P2pHappy>,
+pub struct R4Sad {
+    pub(crate) secret_key_share: SecretKeyShare,
+    pub(crate) participants: Participants,
+    pub(crate) r1bcasts: VecMap<SignShareId, r1::Bcast>,
+    pub(crate) r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
 }
 
-impl bcast_only::Executer for R4 {
+impl bcast_only::Executer for R4Sad {
     type FinalOutput = BytesVec;
-    type Index = SignParticipantIndex;
-    type Bcast = r3::happy::Bcast;
+    type Index = SignShareId;
+    type Bcast = r3::Bcast;
 
     #[allow(non_snake_case)]
     fn execute(
@@ -57,7 +48,7 @@ impl bcast_only::Executer for R4 {
         // check if there are no complaints
         if bcasts_in
             .iter()
-            .all(|(_, bcast)| matches!(bcast, r3::happy::Bcast::Happy(_)))
+            .all(|(_, bcast)| matches!(bcast, r3::Bcast::Happy(_)))
         {
             error!(
                 "peer {} says: received no R3 complaints from others in R4 failure protocol",
@@ -71,12 +62,19 @@ impl bcast_only::Executer for R4 {
             bcasts_in
                 .into_iter()
                 .filter_map(|(sign_peer_id, bcast)| match bcast {
-                    r3::happy::Bcast::Happy(_) => None,
-                    r3::happy::Bcast::Sad(accusations) => Some((sign_peer_id, accusations)),
+                    r3::Bcast::Happy(_) => None,
+                    r3::Bcast::Sad(accusations) => Some((sign_peer_id, accusations)),
                 });
 
         // verify complaints
         for (accuser_sign_id, accusations) in accusations_iter {
+            if accusations.mta_complaints.is_empty() {
+                log_fault_info(sign_id, accuser_sign_id, "no accusation found");
+
+                faulters.set(accuser_sign_id, ProtocolFault)?;
+                continue;
+            }
+
             for (accused_sign_id, accusation) in accusations.mta_complaints.iter_some() {
                 if accuser_sign_id == accused_sign_id {
                     log_fault_info(sign_id, accuser_sign_id, "self accusation");
@@ -105,7 +103,7 @@ impl bcast_only::Executer for R4 {
 
                 // check mta proofs
                 let (accusation_type, result) = match *accusation {
-                    r3::happy::Accusation::MtA => {
+                    r3::Accusation::MtA => {
                         let accused_stmt = paillier::zk::mta::Statement {
                             ciphertext1: &self.r1bcasts.get(accuser_sign_id)?.k_i_ciphertext,
                             ciphertext2: &p2p.alpha_ciphertext,
@@ -117,7 +115,7 @@ impl bcast_only::Executer for R4 {
                             accuser_zkp.verify_mta_proof(&accused_stmt, &p2p.alpha_proof),
                         )
                     }
-                    r3::happy::Accusation::MtAwc => {
+                    r3::Accusation::MtAwc => {
                         let accused_lambda_i_S = &vss::lagrange_coefficient(
                             accused_sign_id.as_usize(),
                             &self

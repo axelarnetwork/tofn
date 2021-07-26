@@ -1,8 +1,8 @@
 use crate::{
-    collections::{FillVecMap, P2ps, TypedUsize, VecMap},
+    collections::{FillVecMap, P2ps, VecMap},
     gg20::{
-        crypto_tools::{hash::Randomness, mta, paillier},
-        keygen::{KeygenPartyIndex, SecretKeyShare},
+        crypto_tools::mta,
+        keygen::SecretKeyShare,
         sign::{r2, r4, r7, Participants},
     },
     sdk::{
@@ -10,46 +10,34 @@ use crate::{
         implementer_api::{bcast_only, ProtocolBuilder, ProtocolInfo},
     },
 };
-use k256::{ProjectivePoint, Scalar};
+use k256::ProjectivePoint;
 use tracing::{error, warn};
 
-use super::super::{r1, r3, r5, r6, Peers, SignParticipantIndex, SignProtocolBuilder};
+use super::super::{r1, r3, r5, r6, Peers, SignProtocolBuilder, SignShareId};
 
 #[cfg(feature = "malicious")]
 use super::super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
-pub struct R7 {
-    pub secret_key_share: SecretKeyShare,
-    pub msg_to_sign: Scalar,
-    pub peers: Peers,
-    pub participants: Participants,
-    pub keygen_id: TypedUsize<KeygenPartyIndex>,
-    pub gamma_i: Scalar,
-    pub Gamma_i: ProjectivePoint,
-    pub Gamma_i_reveal: Randomness,
-    pub w_i: Scalar,
-    pub k_i: Scalar,
-    pub k_i_randomness: paillier::Randomness,
-    pub sigma_i: Scalar,
-    pub l_i: Scalar,
-    pub T_i: ProjectivePoint,
-    pub r1bcasts: VecMap<SignParticipantIndex, r1::Bcast>,
-    pub r2p2ps: P2ps<SignParticipantIndex, r2::P2pHappy>,
-    pub r3bcasts: VecMap<SignParticipantIndex, r3::happy::BcastHappy>,
-    pub r4bcasts: VecMap<SignParticipantIndex, r4::happy::Bcast>,
-    pub delta_inv: Scalar,
-    pub R: ProjectivePoint,
-    pub r5bcasts: VecMap<SignParticipantIndex, r5::Bcast>,
-    pub r5p2ps: P2ps<SignParticipantIndex, r5::P2p>,
+pub(crate) struct R7Type5 {
+    pub(crate) secret_key_share: SecretKeyShare,
+    pub(crate) peers: Peers,
+    pub(crate) participants: Participants,
+    pub(crate) r1bcasts: VecMap<SignShareId, r1::Bcast>,
+    pub(crate) r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
+    pub(crate) r3bcasts: VecMap<SignShareId, r3::BcastHappy>,
+    pub(crate) r4bcasts: VecMap<SignShareId, r4::Bcast>,
+    pub(crate) R: ProjectivePoint,
+    pub(crate) r5bcasts: VecMap<SignShareId, r5::Bcast>,
+    pub(crate) r5p2ps: P2ps<SignShareId, r5::P2p>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
 }
 
-impl bcast_only::Executer for R7 {
+impl bcast_only::Executer for R7Type5 {
     type FinalOutput = BytesVec;
-    type Index = SignParticipantIndex;
+    type Index = SignShareId;
     type Bcast = r6::Bcast;
 
     #[allow(non_snake_case)]
@@ -73,26 +61,10 @@ impl bcast_only::Executer for R7 {
                 sign_id,
             );
 
-            return Box::new(r7::sad::R7 {
+            return Box::new(r7::sad::R7Sad {
                 secret_key_share: self.secret_key_share,
-                msg_to_sign: self.msg_to_sign,
-                peers: self.peers,
                 participants: self.participants,
-                keygen_id: self.keygen_id,
-                gamma_i: self.gamma_i,
-                Gamma_i: self.Gamma_i,
-                Gamma_i_reveal: self.Gamma_i_reveal,
-                w_i: self.w_i,
-                k_i: self.k_i,
-                k_i_randomness: self.k_i_randomness,
-                sigma_i: self.sigma_i,
-                l_i: self.l_i,
-                T_i: self.T_i,
                 r1bcasts: self.r1bcasts,
-                r2p2ps: self.r2p2ps,
-                r3bcasts: self.r3bcasts,
-                r4bcasts: self.r4bcasts,
-                delta_inv: self.delta_inv,
                 R: self.R,
                 r5bcasts: self.r5bcasts,
                 r5p2ps: self.r5p2ps,
@@ -122,6 +94,7 @@ impl bcast_only::Executer for R7 {
                 }
             }
         }
+
         if !faulters.is_empty() {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
@@ -130,14 +103,14 @@ impl bcast_only::Executer for R7 {
 
         // verify that each participant's data is consistent with earlier messages:
         for (sign_peer_id, bcast) in &bcasts_in {
-            let mta_plaintexts = &bcast.mta_plaintexts;
+            let peer_mta_plaintexts = &bcast.mta_plaintexts;
 
-            if mta_plaintexts.len() != self.peers.len() {
+            if peer_mta_plaintexts.len() != self.peers.len() {
                 warn!(
                     "peer {} says: peer {} sent {} MtA plaintexts, expected {}",
                     sign_id,
                     sign_peer_id,
-                    mta_plaintexts.len(),
+                    peer_mta_plaintexts.len(),
                     self.peers.len()
                 );
                 faulters.set(sign_peer_id, ProtocolFault)?;
@@ -145,7 +118,7 @@ impl bcast_only::Executer for R7 {
             }
 
             // verify correct computation of delta_i
-            let delta_i = mta_plaintexts.iter().fold(
+            let delta_i = peer_mta_plaintexts.iter().fold(
                 bcast.k_i.unwrap() * bcast.gamma_i.unwrap(),
                 |acc, (_, mta_plaintext)| {
                     acc + mta_plaintext.alpha_plaintext.to_scalar()
@@ -200,54 +173,54 @@ impl bcast_only::Executer for R7 {
             }
 
             // beta_ij, alpha_ij
-            for (sign_party_id, mta_plaintext) in mta_plaintexts {
-                let keygen_party_id = *self.participants.get(sign_party_id)?;
+            for (sign_peer2_id, peer_mta_plaintext) in peer_mta_plaintexts {
+                let keygen_peer2_id = *self.participants.get(sign_peer2_id)?;
 
                 // beta_ij
-                let party_ek = &self
+                let peer2_ek = &self
                     .secret_key_share
                     .group()
                     .all_shares()
-                    .get(keygen_party_id)?
+                    .get(keygen_peer2_id)?
                     .ek();
-                let party_k_i_ciphertext = &self.r1bcasts.get(sign_party_id)?.k_i_ciphertext;
-                let party_alpha_ciphertext = &self
+                let peer2_k_i_ciphertext = &self.r1bcasts.get(sign_peer2_id)?.k_i_ciphertext;
+                let peer2_alpha_ciphertext = &self
                     .r2p2ps
-                    .get(sign_peer_id, sign_party_id)?
+                    .get(sign_peer_id, sign_peer2_id)?
                     .alpha_ciphertext;
 
                 if !mta::verify_mta_response(
-                    party_ek,
-                    party_k_i_ciphertext,
+                    peer2_ek,
+                    peer2_k_i_ciphertext,
                     bcast.gamma_i.unwrap(),
-                    party_alpha_ciphertext,
-                    &mta_plaintext.beta_secret,
+                    peer2_alpha_ciphertext,
+                    &peer_mta_plaintext.beta_secret,
                 ) {
-                    // TODO: Who's responsible for the failure here?
                     warn!(
                         "peer {} says: invalid beta from peer {} to victim peer {}",
-                        sign_id, sign_peer_id, sign_party_id
+                        sign_id, sign_peer_id, sign_peer2_id
                     );
+
                     faulters.set(sign_peer_id, ProtocolFault)?;
                     continue;
                 }
 
                 // alpha_ij
                 let peer_alpha_ciphertext = peer_ek.encrypt_with_randomness(
-                    &mta_plaintext.alpha_plaintext,
-                    &mta_plaintext.alpha_randomness,
+                    &peer_mta_plaintext.alpha_plaintext,
+                    &peer_mta_plaintext.alpha_randomness,
                 );
                 if peer_alpha_ciphertext
                     != self
                         .r2p2ps
-                        .get(sign_party_id, sign_peer_id)?
+                        .get(sign_peer2_id, sign_peer_id)?
                         .alpha_ciphertext
                 {
-                    // TODO: Who's responsible for the failure here?
                     warn!(
                         "peer {} says: invalid alpha from peer {} to victim peer {}",
-                        sign_id, sign_peer_id, sign_party_id
+                        sign_id, sign_peer_id, sign_peer2_id
                     );
+
                     faulters.set(sign_peer_id, ProtocolFault)?;
                     continue;
                 }

@@ -56,11 +56,12 @@ impl ZkSetup {
     //   such that ciphertext = Enc(ek, msg, randomness) and -q^3 < msg < q^3
     // full specification: appendix A.1 of https://eprint.iacr.org/2019/114.pdf
     pub fn range_proof(&self, stmt: &Statement, wit: &Witness) -> Proof {
-        self.range_proof_inner(stmt, None, wit).0
+        self.range_proof_inner(constants::RANGE_PROOF_TAG, stmt, None, wit)
+            .0
     }
 
     pub fn verify_range_proof(&self, stmt: &Statement, proof: &Proof) -> Result<(), &'static str> {
-        self.verify_range_proof_inner(stmt, proof, None)
+        self.verify_range_proof_inner(constants::RANGE_PROOF_TAG, stmt, proof, None)
     }
 
     // statement (msg_g, g, ciphertext, ek), witness (msg, randomness)
@@ -69,7 +70,12 @@ impl ZkSetup {
     // adapted from appendix A.1 of https://eprint.iacr.org/2019/114.pdf
     // full specification: section 4.4, proof \Pi_i of https://eprint.iacr.org/2016/013.pdf
     pub fn range_proof_wc(&self, stmt: &StatementWc, wit: &Witness) -> ProofWc {
-        let (proof, u1) = self.range_proof_inner(&stmt.stmt, Some((stmt.msg_g, stmt.g)), wit);
+        let (proof, u1) = self.range_proof_inner(
+            constants::RANGE_PROOF_WC_TAG,
+            &stmt.stmt,
+            Some((stmt.msg_g, stmt.g)),
+            wit,
+        );
         ProofWc {
             proof,
             u1: k256_serde::ProjectivePoint::from(u1.unwrap()),
@@ -82,6 +88,7 @@ impl ZkSetup {
         proof: &ProofWc,
     ) -> Result<(), &'static str> {
         self.verify_range_proof_inner(
+            constants::RANGE_PROOF_WC_TAG,
             &stmt.stmt,
             &proof.proof,
             Some((stmt.msg_g, stmt.g, &proof.u1.unwrap())),
@@ -91,6 +98,7 @@ impl ZkSetup {
     #[allow(clippy::many_single_char_names)]
     fn range_proof_inner(
         &self,
+        tag: u8,
         stmt: &Statement,
         msg_g_g: Option<(&k256::ProjectivePoint, &k256::ProjectivePoint)>, // (msg_g, g)
         wit: &Witness,
@@ -108,7 +116,7 @@ impl ZkSetup {
 
         let e = k256::Scalar::from_digest(
             Sha256::new()
-                .chain(constants::RANGE_PROOF_TAG.to_le_bytes())
+                .chain(tag.to_le_bytes())
                 .chain(to_vec(&stmt.ek.0.n))
                 .chain(to_vec(&stmt.ciphertext.0))
                 .chain(&msg_g_g.map_or(Vec::new(), |(msg_g, _)| k256_serde::to_bytes(&msg_g)))
@@ -133,6 +141,7 @@ impl ZkSetup {
 
     fn verify_range_proof_inner(
         &self,
+        tag: u8,
         stmt: &Statement,
         proof: &Proof,
         msg_g_g_u1: Option<(
@@ -146,7 +155,7 @@ impl ZkSetup {
         }
         let e = k256::Scalar::from_digest(
             Sha256::new()
-                .chain(constants::RANGE_PROOF_TAG.to_le_bytes())
+                .chain(tag.to_le_bytes())
                 .chain(to_vec(&stmt.ek.0.n))
                 .chain(to_vec(&stmt.ciphertext.0))
                 .chain(&msg_g_g_u1.map_or(Vec::new(), |(msg_g, _, _)| k256_serde::to_bytes(&msg_g)))

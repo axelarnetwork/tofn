@@ -4,7 +4,7 @@ use crate::{
     gg20::{
         constants,
         crypto_tools::{hash, k256_serde::to_bytes, paillier, vss},
-        keygen::{KeygenPartyIndex, SecretKeyShare},
+        keygen::{KeygenShareId, SecretKeyShare},
     },
     sdk::{
         api::{BytesVec, TofnResult},
@@ -15,18 +15,18 @@ use ecdsa::elliptic_curve::Field;
 use k256::Scalar;
 use serde::{Deserialize, Serialize};
 
-use super::{r2, Participants, Peers, SignParticipantIndex, SignProtocolBuilder};
+use super::{r2, Participants, Peers, SignProtocolBuilder, SignShareId};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
 pub struct R1 {
-    pub secret_key_share: SecretKeyShare,
-    pub msg_to_sign: Scalar,
-    pub peers: Peers,
-    pub participants: Participants,
-    pub keygen_id: TypedUsize<KeygenPartyIndex>,
+    pub(crate) secret_key_share: SecretKeyShare,
+    pub(crate) msg_to_sign: Scalar,
+    pub(crate) peers: Peers,
+    pub(crate) participants: Participants,
+    pub(crate) keygen_id: TypedUsize<KeygenShareId>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
@@ -46,7 +46,7 @@ pub struct P2p {
 
 impl no_messages::Executer for R1 {
     type FinalOutput = BytesVec;
-    type Index = SignParticipantIndex;
+    type Index = SignShareId;
 
     #[allow(non_snake_case)]
     fn execute(
@@ -72,7 +72,7 @@ impl no_messages::Executer for R1 {
         let (Gamma_i_commit, Gamma_i_reveal) =
             hash::commit(constants::GAMMA_I_COMMIT_TAG, to_bytes(&Gamma_i));
 
-        corrupt!(gamma_i, self.corrupt_gamma_i(info.share_id(), gamma_i));
+        corrupt!(gamma_i, self.corrupt_gamma_i(sign_id, gamma_i));
 
         // initiate MtA protocols for
         // 1. k_i (me) * gamma_j (other)
@@ -89,7 +89,7 @@ impl no_messages::Executer for R1 {
             .ek();
         let (k_i_ciphertext, k_i_randomness) = ek.encrypt(&(&k_i).into());
 
-        let p2ps_out = self.peers.map_ref(|(_peer_id, &keygen_peer_id)| {
+        let p2ps_out = self.peers.map_ref(|(_sign_peer_id, &keygen_peer_id)| {
             let peer_zkp = &self
                 .secret_key_share
                 .group()
@@ -110,7 +110,7 @@ impl no_messages::Executer for R1 {
 
             corrupt!(
                 range_proof,
-                self.corrupt_range_proof(info.share_id(), _peer_id, range_proof)
+                self.corrupt_range_proof(sign_id, _sign_peer_id, range_proof)
             );
 
             serialize(&P2p { range_proof })
@@ -158,7 +158,7 @@ mod malicious {
             crypto_tools::paillier::{self, zk::range},
             sign::{
                 malicious::{log_confess_info, Behaviour},
-                SignParticipantIndex,
+                SignShareId,
             },
         },
     };
@@ -166,38 +166,25 @@ mod malicious {
     impl R1 {
         pub fn corrupt_gamma_i(
             &self,
-            me: TypedUsize<SignParticipantIndex>,
+            sign_id: TypedUsize<SignShareId>,
             mut gamma_i: k256::Scalar,
         ) -> k256::Scalar {
             if let Behaviour::R1BadGammaI = self.behaviour {
-                log_confess_info(me, &self.behaviour, "");
+                log_confess_info(sign_id, &self.behaviour, "");
                 gamma_i += k256::Scalar::one();
             }
             gamma_i
         }
 
-        // pub fn corrupt_ek_proof(
-        //     &self,
-        //     my_index: TypedUsize<KeygenPartyIndex>,
-        //     ek_proof: EncryptionKeyProof,
-        // ) -> EncryptionKeyProof {
-        //     if let Behaviour::R1BadEncryptionKeyProof = self.behaviour {
-        //         info!("malicious party {} do {:?}", my_index, self.behaviour);
-        //         paillier_k256::zk::malicious::corrupt_ek_proof(ek_proof)
-        //     } else {
-        //         ek_proof
-        //     }
-        // }
-
         pub fn corrupt_range_proof(
             &self,
-            me: TypedUsize<SignParticipantIndex>,
-            recipient: TypedUsize<SignParticipantIndex>,
+            sign_id: TypedUsize<SignShareId>,
+            sign_peer_id: TypedUsize<SignShareId>,
             range_proof: range::Proof,
         ) -> range::Proof {
             if let Behaviour::R1BadProof { victim } = self.behaviour {
-                if victim == recipient {
-                    log_confess_info(me, &self.behaviour, "");
+                if victim == sign_peer_id {
+                    log_confess_info(sign_id, &self.behaviour, "");
                     return paillier::zk::range::malicious::corrupt_proof(&range_proof);
                 }
             }

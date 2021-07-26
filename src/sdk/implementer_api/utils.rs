@@ -18,13 +18,13 @@ where
 }
 
 pub fn log_fault_info<K>(me: TypedUsize<K>, faulter: TypedUsize<K>, fault: &str) {
-    info!("party {} detect [{}] by {}", me, fault, faulter,);
+    info!("peer {} detected [{}] by {}", me, fault, faulter);
 }
 
 pub fn log_fault_warn<K>(me: TypedUsize<K>, faulter: TypedUsize<K>, fault: &str) {
-    warn!("party {} detect [{}] by {}", me, fault, faulter,);
+    warn!("peer {} detected [{}] by {}", me, fault, faulter);
 }
 
 pub fn log_accuse_warn<K>(me: TypedUsize<K>, faulter: TypedUsize<K>, fault: &str) {
-    warn!("party {} accuse {} of [{}]", me, faulter, fault);
+    warn!("peer {} accused {} of [{}]", me, faulter, fault);
 }

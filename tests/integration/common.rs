@@ -2,7 +2,7 @@ pub mod keygen {
     use rand::RngCore;
     use tofn::{
         collections::VecMap,
-        gg20::keygen::{new_keygen_unsafe, KeygenPartyIndex, KeygenProtocol, RealKeygenPartyIndex},
+        gg20::keygen::{new_keygen_unsafe, KeygenPartyId, KeygenProtocol, KeygenShareId},
         sdk::api::PartyShareCounts,
     };
 
@@ -10,9 +10,9 @@ pub mod keygen {
     use tofn::gg20::keygen::malicious::Behaviour;
 
     pub fn initialize_honest_parties(
-        party_share_counts: &PartyShareCounts<RealKeygenPartyIndex>,
+        party_share_counts: &PartyShareCounts<KeygenPartyId>,
         threshold: usize,
-    ) -> VecMap<KeygenPartyIndex, KeygenProtocol> {
+    ) -> VecMap<KeygenShareId, KeygenProtocol> {
         let session_nonce = b"foobar";
 
         party_share_counts

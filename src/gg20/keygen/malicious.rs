@@ -2,7 +2,7 @@ use tracing::info;
 
 use crate::collections::TypedUsize;
 
-use super::KeygenPartyIndex;
+use super::KeygenShareId;
 
 // all malicious behaviours
 // names have the form <round><fault> where
@@ -16,15 +16,9 @@ pub enum Behaviour {
     R1BadCommit,
     R1BadEncryptionKeyProof,
     R1BadZkSetupProof,
-    R2BadShare {
-        victim: TypedUsize<KeygenPartyIndex>,
-    },
-    R2BadEncryption {
-        victim: TypedUsize<KeygenPartyIndex>,
-    },
-    R3FalseAccusation {
-        victim: TypedUsize<KeygenPartyIndex>,
-    },
+    R2BadShare { victim: TypedUsize<KeygenShareId> },
+    R2BadEncryption { victim: TypedUsize<KeygenShareId> },
+    R3FalseAccusation { victim: TypedUsize<KeygenShareId> },
     R3BadXIWitness,
 }
 

@@ -2,7 +2,7 @@ use tracing::info;
 
 use crate::collections::TypedUsize;
 
-use super::SignParticipantIndex;
+use super::SignShareId;
 
 // all malicious behaviours
 // names have the form <round><fault> where
@@ -12,42 +12,22 @@ use super::SignParticipantIndex;
 #[derive(Clone, Debug)]
 pub enum Behaviour {
     Honest,
-    R1BadProof {
-        victim: TypedUsize<SignParticipantIndex>,
-    },
+    R1BadProof { victim: TypedUsize<SignShareId> },
     R1BadGammaI, // triggers r6::Output::FailType5
-    R2FalseAccusation {
-        victim: TypedUsize<SignParticipantIndex>,
-    },
-    R2BadMta {
-        victim: TypedUsize<SignParticipantIndex>,
-    },
-    R2BadMtaWc {
-        victim: TypedUsize<SignParticipantIndex>,
-    },
+    R2FalseAccusation { victim: TypedUsize<SignShareId> },
+    R2BadMta { victim: TypedUsize<SignShareId> },
+    R2BadMtaWc { victim: TypedUsize<SignShareId> },
     R3BadSigmaI, // triggers r7::Output::FailType7
-    R3FalseAccusationMta {
-        victim: TypedUsize<SignParticipantIndex>,
-    },
-    R3FalseAccusationMtaWc {
-        victim: TypedUsize<SignParticipantIndex>,
-    },
+    R3FalseAccusationMta { victim: TypedUsize<SignShareId> },
+    R3FalseAccusationMtaWc { victim: TypedUsize<SignShareId> },
     R3BadProof,
-    R3BadDeltaI, // triggers r6::Output::FailType5
-    R3BadKI,     // triggers r6::Output::FailType5
-    R3BadAlpha {
-        victim: TypedUsize<SignParticipantIndex>,
-    }, // triggers r6::Output::FailType5
-    R3BadBeta {
-        victim: TypedUsize<SignParticipantIndex>,
-    }, // triggers r6::Output::FailType5
+    R3BadDeltaI,                                    // triggers r6::Output::FailType5
+    R3BadKI,                                        // triggers r6::Output::FailType5
+    R3BadAlpha { victim: TypedUsize<SignShareId> }, // triggers r6::Output::FailType5
+    R3BadBeta { victim: TypedUsize<SignShareId> },  // triggers r6::Output::FailType5
     R4BadReveal,
-    R5BadProof {
-        victim: TypedUsize<SignParticipantIndex>,
-    },
-    R6FalseAccusation {
-        victim: TypedUsize<SignParticipantIndex>,
-    },
+    R5BadProof { victim: TypedUsize<SignShareId> },
+    R6FalseAccusation { victim: TypedUsize<SignShareId> },
     R6BadProof,
     R6FalseFailRandomizer,
     R7BadSI,
@@ -59,10 +39,10 @@ impl Behaviour {
     }
 }
 
-pub(crate) fn log_confess_info<K>(me: TypedUsize<K>, behaviour: &Behaviour, msg: &str) {
+pub(crate) fn log_confess_info<K>(sign_id: TypedUsize<K>, behaviour: &Behaviour, msg: &str) {
     if msg.is_empty() {
-        info!("malicious peer {} does {:?}", me, behaviour);
+        info!("malicious peer {} does {:?}", sign_id, behaviour);
     } else {
-        info!("malicious peer {} does {:?} [{}]", me, behaviour, msg);
+        info!("malicious peer {} does {:?} [{}]", sign_id, behaviour, msg);
     }
 }

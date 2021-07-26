@@ -12,16 +12,16 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::{r2, rng, KeygenPartyIndex, KeygenPartyShareCounts, KeygenProtocolBuilder};
+use super::{r2, rng, KeygenPartyShareCounts, KeygenProtocolBuilder, KeygenShareId};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
 
 pub struct R1 {
-    pub threshold: usize,
-    pub party_share_counts: KeygenPartyShareCounts,
-    pub rng_seed: rng::Seed,
-    pub use_safe_primes: bool,
+    pub(crate) threshold: usize,
+    pub(crate) party_share_counts: KeygenPartyShareCounts,
+    pub(crate) rng_seed: rng::Seed,
+    pub(crate) use_safe_primes: bool,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
@@ -38,22 +38,21 @@ pub struct Bcast {
 
 impl no_messages::Executer for R1 {
     type FinalOutput = SecretKeyShare;
-    type Index = KeygenPartyIndex;
+    type Index = KeygenShareId;
 
     fn execute(
         self: Box<Self>,
-        _info: &ProtocolInfo<Self::Index>,
+        info: &ProtocolInfo<Self::Index>,
     ) -> TofnResult<KeygenProtocolBuilder> {
+        let _keygen_id = info.share_id();
+
         let u_i_vss = vss::Vss::new(self.threshold);
         let (y_i_commit, y_i_reveal) = hash::commit(
             constants::Y_I_COMMIT_TAG,
             k256_serde::to_bytes(&(k256::ProjectivePoint::generator() * u_i_vss.get_secret())),
         );
 
-        corrupt!(
-            y_i_commit,
-            self.corrupt_commit(_info.share_id(), y_i_commit)
-        );
+        corrupt!(y_i_commit, self.corrupt_commit(_keygen_id, y_i_commit));
 
         let mut rng = rng::rng_from_seed(self.rng_seed.clone());
         let ((ek, dk), (zkp, zkp_proof)) = if self.use_safe_primes {
@@ -69,11 +68,8 @@ impl no_messages::Executer for R1 {
         };
         let ek_proof = dk.correctness_proof();
 
-        corrupt!(ek_proof, self.corrupt_ek_proof(_info.share_id(), ek_proof));
-        corrupt!(
-            zkp_proof,
-            self.corrupt_zkp_proof(_info.share_id(), zkp_proof)
-        );
+        corrupt!(ek_proof, self.corrupt_ek_proof(_keygen_id, ek_proof));
+        corrupt!(zkp_proof, self.corrupt_zkp_proof(_keygen_id, zkp_proof));
 
         let bcast_out = serialize(&Bcast {
             y_i_commit,
@@ -109,7 +105,7 @@ mod malicious {
                 paillier,
                 paillier::zk::{EncryptionKeyProof, ZkSetupProof},
             },
-            keygen::{malicious::Behaviour, KeygenPartyIndex},
+            keygen::{malicious::Behaviour, KeygenShareId},
         },
     };
     use tracing::info;
@@ -117,11 +113,11 @@ mod malicious {
     impl R1 {
         pub fn corrupt_commit(
             &self,
-            my_index: TypedUsize<KeygenPartyIndex>,
+            keygen_id: TypedUsize<KeygenShareId>,
             commit: Output,
         ) -> Output {
             if let Behaviour::R1BadCommit = self.behaviour {
-                info!("malicious party {} do {:?}", my_index, self.behaviour);
+                info!("malicious peer {} does {:?}", keygen_id, self.behaviour);
                 commit.corrupt()
             } else {
                 commit
@@ -130,11 +126,11 @@ mod malicious {
 
         pub fn corrupt_ek_proof(
             &self,
-            my_index: TypedUsize<KeygenPartyIndex>,
+            keygen_id: TypedUsize<KeygenShareId>,
             ek_proof: EncryptionKeyProof,
         ) -> EncryptionKeyProof {
             if let Behaviour::R1BadEncryptionKeyProof = self.behaviour {
-                info!("malicious party {} do {:?}", my_index, self.behaviour);
+                info!("malicious peer {} does {:?}", keygen_id, self.behaviour);
                 paillier::zk::malicious::corrupt_ek_proof(ek_proof)
             } else {
                 ek_proof
@@ -143,11 +139,11 @@ mod malicious {
 
         pub fn corrupt_zkp_proof(
             &self,
-            my_index: TypedUsize<KeygenPartyIndex>,
+            keygen_id: TypedUsize<KeygenShareId>,
             zkp_proof: ZkSetupProof,
         ) -> ZkSetupProof {
             if let Behaviour::R1BadZkSetupProof = self.behaviour {
-                info!("malicious party {} do {:?}", my_index, self.behaviour);
+                info!("malicious peer {} does {:?}", keygen_id, self.behaviour);
                 paillier::zk::malicious::corrupt_zksetup_proof(zkp_proof)
             } else {
                 zkp_proof

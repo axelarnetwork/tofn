@@ -6,10 +6,10 @@ use std::convert::TryFrom;
 use tofn::{
     collections::{FillVecMap, TypedUsize, VecMap},
     gg20::{
-        keygen::RealKeygenPartyIndex,
+        keygen::KeygenPartyId,
         sign::{
             malicious::Behaviour::{self, *},
-            new_sign, MessageDigest, RealSignParticipantIndex, SignParticipantIndex, SignParties,
+            new_sign, MessageDigest, SignParties, SignPartyId, SignShareId,
         },
     },
     sdk::api::{BytesVec, Fault, PartyShareCounts, Protocol::*, ProtocolOutput},
@@ -35,7 +35,7 @@ fn single_faults() {
         Done(result) => result.expect("share finished with error"),
     });
 
-    let keygen_share_ids = &VecMap::<SignParticipantIndex, _>::from_vec(
+    let keygen_share_ids = &VecMap::<SignShareId, _>::from_vec(
         test_cases
             .party_share_counts
             .share_id_subset(&test_cases.sign_parties)
@@ -132,20 +132,17 @@ fn single_fault_test_cases() -> SingleFaultTestCaseList {
 }
 
 pub struct SingleFaultTestCaseList {
-    pub party_share_counts: PartyShareCounts<RealKeygenPartyIndex>,
+    pub party_share_counts: PartyShareCounts<KeygenPartyId>,
     pub threshold: usize,
     pub sign_parties: SignParties,
     // pub share_behaviours: VecMap<SignParticipantIndex, Behaviour>,
-    pub expected_honest_output: ProtocolOutput<BytesVec, RealSignParticipantIndex>,
+    pub expected_honest_output: ProtocolOutput<BytesVec, SignPartyId>,
     pub cases: Vec<Behaviour>,
-    pub malicious_sign_share_id: TypedUsize<SignParticipantIndex>,
+    pub malicious_sign_share_id: TypedUsize<SignShareId>,
 }
 
 impl SingleFaultTestCaseList {
-    pub fn assert_expected_output(
-        &self,
-        output: &ProtocolOutput<BytesVec, RealSignParticipantIndex>,
-    ) {
+    pub fn assert_expected_output(&self, output: &ProtocolOutput<BytesVec, SignPartyId>) {
         match output {
             Ok(_) => assert!(
                 self.expected_honest_output.is_ok(),

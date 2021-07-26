@@ -6,7 +6,7 @@ use crate::{
             hash, mta,
             paillier::{self, Ciphertext},
         },
-        keygen::{KeygenPartyIndex, SecretKeyShare},
+        keygen::{KeygenShareId, SecretKeyShare},
     },
     sdk::{
         api::{BytesVec, TofnResult},
@@ -17,29 +17,31 @@ use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::{r1, r3, Participants, Peers, SignParticipantIndex, SignProtocolBuilder};
+use super::{r1, r3, Participants, Peers, SignProtocolBuilder, SignShareId};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
 pub struct R2 {
-    pub secret_key_share: SecretKeyShare,
-    pub msg_to_sign: Scalar,
-    pub peers: Peers,
-    pub participants: Participants,
-    pub keygen_id: TypedUsize<KeygenPartyIndex>,
-    pub gamma_i: Scalar,
-    pub Gamma_i: ProjectivePoint,
-    pub Gamma_i_reveal: hash::Randomness,
-    pub w_i: Scalar,
-    pub k_i: Scalar,
-    pub k_i_randomness: paillier::Randomness,
+    pub(crate) secret_key_share: SecretKeyShare,
+    pub(crate) msg_to_sign: Scalar,
+    pub(crate) peers: Peers,
+    pub(crate) participants: Participants,
+    pub(crate) keygen_id: TypedUsize<KeygenShareId>,
+    pub(crate) gamma_i: Scalar,
+    pub(crate) Gamma_i: ProjectivePoint,
+    pub(crate) Gamma_i_reveal: hash::Randomness,
+    pub(crate) w_i: Scalar,
+    pub(crate) k_i: Scalar,
+    pub(crate) k_i_randomness: paillier::Randomness,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
 }
 
+// TODO: Since the happy path expects P2ps only, switch to using P2ps for issuing complaints
+// so that we don't have an empty Bcast::Happy in the happy path
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Bcast {
     Happy,
@@ -48,7 +50,7 @@ pub enum Bcast {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BcastSad {
-    pub zkp_complaints: Subset<SignParticipantIndex>,
+    pub zkp_complaints: Subset<SignShareId>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -67,7 +69,7 @@ pub struct P2pHappy {
 
 impl bcast_and_p2p::Executer for R2 {
     type FinalOutput = BytesVec;
-    type Index = SignParticipantIndex;
+    type Index = SignShareId;
     type Bcast = r1::Bcast;
     type P2p = r1::P2p;
 
@@ -124,30 +126,18 @@ impl bcast_and_p2p::Executer for R2 {
 
         corrupt!(
             zkp_complaints,
-            self.corrupt_complaint(info.share_id(), zkp_complaints)?
+            self.corrupt_complaint(sign_id, zkp_complaints)?
         );
 
         if !zkp_complaints.is_empty() {
             let bcast_out = serialize(&Bcast::Sad(BcastSad { zkp_complaints }))?;
 
-            // TODO: Since R3 expects P2ps in the happy path but Bcast in the sad path
-            // we always send bcasts and p2ps to R3, using empty P2ps and Bcasts in
-            // the respective path. This adds some network overhead, so investigate a better approach.
             let p2ps_out = self.peers.map_ref(|_| serialize(&P2p::Sad))?;
 
             return Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastAndP2p {
-                round: Box::new(r3::sad::R3 {
+                round: Box::new(r3::R3Sad {
                     secret_key_share: self.secret_key_share,
-                    msg_to_sign: self.msg_to_sign,
-                    peers: self.peers,
                     participants: self.participants,
-                    keygen_id: self.keygen_id,
-                    gamma_i: self.gamma_i,
-                    Gamma_i: self.Gamma_i,
-                    Gamma_i_reveal: self.Gamma_i_reveal,
-                    w_i: self.w_i,
-                    k_i: self.k_i,
-                    k_i_randomness: self.k_i_randomness,
                     r1bcasts: bcasts_in,
                     r1p2ps: p2ps_in,
 
@@ -182,7 +172,7 @@ impl bcast_and_p2p::Executer for R2 {
 
             corrupt!(
                 alpha_proof,
-                self.corrupt_alpha_proof(info.share_id(), sign_peer_id, alpha_proof)
+                self.corrupt_alpha_proof(sign_id, sign_peer_id, alpha_proof)
             );
 
             beta_secrets.set(sign_peer_id, beta_secret)?;
@@ -193,7 +183,7 @@ impl bcast_and_p2p::Executer for R2 {
 
             corrupt!(
                 mu_proof,
-                self.corrupt_mu_proof(info.share_id(), sign_peer_id, mu_proof)
+                self.corrupt_mu_proof(sign_id, sign_peer_id, mu_proof)
             );
 
             nu_secrets.set(sign_peer_id, nu_secret)?;
@@ -215,7 +205,7 @@ impl bcast_and_p2p::Executer for R2 {
         let bcast_out = serialize(&Bcast::Happy)?;
 
         Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastAndP2p {
-            round: Box::new(r3::happy::R3 {
+            round: Box::new(r3::R3Happy {
                 secret_key_share: self.secret_key_share,
                 msg_to_sign: self.msg_to_sign,
                 peers: self.peers,
@@ -254,7 +244,7 @@ mod malicious {
             crypto_tools::paillier::zk::mta,
             sign::{
                 malicious::{log_confess_info, Behaviour::*},
-                SignParticipantIndex,
+                SignShareId,
             },
         },
         sdk::api::TofnResult,
@@ -265,17 +255,17 @@ mod malicious {
     impl R2 {
         pub fn corrupt_complaint(
             &self,
-            me: TypedUsize<SignParticipantIndex>,
-            mut zkp_complaints: Subset<SignParticipantIndex>,
-        ) -> TofnResult<Subset<SignParticipantIndex>> {
+            sign_id: TypedUsize<SignShareId>,
+            mut zkp_complaints: Subset<SignShareId>,
+        ) -> TofnResult<Subset<SignShareId>> {
             if let R2FalseAccusation { victim } = self.behaviour {
                 if zkp_complaints.is_member(victim)? {
-                    log_confess_info(me, &self.behaviour, "but the accusation is true");
-                } else if victim == me {
-                    log_confess_info(me, &self.behaviour, "self accusation");
-                    zkp_complaints.add(me)?;
+                    log_confess_info(sign_id, &self.behaviour, "but the accusation is true");
+                } else if victim == sign_id {
+                    log_confess_info(sign_id, &self.behaviour, "self accusation");
+                    zkp_complaints.add(sign_id)?;
                 } else {
-                    log_confess_info(me, &self.behaviour, "");
+                    log_confess_info(sign_id, &self.behaviour, "");
                     zkp_complaints.add(victim)?;
                 }
             }
@@ -284,13 +274,13 @@ mod malicious {
 
         pub fn corrupt_alpha_proof(
             &self,
-            me: TypedUsize<SignParticipantIndex>,
-            recipient: TypedUsize<SignParticipantIndex>,
+            sign_id: TypedUsize<SignShareId>,
+            recipient: TypedUsize<SignShareId>,
             alpha_proof: mta::Proof,
         ) -> mta::Proof {
             if let R2BadMta { victim } = self.behaviour {
                 if victim == recipient {
-                    log_confess_info(me, &self.behaviour, "");
+                    log_confess_info(sign_id, &self.behaviour, "");
                     return mta::malicious::corrupt_proof(&alpha_proof);
                 }
             }
@@ -299,13 +289,13 @@ mod malicious {
 
         pub fn corrupt_mu_proof(
             &self,
-            me: TypedUsize<SignParticipantIndex>,
-            recipient: TypedUsize<SignParticipantIndex>,
+            sign_id: TypedUsize<SignShareId>,
+            recipient: TypedUsize<SignShareId>,
             mu_proof: mta::ProofWc,
         ) -> mta::ProofWc {
             if let R2BadMtaWc { victim } = self.behaviour {
                 if victim == recipient {
-                    log_confess_info(me, &self.behaviour, "");
+                    log_confess_info(sign_id, &self.behaviour, "");
                     return mta::malicious::corrupt_proof_wc(&mu_proof);
                 }
             }

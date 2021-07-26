@@ -13,14 +13,14 @@ use tracing::error;
 use super::malicious;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct KeygenPartyIndex; // TODO actually a keygen subshare index
+pub struct KeygenShareId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct RealKeygenPartyIndex; // TODO the real keygen party index
+pub struct KeygenPartyId;
 
-pub type KeygenProtocol = Protocol<SecretKeyShare, KeygenPartyIndex, RealKeygenPartyIndex>;
-pub type KeygenProtocolBuilder = ProtocolBuilder<SecretKeyShare, KeygenPartyIndex>;
-pub type KeygenPartyShareCounts = PartyShareCounts<RealKeygenPartyIndex>;
+pub type KeygenProtocol = Protocol<SecretKeyShare, KeygenShareId, KeygenPartyId>;
+pub type KeygenProtocolBuilder = ProtocolBuilder<SecretKeyShare, KeygenShareId>;
+pub type KeygenPartyShareCounts = PartyShareCounts<KeygenPartyId>;
 pub type SecretRecoveryKey = [u8; 64];
 
 // Can't define a keygen-specific alias for `RoundExecuter` that sets
@@ -35,7 +35,7 @@ pub const MAX_PARTY_SHARE_COUNT: usize = MAX_TOTAL_SHARE_COUNT;
 pub fn new_keygen(
     party_share_counts: KeygenPartyShareCounts,
     threshold: usize,
-    my_party_id: TypedUsize<RealKeygenPartyIndex>,
+    my_party_id: TypedUsize<KeygenPartyId>,
     my_subshare_id: usize, // in 0..party_share_counts[my_party_id]
     secret_recovery_key: &SecretRecoveryKey,
     session_nonce: &[u8],
@@ -57,7 +57,7 @@ pub fn new_keygen(
 pub fn new_keygen_unsafe(
     party_share_counts: KeygenPartyShareCounts,
     threshold: usize,
-    my_party_id: TypedUsize<RealKeygenPartyIndex>,
+    my_party_id: TypedUsize<KeygenPartyId>,
     my_subshare_id: usize, // in 0..party_share_counts[my_party_id]
     secret_recovery_key: &SecretRecoveryKey,
     session_nonce: &[u8],
@@ -80,7 +80,7 @@ pub fn new_keygen_unsafe(
 fn new_keygen_impl(
     party_share_counts: KeygenPartyShareCounts,
     threshold: usize,
-    my_party_id: TypedUsize<RealKeygenPartyIndex>,
+    my_party_id: TypedUsize<KeygenPartyId>,
     my_subshare_id: usize, // in 0..party_share_counts[my_party_id]
     secret_recovery_key: &SecretRecoveryKey,
     session_nonce: &[u8],

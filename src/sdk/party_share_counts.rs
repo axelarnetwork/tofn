@@ -4,20 +4,12 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use tracing::error;
-use zeroize::Zeroize;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(bound(serialize = "", deserialize = ""))] // disable serde trait bounds on `P`: https://serde.rs/attr-bound.html
 pub struct PartyShareCounts<P> {
     party_share_counts: VecMap<P, usize>,
     total_share_count: usize,
-}
-
-impl<P> Zeroize for PartyShareCounts<P> {
-    fn zeroize(&mut self) {
-        self.party_share_counts.zeroize();
-        self.total_share_count.zeroize()
-    }
 }
 
 impl<P> PartyShareCounts<P> {
