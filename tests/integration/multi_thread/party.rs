@@ -8,7 +8,7 @@ use tofn::{
     collections::TypedUsize,
     sdk::api::{BytesVec, Protocol, ProtocolOutput, TofnResult},
 };
-use tracing::warn;
+use tracing::info;
 
 #[derive(Clone)]
 pub struct Message<P> {
@@ -29,7 +29,7 @@ where
     while let Protocol::NotDone(mut round) = party {
         let id = round.info().share_info().share_id();
 
-        warn!("Peer {}, Round {}: sending out messages", id, r);
+        info!("Peer {}, Round {}: sending out messages", id, r);
         // send outgoing messages
         if let Some(bytes) = round.bcast_out() {
             broadcaster.send(Message {
@@ -46,17 +46,17 @@ where
             }
         }
 
-        warn!("Peer {}, Round {}: Receiving messages at the end of round", id, r);
+        info!("Peer {}, Round {}: Receiving messages at the end of round", id, r);
 
         // collect incoming messages
         while round.expecting_more_msgs_this_round() {
             let msg = input.recv().expect("recv fail");
-            warn!("Peer {}, Round {}: received message from {}", id, r, msg.from);
+            info!("Peer {}, Round {}: received message from {}", id, r, msg.from);
             round.msg_in(msg.from, &msg.bytes)?;
         }
 
         r += 1;
-        warn!("Peer {}, Round {}: starting", id, r);
+        info!("Peer {}, Round {}: starting", id, r);
 
         party = round.execute_next_round()?;
     }

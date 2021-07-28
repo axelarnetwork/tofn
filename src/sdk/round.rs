@@ -1,4 +1,4 @@
-use tracing::{error, warn};
+use tracing::{error, info, warn};
 
 use crate::{
     collections::{FillP2ps, FillVecMap, HoleVecMap, TypedUsize},
@@ -101,7 +101,8 @@ impl<F, K, P> Round<F, K, P> {
             P2p { to } => "p2p",
         };
 
-        warn!("Peer {:?}: received message type: {}", self.info().share_info().share_id(), msg);
+        let id = self.info().share_info().share_id();
+        info!("Peer {:?}: received message type: {}", id, msg);
 
         match &mut self.round_type {
             RoundType::BcastAndP2p(r) => match bytes_meta.msg_type {
@@ -110,8 +111,8 @@ impl<F, K, P> Round<F, K, P> {
                         r.bcasts_in.set(bytes_meta.from, bytes_meta.payload)?;
                     } else {
                         warn!(
-                            "msg_in fault from share_id {}: duplicate message",
-                            bytes_meta.from
+                            "Peer {}: msg_in fault from share_id {}: duplicate message",
+                            id, bytes_meta.from
                         );
                         self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
                     }
@@ -121,8 +122,8 @@ impl<F, K, P> Round<F, K, P> {
                         r.p2ps_in.set(bytes_meta.from, to, bytes_meta.payload)?;
                     } else {
                         warn!(
-                            "msg_in fault from share_id {}: duplicate message",
-                            bytes_meta.from
+                            "Peer {}: msg_in fault from share_id {}: duplicate message",
+                            id, bytes_meta.from
                         );
                         self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
                     }
@@ -134,8 +135,8 @@ impl<F, K, P> Round<F, K, P> {
                         r.bcasts_in.set(bytes_meta.from, bytes_meta.payload)?;
                     } else {
                         warn!(
-                            "msg_in fault from share_id {}: duplicate message",
-                            bytes_meta.from
+                            "Peer {}: msg_in fault from share_id {}: duplicate message",
+                            id, bytes_meta.from
                         );
                         self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
                     }
@@ -161,8 +162,8 @@ impl<F, K, P> Round<F, K, P> {
                         r.p2ps_in.set(bytes_meta.from, to, bytes_meta.payload)?;
                     } else {
                         warn!(
-                            "msg_in fault from share_id {}: duplicate message",
-                            bytes_meta.from
+                            "Peer {}: msg_in fault from share_id {}: duplicate message",
+                            id, bytes_meta.from
                         );
                         self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
                     }
