@@ -27,7 +27,9 @@ where
     let mut r = 0;
 
     while let Protocol::NotDone(mut round) = party {
-        warn!("Round {}: sending out messages", r);
+        let id = round.info().share_info().share_id();
+
+        warn!("Peer {}, Round {}: sending out messages", id, r);
         // send outgoing messages
         if let Some(bytes) = round.bcast_out() {
             broadcaster.send(Message {
@@ -44,17 +46,17 @@ where
             }
         }
 
-        warn!("Round {}: Receiving messages at the end of round", r);
+        warn!("Peer {}, Round {}: Receiving messages at the end of round", id, r);
 
         // collect incoming messages
         while round.expecting_more_msgs_this_round() {
             let msg = input.recv().expect("recv fail");
-            warn!("Round {}: received message from {}", r, msg.from);
+            warn!("Peer {}, Round {}: received message from {}", id, r, msg.from);
             round.msg_in(msg.from, &msg.bytes)?;
         }
 
         r += 1;
-        warn!("Round {}: starting", r);
+        warn!("Peer {}, Round {}: starting", id, r);
 
         party = round.execute_next_round()?;
     }

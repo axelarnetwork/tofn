@@ -101,7 +101,7 @@ impl<F, K, P> Round<F, K, P> {
             P2p { to } => "p2p",
         };
 
-        warn!("received message type: {}", msg);
+        warn!("Peer {:?}: received message type: {}", self.info().share_info().share_id(), msg);
 
         match &mut self.round_type {
             RoundType::BcastAndP2p(r) => match bytes_meta.msg_type {
