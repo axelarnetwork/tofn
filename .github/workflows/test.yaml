@@ -22,4 +22,4 @@ jobs:
           override: true
 
       - name: Run cargo test
-        run: cargo test --release --all-features
+        run: RUST_BACKTRACE=1 cargo test --release --test integration -- multi_thread::basic_correctness
