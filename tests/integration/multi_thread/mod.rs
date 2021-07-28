@@ -139,6 +139,8 @@ fn basic_correctness() {
 mod broadcaster {
     use std::sync::mpsc::{self, Receiver, Sender};
 
+    use tracing::warn;
+
     #[derive(Clone)]
     pub struct Broadcaster<T> {
         senders: Vec<Sender<T>>,
@@ -161,6 +163,7 @@ mod broadcaster {
             (Self { senders }, receivers)
         }
         pub fn send(&self, msg: T) {
+            warn!("sending messages");
             for sender in self.senders.iter() {
                 sender.send(msg.clone()).expect("broadcast fail");
             }

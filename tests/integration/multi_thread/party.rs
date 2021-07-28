@@ -8,6 +8,7 @@ use tofn::{
     collections::TypedUsize,
     sdk::api::{BytesVec, Protocol, ProtocolOutput, TofnResult},
 };
+use tracing::warn;
 
 #[derive(Clone)]
 pub struct Message<P> {
@@ -23,7 +24,10 @@ pub fn execute_protocol<F, K, P>(
 where
     P: Clone,
 {
+    let mut r = 0;
+
     while let Protocol::NotDone(mut round) = party {
+        warn!("Round {}: sending out messages", r);
         // send outgoing messages
         if let Some(bytes) = round.bcast_out() {
             broadcaster.send(Message {
@@ -39,11 +43,18 @@ where
                 });
             }
         }
+
+        warn!("Round {}: Receiving messages at the end of round", r);
+
         // collect incoming messages
         while round.expecting_more_msgs_this_round() {
             let msg = input.recv().expect("recv fail");
+            warn!("Round {}: received message from {}", r, msg.from);
             round.msg_in(msg.from, &msg.bytes)?;
         }
+
+        r += 1;
+        warn!("Round {}: starting", r);
 
         party = round.execute_next_round()?;
     }

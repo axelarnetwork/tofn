@@ -96,6 +96,13 @@ impl<F, K, P> Round<F, K, P> {
         }
 
         // store message payload according to round type (bcast and/or p2p)
+        let msg = match bytes_meta.msg_type {
+            Bcast => "bcast",
+            P2p { to } => "p2p",
+        };
+
+        warn!("received message type: {}", msg);
+
         match &mut self.round_type {
             RoundType::BcastAndP2p(r) => match bytes_meta.msg_type {
                 Bcast => {
