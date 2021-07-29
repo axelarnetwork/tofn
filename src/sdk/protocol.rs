@@ -29,6 +29,7 @@ pub fn new_protocol<F, K, P>(
 ) -> TofnResult<Protocol<F, K, P>> {
     Ok(Protocol::NotDone(Round::new_no_messages(
         first_round,
+        0,
         ProtocolInfoDeluxe::new(party_share_counts, share_id)?,
     )?))
 }
