@@ -131,7 +131,7 @@ impl bcast_and_p2p::Executer for R6 {
                 g: &self.R,
             };
 
-            if let Err(err) = zkp.verify_range_proof_wc(&peer_stmt, &p2p_in.k_i_range_proof_wc) {
+            if let Err(err) = zkp.verify_range_proof_wc(peer_stmt, &p2p_in.k_i_range_proof_wc) {
                 warn!(
                     "peer {} says: range proof wc failed to verify for peer {} because [{}]",
                     sign_id, sign_peer_id, err
@@ -245,7 +245,7 @@ impl bcast_and_p2p::Executer for R6 {
         let S_i_proof_wc = pedersen::prove_wc(
             &pedersen::StatementWc {
                 stmt: pedersen::Statement {
-                    commit: &self.r3bcasts.get(sign_id)?.T_i.unwrap(),
+                    commit: self.r3bcasts.get(sign_id)?.T_i.unwrap(),
                 },
                 msg_g: &S_i,
                 g: &self.R,

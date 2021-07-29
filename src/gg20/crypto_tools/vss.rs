@@ -70,7 +70,7 @@ impl Commit {
             })
     }
     pub fn secret_commit(&self) -> &k256::ProjectivePoint {
-        &self.coeff_commits[0].unwrap()
+        self.coeff_commits[0].unwrap()
     }
     pub fn validate_share_commit(
         &self,

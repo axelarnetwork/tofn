@@ -16,7 +16,7 @@ pub struct Round<F, K, P> {
     round_num: usize,
     round_type: RoundType<F, K>,
     msg_in_faulters: ProtocolFaulters<P>,
-    future_messages: FillVecMap<K, BytesVec>,
+    future_messages: FillVecMap<P, Vec<BytesVec>>,
 }
 
 enum RoundType<F, K> {
@@ -59,6 +59,7 @@ impl<F, K, P> Round<F, K, P> {
             RoundType::NoMessages(_) | RoundType::P2pOnly(_) => None,
         }
     }
+
     pub fn p2ps_out(&self) -> Option<&HoleVecMap<K, BytesVec>> {
         match &self.round_type {
             RoundType::BcastAndP2p(r) => Some(&r.p2ps_out),
@@ -82,6 +83,33 @@ impl<F, K, P> Round<F, K, P> {
             }
         };
 
+        if bytes_meta.round == self.round_num + 1 {
+            debug!(
+                "peer {} says: received a message from party {} for the next round {}",
+                share_id,
+                from,
+                self.round_num + 1
+            );
+
+            if self.future_messages.is_none(from)? {
+                self.future_messages.set(from, Vec::new())?;
+            }
+
+            self.future_messages
+                .map_element(from, |msgs| msgs.push(bytes.to_vec()))?;
+
+            return Ok(());
+        } else if bytes_meta.round != self.round_num {
+            warn!(
+                "peer {} says: received a message from peer {} for another round {}",
+                share_id, bytes_meta.from, bytes_meta.round,
+            );
+
+            self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
+
+            return Ok(());
+        }
+
         // verify share_id belongs to this party
         match self
             .info
@@ -97,37 +125,6 @@ impl<F, K, P> Round<F, K, P> {
                 self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
                 return Ok(());
             }
-        }
-
-        if bytes_meta.round == self.round_num + 1 {
-            if self.future_messages.is_none(bytes_meta.from)? {
-                debug!(
-                    "peer {} says: received a message from peer {} for the next round {}",
-                    share_id,
-                    from,
-                    self.round_num + 1
-                );
-
-                self.future_messages.set(bytes_meta.from, bytes.to_vec())?;
-            } else {
-                warn!(
-                    "msg_in fault from share_id {}: duplicate message",
-                    bytes_meta.from
-                );
-
-                self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
-            }
-
-            return Ok(());
-        } else if bytes_meta.round != self.round_num {
-            warn!(
-                "peer {} says: received a message from peer {} for another round {}",
-                share_id, bytes_meta.from, bytes_meta.round,
-            );
-
-            self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
-
-            return Ok(());
         }
 
         // store message payload according to round type (bcast and/or p2p)
@@ -206,6 +203,7 @@ impl<F, K, P> Round<F, K, P> {
         }
         Ok(())
     }
+
     pub fn expecting_more_msgs_this_round(&self) -> bool {
         match &self.round_type {
             RoundType::BcastAndP2p(r) => !r.bcasts_in.is_full() || !r.p2ps_in.is_full(),
@@ -214,9 +212,16 @@ impl<F, K, P> Round<F, K, P> {
             RoundType::NoMessages(_) => false,
         }
     }
-    pub fn execute_next_round(self) -> TofnResult<Protocol<F, K, P>> {
+
+    pub fn execute_next_round(mut self) -> TofnResult<Protocol<F, K, P>> {
+        let my_share_id = self.info().share_info().share_id();
+
         if !self.msg_in_faulters.is_empty() {
-            warn!("msg_in faulters detected: end protocol");
+            warn!(
+                "peer {} says: faulters detected during msg_in: ending protocol",
+                my_share_id
+            );
+
             return Ok(Protocol::Done(Err(self.msg_in_faulters)));
         }
 
@@ -225,46 +230,54 @@ impl<F, K, P> Round<F, K, P> {
         let mut protocol = match self.round_type {
             RoundType::BcastAndP2p(r) => r
                 .round
-                .execute_raw(&self.info.share_info(), r.bcasts_in, r.p2ps_in)?
+                .execute_raw(self.info.share_info(), r.bcasts_in, r.p2ps_in)?
                 .build(self.info, next_round_num),
             RoundType::BcastOnly(r) => r
                 .round
-                .execute_raw(&self.info.share_info(), r.bcasts_in)?
+                .execute_raw(self.info.share_info(), r.bcasts_in)?
                 .build(self.info, next_round_num),
             RoundType::P2pOnly(r) => r
                 .round
-                .execute_raw(&self.info.share_info(), r.p2ps_in)?
+                .execute_raw(self.info.share_info(), r.p2ps_in)?
                 .build(self.info, next_round_num),
             RoundType::NoMessages(r) => r
                 .round
-                .execute(&self.info.share_info())?
+                .execute(self.info.share_info())?
                 .build(self.info, next_round_num),
         }?;
 
-        if let Protocol::NotDone(round) = &mut protocol {
-            for (peer_share_id, msg) in self.future_messages.into_iter_some() {
-                debug!(
-                    "peer says: replaying peer {}'s future message",
-                    peer_share_id
-                );
+        if !self.future_messages.is_empty() {
+            if let Protocol::NotDone(round) = &mut protocol {
+                for (party_id, msgs) in self.future_messages.into_iter_some() {
+                    for msg in msgs.into_iter() {
+                        debug!(
+                            "peer {} says: replaying party {}'s early next round message",
+                            my_share_id, party_id,
+                        );
 
-                let party_id = round
-                    .info()
-                    .party_share_counts()
-                    .share_to_party_id(peer_share_id)?;
+                        round.msg_in(party_id, &msg)?;
+                    }
+                }
+            } else if let Protocol::Done(Ok(_)) = &mut protocol {
+                for (party_id, _) in self.future_messages.iter_some() {
+                    warn!(
+                        "peer {} says: received unexpected future message from party {}",
+                        my_share_id, party_id,
+                    );
 
-                round.msg_in(party_id, &msg)?;
+                    self.msg_in_faulters
+                        .set(party_id, Fault::CorruptedMessage)?;
+                }
             }
-        } else if let Protocol::Done(Ok(_)) = &mut protocol {
-            if !self.future_messages.is_empty() {
-                // TODO: Blame parties who sent these messages instead
-                error!("peer says: received unexpected future messages");
-                return Err(TofnFatal);
+
+            if !self.msg_in_faulters.is_empty() {
+                return Ok(Protocol::Done(Err(self.msg_in_faulters)));
             }
         }
 
         Ok(protocol)
     }
+
     pub fn info(&self) -> &ProtocolInfoDeluxe<K, P> {
         &self.info
     }
@@ -282,6 +295,7 @@ impl<F, K, P> Round<F, K, P> {
             future_messages: FillVecMap::with_size(share_count),
         }
     }
+
     pub(super) fn new_bcast_and_p2p(
         round: Box<dyn bcast_and_p2p::ExecuterRaw<FinalOutput = F, Index = K>>,
         round_num: usize,

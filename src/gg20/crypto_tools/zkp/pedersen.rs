@@ -111,7 +111,7 @@ fn prove_inner(
     let c = k256::Scalar::from_digest(
         Sha256::new()
             .chain(constants::PEDERSEN_PROOF_TAG.to_le_bytes())
-            .chain(k256_serde::to_bytes(&stmt.commit))
+            .chain(k256_serde::to_bytes(stmt.commit))
             .chain(&msg_g_g.map_or(Vec::new(), |(msg_g, _)| k256_serde::to_bytes(msg_g)))
             .chain(&msg_g_g.map_or(Vec::new(), |(_, g)| k256_serde::to_bytes(g)))
             .chain(k256_serde::to_bytes(&alpha))
@@ -139,10 +139,10 @@ fn verify_inner(
     let c = k256::Scalar::from_digest(
         Sha256::new()
             .chain(constants::PEDERSEN_PROOF_TAG.to_le_bytes())
-            .chain(k256_serde::to_bytes(&stmt.commit))
+            .chain(k256_serde::to_bytes(stmt.commit))
             .chain(&msg_g_g_beta.map_or(Vec::new(), |(msg_g, _, _)| k256_serde::to_bytes(msg_g)))
             .chain(&msg_g_g_beta.map_or(Vec::new(), |(_, g, _)| k256_serde::to_bytes(g)))
-            .chain(k256_serde::to_bytes(&proof.alpha.unwrap()))
+            .chain(k256_serde::to_bytes(proof.alpha.unwrap()))
             .chain(&msg_g_g_beta.map_or(Vec::new(), |(_, _, beta)| k256_serde::to_bytes(beta))),
     );
     if let Some((msg_g, g, beta)) = msg_g_g_beta {
@@ -205,7 +205,7 @@ mod tests {
 
         // test: valid proof
         let proof = prove(stmt, wit);
-        verify(&stmt, &proof).unwrap();
+        verify(stmt, &proof).unwrap();
 
         // test: valid proof wc (with check)
         let proof_wc = prove_wc(stmt_wc, wit);
@@ -213,7 +213,7 @@ mod tests {
 
         // test: bad proof
         let bad_proof = corrupt_proof(&proof);
-        verify(&stmt, &bad_proof).unwrap_err();
+        verify(stmt, &bad_proof).unwrap_err();
 
         // test: bad proof wc (with check)
         let bad_proof_wc = corrupt_proof_wc(&proof_wc);
