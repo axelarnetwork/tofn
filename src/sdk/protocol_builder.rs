@@ -35,27 +35,21 @@ pub enum RoundBuilder<F, K> {
 pub type ProtocolBuilderOutput<F, K> = Result<F, FillVecMap<K, Fault>>; // subshare faults
 
 impl<F, K> ProtocolBuilder<F, K> {
-    pub(super) fn build<P>(
-        self,
-        info: ProtocolInfoDeluxe<K, P>,
-        round_num: usize,
-    ) -> TofnResult<Protocol<F, K, P>> {
+    pub(super) fn build<P>(self, info: ProtocolInfoDeluxe<K, P>) -> TofnResult<Protocol<F, K, P>> {
         Ok(match self {
             Self::NotDone(builder) => Protocol::NotDone(match builder {
                 RoundBuilder::BcastAndP2p {
                     round,
                     bcast_out,
                     p2ps_out,
-                } => Round::new_bcast_and_p2p(round, round_num, info, bcast_out, p2ps_out)?,
+                } => Round::new_bcast_and_p2p(round, info, bcast_out, p2ps_out)?,
                 RoundBuilder::BcastOnly { round, bcast_out } => {
-                    Round::new_bcast_only(round, round_num, info, bcast_out)?
+                    Round::new_bcast_only(round, info, bcast_out)?
                 }
                 RoundBuilder::P2pOnly { round, p2ps_out } => {
-                    Round::new_p2p_only(round, round_num, info, p2ps_out)?
+                    Round::new_p2p_only(round, info, p2ps_out)?
                 }
-                RoundBuilder::NoMessages { round } => {
-                    Round::new_no_messages(round, round_num, info)?
-                }
+                RoundBuilder::NoMessages { round } => Round::new_no_messages(round, info)?,
             }),
             Self::Done(output) => Protocol::Done(info.share_to_party_faults(output)?),
         })
