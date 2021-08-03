@@ -39,17 +39,6 @@ impl<K, V> FillVecMap<K, V> {
         *stored = Some(value);
         Ok(())
     }
-
-    pub fn map_element(&mut self, index: TypedUsize<K>, f: impl FnOnce(&mut V)) -> TofnResult<()> {
-        let stored = self.vec.get_mut(index)?;
-
-        if let Some(v) = stored.as_mut() {
-            f(v)
-        }
-
-        Ok(())
-    }
-
     pub fn is_none(&self, index: TypedUsize<K>) -> TofnResult<bool> {
         Ok(self.vec.get(index)?.is_none())
     }
