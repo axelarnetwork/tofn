@@ -25,22 +25,8 @@ where
     P: Clone,
 {
     while let Protocol::NotDone(mut round) = party {
-        // send outgoing messages
-        if let Some(bytes) = round.bcast_out() {
-            broadcaster.send(Message {
-                from: round.info().party_id(),
-                bytes: bytes.clone(),
-            });
-        }
-
-        if let Some(p2ps_out) = round.p2ps_out() {
-            for (_, bytes) in p2ps_out.iter() {
-                broadcaster.send(Message {
-                    from: round.info().party_id(),
-                    bytes: bytes.clone(),
-                });
-            }
-        }
+        let party_id = round.info().party_id();
+        let total_shares = round.info().party_share_counts().total_share_count();
 
         // We keep track of when all parties are done receiving protocol messages
         // This way all parties move into the next round together to avoid
@@ -49,8 +35,13 @@ where
         // unlike when using a blockchain.
         let mut done_parties: usize = 0;
 
-        // collect incoming messages
-        while round.expecting_more_msgs_this_round() {
+        // Send a signal to all parties that we've received all messages
+        broadcaster.send(Message {
+            from: party_id,
+            bytes: Vec::new(),
+        });
+
+        while done_parties < total_shares {
             let msg = input.recv().expect("recv fail");
 
             if msg.bytes.is_empty() {
@@ -60,25 +51,27 @@ where
             }
         }
 
-        // Send a signal to all parties that we've received all messages
-        broadcaster.send(Message {
-            from: round.info().party_id(),
-            bytes: Vec::new(),
-        });
+        // send outgoing messages
+        if let Some(bytes) = round.bcast_out() {
+            broadcaster.send(Message {
+                from: party_id,
+                bytes: bytes.clone(),
+            });
+        }
 
-        while done_parties < round.info().party_share_counts().total_share_count() {
-            let msg = input.recv().expect("recv fail");
-
-            if msg.bytes.is_empty() {
-                done_parties += 1;
-            } else {
-                error!(
-                    "Party {} received unexpected message from party {}",
-                    round.info().party_id(),
-                    msg.from
-                );
-                return Err(TofnFatal);
+        if let Some(p2ps_out) = round.p2ps_out() {
+            for (_, bytes) in p2ps_out.iter() {
+                broadcaster.send(Message {
+                    from: party_id,
+                    bytes: bytes.clone(),
+                });
             }
+        }
+
+        // collect incoming messages
+        while round.expecting_more_msgs_this_round() {
+            let msg = input.recv().expect("recv fail");
+            round.msg_in(msg.from, &msg.bytes)?;
         }
 
         party = round.execute_next_round()?;
