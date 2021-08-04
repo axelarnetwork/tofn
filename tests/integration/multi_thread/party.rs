@@ -29,6 +29,32 @@ where
     while let Protocol::NotDone(mut round) = party {
         let id = round.info().share_info().share_id();
 
+        let party_id = round.info().party_id();
+        let total_shares = round.info().party_share_counts().total_share_count();
+
+        // We keep track of when all parties are done receiving protocol messages
+        // This way all parties move into the next round together to avoid
+        // concurrency issues mentioned in https://github.com/axelarnetwork/tofn/issues/102
+        // NOTE: This is only a workaround for tests where ordering is not guaranteed
+        // unlike when using a blockchain.
+        let mut done_parties: usize = 0;
+
+        // Send a signal to all parties that we've received all messages
+        broadcaster.send(Message {
+            from: party_id,
+            bytes: Vec::new(),
+        });
+
+        while done_parties < total_shares {
+            let msg = input.recv().expect("recv fail");
+
+            if msg.bytes.is_empty() {
+                done_parties += 1;
+            } else {
+                round.msg_in(msg.from, &msg.bytes)?;
+            }
+        }
+
         info!("Peer {}, Round {}: sending out messages", id, r);
         // send outgoing messages
         if let Some(bytes) = round.bcast_out() {
