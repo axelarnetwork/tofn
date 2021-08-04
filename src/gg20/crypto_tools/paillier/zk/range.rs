@@ -91,7 +91,7 @@ impl ZkSetup {
             constants::RANGE_PROOF_WC_TAG,
             &stmt.stmt,
             &proof.proof,
-            Some((stmt.msg_g, stmt.g, &proof.u1.unwrap())),
+            Some((stmt.msg_g, stmt.g, proof.u1.unwrap())),
         )
     }
 
@@ -108,9 +108,9 @@ impl ZkSetup {
         let rho = random(&self.q_n_tilde);
         let gamma = random(&self.q3_n_tilde);
 
-        let z = self.commit(&to_bigint(&wit.msg), &rho);
+        let z = self.commit(&to_bigint(wit.msg), &rho);
         let (u, beta) = stmt.ek.encrypt(&alpha_pt);
-        let w = self.commit(&alpha_bigint, &gamma);
+        let w = self.commit(alpha_bigint, &gamma);
 
         let u1 = msg_g_g.map::<k256::ProjectivePoint, _>(|(_, g)| g * &alpha_pt.to_scalar());
 
@@ -119,8 +119,8 @@ impl ZkSetup {
                 .chain(tag.to_le_bytes())
                 .chain(to_vec(&stmt.ek.0.n))
                 .chain(to_vec(&stmt.ciphertext.0))
-                .chain(&msg_g_g.map_or(Vec::new(), |(msg_g, _)| k256_serde::to_bytes(&msg_g)))
-                .chain(&msg_g_g.map_or(Vec::new(), |(_, g)| k256_serde::to_bytes(&g)))
+                .chain(&msg_g_g.map_or(Vec::new(), |(msg_g, _)| k256_serde::to_bytes(msg_g)))
+                .chain(&msg_g_g.map_or(Vec::new(), |(_, g)| k256_serde::to_bytes(g)))
                 .chain(to_vec(&z))
                 .chain(to_vec(&u.0))
                 .chain(&u1.map_or(Vec::new(), |u1| k256_serde::to_bytes(&u1)))
@@ -158,11 +158,11 @@ impl ZkSetup {
                 .chain(tag.to_le_bytes())
                 .chain(to_vec(&stmt.ek.0.n))
                 .chain(to_vec(&stmt.ciphertext.0))
-                .chain(&msg_g_g_u1.map_or(Vec::new(), |(msg_g, _, _)| k256_serde::to_bytes(&msg_g)))
-                .chain(&msg_g_g_u1.map_or(Vec::new(), |(_, g, _)| k256_serde::to_bytes(&g)))
+                .chain(&msg_g_g_u1.map_or(Vec::new(), |(msg_g, _, _)| k256_serde::to_bytes(msg_g)))
+                .chain(&msg_g_g_u1.map_or(Vec::new(), |(_, g, _)| k256_serde::to_bytes(g)))
                 .chain(to_vec(&proof.z))
                 .chain(to_vec(&proof.u.0))
-                .chain(&msg_g_g_u1.map_or(Vec::new(), |(_, _, u1)| k256_serde::to_bytes(&u1)))
+                .chain(&msg_g_g_u1.map_or(Vec::new(), |(_, _, u1)| k256_serde::to_bytes(u1)))
                 .chain(to_vec(&proof.w)),
         );
         let e_neg_bigint = to_bigint(&e).neg();
@@ -270,7 +270,7 @@ mod tests {
 
         // test: bad proof
         let bad_proof = corrupt_proof(&proof);
-        zkp.verify_range_proof(&stmt, &bad_proof).unwrap_err();
+        zkp.verify_range_proof(stmt, &bad_proof).unwrap_err();
 
         // test: bad proof wc (with check)
         let bad_proof_wc = corrupt_proof_wc(&proof_wc);
@@ -283,7 +283,7 @@ mod tests {
             ..*wit
         };
         let bad_proof = zkp.range_proof(stmt, bad_wit);
-        zkp.verify_range_proof(&stmt, &bad_proof).unwrap_err();
+        zkp.verify_range_proof(stmt, &bad_proof).unwrap_err();
         let bad_wit_proof_wc = zkp.range_proof_wc(stmt_wc, bad_wit);
         zkp.verify_range_proof_wc(stmt_wc, &bad_wit_proof_wc)
             .unwrap_err();

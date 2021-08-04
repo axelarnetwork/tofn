@@ -224,7 +224,7 @@ impl bcast_only::Executer for R8Type7 {
                 base1: &k256::ProjectivePoint::generator(),
                 base2: &self.R,
                 target1: &peer_g_sigma_i, // sigma_i * G
-                target2: &self.r6bcasts.get(sign_peer_id)?.S_i.unwrap(), // sigma_i * R == S_i
+                target2: self.r6bcasts.get(sign_peer_id)?.S_i.unwrap(), // sigma_i * R == S_i
             };
 
             if let Err(err) = chaum_pedersen::verify(peer_stmt, &bcast.proof) {

@@ -81,8 +81,8 @@ impl ZkSetup {
         &self.composite_dlog_statement.N
     }
     fn commit(&self, msg: &BigInt, randomness: &BigInt) -> BigInt {
-        let h1_x = self.h1().powm(&msg, self.n_tilde());
-        let h2_r = self.h2().powm(&randomness, self.n_tilde());
+        let h1_x = self.h1().powm(msg, self.n_tilde());
+        let h2_r = self.h2().powm(randomness, self.n_tilde());
         mulm(&h1_x, &h2_r, self.n_tilde())
     }
 

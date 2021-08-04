@@ -10,6 +10,7 @@ pub struct ProtocolInfoDeluxe<K, P> {
     party_share_counts: PartyShareCounts<P>,
     party_id: TypedUsize<P>,
     share_info: ProtocolInfo<K>,
+    round: usize,
 }
 
 // share-level info persisted throughout the protocol
@@ -37,11 +38,21 @@ impl<K, P> ProtocolInfoDeluxe<K, P> {
     pub fn party_id(&self) -> TypedUsize<P> {
         self.party_id
     }
+
     pub fn share_info(&self) -> &ProtocolInfo<K> {
         &self.share_info
     }
+
     pub fn party_share_counts(&self) -> &PartyShareCounts<P> {
         &self.party_share_counts
+    }
+
+    pub fn round(&self) -> usize {
+        self.round
+    }
+
+    pub fn advance_round(&mut self) {
+        self.round += 1
     }
 
     // private methods
@@ -58,6 +69,7 @@ impl<K, P> ProtocolInfoDeluxe<K, P> {
                 share_count,
                 share_id,
             },
+            round: 0,
         })
     }
 

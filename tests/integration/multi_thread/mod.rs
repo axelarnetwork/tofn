@@ -1,6 +1,6 @@
 use crate::common::keygen;
 use broadcaster::Broadcaster;
-// use ecdsa::{elliptic_curve::sec1::FromEncodedPoint, hazmat::VerifyPrimitive};
+use ecdsa::{elliptic_curve::sec1::FromEncodedPoint, hazmat::VerifyPrimitive};
 use std::{convert::TryFrom, sync::mpsc, thread};
 use tofn::{
     collections::{TypedUsize, VecMap},
@@ -10,7 +10,7 @@ use tofn::{
     },
     sdk::api::PartyShareCounts,
 };
-use tracing::{debug, info};
+use tracing::debug;
 
 #[cfg(feature = "malicious")]
 use tofn::gg20::sign;
@@ -76,7 +76,7 @@ fn basic_correctness() {
     // sign
     debug!("start sign");
     let msg_to_sign = MessageDigest::try_from(&[42; 32][..]).unwrap();
-    let _sign_shares = keygen_share_ids.map(|keygen_share_id| {
+    let sign_shares = keygen_share_ids.map(|keygen_share_id| {
         let secret_key_share = secret_key_shares.get(keygen_share_id).unwrap();
         new_sign(
             secret_key_share.group(),
@@ -88,52 +88,51 @@ fn basic_correctness() {
         )
         .unwrap()
     });
-    info!("Sign removed from this test because of a nondeterministic bug: https://github.com/axelarnetwork/tofn/issues/102 .  Uncomment the rest of this test (and `use` statements in this module) to sign a message.");
 
-    // let (sign_broadcaster, sign_receivers) = Broadcaster::new(sign_shares.len());
-    // let (sign_result_sender, sign_result_receiver) = mpsc::channel();
-    // for ((_, sign_share), sign_receiver) in sign_shares.into_iter().zip(sign_receivers.into_iter())
-    // {
-    //     let sign_broadcaster = sign_broadcaster.clone();
-    //     let sign_result_sender = sign_result_sender.clone();
-    //     thread::spawn(move || {
-    //         sign_result_sender.send(party::execute_protocol(
-    //             sign_share,
-    //             sign_receiver,
-    //             sign_broadcaster,
-    //         ))
-    //     });
-    // }
-    // drop(sign_result_sender); // so that result_receiver can close
+    let (sign_broadcaster, sign_receivers) = Broadcaster::new(sign_shares.len());
+    let (sign_result_sender, sign_result_receiver) = mpsc::channel();
+    for ((_, sign_share), sign_receiver) in sign_shares.into_iter().zip(sign_receivers.into_iter())
+    {
+        let sign_broadcaster = sign_broadcaster.clone();
+        let sign_result_sender = sign_result_sender.clone();
+        thread::spawn(move || {
+            sign_result_sender.send(party::execute_protocol(
+                sign_share,
+                sign_receiver,
+                sign_broadcaster,
+            ))
+        });
+    }
+    drop(sign_result_sender); // so that result_receiver can close
 
-    // // collect sign output
-    // let signatures: VecMap<SignParticipantIndex, _> = sign_result_receiver
-    //     .into_iter()
-    //     .map(|output| {
-    //         output
-    //             .expect("sign internal tofn error")
-    //             .expect("sign party finished in sad path")
-    //     })
-    //     .collect();
-    // debug!("end sign");
+    // collect sign output
+    let signatures: VecMap<SignShareId, _> = sign_result_receiver
+        .into_iter()
+        .map(|output| {
+            output
+                .expect("sign internal tofn error")
+                .expect("sign party finished in sad path")
+        })
+        .collect();
+    debug!("end sign");
 
-    // // grab pubkey bytes from one of the shares
-    // let pubkey_bytes = secret_key_shares
-    //     .get(TypedUsize::from_usize(0))
-    //     .unwrap()
-    //     .group()
-    //     .pubkey_bytes();
+    // grab pubkey bytes from one of the shares
+    let pubkey_bytes = secret_key_shares
+        .get(TypedUsize::from_usize(0))
+        .unwrap()
+        .group()
+        .pubkey_bytes();
 
-    // // verify a signature
-    // let pubkey = k256::AffinePoint::from_encoded_point(
-    //     &k256::EncodedPoint::from_bytes(pubkey_bytes).unwrap(),
-    // )
-    // .unwrap();
-    // let sig = k256::ecdsa::Signature::from_der(signatures.get(TypedUsize::from_usize(0)).unwrap())
-    //     .unwrap();
-    // assert!(pubkey
-    //     .verify_prehashed(&k256::Scalar::from(&msg_to_sign), &sig)
-    //     .is_ok());
+    // verify a signature
+    let pubkey = k256::AffinePoint::from_encoded_point(
+        &k256::EncodedPoint::from_bytes(pubkey_bytes).unwrap(),
+    )
+    .unwrap();
+    let sig = k256::ecdsa::Signature::from_der(signatures.get(TypedUsize::from_usize(0)).unwrap())
+        .unwrap();
+    assert!(pubkey
+        .verify_prehashed(&k256::Scalar::from(&msg_to_sign), &sig)
+        .is_ok());
 }
 
 mod broadcaster {

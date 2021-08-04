@@ -168,7 +168,7 @@ fn to_bigint(s: &k256::Scalar) -> BigInt {
 }
 
 fn to_scalar(bigint: &BigInt) -> k256::Scalar {
-    let s = mod_secp256k1(&bigint);
+    let s = mod_secp256k1(bigint);
     let s_vec = to_vec(&s);
     let s_pad = pad32(s_vec);
     let s_bytes = *k256::FieldBytes::from_slice(&s_pad);

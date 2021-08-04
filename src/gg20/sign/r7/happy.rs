@@ -116,13 +116,13 @@ impl bcast_only::Executer for R7Happy {
         for (sign_peer_id, bcast) in &bcasts_in {
             let peer_stmt = &pedersen::StatementWc {
                 stmt: pedersen::Statement {
-                    commit: &self.r3bcasts.get(sign_peer_id)?.T_i.unwrap(),
+                    commit: self.r3bcasts.get(sign_peer_id)?.T_i.unwrap(),
                 },
                 msg_g: bcast.S_i.unwrap(),
                 g: &self.R,
             };
 
-            if let Err(err) = pedersen::verify_wc(&peer_stmt, &bcast.S_i_proof_wc) {
+            if let Err(err) = pedersen::verify_wc(peer_stmt, &bcast.S_i_proof_wc) {
                 warn!(
                     "peer {} says: pedersen proof wc failed to verify for peer {} because [{}]",
                     sign_id, sign_peer_id, err

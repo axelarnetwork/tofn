@@ -119,8 +119,8 @@ fn execute_sign(
             let key_share = key_shares.get(keygen_id.as_usize()).unwrap();
 
             match new_sign(
-                &key_share.group(),
-                &key_share.share(),
+                key_share.group(),
+                key_share.share(),
                 &sign_parties,
                 msg_to_sign,
                 #[cfg(feature = "malicious")]

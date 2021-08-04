@@ -43,7 +43,7 @@ pub fn execute_keygen(
     execute_keygen_with_recovery(party_share_counts, threshold).shares
 }
 
-struct KeySharesWithRecovery {
+pub struct KeySharesWithRecovery {
     pub shares: Vec<SecretKeyShare>,
     pub secret_recovery_keys: VecMap<KeygenPartyId, SecretRecoveryKey>,
     pub session_nonce: Vec<u8>,
@@ -81,7 +81,7 @@ fn execute_keygen_from_recovery(
     assert_eq!(secret_recovery_keys.len(), party_share_counts.party_count());
     let share_count = party_share_counts.total_share_count();
 
-    let r0_parties: Vec<_> = party_share_counts
+    let r0_parties = party_share_counts
         .iter()
         .map(|(party_id, &party_share_count)| {
             (0..party_share_count).map(move |subshare_id| {
@@ -103,8 +103,7 @@ fn execute_keygen_from_recovery(
                 }
             })
         })
-        .flatten()
-        .collect();
+        .flatten();
 
     // execute round 1 all parties
     let mut r1_parties: Vec<_> = r0_parties
@@ -304,12 +303,8 @@ fn share_recovery() {
         session_nonce,
     );
 
-    let recovery_infos = {
-        let mut recovery_infos: Vec<_> =
-            shares.iter().map(|s| s.recovery_info().unwrap()).collect();
-        recovery_infos.shuffle(&mut rand::thread_rng()); // simulate nondeterministic message receipt
-        recovery_infos
-    };
+    let mut recovery_infos: Vec<_> = shares.iter().map(|s| s.recovery_info().unwrap()).collect();
+    recovery_infos.shuffle(&mut rand::thread_rng()); // simulate nondeterministic message receipt
     let recovery_infos = &recovery_infos;
 
     let recovered_shares: Vec<SecretKeyShare> = secret_recovery_keys
@@ -319,7 +314,7 @@ fn share_recovery() {
                 SecretKeyShare::recover_unsafe(
                     &secret_recovery_key,
                     session_nonce,
-                    &recovery_infos,
+                    recovery_infos,
                     party_id,
                     subshare_id,
                     party_share_counts.clone(),
@@ -338,7 +333,7 @@ fn share_recovery() {
 
     for (i, (s, r)) in shares.iter().zip(recovered_shares.iter()).enumerate() {
         assert_eq!(s.share(), r.share(), "party {}", i);
-        for (j, ss, rr) in zip2(&s.group().all_shares(), &r.group().all_shares()) {
+        for (j, ss, rr) in zip2(s.group().all_shares(), r.group().all_shares()) {
             assert_eq!(ss.X_i(), rr.X_i(), "party {} public info on party {}", i, j);
             assert_eq!(ss.ek(), rr.ek(), "party {} public info on party {}", i, j);
             assert_eq!(ss.zkp(), rr.zkp(), "party {} public info on party {}", i, j);

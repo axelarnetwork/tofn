@@ -95,7 +95,7 @@ impl ZkSetup {
             constants::MTA_PROOF_WC_TAG,
             &stmt.stmt,
             &proof.proof,
-            Some((stmt.x_g, &proof.u.unwrap())),
+            Some((stmt.x_g, proof.u.unwrap())),
         )
     }
 
@@ -118,7 +118,7 @@ impl ZkSetup {
         let beta = stmt.ek.sample_randomness();
         let gamma = Plaintext(stmt.ek.sample_randomness().0.clone());
 
-        let x_bigint = to_bigint(&wit.x);
+        let x_bigint = to_bigint(wit.x);
 
         let z = self.commit(&x_bigint, &rho);
         let z_prime = self.commit(&alpha, &rho_prime);
@@ -198,7 +198,7 @@ impl ZkSetup {
                 .chain(to_vec(&proof.z))
                 .chain(to_vec(&proof.z_prime))
                 .chain(to_vec(&proof.t))
-                .chain(x_g_u.map_or(Vec::new(), |(_, u)| k256_serde::to_bytes(&u)))
+                .chain(x_g_u.map_or(Vec::new(), |(_, u)| k256_serde::to_bytes(u)))
                 .chain(to_vec(&proof.v))
                 .chain(to_vec(&proof.w)),
         );
@@ -338,7 +338,7 @@ pub(crate) mod tests {
             ..*wit
         };
         let bad_wit_proof = zkp.mta_proof(stmt, bad_wit);
-        zkp.verify_mta_proof(&stmt, &bad_wit_proof).unwrap_err();
+        zkp.verify_mta_proof(stmt, &bad_wit_proof).unwrap_err();
 
         // test: bad witness wc (with check)
         let bad_wit_proof_wc = zkp.mta_proof_wc(stmt_wc, bad_wit);
