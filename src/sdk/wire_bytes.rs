@@ -13,14 +13,12 @@ pub fn wrap<K>(
     payload: BytesVec,
     from: TypedUsize<K>,
     msg_type: MsgType<K>,
-    round: usize,
 ) -> TofnResult<BytesVec> {
     serialize(&BytesVecVersioned {
         version: TOFN_SERIALIZATION_VERSION,
         payload: serialize(&WireBytes {
             msg_type,
             from,
-            round,
             payload,
         })?,
     })
@@ -53,7 +51,6 @@ pub fn unwrap<K>(bytes: &[u8]) -> Option<WireBytes<K>> {
 pub struct WireBytes<K> {
     pub msg_type: MsgType<K>,
     pub from: TypedUsize<K>,
-    pub round: usize,
     pub payload: BytesVec,
 }
 
@@ -91,7 +88,6 @@ pub mod malicious {
             b"these bytes are corrupted 1234".to_vec(),
             wire_bytes.from,
             wire_bytes.msg_type,
-            wire_bytes.round,
         )
     }
 }
