@@ -29,6 +29,11 @@ paillier = { git = "https://github.com/axelarnetwork/rust-paillier"}
 [dev-dependencies]
 tracing-test = "0" # enable logging for tests
 tracing-subscriber = { version = "0", features = ["env-filter", "fmt"], default-features = false }
+criterion = "0.3"
+
+[[bench]]
+name = "safe_primes"
+harness = false
 
 # Don't abort in case there is a panic to clean up data
 [profile.dev]
