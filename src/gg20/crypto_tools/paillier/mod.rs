@@ -75,6 +75,14 @@ impl EncryptionKey {
     }
 }
 
+// TODO: This might be optimized away since BigInt itself doesn't implement Zeroize
+impl Zeroize for EncryptionKey {
+    fn zeroize(&mut self) {
+        self.0.n = BigInt::zero();
+        self.0.nn = BigInt::zero();
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DecryptionKey(paillier::DecryptionKey);
 

@@ -84,15 +84,21 @@ fn execute_keygen_from_recovery(
     let r0_parties = party_share_counts
         .iter()
         .map(|(party_id, &party_share_count)| {
+            let (party_keypair, party_zksetup) = create_party_keypair_and_zksetup_unsafe(
+                secret_recovery_keys.get(party_id).unwrap(),
+                session_nonce,
+            )
+            .unwrap();
+
             (0..party_share_count).map(move |subshare_id| {
                 // each party use the same secret recovery key for all its subshares
-                match new_keygen_unsafe(
+                match new_keygen(
                     party_share_counts.clone(),
                     threshold,
                     party_id,
                     subshare_id,
-                    secret_recovery_keys.get(party_id).unwrap(),
-                    session_nonce,
+                    &party_keypair,
+                    &party_zksetup,
                     #[cfg(feature = "malicious")]
                     Honest,
                 )
@@ -289,8 +295,8 @@ fn share_recovery() {
     let secret_recovery_keys = VecMap::from_vec(
         (0..party_share_counts.party_count())
             .map(|_| {
-                let mut s = [0u8; 64];
-                rand::thread_rng().fill_bytes(&mut s);
+                let mut s = SecretRecoveryKey([0u8; 64]);
+                rand::thread_rng().fill_bytes(&mut s.0);
                 s
             })
             .collect(),
@@ -309,11 +315,13 @@ fn share_recovery() {
 
     let recovered_shares: Vec<SecretKeyShare> = secret_recovery_keys
         .iter()
-        .map(|(party_id, &secret_recovery_key)| {
+        .map(|(party_id, secret_recovery_key)| {
+            let party_keypair =
+                recover_party_keypair_unsafe(secret_recovery_key, session_nonce).unwrap();
+
             (0..party_share_counts.party_share_count(party_id).unwrap()).map(move |subshare_id| {
-                SecretKeyShare::recover_unsafe(
-                    &secret_recovery_key,
-                    session_nonce,
+                SecretKeyShare::recover(
+                    &party_keypair,
                     recovery_infos,
                     party_id,
                     subshare_id,
@@ -350,5 +358,5 @@ pub fn dummy_secret_recovery_key(index: usize) -> SecretRecoveryKey {
     for (i, &b) in index_bytes.iter().enumerate() {
         result[i] = b;
     }
-    result
+    SecretRecoveryKey(result)
 }

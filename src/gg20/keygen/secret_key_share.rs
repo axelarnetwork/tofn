@@ -1,6 +1,4 @@
-use super::{
-    rng::rng_seed, KeygenPartyId, KeygenPartyShareCounts, KeygenShareId, SecretRecoveryKey,
-};
+use super::{KeygenPartyId, KeygenPartyShareCounts, KeygenShareId, PartyKeyPair};
 use crate::{
     collections::{TypedUsize, VecMap},
     gg20::crypto_tools::{k256_serde, paillier, vss},
@@ -154,67 +152,15 @@ impl SecretKeyShare {
     }
 
     /// Recover a `SecretKeyShare`
-    pub fn recover(
-        secret_recovery_key: &SecretRecoveryKey,
-        session_nonce: &[u8],
-        recovery_infos: &[KeyShareRecoveryInfo],
-        party_id: TypedUsize<KeygenPartyId>,
-        subshare_id: usize, // in 0..party_share_counts[party_id]
-        party_share_counts: KeygenPartyShareCounts,
-        threshold: usize,
-    ) -> TofnResult<Self> {
-        Self::recover_impl(
-            secret_recovery_key,
-            session_nonce,
-            recovery_infos,
-            party_id,
-            subshare_id,
-            party_share_counts,
-            threshold,
-            true,
-        )
-    }
-
-    // BEWARE: This is only made visible for faster integration testing
-    // TODO: Use a better way to hide this from the API, while allowing it for integration tests
-    // since #[cfg(tests)] only works for unit tests
-    pub fn recover_unsafe(
-        secret_recovery_key: &SecretRecoveryKey,
-        session_nonce: &[u8],
-        recovery_infos: &[KeyShareRecoveryInfo],
-        party_id: TypedUsize<KeygenPartyId>,
-        subshare_id: usize, // in 0..party_share_counts[party_id]
-        party_share_counts: KeygenPartyShareCounts,
-        threshold: usize,
-    ) -> TofnResult<Self> {
-        Self::recover_impl(
-            secret_recovery_key,
-            session_nonce,
-            recovery_infos,
-            party_id,
-            subshare_id,
-            party_share_counts,
-            threshold,
-            false,
-        )
-    }
-
     #[allow(clippy::too_many_arguments)]
-    fn recover_impl(
-        secret_recovery_key: &SecretRecoveryKey,
-        session_nonce: &[u8],
+    pub fn recover(
+        party_keypair: &PartyKeyPair,
         recovery_infos: &[KeyShareRecoveryInfo],
         party_id: TypedUsize<KeygenPartyId>,
         subshare_id: usize, // in 0..party_share_counts[party_id]
         party_share_counts: KeygenPartyShareCounts,
         threshold: usize,
-        use_safe_primes: bool,
     ) -> TofnResult<Self> {
-        // basic argument validation
-        if session_nonce.is_empty() {
-            error!("invalid session_nonce length: {}", session_nonce.len());
-            return Err(TofnFatal);
-        }
         let share_count = recovery_infos.len();
         let share_id = party_share_counts.party_to_share_id(party_id, subshare_id)?;
         if threshold >= share_count || share_id.as_usize() >= share_count {
@@ -246,11 +192,8 @@ impl SecretKeyShare {
         };
 
         // recover my Paillier keys
-        let (ek, dk) = if use_safe_primes {
-            paillier::keygen(&mut rng_seed(secret_recovery_key, session_nonce))
-        } else {
-            paillier::keygen_unsafe(&mut rng_seed(secret_recovery_key, session_nonce))
-        };
+        let ek = party_keypair.ek.clone();
+        let dk = party_keypair.dk.clone();
 
         // verify recovery of the correct Paillier keys
         if ek != recovery_infos_sorted[share_id.as_usize()].share.ek {

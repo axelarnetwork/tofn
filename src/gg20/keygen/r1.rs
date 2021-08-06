@@ -2,7 +2,15 @@ use crate::{
     corrupt,
     gg20::{
         constants,
-        crypto_tools::{hash, k256_serde, paillier, vss},
+        crypto_tools::{
+            hash, k256_serde,
+            paillier::{
+                self,
+                zk::{ZkSetup, ZkSetupProof},
+                DecryptionKey, EncryptionKey,
+            },
+            vss,
+        },
         keygen::SecretKeyShare,
     },
     sdk::{
@@ -12,7 +20,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::{r2, rng, KeygenPartyShareCounts, KeygenProtocolBuilder, KeygenShareId};
+use super::{r2, KeygenPartyShareCounts, KeygenProtocolBuilder, KeygenShareId};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -20,8 +28,10 @@ use super::malicious::Behaviour;
 pub struct R1 {
     pub(crate) threshold: usize,
     pub(crate) party_share_counts: KeygenPartyShareCounts,
-    pub(crate) rng_seed: rng::Seed,
-    pub(crate) use_safe_primes: bool,
+    pub(crate) ek: EncryptionKey,
+    pub(crate) dk: DecryptionKey,
+    pub(crate) zkp: ZkSetup,
+    pub(crate) zkp_proof: ZkSetupProof,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
@@ -54,28 +64,17 @@ impl no_messages::Executer for R1 {
 
         corrupt!(y_i_commit, self.corrupt_commit(_keygen_id, y_i_commit));
 
-        let mut rng = rng::rng_from_seed(self.rng_seed.clone());
-        let ((ek, dk), (zkp, zkp_proof)) = if self.use_safe_primes {
-            (
-                paillier::keygen(&mut rng),
-                paillier::zk::ZkSetup::new(&mut rng),
-            )
-        } else {
-            (
-                paillier::keygen_unsafe(&mut rng),
-                paillier::zk::ZkSetup::new_unsafe(&mut rng),
-            )
-        };
-        let ek_proof = dk.correctness_proof();
+        let ek_proof = self.dk.correctness_proof();
+        let zkp_proof = self.zkp_proof.clone();
 
         corrupt!(ek_proof, self.corrupt_ek_proof(_keygen_id, ek_proof));
         corrupt!(zkp_proof, self.corrupt_zkp_proof(_keygen_id, zkp_proof));
 
         let bcast_out = serialize(&Bcast {
             y_i_commit,
-            ek,
+            ek: self.ek,
             ek_proof,
-            zkp,
+            zkp: self.zkp,
             zkp_proof,
         })?;
 
@@ -83,7 +82,7 @@ impl no_messages::Executer for R1 {
             round: Box::new(r2::R2 {
                 threshold: self.threshold,
                 party_share_counts: self.party_share_counts,
-                dk,
+                dk: self.dk,
                 u_i_vss,
                 y_i_reveal,
                 #[cfg(feature = "malicious")]

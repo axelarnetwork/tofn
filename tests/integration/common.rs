@@ -1,8 +1,13 @@
 pub mod keygen {
+    use std::convert::TryInto;
+
     use rand::RngCore;
     use tofn::{
         collections::VecMap,
-        gg20::keygen::{new_keygen_unsafe, KeygenPartyId, KeygenProtocol, KeygenShareId},
+        gg20::keygen::{
+            create_party_keypair_and_zksetup_unsafe, new_keygen, KeygenPartyId, KeygenProtocol,
+            KeygenShareId, SecretRecoveryKey,
+        },
         sdk::api::PartyShareCounts,
     };
 
@@ -19,17 +24,23 @@ pub mod keygen {
             .iter()
             .map(|(party_id, &party_share_count)| {
                 // each party use the same secret recovery key for all its subshares
-                let mut secret_recovery_key = [0u8; 64];
-                rand::thread_rng().fill_bytes(&mut secret_recovery_key);
+                let mut key = [0u8; 64];
+                rand::thread_rng().fill_bytes(&mut key);
+
+                let secret_recovery_key: SecretRecoveryKey = key[..].try_into().unwrap();
+
+                let (party_keypair, party_zksetup) =
+                    create_party_keypair_and_zksetup_unsafe(&secret_recovery_key, session_nonce)
+                        .unwrap();
 
                 (0..party_share_count).map(move |subshare_id| {
-                    new_keygen_unsafe(
+                    new_keygen(
                         party_share_counts.clone(),
                         threshold,
                         party_id,
                         subshare_id,
-                        &secret_recovery_key,
-                        session_nonce,
+                        &party_keypair,
+                        &party_zksetup,
                         #[cfg(feature = "malicious")]
                         Behaviour::Honest,
                     )
@@ -43,6 +54,8 @@ pub mod keygen {
 
 #[cfg(feature = "malicious")]
 pub mod malicious {
+    use std::convert::TryInto;
+
     use tofn::{collections::TypedUsize, gg20::keygen::SecretRecoveryKey};
 
     /// return the all-zero array with the first bytes set to the bytes of `index`
@@ -52,6 +65,6 @@ pub mod malicious {
         for (i, &b) in index_bytes.iter().enumerate() {
             result[i] = b;
         }
-        result
+        result[..].try_into().unwrap()
     }
 }

@@ -4,7 +4,6 @@ use paillier::zk::{CompositeDLogProof, DLogStatement, NICorrectKeyProof};
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
-// use zk_paillier::zkproofs::{CompositeDLogProof, DLogStatement};
 
 pub(crate) mod mta;
 pub(crate) mod range;
