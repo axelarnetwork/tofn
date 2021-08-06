@@ -8,3 +8,7 @@ pub(crate) const CHAUM_PEDERSEN_PROOF_TAG: u8 = 0x05;
 pub(crate) const PEDERSEN_PROOF_TAG: u8 = 0x06;
 pub(crate) const SCHNORR_PROOF_TAG: u8 = 0x07;
 pub(crate) const GAMMA_I_COMMIT_TAG: u8 = 0x08;
+
+// Domain separation for seeding the RNG
+pub(crate) const KEYPAIR_TAG: u8 = 0x00;
+pub(crate) const ZKSETUP_TAG: u8 = 0x01;

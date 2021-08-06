@@ -10,7 +10,7 @@ use tofn::{
 use tracing::info;
 
 use crate::{
-    common::malicious::dummy_secret_recovery_key,
+    common::dummy_secret_recovery_key,
     single_thread::{execute::execute_protocol, set_up_logs},
 };
 

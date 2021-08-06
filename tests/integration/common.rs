@@ -1,12 +1,13 @@
-pub mod keygen {
-    use std::convert::TryInto;
+use std::convert::TryInto;
 
-    use rand::RngCore;
+use tofn::{collections::TypedUsize, gg20::keygen::SecretRecoveryKey};
+
+pub mod keygen {
     use tofn::{
         collections::VecMap,
         gg20::keygen::{
             create_party_keypair_and_zksetup_unsafe, new_keygen, KeygenPartyId, KeygenProtocol,
-            KeygenShareId, SecretRecoveryKey,
+            KeygenShareId,
         },
         sdk::api::PartyShareCounts,
     };
@@ -24,10 +25,7 @@ pub mod keygen {
             .iter()
             .map(|(party_id, &party_share_count)| {
                 // each party use the same secret recovery key for all its subshares
-                let mut key = [0u8; 64];
-                rand::thread_rng().fill_bytes(&mut key);
-
-                let secret_recovery_key: SecretRecoveryKey = key[..].try_into().unwrap();
+                let secret_recovery_key = super::dummy_secret_recovery_key(party_id);
 
                 let (party_keypair, party_zksetup) =
                     create_party_keypair_and_zksetup_unsafe(&secret_recovery_key, session_nonce)
@@ -52,19 +50,12 @@ pub mod keygen {
     }
 }
 
-#[cfg(feature = "malicious")]
-pub mod malicious {
-    use std::convert::TryInto;
-
-    use tofn::{collections::TypedUsize, gg20::keygen::SecretRecoveryKey};
-
-    /// return the all-zero array with the first bytes set to the bytes of `index`
-    pub fn dummy_secret_recovery_key<K>(index: TypedUsize<K>) -> SecretRecoveryKey {
-        let index_bytes = index.as_usize().to_be_bytes();
-        let mut result = [0; 64];
-        for (i, &b) in index_bytes.iter().enumerate() {
-            result[i] = b;
-        }
-        result[..].try_into().unwrap()
+/// return the all-zero array with the first bytes set to the bytes of `index`
+pub fn dummy_secret_recovery_key<K>(index: TypedUsize<K>) -> SecretRecoveryKey {
+    let index_bytes = index.as_usize().to_be_bytes();
+    let mut result = [0; 64];
+    for (i, &b) in index_bytes.iter().enumerate() {
+        result[i] = b;
     }
+    result[..].try_into().unwrap()
 }

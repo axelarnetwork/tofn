@@ -8,7 +8,8 @@ use crate::sdk::api::{TofnFatal, TofnResult};
 
 use super::SecretRecoveryKey;
 
-pub fn rng_seed(
+pub(crate) fn rng_seed(
+    tag: u8,
     secret_recovery_key: &SecretRecoveryKey,
     session_nonce: &[u8],
 ) -> TofnResult<impl CryptoRng + RngCore> {
@@ -21,7 +22,10 @@ pub fn rng_seed(
     }
 
     let mut prf = Hmac::<Sha256>::new(secret_recovery_key.0[..].into());
+
+    prf.update(&tag.to_le_bytes());
     prf.update(session_nonce);
+
     let seed = prf.finalize().into_bytes().into();
 
     Ok(ChaCha20Rng::from_seed(seed))

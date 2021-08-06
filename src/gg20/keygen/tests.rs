@@ -286,19 +286,12 @@ fn execute_keygen_from_recovery(
 
 #[test]
 fn share_recovery() {
-    use rand::RngCore;
-
     let party_share_counts = &KeygenPartyShareCounts::from_vec(vec![2, 3, 1]).unwrap();
     let threshold = 4;
     let session_nonce = b"foobar";
-
     let secret_recovery_keys = VecMap::from_vec(
         (0..party_share_counts.party_count())
-            .map(|_| {
-                let mut s = SecretRecoveryKey([0u8; 64]);
-                rand::thread_rng().fill_bytes(&mut s.0);
-                s
-            })
+            .map(dummy_secret_recovery_key)
             .collect(),
     );
 
@@ -313,11 +306,13 @@ fn share_recovery() {
     recovery_infos.shuffle(&mut rand::thread_rng()); // simulate nondeterministic message receipt
     let recovery_infos = &recovery_infos;
 
-    let recovered_shares: Vec<SecretKeyShare> = secret_recovery_keys
-        .iter()
-        .map(|(party_id, secret_recovery_key)| {
+    let recovered_shares: Vec<SecretKeyShare> = (0..party_share_counts.party_count())
+        .map(|party_id| {
             let party_keypair =
-                recover_party_keypair_unsafe(secret_recovery_key, session_nonce).unwrap();
+                recover_party_keypair_unsafe(&dummy_secret_recovery_key(party_id), session_nonce)
+                    .unwrap();
+
+            let party_id = TypedUsize::<KeygenPartyId>::from_usize(party_id);
 
             (0..party_share_counts.party_share_count(party_id).unwrap()).map(move |subshare_id| {
                 SecretKeyShare::recover(

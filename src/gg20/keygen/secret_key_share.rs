@@ -192,11 +192,11 @@ impl SecretKeyShare {
         };
 
         // recover my Paillier keys
-        let ek = party_keypair.ek.clone();
+        let ek = &party_keypair.ek;
         let dk = party_keypair.dk.clone();
 
         // verify recovery of the correct Paillier keys
-        if ek != recovery_infos_sorted[share_id.as_usize()].share.ek {
+        if ek != &recovery_infos_sorted[share_id.as_usize()].share.ek {
             error!("recovered ek mismatch for index {}", share_id);
             return Err(TofnFatal);
         }
