@@ -1,6 +1,19 @@
+use std::{
+    array::TryFromSliceError,
+    convert::{TryFrom, TryInto},
+};
+
 use super::{r1, rng, SecretKeyShare};
 use crate::{
     collections::TypedUsize,
+    gg20::{
+        constants::{KEYPAIR_TAG, ZKSETUP_TAG},
+        crypto_tools::paillier::{
+            self,
+            zk::{ZkSetup, ZkSetupProof},
+            DecryptionKey, EncryptionKey,
+        },
+    },
     sdk::{
         api::{PartyShareCounts, Protocol, TofnFatal, TofnResult},
         implementer_api::{new_protocol, ProtocolBuilder},
@@ -8,6 +21,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use tracing::error;
+use zeroize::Zeroize;
 
 #[cfg(feature = "malicious")]
 use super::malicious;
@@ -21,7 +35,80 @@ pub struct KeygenPartyId;
 pub type KeygenProtocol = Protocol<SecretKeyShare, KeygenShareId, KeygenPartyId>;
 pub type KeygenProtocolBuilder = ProtocolBuilder<SecretKeyShare, KeygenShareId>;
 pub type KeygenPartyShareCounts = PartyShareCounts<KeygenPartyId>;
-pub type SecretRecoveryKey = [u8; 64];
+
+#[derive(Debug, Clone, Zeroize)]
+#[zeroize(drop)]
+pub struct SecretRecoveryKey(pub(crate) [u8; 64]);
+
+impl TryFrom<&[u8]> for SecretRecoveryKey {
+    type Error = TryFromSliceError;
+    fn try_from(v: &[u8]) -> Result<Self, Self::Error> {
+        Ok(Self(v.try_into()?))
+    }
+}
+
+#[derive(Debug, Clone, Zeroize)]
+#[zeroize(drop)]
+pub struct PartyKeyPair {
+    pub(crate) ek: EncryptionKey,
+    pub(crate) dk: DecryptionKey,
+}
+
+#[derive(Debug, Clone)]
+pub struct PartyZkSetup {
+    pub(crate) zkp: ZkSetup,
+    pub(crate) zkp_proof: ZkSetupProof,
+}
+
+// Since safe prime generation is expensive, a party is expected to generate
+// a keypair once for all it's shares and provide it to new_keygen
+pub fn create_party_keypair_and_zksetup(
+    secret_recovery_key: &SecretRecoveryKey,
+    session_nonce: &[u8],
+) -> TofnResult<(PartyKeyPair, PartyZkSetup)> {
+    let keypair = recover_party_keypair(secret_recovery_key, session_nonce)?;
+
+    let mut zksetup_rng = rng::rng_seed(ZKSETUP_TAG, secret_recovery_key, session_nonce)?;
+    let (zkp, zkp_proof) = ZkSetup::new(&mut zksetup_rng);
+
+    Ok((keypair, PartyZkSetup { zkp, zkp_proof }))
+}
+
+pub fn recover_party_keypair(
+    secret_recovery_key: &SecretRecoveryKey,
+    session_nonce: &[u8],
+) -> TofnResult<PartyKeyPair> {
+    let mut rng = rng::rng_seed(KEYPAIR_TAG, secret_recovery_key, session_nonce)?;
+
+    let (ek, dk) = paillier::keygen(&mut rng);
+
+    Ok(PartyKeyPair { ek, dk })
+}
+
+// BEWARE: This is only made visible for faster integration testing
+pub fn create_party_keypair_and_zksetup_unsafe(
+    secret_recovery_key: &SecretRecoveryKey,
+    session_nonce: &[u8],
+) -> TofnResult<(PartyKeyPair, PartyZkSetup)> {
+    let keypair = recover_party_keypair_unsafe(secret_recovery_key, session_nonce)?;
+
+    let mut zksetup_rng = rng::rng_seed(ZKSETUP_TAG, secret_recovery_key, session_nonce)?;
+    let (zkp, zkp_proof) = ZkSetup::new_unsafe(&mut zksetup_rng);
+
+    Ok((keypair, PartyZkSetup { zkp, zkp_proof }))
+}
+
+// BEWARE: This is only made visible for faster integration testing
+pub fn recover_party_keypair_unsafe(
+    secret_recovery_key: &SecretRecoveryKey,
+    session_nonce: &[u8],
+) -> TofnResult<PartyKeyPair> {
+    let mut rng = rng::rng_seed(KEYPAIR_TAG, secret_recovery_key, session_nonce)?;
+
+    let (ek, dk) = paillier::keygen_unsafe(&mut rng);
+
+    Ok(PartyKeyPair { ek, dk })
+}
 
 // Can't define a keygen-specific alias for `RoundExecuter` that sets
 // `FinalOutputTyped = KeygenOutput` and `Index = KeygenPartyIndex`
@@ -31,63 +118,19 @@ pub type SecretRecoveryKey = [u8; 64];
 pub const MAX_TOTAL_SHARE_COUNT: usize = 1000;
 pub const MAX_PARTY_SHARE_COUNT: usize = MAX_TOTAL_SHARE_COUNT;
 
+// BEWARE: This is only made visible for faster integration testing
+// TODO: Use a better way to hide this from the API, while allowing it for integration tests
+// since #[cfg(tests)] only works for unit tests
+
 /// Initialize a new keygen protocol
+#[allow(clippy::too_many_arguments)]
 pub fn new_keygen(
     party_share_counts: KeygenPartyShareCounts,
     threshold: usize,
     my_party_id: TypedUsize<KeygenPartyId>,
     my_subshare_id: usize, // in 0..party_share_counts[my_party_id]
-    secret_recovery_key: &SecretRecoveryKey,
-    session_nonce: &[u8],
-    #[cfg(feature = "malicious")] behaviour: malicious::Behaviour,
-) -> TofnResult<KeygenProtocol> {
-    new_keygen_impl(
-        party_share_counts,
-        threshold,
-        my_party_id,
-        my_subshare_id,
-        secret_recovery_key,
-        session_nonce,
-        true,
-        #[cfg(feature = "malicious")]
-        behaviour,
-    )
-}
-
-// BEWARE: This is only made visible for faster integration testing
-// TODO: Use a better way to hide this from the API, while allowing it for integration tests
-// since #[cfg(tests)] only works for unit tests
-pub fn new_keygen_unsafe(
-    party_share_counts: KeygenPartyShareCounts,
-    threshold: usize,
-    my_party_id: TypedUsize<KeygenPartyId>,
-    my_subshare_id: usize, // in 0..party_share_counts[my_party_id]
-    secret_recovery_key: &SecretRecoveryKey,
-    session_nonce: &[u8],
-    #[cfg(feature = "malicious")] behaviour: malicious::Behaviour,
-) -> TofnResult<KeygenProtocol> {
-    new_keygen_impl(
-        party_share_counts,
-        threshold,
-        my_party_id,
-        my_subshare_id,
-        secret_recovery_key,
-        session_nonce,
-        false,
-        #[cfg(feature = "malicious")]
-        behaviour,
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
-fn new_keygen_impl(
-    party_share_counts: KeygenPartyShareCounts,
-    threshold: usize,
-    my_party_id: TypedUsize<KeygenPartyId>,
-    my_subshare_id: usize, // in 0..party_share_counts[my_party_id]
-    secret_recovery_key: &SecretRecoveryKey,
-    session_nonce: &[u8],
-    use_safe_primes: bool,
+    party_keypair: &PartyKeyPair,
+    party_zksetup: &PartyZkSetup,
     #[cfg(feature = "malicious")] behaviour: malicious::Behaviour,
 ) -> TofnResult<KeygenProtocol> {
     // validate args
@@ -116,25 +159,17 @@ fn new_keygen_impl(
         return Err(TofnFatal);
     }
 
-    // TODO: Enforce a sufficient minimum length as a sanity check against collisions.
-    // While reusing Paillier keys is not known to be insecure, there's also no security proof for it.
-    // This task primarily requires a review of axelar-core to see if it's providing long random nonces.
-    if session_nonce.is_empty() {
-        error!("invalid session_nonce length: {}", session_nonce.len());
-        return Err(TofnFatal);
-    }
-
-    // compute the RNG seed now so as to minimize copying of `secret_recovery_key`
-    let rng_seed = rng::seed(secret_recovery_key, session_nonce);
-
     new_protocol(
         party_share_counts.clone(),
         my_share_id,
         Box::new(r1::R1 {
             threshold,
             party_share_counts,
-            rng_seed,
-            use_safe_primes,
+            ek: party_keypair.ek.clone(),
+            dk: party_keypair.dk.clone(),
+            zkp: party_zksetup.zkp.clone(),
+            zkp_proof: party_zksetup.zkp_proof.clone(),
+
             #[cfg(feature = "malicious")]
             behaviour,
         }),

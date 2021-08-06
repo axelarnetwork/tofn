@@ -84,15 +84,21 @@ fn execute_keygen_from_recovery(
     let r0_parties = party_share_counts
         .iter()
         .map(|(party_id, &party_share_count)| {
+            let (party_keypair, party_zksetup) = create_party_keypair_and_zksetup_unsafe(
+                secret_recovery_keys.get(party_id).unwrap(),
+                session_nonce,
+            )
+            .unwrap();
+
             (0..party_share_count).map(move |subshare_id| {
                 // each party use the same secret recovery key for all its subshares
-                match new_keygen_unsafe(
+                match new_keygen(
                     party_share_counts.clone(),
                     threshold,
                     party_id,
                     subshare_id,
-                    secret_recovery_keys.get(party_id).unwrap(),
-                    session_nonce,
+                    &party_keypair,
+                    &party_zksetup,
                     #[cfg(feature = "malicious")]
                     Honest,
                 )
@@ -280,19 +286,12 @@ fn execute_keygen_from_recovery(
 
 #[test]
 fn share_recovery() {
-    use rand::RngCore;
-
     let party_share_counts = &KeygenPartyShareCounts::from_vec(vec![2, 3, 1]).unwrap();
     let threshold = 4;
     let session_nonce = b"foobar";
-
     let secret_recovery_keys = VecMap::from_vec(
         (0..party_share_counts.party_count())
-            .map(|_| {
-                let mut s = [0u8; 64];
-                rand::thread_rng().fill_bytes(&mut s);
-                s
-            })
+            .map(dummy_secret_recovery_key)
             .collect(),
     );
 
@@ -307,13 +306,17 @@ fn share_recovery() {
     recovery_infos.shuffle(&mut rand::thread_rng()); // simulate nondeterministic message receipt
     let recovery_infos = &recovery_infos;
 
-    let recovered_shares: Vec<SecretKeyShare> = secret_recovery_keys
-        .iter()
-        .map(|(party_id, &secret_recovery_key)| {
+    let recovered_shares: Vec<SecretKeyShare> = (0..party_share_counts.party_count())
+        .map(|party_id| {
+            let party_keypair =
+                recover_party_keypair_unsafe(&dummy_secret_recovery_key(party_id), session_nonce)
+                    .unwrap();
+
+            let party_id = TypedUsize::<KeygenPartyId>::from_usize(party_id);
+
             (0..party_share_counts.party_share_count(party_id).unwrap()).map(move |subshare_id| {
-                SecretKeyShare::recover_unsafe(
-                    &secret_recovery_key,
-                    session_nonce,
+                SecretKeyShare::recover(
+                    &party_keypair,
                     recovery_infos,
                     party_id,
                     subshare_id,
@@ -350,5 +353,5 @@ pub fn dummy_secret_recovery_key(index: usize) -> SecretRecoveryKey {
     for (i, &b) in index_bytes.iter().enumerate() {
         result[i] = b;
     }
-    result
+    SecretRecoveryKey(result)
 }

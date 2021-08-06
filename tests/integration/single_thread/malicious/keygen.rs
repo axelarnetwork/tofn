@@ -1,15 +1,16 @@
 use tofn::{
     collections::{FillVecMap, TypedUsize, VecMap},
     gg20::keygen::{
+        create_party_keypair_and_zksetup_unsafe,
         malicious::Behaviour::{self, *},
-        new_keygen_unsafe, KeygenPartyId, KeygenProtocol, KeygenShareId, SecretKeyShare,
+        new_keygen, KeygenPartyId, KeygenProtocol, KeygenShareId, SecretKeyShare,
     },
     sdk::api::{Fault, PartyShareCounts, Protocol::*, ProtocolOutput},
 };
 use tracing::info;
 
 use crate::{
-    common::malicious::dummy_secret_recovery_key,
+    common::dummy_secret_recovery_key,
     single_thread::{execute::execute_protocol, set_up_logs},
 };
 
@@ -81,13 +82,20 @@ impl TestCase {
                     .party_share_counts
                     .share_to_party_subshare_ids(share_id)
                     .unwrap();
-                new_keygen_unsafe(
+
+                let (party_keypair, party_zksetup) = create_party_keypair_and_zksetup_unsafe(
+                    &dummy_secret_recovery_key(share_id),
+                    session_nonce,
+                )
+                .unwrap();
+
+                new_keygen(
                     self.party_share_counts.clone(),
                     self.threshold,
                     party_id,
                     subshare_id,
-                    &dummy_secret_recovery_key(share_id),
-                    session_nonce,
+                    &party_keypair,
+                    &party_zksetup,
                     behaviour.clone(),
                 )
                 .unwrap()
