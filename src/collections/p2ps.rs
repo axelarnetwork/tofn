@@ -1,11 +1,106 @@
 use tracing::error;
 
 use crate::{
-    collections::{FillHoleVecMap, HoleVecMap, TypedUsize, VecMap},
+    collections::{
+        p2ps_iter::P2psIter, FillHoleVecMap, HoleVecMap, TypedUsize, VecMap, VecMapIter,
+    },
     sdk::api::{TofnFatal, TofnResult},
 };
 
-use super::p2ps_iter::P2psIter;
+#[derive(Debug, Clone, PartialEq)]
+pub struct XP2ps<K, V>(VecMap<K, Option<HoleVecMap<K, V>>>);
+
+impl<K, V> XP2ps<K, V> {
+    pub fn get(&self, from: TypedUsize<K>) -> TofnResult<&Option<HoleVecMap<K, V>>> {
+        self.0.get(from)
+    }
+
+    pub fn to_me(
+        &self,
+        me: TypedUsize<K>,
+    ) -> TofnResult<impl Iterator<Item = (TypedUsize<K>, Option<&V>)> + '_> {
+        // check `me` manually now instead of using `?` inside closure
+        if me.as_usize() >= self.0.len() {
+            error!("index {} out of bounds {}", me, self.0.len());
+            return Err(TofnFatal);
+        }
+        Ok(self.0.iter().filter_map(move |(k, hole_vec_option)| {
+            if k == me {
+                None
+            } else {
+                Some((
+                    k,
+                    hole_vec_option
+                        .as_ref()
+                        .map(|hole_vec| hole_vec.get(me).expect("index out of bounds")),
+                ))
+            }
+        }))
+    }
+    pub fn iter(&self) -> VecMapIter<K, std::slice::Iter<Option<HoleVecMap<K, V>>>> {
+        self.0.iter()
+    }
+    pub fn map_to_me<W, F>(&self, me: TypedUsize<K>, mut f: F) -> TofnResult<HoleVecMap<K, W>>
+    where
+        F: FnMut(Option<&V>) -> W,
+    {
+        HoleVecMap::from_vecmap(
+            VecMap::from_vec(self.to_me(me)?.map(|(_, v)| f(v)).collect()),
+            me,
+        )
+    }
+
+    // TODO still needed?
+    // pub fn map_to_me2<W, F>(&self, me: TypedUsize<K>, f: F) -> TofnResult<HoleVecMap<K, W>>
+    // where
+    //     F: FnMut((TypedUsize<K>, Option<&V>)) -> W,
+    // {
+    //     HoleVecMap::from_vecmap(VecMap::from_vec(self.to_me(me)?.map(f).collect()), me)
+    // }
+
+    pub fn map<W, F>(self, f: F) -> XP2ps<K, W>
+    where
+        F: FnMut(V) -> W + Clone,
+    {
+        XP2ps::<K, W>(self.0.map(|v_option| v_option.map(|v| v.map(f.clone()))))
+    }
+
+    // TODO still needed?
+    // pub fn map2_result<W, F>(self, f: F) -> TofnResult<XP2ps<K, W>>
+    // where
+    //     F: FnMut((TypedUsize<K>, V)) -> TofnResult<W> + Clone,
+    // {
+    //     Ok(XP2ps::<K, W>(self.0.map2_result(|(_, v_option)| {
+    //         v_option.map(|v| v.map2_result(f.clone()))
+    //     })?))
+    // }
+}
+
+impl<K, V> IntoIterator for XP2ps<K, V> {
+    type Item = (
+        TypedUsize<K>,
+        <std::vec::IntoIter<Option<HoleVecMap<K, V>>> as Iterator>::Item,
+    );
+    type IntoIter = VecMapIter<K, std::vec::IntoIter<Option<HoleVecMap<K, V>>>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+/// impl IntoIterator for &P2ps as suggested here: https://doc.rust-lang.org/std/iter/index.html#iterating-by-reference
+/// follow the template of Vec: https://doc.rust-lang.org/src/alloc/vec/mod.rs.html#2451-2458
+impl<'a, K, V> IntoIterator for &'a XP2ps<K, V> {
+    type Item = (
+        TypedUsize<K>,
+        <std::slice::Iter<'a, Option<HoleVecMap<K, V>>> as Iterator>::Item,
+    );
+    type IntoIter = VecMapIter<K, std::slice::Iter<'a, Option<HoleVecMap<K, V>>>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
 
 // do not derive serde for anything with a `HoleVecMap`
 #[derive(Debug, Clone, PartialEq)]
