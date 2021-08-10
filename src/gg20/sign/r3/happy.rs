@@ -156,7 +156,7 @@ impl bcast_and_p2p::Executer for R3Happy {
                     .iter()
                     .map(|(_, keygen_peer_id)| keygen_peer_id.as_usize())
                     .collect::<Vec<_>>(),
-            );
+            )?;
 
             let peer_W_i = self
                 .secret_key_share

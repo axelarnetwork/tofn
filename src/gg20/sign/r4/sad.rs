@@ -134,7 +134,7 @@ impl bcast_only::Executer for R4Sad {
                                 .iter()
                                 .map(|(_, keygen_accused_id)| keygen_accused_id.as_usize())
                                 .collect::<Vec<_>>(),
-                        );
+                        )?;
 
                         let accused_W_i = self
                             .secret_key_share

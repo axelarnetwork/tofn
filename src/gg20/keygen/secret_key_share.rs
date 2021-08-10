@@ -214,7 +214,7 @@ impl SecretKeyShare {
                 })
                 .collect::<Vec<_>>(),
             threshold,
-        )
+        )?
         .into();
         let all_shares: VecMap<KeygenShareId, SharePublicInfo> = recovery_infos_sorted
             .into_iter()

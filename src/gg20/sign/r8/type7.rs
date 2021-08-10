@@ -203,7 +203,7 @@ impl bcast_only::Executer for R8Type7 {
                     .iter()
                     .map(|(_, keygen_peer_id)| keygen_peer_id.as_usize())
                     .collect::<Vec<_>>(),
-            );
+            )?;
 
             let keygen_peer_id = *self.participants.get(sign_peer_id)?;
 

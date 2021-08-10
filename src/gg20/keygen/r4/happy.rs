@@ -64,7 +64,7 @@ impl bcast_only::Executer for R4Happy {
             .execute(info, bcasts_in);
         }
 
-        // unwrap BcastHappy msgs
+        // decode BcastHappy msgs
         let bcasts_in = bcasts_in.map2_result(|(_, bcast)| match bcast {
             r3::Bcast::Happy(h) => Ok(h),
             r3::Bcast::Sad(_) => Err(TofnFatal),

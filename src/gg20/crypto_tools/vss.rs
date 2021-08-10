@@ -1,7 +1,11 @@
 //! Helpers for verifiable secret sharing
-use crate::gg20::crypto_tools::k256_serde;
+use crate::{
+    gg20::crypto_tools::k256_serde,
+    sdk::api::{TofnFatal, TofnResult},
+};
 use k256::elliptic_curve::Field;
 use serde::{Deserialize, Serialize};
+use tracing::error;
 use zeroize::Zeroize;
 
 #[derive(Debug, Zeroize)]
@@ -110,19 +114,6 @@ impl Share {
     }
 }
 
-// clippy appeasement: recover_secret currently used only in tests
-#[cfg(test)]
-pub fn recover_secret(shares: &[Share], threshold: usize) -> k256::Scalar {
-    assert!(shares.len() > threshold);
-    let indices: Vec<usize> = shares.iter().map(|s| s.index).collect();
-    shares
-        .iter()
-        .enumerate()
-        .fold(k256::Scalar::zero(), |sum, (i, share)| {
-            sum + share.scalar.as_ref() * &lagrange_coefficient(i, &indices)
-        })
-}
-
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ShareCommit {
     point: k256_serde::ProjectivePoint,
@@ -138,20 +129,19 @@ impl ShareCommit {
 pub fn recover_secret_commit(
     share_commits: &[ShareCommit],
     threshold: usize,
-) -> k256::ProjectivePoint {
-    // TODO copied code from recover_secret
+) -> TofnResult<k256::ProjectivePoint> {
     debug_assert!(share_commits.len() > threshold);
 
     let indices: Vec<usize> = share_commits.iter().map(|s| s.index).collect();
-    share_commits.iter().enumerate().fold(
+    share_commits.iter().enumerate().try_fold(
         k256::ProjectivePoint::identity(),
         |sum, (i, share_commit)| {
-            sum + share_commit.point.as_ref() * &lagrange_coefficient(i, &indices)
+            Ok(sum + share_commit.point.as_ref() * &lagrange_coefficient(i, &indices)?)
         },
     )
 }
 
-pub fn lagrange_coefficient(i: usize, indices: &[usize]) -> k256::Scalar {
+pub fn lagrange_coefficient(i: usize, indices: &[usize]) -> TofnResult<k256::Scalar> {
     let scalars: Vec<k256::Scalar> = indices
         .iter()
         .map(|&index| k256::Scalar::from(index as u32 + 1))
@@ -166,7 +156,15 @@ pub fn lagrange_coefficient(i: usize, indices: &[usize]) -> k256::Scalar {
             }
         },
     );
-    numerator * denominator.invert().unwrap()
+
+    let den_inv = denominator.invert();
+
+    if bool::from(den_inv.is_none()) {
+        error!("Denominator in lagrange coefficient computation is 0");
+        return Err(TofnFatal);
+    }
+
+    Ok(numerator * den_inv.unwrap())
 }
 
 #[cfg(feature = "malicious")]
@@ -180,7 +178,7 @@ pub mod malicious {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use rand::prelude::SliceRandom;
 
@@ -235,13 +233,23 @@ mod tests {
         }
     }
 
+    pub fn recover_secret(shares: &[Share]) -> k256::Scalar {
+        let indices: Vec<usize> = shares.iter().map(|s| s.index).collect();
+        shares
+            .iter()
+            .enumerate()
+            .fold(k256::Scalar::zero(), |sum, (i, share)| {
+                sum + share.scalar.as_ref() * &lagrange_coefficient(i, &indices).unwrap()
+            })
+    }
+
     #[test]
     fn secret_recovery() {
         let (t, n) = (2, 5);
         let vss = Vss::new(t);
         let secret = vss.get_secret();
         let shuffled_shares = vss.shuffled_shares(n);
-        let recovered_secret = recover_secret(&shuffled_shares, t);
+        let recovered_secret = recover_secret(&shuffled_shares);
         assert_eq!(recovered_secret, *secret);
 
         let secret_commit = *vss.commit().secret_commit();
@@ -252,7 +260,7 @@ mod tests {
                 index: share.get_index(),
             })
             .collect();
-        let recovered_secret_commit = recover_secret_commit(&shuffled_share_commits, t);
+        let recovered_secret_commit = recover_secret_commit(&shuffled_share_commits, t).unwrap();
         assert_eq!(recovered_secret_commit, secret_commit);
     }
 
@@ -270,7 +278,7 @@ mod tests {
             .iter()
             .enumerate()
             .map(|(i, share)| Share {
-                scalar: (share.get_scalar() * &lagrange_coefficient(i, &indices)).into(),
+                scalar: (share.get_scalar() * &lagrange_coefficient(i, &indices).unwrap()).into(),
                 ..*share
             })
             .collect();
