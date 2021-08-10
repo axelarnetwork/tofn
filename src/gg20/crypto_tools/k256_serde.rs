@@ -64,7 +64,7 @@ impl<'de> Visitor<'de> for ScalarVisitor {
     {
         if v.len() != 32 {
             return Err(E::custom(format!(
-                "invalid bytes length; expect 32, got {}",
+                "Invalid bytes length; expect 32, got {}",
                 v.len()
             )));
         }
