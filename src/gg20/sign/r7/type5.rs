@@ -99,7 +99,7 @@ impl bcast_only::Executer for R7Type5 {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
-        let bcasts_in = bcasts_sad.unwrap_all()?;
+        let bcasts_in = bcasts_sad.to_vecmap()?;
 
         // verify that each participant's data is consistent with earlier messages:
         for (sign_peer_id, bcast) in &bcasts_in {
@@ -132,14 +132,14 @@ impl bcast_only::Executer for R7Type5 {
 
             // verify correct computation of delta_i
             let delta_i = peer_mta_plaintexts.iter().fold(
-                bcast.k_i.unwrap() * bcast.gamma_i.unwrap(),
+                bcast.k_i.as_ref() * bcast.gamma_i.as_ref(),
                 |acc, (_, mta_plaintext)| {
                     acc + mta_plaintext.alpha_plaintext.to_scalar()
-                        + mta_plaintext.beta_secret.beta.unwrap()
+                        + mta_plaintext.beta_secret.beta.as_ref()
                 },
             );
 
-            if &delta_i != self.r3bcasts.get(sign_peer_id)?.delta_i.unwrap() {
+            if &delta_i != self.r3bcasts.get(sign_peer_id)?.delta_i.as_ref() {
                 warn!(
                     "peer {} says: delta_i for peer {} does not match",
                     sign_id, sign_peer_id
@@ -164,7 +164,7 @@ impl bcast_only::Executer for R7Type5 {
 
             // k_i
             let k_i_ciphertext = peer_ek
-                .encrypt_with_randomness(&(bcast.k_i.unwrap()).into(), &bcast.k_i_randomness);
+                .encrypt_with_randomness(&(bcast.k_i.as_ref()).into(), &bcast.k_i_randomness);
             if k_i_ciphertext != self.r1bcasts.get(sign_peer_id)?.k_i_ciphertext {
                 warn!(
                     "peer {} says: invalid k_i detected from peer {}",
@@ -175,8 +175,8 @@ impl bcast_only::Executer for R7Type5 {
             }
 
             // gamma_i
-            let Gamma_i = ProjectivePoint::generator() * bcast.gamma_i.unwrap();
-            if &Gamma_i != self.r4bcasts.get(sign_peer_id)?.Gamma_i.unwrap() {
+            let Gamma_i = ProjectivePoint::generator() * bcast.gamma_i.as_ref();
+            if &Gamma_i != self.r4bcasts.get(sign_peer_id)?.Gamma_i.as_ref() {
                 warn!(
                     "peer {} says: invalid Gamma_i detected from peer {}",
                     sign_id, sign_peer_id
@@ -205,7 +205,7 @@ impl bcast_only::Executer for R7Type5 {
                 if !mta::verify_mta_response(
                     peer2_ek,
                     peer2_k_i_ciphertext,
-                    bcast.gamma_i.unwrap(),
+                    bcast.gamma_i.as_ref(),
                     peer2_alpha_ciphertext,
                     &peer_mta_plaintext.beta_secret,
                 ) {

@@ -120,19 +120,19 @@ impl<K, V> FillP2ps<K, V> {
     pub fn is_full(&self) -> bool {
         self.0.iter().all(|(_, v)| v.is_full())
     }
-    pub fn unwrap_all_map<W, F>(self, f: F) -> TofnResult<P2ps<K, W>>
+    pub fn map_to_p2ps<W, F>(self, f: F) -> TofnResult<P2ps<K, W>>
     where
         F: FnMut(V) -> W + Clone,
     {
         Ok(P2ps::<K, W>(
             self.0
                 .into_iter()
-                .map(|(_, v)| v.unwrap_all_map(f.clone()))
+                .map(|(_, v)| v.map_to_holevec(f.clone()))
                 .collect::<TofnResult<VecMap<_, _>>>()?,
         ))
     }
-    pub fn unwrap_all(self) -> TofnResult<P2ps<K, V>> {
-        self.unwrap_all_map(std::convert::identity)
+    pub fn to_p2ps(self) -> TofnResult<P2ps<K, V>> {
+        self.map_to_p2ps(std::convert::identity)
     }
     pub fn iter(
         &self,
@@ -192,7 +192,7 @@ mod tests {
         fill_p2ps.set(two, zero, 4).unwrap();
         fill_p2ps.set(two, one, 5).unwrap();
         assert!(fill_p2ps.is_full());
-        let p2ps = fill_p2ps.unwrap_all().unwrap();
+        let p2ps = fill_p2ps.to_p2ps().unwrap();
 
         let expects: Vec<(_, _, &usize)> = vec![
             (zero, one, &0),

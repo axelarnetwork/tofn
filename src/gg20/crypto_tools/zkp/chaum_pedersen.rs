@@ -57,10 +57,10 @@ pub fn verify(stmt: &Statement, proof: &Proof) -> Result<(), &'static str> {
             .chain(proof.alpha1.bytes())
             .chain(proof.alpha2.bytes()),
     );
-    let lhs1 = stmt.base1 * proof.t.unwrap();
-    let lhs2 = stmt.base2 * proof.t.unwrap();
-    let rhs1 = *proof.alpha1.unwrap() + stmt.target1 * &c;
-    let rhs2 = *proof.alpha2.unwrap() + stmt.target2 * &c;
+    let lhs1 = stmt.base1 * proof.t.as_ref();
+    let lhs2 = stmt.base2 * proof.t.as_ref();
+    let rhs1 = *proof.alpha1.as_ref() + stmt.target1 * &c;
+    let rhs2 = *proof.alpha2.as_ref() + stmt.target2 * &c;
     match (lhs1 == rhs1, lhs2 == rhs2) {
         (true, true) => Ok(()),
         (false, false) => Err("fail both targets"),
@@ -77,7 +77,7 @@ pub(crate) mod malicious {
 
     pub fn corrupt_proof(proof: &Proof) -> Proof {
         Proof {
-            t: (proof.t.unwrap() + k256::Scalar::one()).into(),
+            t: (proof.t.as_ref() + k256::Scalar::one()).into(),
             ..proof.clone()
         }
     }

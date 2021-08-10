@@ -9,7 +9,7 @@ use super::{
 
 const TOFN_SERIALIZATION_VERSION: u16 = 0;
 
-pub fn wrap<K>(
+pub fn encode<K>(
     payload: BytesVec,
     from: TypedUsize<K>,
     msg_type: MsgType<K>,
@@ -26,7 +26,7 @@ pub fn wrap<K>(
 
 // TODO: Look into using bincode::config::Bounded to limit the max pre-allocation size
 /// deserialization failures are non-fatal: do not return TofnResult
-pub fn unwrap<K>(bytes: &[u8]) -> Option<WireBytes<K>> {
+pub fn decode<K>(bytes: &[u8]) -> Option<WireBytes<K>> {
     let bytes_versioned: BytesVecVersioned = bincode::deserialize(bytes)
         .map_err(|err| {
             warn!("outer deserialization failure: {}", err.to_string());
@@ -75,16 +75,16 @@ pub mod malicious {
 
     use crate::sdk::api::{BytesVec, TofnFatal, TofnResult};
 
-    use super::{unwrap, wrap};
+    use super::{decode, encode};
 
     pub fn corrupt_payload<K>(bytes: &[u8]) -> TofnResult<BytesVec> {
         // for simplicity, deserialization error is treated as fatal
         // (we're in a malicious module so who cares?)
-        let wire_bytes = unwrap::<K>(bytes).ok_or_else(|| {
+        let wire_bytes = decode::<K>(bytes).ok_or_else(|| {
             error!("can't corrupt payload: deserialization failure");
             TofnFatal
         })?;
-        wrap(
+        encode(
             b"these bytes are corrupted 1234".to_vec(),
             wire_bytes.from,
             wire_bytes.msg_type,

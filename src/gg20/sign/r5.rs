@@ -99,7 +99,7 @@ impl bcast_only::Executer for R5 {
         let Gamma = bcasts_in
             .iter()
             .fold(ProjectivePoint::identity(), |acc, (_, bcast)| {
-                acc + bcast.Gamma_i.unwrap()
+                acc + bcast.Gamma_i.as_ref()
             });
 
         let R = Gamma * self.delta_inv;
@@ -135,7 +135,7 @@ impl bcast_only::Executer for R5 {
                 .get(keygen_peer_id)?
                 .zkp();
 
-            let k_i_range_proof_wc = peer_zkp.range_proof_wc(stmt_wc, wit);
+            let k_i_range_proof_wc = peer_zkp.range_proof_wc(stmt_wc, wit)?;
 
             corrupt!(
                 k_i_range_proof_wc,

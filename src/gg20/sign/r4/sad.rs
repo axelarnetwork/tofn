@@ -142,7 +142,7 @@ impl bcast_only::Executer for R4Sad {
                             .all_shares()
                             .get(accused_keygen_id)?
                             .X_i()
-                            .unwrap()
+                            .as_ref()
                             * accused_lambda_i_S;
 
                         let accused_stmt = paillier::zk::mta::StatementWc {

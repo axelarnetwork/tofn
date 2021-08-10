@@ -95,7 +95,7 @@ impl bcast_only::Executer for R4Happy {
 
         for (sign_peer_id, bcast) in &bcasts_in {
             let peer_stmt = pedersen::Statement {
-                commit: bcast.T_i.unwrap(),
+                commit: bcast.T_i.as_ref(),
             };
 
             // verify zk proof for step 2 of MtA k_i * gamma_j
@@ -117,7 +117,7 @@ impl bcast_only::Executer for R4Happy {
         let delta_inv = bcasts_in
             .iter()
             .fold(Scalar::zero(), |acc, (_, bcast)| {
-                acc + bcast.delta_i.unwrap()
+                acc + bcast.delta_i.as_ref()
             })
             .invert();
 

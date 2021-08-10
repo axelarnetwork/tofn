@@ -1,10 +1,14 @@
-use crate::gg20::{constants, crypto_tools::k256_serde};
+use crate::{
+    gg20::{constants, crypto_tools::k256_serde},
+    sdk::api::{TofnFatal, TofnResult},
+};
 use ecdsa::{
     elliptic_curve::{sec1::FromEncodedPoint, Field},
     hazmat::FromDigest,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use tracing::error;
 
 #[derive(Clone, Debug)]
 pub struct Statement<'a> {
@@ -83,19 +87,24 @@ pub fn verify(stmt: &Statement, proof: &Proof) -> Result<(), &'static str> {
 //   such that commitment = commit(msg, randomness)
 //   and msg_g = msg * g (this is the additional "check")
 // notation follows section 3.3 of GG20 https://eprint.iacr.org/2020/540.pdf
-pub fn prove_wc(stmt: &StatementWc, wit: &Witness) -> ProofWc {
+pub fn prove_wc(stmt: &StatementWc, wit: &Witness) -> TofnResult<ProofWc> {
     let (proof, beta) = prove_inner(&stmt.stmt, Some((stmt.msg_g, stmt.g)), wit);
-    ProofWc {
-        proof,
-        beta: k256_serde::ProjectivePoint::from(beta.unwrap()),
-    }
+
+    let beta = beta
+        .ok_or_else(|| {
+            error!("pedersen wc: missing beta");
+            TofnFatal
+        })?
+        .into();
+
+    Ok(ProofWc { proof, beta })
 }
 
 pub fn verify_wc(stmt: &StatementWc, proof: &ProofWc) -> Result<(), &'static str> {
     verify_inner(
         &stmt.stmt,
         &proof.proof,
-        Some((stmt.msg_g, stmt.g, proof.beta.unwrap())),
+        Some((stmt.msg_g, stmt.g, proof.beta.as_ref())),
     )
 }
 
@@ -142,18 +151,18 @@ fn verify_inner(
             .chain(k256_serde::to_bytes(stmt.commit))
             .chain(&msg_g_g_beta.map_or(Vec::new(), |(msg_g, _, _)| k256_serde::to_bytes(msg_g)))
             .chain(&msg_g_g_beta.map_or(Vec::new(), |(_, g, _)| k256_serde::to_bytes(g)))
-            .chain(k256_serde::to_bytes(proof.alpha.unwrap()))
+            .chain(k256_serde::to_bytes(proof.alpha.as_ref()))
             .chain(&msg_g_g_beta.map_or(Vec::new(), |(_, _, beta)| k256_serde::to_bytes(beta))),
     );
     if let Some((msg_g, g, beta)) = msg_g_g_beta {
-        let lhs = g * proof.t.unwrap();
+        let lhs = g * proof.t.as_ref();
         let rhs = msg_g * &c + beta;
         if lhs != rhs {
             return Err("'wc' check fail");
         }
     }
-    let lhs = commit_with_randomness(proof.t.unwrap(), proof.u.unwrap());
-    let rhs = stmt.commit * &c + proof.alpha.unwrap();
+    let lhs = commit_with_randomness(proof.t.as_ref(), proof.u.as_ref());
+    let rhs = stmt.commit * &c + proof.alpha.as_ref();
     if lhs != rhs {
         return Err("verify fail");
     }
@@ -166,7 +175,7 @@ pub mod malicious {
 
     pub fn corrupt_proof(proof: &Proof) -> Proof {
         Proof {
-            u: k256_serde::Scalar::from(proof.u.unwrap() + k256::Scalar::one()),
+            u: k256_serde::Scalar::from(proof.u.as_ref() + k256::Scalar::one()),
             ..proof.clone()
         }
     }
@@ -174,7 +183,7 @@ pub mod malicious {
     pub fn corrupt_proof_wc(proof: &ProofWc) -> ProofWc {
         ProofWc {
             beta: k256_serde::ProjectivePoint::from(
-                k256::ProjectivePoint::generator() + proof.beta.unwrap(),
+                k256::ProjectivePoint::generator() + proof.beta.as_ref(),
             ),
             ..proof.clone()
         }
@@ -208,7 +217,7 @@ mod tests {
         verify(stmt, &proof).unwrap();
 
         // test: valid proof wc (with check)
-        let proof_wc = prove_wc(stmt_wc, wit);
+        let proof_wc = prove_wc(stmt_wc, wit).unwrap();
         verify_wc(stmt_wc, &proof_wc).unwrap();
 
         // test: bad proof
@@ -228,7 +237,7 @@ mod tests {
         verify(stmt, &bad_proof).unwrap_err();
 
         // test: bad witness wc (with check)
-        let bad_wit_proof_wc = prove_wc(stmt_wc, bad_wit);
+        let bad_wit_proof_wc = prove_wc(stmt_wc, bad_wit).unwrap();
         verify_wc(stmt_wc, &bad_wit_proof_wc).unwrap_err();
     }
 }

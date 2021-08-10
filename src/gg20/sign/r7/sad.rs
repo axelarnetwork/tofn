@@ -108,7 +108,7 @@ impl bcast_only::Executer for R7Sad {
                     .get(accused_keygen_id)?
                     .ek();
                 let accused_k_i_ciphertext = &self.r1bcasts.get(accused_sign_id)?.k_i_ciphertext;
-                let accused_R_i = self.r5bcasts.get(accused_sign_id)?.R_i.unwrap();
+                let accused_R_i = self.r5bcasts.get(accused_sign_id)?.R_i.as_ref();
 
                 let accused_stmt = &paillier::zk::range::StatementWc {
                     stmt: paillier::zk::range::Statement {

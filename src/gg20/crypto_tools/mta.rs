@@ -1,9 +1,12 @@
-use crate::gg20::crypto_tools::{
-    k256_serde,
-    paillier::{
-        zk::{mta, ZkSetup},
-        Ciphertext, EncryptionKey, Plaintext, Randomness,
+use crate::{
+    gg20::crypto_tools::{
+        k256_serde,
+        paillier::{
+            zk::{mta, ZkSetup},
+            Ciphertext, EncryptionKey, Plaintext, Randomness,
+        },
     },
+    sdk::api::TofnResult,
 };
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
@@ -96,7 +99,7 @@ pub fn mta_response_with_proof_wc(
     a_ek: &EncryptionKey,
     a_ciphertext: &Ciphertext,
     b: &k256::Scalar,
-) -> (Ciphertext, mta::ProofWc, Secret) {
+) -> TofnResult<(Ciphertext, mta::ProofWc, Secret)> {
     let (c_b, s) = mta_response(a_ek, a_ciphertext, b);
     let proof_wc = a_zkp.mta_proof_wc(
         &mta::StatementWc {
@@ -112,8 +115,8 @@ pub fn mta_response_with_proof_wc(
             msg: &s.beta_prime,
             randomness: &s.beta_prime_randomness,
         },
-    );
-    (c_b, proof_wc, s)
+    )?;
+    Ok((c_b, proof_wc, s))
 }
 
 #[cfg(test)]
@@ -159,7 +162,7 @@ mod tests {
             )
             .unwrap();
         let (c_b, b_mta_proof_wc, b_secret) =
-            mta_response_with_proof_wc(&a_zkp, &a_ek, &a_ciphertext, &b);
+            mta_response_with_proof_wc(&a_zkp, &a_ek, &a_ciphertext, &b).unwrap();
 
         // MtA step 3: party a
         a_zkp
@@ -178,7 +181,7 @@ mod tests {
         let alpha = a_dk.decrypt_with_randomness(&c_b).0.to_scalar();
 
         // test: correct MtA output: a * b = alpha + beta
-        assert_eq!(a * b, alpha + b_secret.beta.unwrap());
+        assert_eq!(a * b, alpha + b_secret.beta.as_ref());
 
         assert!(verify_mta_response(
             &a_ek,

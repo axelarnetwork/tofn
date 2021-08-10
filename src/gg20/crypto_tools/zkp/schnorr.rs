@@ -37,7 +37,7 @@ pub fn prove(stmt: &Statement, wit: &Witness) -> Proof {
 }
 
 pub fn verify(stmt: &Statement, proof: &Proof) -> Result<(), &'static str> {
-    let alpha = stmt.base * proof.t.unwrap() + stmt.target * proof.c.unwrap();
+    let alpha = stmt.base * proof.t.as_ref() + stmt.target * proof.c.as_ref();
     let c_check = k256::Scalar::from_digest(
         Sha256::new()
             .chain(constants::SCHNORR_PROOF_TAG.to_le_bytes())
@@ -45,7 +45,7 @@ pub fn verify(stmt: &Statement, proof: &Proof) -> Result<(), &'static str> {
             .chain(k256_serde::to_bytes(stmt.target))
             .chain(k256_serde::to_bytes(&alpha)),
     );
-    if c_check == *proof.c.unwrap() {
+    if &c_check == proof.c.as_ref() {
         Ok(())
     } else {
         Err("fail")
@@ -60,7 +60,7 @@ pub(crate) mod malicious {
 
     pub fn corrupt_proof(proof: &Proof) -> Proof {
         Proof {
-            t: (proof.t.unwrap() + k256::Scalar::one()).into(),
+            t: (proof.t.as_ref() + k256::Scalar::one()).into(),
             ..proof.clone()
         }
     }

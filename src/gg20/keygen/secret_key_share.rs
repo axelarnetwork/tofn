@@ -143,7 +143,7 @@ impl SecretKeyShare {
     pub fn recovery_info(&self) -> TofnResult<KeyShareRecoveryInfo> {
         let index = self.share.index;
         let share = self.group.all_shares.get(index)?.clone();
-        let x_i_ciphertext = share.ek.encrypt(&self.share.x_i.unwrap().into()).0;
+        let x_i_ciphertext = share.ek.encrypt(&self.share.x_i.as_ref().into()).0;
         Ok(KeyShareRecoveryInfo {
             index,
             share,

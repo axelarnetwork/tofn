@@ -33,7 +33,8 @@ impl Vss {
         }
     }
     pub fn shares(&self, n: usize) -> Vec<Share> {
-        assert!(self.get_threshold() < n); // also ensures n > 0
+        debug_assert!(self.get_threshold() < n); // also ensures n > 0
+
         (0..n)
             .map(|index| {
                 let index_scalar = k256::Scalar::from(index as u32 + 1); // vss indices start at 1
@@ -66,11 +67,11 @@ impl Commit {
             .iter()
             .rev()
             .fold(k256::ProjectivePoint::identity(), |acc, p| {
-                acc * index_scalar + p.unwrap()
+                acc * index_scalar + p.as_ref()
             })
     }
     pub fn secret_commit(&self) -> &k256::ProjectivePoint {
-        self.coeff_commits[0].unwrap()
+        self.coeff_commits[0].as_ref()
     }
     pub fn validate_share_commit(
         &self,
@@ -102,7 +103,7 @@ impl Share {
         }
     }
     pub fn get_scalar(&self) -> &k256::Scalar {
-        self.scalar.unwrap()
+        self.scalar.as_ref()
     }
     pub fn get_index(&self) -> usize {
         self.index
@@ -118,7 +119,7 @@ pub fn recover_secret(shares: &[Share], threshold: usize) -> k256::Scalar {
         .iter()
         .enumerate()
         .fold(k256::Scalar::zero(), |sum, (i, share)| {
-            sum + share.scalar.unwrap() * &lagrange_coefficient(i, &indices)
+            sum + share.scalar.as_ref() * &lagrange_coefficient(i, &indices)
         })
 }
 
@@ -139,12 +140,13 @@ pub fn recover_secret_commit(
     threshold: usize,
 ) -> k256::ProjectivePoint {
     // TODO copied code from recover_secret
-    assert!(share_commits.len() > threshold);
+    debug_assert!(share_commits.len() > threshold);
+
     let indices: Vec<usize> = share_commits.iter().map(|s| s.index).collect();
     share_commits.iter().enumerate().fold(
         k256::ProjectivePoint::identity(),
         |sum, (i, share_commit)| {
-            sum + share_commit.point.unwrap() * &lagrange_coefficient(i, &indices)
+            sum + share_commit.point.as_ref() * &lagrange_coefficient(i, &indices)
         },
     )
 }
@@ -172,7 +174,7 @@ pub mod malicious {
     use super::*;
     impl Share {
         pub fn corrupt(&mut self) {
-            *self.scalar.unwrap_mut() += k256::Scalar::one();
+            *self.scalar.as_mut() += k256::Scalar::one();
         }
     }
 }

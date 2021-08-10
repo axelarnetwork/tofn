@@ -190,7 +190,8 @@ fn to_vec(bigint: &BigInt) -> Vec<u8> {
 /// pad `v` with leading zero bytes until it has length 32
 /// panics if `v.len()` exceeds 32
 fn pad32(v: Vec<u8>) -> Vec<u8> {
-    assert!(v.len() <= 32);
+    debug_assert!(v.len() <= 32);
+
     if v.len() == 32 {
         return v;
     }

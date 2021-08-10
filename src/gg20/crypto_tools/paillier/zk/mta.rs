@@ -1,17 +1,21 @@
-use crate::gg20::{
-    constants,
-    crypto_tools::{
-        k256_serde,
-        paillier::{
-            to_bigint, to_scalar, to_vec,
-            zk::{mulm, random, ZkSetup},
-            BigInt, Ciphertext, EncryptionKey, Plaintext, Randomness,
+use crate::{
+    gg20::{
+        constants,
+        crypto_tools::{
+            k256_serde,
+            paillier::{
+                to_bigint, to_scalar, to_vec,
+                zk::{mulm, random, ZkSetup},
+                BigInt, Ciphertext, EncryptionKey, Plaintext, Randomness,
+            },
         },
     },
+    sdk::api::{TofnFatal, TofnResult},
 };
 use ecdsa::hazmat::FromDigest;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use tracing::error;
 
 use super::secp256k1_modulus_cubed;
 
@@ -77,13 +81,18 @@ impl ZkSetup {
     // notation follows appendix A.2 of https://eprint.iacr.org/2019/114.pdf
     // used by Bob (the "respondent") in MtAwc protocol
     // MtAwc : Multiplicative to Additive with check
-    pub fn mta_proof_wc(&self, stmt: &StatementWc, wit: &Witness) -> ProofWc {
+    pub fn mta_proof_wc(&self, stmt: &StatementWc, wit: &Witness) -> TofnResult<ProofWc> {
         let (proof, u) =
             self.mta_proof_inner(constants::MTA_PROOF_WC_TAG, &stmt.stmt, Some(stmt.x_g), wit);
-        ProofWc {
-            proof,
-            u: k256_serde::ProjectivePoint::from(u.unwrap()),
-        }
+
+        let u = u
+            .ok_or_else(|| {
+                error!("mta proof wc: missing u");
+                TofnFatal
+            })?
+            .into();
+
+        Ok(ProofWc { proof, u })
     }
 
     pub fn verify_mta_proof_wc(
@@ -95,7 +104,7 @@ impl ZkSetup {
             constants::MTA_PROOF_WC_TAG,
             &stmt.stmt,
             &proof.proof,
-            Some((stmt.x_g, proof.u.unwrap())),
+            Some((stmt.x_g, proof.u.as_ref())),
         )
     }
 
@@ -244,7 +253,7 @@ impl ZkSetup {
             &stmt.ek.0.nn,
         );
         if cipher_check_lhs != cipher_check_rhs {
-            return Err("chipher check fail");
+            return Err("cipher check fail");
         }
         Ok(())
     }
@@ -272,7 +281,7 @@ pub mod malicious {
         let proof = proof.clone();
         ProofWc {
             u: k256_serde::ProjectivePoint::from(
-                k256::ProjectivePoint::generator() + proof.u.unwrap(),
+                k256::ProjectivePoint::generator() + proof.u.as_ref(),
             ),
             ..proof
         }
@@ -321,7 +330,7 @@ pub(crate) mod tests {
         zkp.verify_mta_proof(stmt, &proof).unwrap();
 
         // test: valid proof wc (with check)
-        let proof_wc = zkp.mta_proof_wc(stmt_wc, wit);
+        let proof_wc = zkp.mta_proof_wc(stmt_wc, wit).unwrap();
         zkp.verify_mta_proof_wc(stmt_wc, &proof_wc).unwrap();
 
         // test: bad proof
@@ -341,7 +350,7 @@ pub(crate) mod tests {
         zkp.verify_mta_proof(stmt, &bad_wit_proof).unwrap_err();
 
         // test: bad witness wc (with check)
-        let bad_wit_proof_wc = zkp.mta_proof_wc(stmt_wc, bad_wit);
+        let bad_wit_proof_wc = zkp.mta_proof_wc(stmt_wc, bad_wit).unwrap();
         zkp.verify_mta_proof_wc(stmt_wc, &bad_wit_proof_wc)
             .unwrap_err();
     }

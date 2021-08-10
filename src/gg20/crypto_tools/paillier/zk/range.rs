@@ -1,19 +1,23 @@
 use std::ops::Neg;
 
-use crate::gg20::{
-    constants,
-    crypto_tools::{
-        k256_serde,
-        paillier::{
-            to_bigint, to_scalar, to_vec,
-            zk::{random, ZkSetup},
-            BigInt, Ciphertext, EncryptionKey, Plaintext, Randomness,
+use crate::{
+    gg20::{
+        constants,
+        crypto_tools::{
+            k256_serde,
+            paillier::{
+                to_bigint, to_scalar, to_vec,
+                zk::{random, ZkSetup},
+                BigInt, Ciphertext, EncryptionKey, Plaintext, Randomness,
+            },
         },
     },
+    sdk::api::{TofnFatal, TofnResult},
 };
 use ecdsa::hazmat::FromDigest;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use tracing::error;
 
 use super::{mulm, secp256k1_modulus_cubed};
 
@@ -69,17 +73,22 @@ impl ZkSetup {
     //   and msg_g = msg * g (this is the additional "check")
     // adapted from appendix A.1 of https://eprint.iacr.org/2019/114.pdf
     // full specification: section 4.4, proof \Pi_i of https://eprint.iacr.org/2016/013.pdf
-    pub fn range_proof_wc(&self, stmt: &StatementWc, wit: &Witness) -> ProofWc {
+    pub fn range_proof_wc(&self, stmt: &StatementWc, wit: &Witness) -> TofnResult<ProofWc> {
         let (proof, u1) = self.range_proof_inner(
             constants::RANGE_PROOF_WC_TAG,
             &stmt.stmt,
             Some((stmt.msg_g, stmt.g)),
             wit,
         );
-        ProofWc {
-            proof,
-            u1: k256_serde::ProjectivePoint::from(u1.unwrap()),
-        }
+
+        let u1 = u1
+            .ok_or_else(|| {
+                error!("range proof wc: missing u1");
+                TofnFatal
+            })?
+            .into();
+
+        Ok(ProofWc { proof, u1 })
     }
 
     pub fn verify_range_proof_wc(
@@ -91,7 +100,7 @@ impl ZkSetup {
             constants::RANGE_PROOF_WC_TAG,
             &stmt.stmt,
             &proof.proof,
-            Some((stmt.msg_g, stmt.g, proof.u1.unwrap())),
+            Some((stmt.msg_g, stmt.g, proof.u1.as_ref())),
         )
     }
 
@@ -222,7 +231,7 @@ pub mod malicious {
     pub fn corrupt_proof_wc(proof_wc: &ProofWc) -> ProofWc {
         let proof_wc = proof_wc.clone();
         ProofWc {
-            u1: ProjectivePoint::from(k256::ProjectivePoint::generator() + proof_wc.u1.unwrap()),
+            u1: ProjectivePoint::from(k256::ProjectivePoint::generator() + proof_wc.u1.as_ref()),
             ..proof_wc
         }
     }
@@ -265,7 +274,7 @@ mod tests {
         zkp.verify_range_proof(stmt, &proof).unwrap();
 
         // test: valid proof wc (with check)
-        let proof_wc = zkp.range_proof_wc(stmt_wc, wit);
+        let proof_wc = zkp.range_proof_wc(stmt_wc, wit).unwrap();
         zkp.verify_range_proof_wc(stmt_wc, &proof_wc).unwrap();
 
         // test: bad proof
@@ -284,7 +293,7 @@ mod tests {
         };
         let bad_proof = zkp.range_proof(stmt, bad_wit);
         zkp.verify_range_proof(stmt, &bad_proof).unwrap_err();
-        let bad_wit_proof_wc = zkp.range_proof_wc(stmt_wc, bad_wit);
+        let bad_wit_proof_wc = zkp.range_proof_wc(stmt_wc, bad_wit).unwrap();
         zkp.verify_range_proof_wc(stmt_wc, &bad_wit_proof_wc)
             .unwrap_err();
     }

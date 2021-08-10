@@ -180,7 +180,7 @@ impl bcast_and_p2p::Executer for R2 {
 
             // MtAwc step 2 for k_i * w_j
             let (mu_ciphertext, mu_proof, nu_secret) =
-                mta::mta_response_with_proof_wc(peer_zkp, peer_ek, peer_k_i_ciphertext, &self.w_i);
+                mta::mta_response_with_proof_wc(peer_zkp, peer_ek, peer_k_i_ciphertext, &self.w_i)?;
 
             corrupt!(
                 mu_proof,
@@ -199,9 +199,9 @@ impl bcast_and_p2p::Executer for R2 {
             p2ps_out.set(sign_peer_id, p2p)?;
         }
 
-        let beta_secrets = beta_secrets.unwrap_all()?;
-        let nu_secrets = nu_secrets.unwrap_all()?;
-        let p2ps_out = p2ps_out.unwrap_all()?;
+        let beta_secrets = beta_secrets.to_holevec()?;
+        let nu_secrets = nu_secrets.to_holevec()?;
+        let p2ps_out = p2ps_out.to_holevec()?;
 
         let bcast_out = serialize(&Bcast::Happy)?;
 

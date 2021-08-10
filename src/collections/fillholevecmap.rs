@@ -48,7 +48,7 @@ impl<K, V> FillHoleVecMap<K, V> {
     pub fn iter(&self) -> HoleVecMapIter<K, std::slice::Iter<Option<V>>> {
         self.hole_vec.iter()
     }
-    pub fn unwrap_all_map<W, F>(self, mut f: F) -> TofnResult<HoleVecMap<K, W>>
+    pub fn map_to_holevec<W, F>(self, mut f: F) -> TofnResult<HoleVecMap<K, W>>
     where
         F: FnMut(V) -> W,
     {
@@ -59,8 +59,8 @@ impl<K, V> FillHoleVecMap<K, V> {
         self.hole_vec
             .map2_result(|(_, x)| Ok(f(x.ok_or(TofnFatal)?)))
     }
-    pub fn unwrap_all(self) -> TofnResult<HoleVecMap<K, V>> {
-        self.unwrap_all_map(std::convert::identity)
+    pub fn to_holevec(self) -> TofnResult<HoleVecMap<K, V>> {
+        self.map_to_holevec(std::convert::identity)
     }
 }
 

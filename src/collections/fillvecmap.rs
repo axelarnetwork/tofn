@@ -65,7 +65,7 @@ impl<K, V> FillVecMap<K, V> {
         self.into_iter().filter_map(|(i, x)| x.map(|y| (i, y)))
     }
 
-    pub fn unwrap_all_map<W, F>(self, mut f: F) -> TofnResult<VecMap<K, W>>
+    pub fn map_to_vecmap<W, F>(self, mut f: F) -> TofnResult<VecMap<K, W>>
     where
         F: FnMut(V) -> W,
     {
@@ -73,10 +73,12 @@ impl<K, V> FillVecMap<K, V> {
             error!("self is not full");
             return Err(TofnFatal);
         }
-        Ok(self.vec.map(|x| f(x.unwrap())))
+
+        self.vec.map2_result(|(_, x)| Ok(f(x.ok_or(TofnFatal)?)))
     }
-    pub fn unwrap_all(self) -> TofnResult<VecMap<K, V>> {
-        self.unwrap_all_map(std::convert::identity)
+
+    pub fn to_vecmap(self) -> TofnResult<VecMap<K, V>> {
+        self.map_to_vecmap(std::convert::identity)
     }
 }
 
