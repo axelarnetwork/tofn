@@ -12,7 +12,7 @@ pub struct FillHoleVecMap<K, V> {
 }
 
 impl<K, V> FillHoleVecMap<K, V> {
-    /// if hole >= len-1 then use hole = len-1
+    /// if hole >= len - 1 then use hole = len-1
     pub fn with_size(len: usize, hole: TypedUsize<K>) -> TofnResult<Self> {
         Ok(Self {
             hole_vec: HoleVecMap::from_vecmap(
