@@ -1,10 +1,14 @@
 use crate::{
-    gg20::crypto_tools::{
-        k256_serde,
-        paillier::{
-            zk::{mta, ZkSetup},
-            Ciphertext, EncryptionKey, Plaintext, Randomness,
+    collections::TypedUsize,
+    gg20::{
+        crypto_tools::{
+            k256_serde,
+            paillier::{
+                zk::{mta, ZkSetup},
+                Ciphertext, EncryptionKey, Plaintext, Randomness,
+            },
         },
+        sign::SignShareId,
     },
     sdk::api::TofnResult,
 };
@@ -73,6 +77,8 @@ pub fn verify_mta_response(
 }
 
 pub fn mta_response_with_proof(
+    prover_id: TypedUsize<SignShareId>,
+    verifier_id: TypedUsize<SignShareId>,
     a_zkp: &ZkSetup,
     a_ek: &EncryptionKey,
     a_ciphertext: &Ciphertext,
@@ -81,6 +87,8 @@ pub fn mta_response_with_proof(
     let (c_b, s) = mta_response(a_ek, a_ciphertext, b);
     let proof = a_zkp.mta_proof(
         &mta::Statement {
+            prover_id,
+            verifier_id,
             ciphertext1: a_ciphertext,
             ciphertext2: &c_b,
             ek: a_ek,
@@ -95,6 +103,8 @@ pub fn mta_response_with_proof(
 }
 
 pub fn mta_response_with_proof_wc(
+    prover_id: TypedUsize<SignShareId>,
+    verifier_id: TypedUsize<SignShareId>,
     a_zkp: &ZkSetup,
     a_ek: &EncryptionKey,
     a_ciphertext: &Ciphertext,
@@ -104,6 +114,8 @@ pub fn mta_response_with_proof_wc(
     let proof_wc = a_zkp.mta_proof_wc(
         &mta::StatementWc {
             stmt: mta::Statement {
+                prover_id,
+                verifier_id,
                 ciphertext1: a_ciphertext,
                 ciphertext2: &c_b,
                 ek: a_ek,
@@ -124,9 +136,12 @@ mod tests {
     use ecdsa::elliptic_curve::Field;
 
     use super::{mta_response_with_proof_wc, verify_mta_response};
-    use crate::gg20::crypto_tools::paillier::{
-        keygen_unsafe,
-        zk::{mta, range, ZkSetup},
+    use crate::{
+        collections::TypedUsize,
+        gg20::crypto_tools::paillier::{
+            keygen_unsafe,
+            zk::{mta, range, ZkSetup},
+        },
     };
 
     #[test]
@@ -137,6 +152,8 @@ mod tests {
         let (a_ek, a_dk) = keygen_unsafe(&mut rand::thread_rng());
         let (a_zkp, _) = ZkSetup::new_unsafe(&mut rand::thread_rng());
         let (b_zkp, _) = ZkSetup::new_unsafe(&mut rand::thread_rng());
+        let a_id = TypedUsize::from_usize(0);
+        let b_id = TypedUsize::from_usize(1);
 
         // MtA step 1: party a
         let (a_ciphertext, a_randomness) = a_ek.encrypt(&(&a).into());
@@ -160,12 +177,14 @@ mod tests {
             &a_range_proof,
         ));
         let (c_b, b_mta_proof_wc, b_secret) =
-            mta_response_with_proof_wc(&a_zkp, &a_ek, &a_ciphertext, &b).unwrap();
+            mta_response_with_proof_wc(a_id, b_id, &a_zkp, &a_ek, &a_ciphertext, &b).unwrap();
 
         // MtA step 3: party a
         assert!(a_zkp.verify_mta_proof_wc(
             &mta::StatementWc {
                 stmt: mta::Statement {
+                    prover_id: a_id,
+                    verifier_id: b_id,
                     ciphertext1: &a_ciphertext,
                     ciphertext2: &c_b,
                     ek: &a_ek,

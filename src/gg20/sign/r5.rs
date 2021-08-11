@@ -78,6 +78,7 @@ impl bcast_only::Executer for R5 {
         for (sign_peer_id, bcast) in &bcasts_in {
             let peer_Gamma_i_commit = hash::commit_with_randomness(
                 constants::GAMMA_I_COMMIT_TAG,
+                sign_peer_id,
                 bcast.Gamma_i.bytes(),
                 &bcast.Gamma_i_reveal,
             );

@@ -1,4 +1,5 @@
 use crate::{
+    collections::TypedUsize,
     gg20::{
         constants,
         crypto_tools::{
@@ -9,6 +10,7 @@ use crate::{
                 BigInt, Ciphertext, EncryptionKey, Plaintext, Randomness,
             },
         },
+        sign::SignShareId,
     },
     sdk::api::{TofnFatal, TofnResult},
 };
@@ -21,10 +23,13 @@ use super::secp256k1_modulus_cubed;
 
 #[derive(Clone, Debug)]
 pub struct Statement<'a> {
+    pub prover_id: TypedUsize<SignShareId>,
+    pub verifier_id: TypedUsize<SignShareId>,
     pub ciphertext1: &'a Ciphertext,
     pub ciphertext2: &'a Ciphertext,
     pub ek: &'a EncryptionKey,
 }
+
 #[derive(Clone, Debug)]
 pub struct Witness<'a> {
     pub x: &'a k256::Scalar,
@@ -144,6 +149,8 @@ impl ZkSetup {
         let e = to_bigint(&k256::Scalar::from_digest(
             Sha256::new()
                 .chain(tag.to_le_bytes())
+                .chain(stmt.prover_id.to_bytes())
+                .chain(stmt.verifier_id.to_bytes())
                 .chain(to_vec(&stmt.ek.0.n))
                 .chain(to_vec(&stmt.ciphertext1.0))
                 .chain(to_vec(&stmt.ciphertext2.0))
@@ -198,6 +205,8 @@ impl ZkSetup {
         let e = k256::Scalar::from_digest(
             Sha256::new()
                 .chain(tag.to_le_bytes())
+                .chain(stmt.prover_id.to_bytes())
+                .chain(stmt.verifier_id.to_bytes())
                 .chain(to_vec(&stmt.ek.0.n))
                 .chain(to_vec(&stmt.ciphertext1.0))
                 .chain(to_vec(&stmt.ciphertext2.0))
@@ -297,7 +306,10 @@ pub(crate) mod tests {
         malicious::{corrupt_proof, corrupt_proof_wc},
         BigInt, Statement, StatementWc, Witness, ZkSetup,
     };
-    use crate::gg20::crypto_tools::paillier::{keygen_unsafe, zk::random, Ciphertext, Plaintext};
+    use crate::{
+        collections::TypedUsize,
+        gg20::crypto_tools::paillier::{keygen_unsafe, zk::random, Ciphertext, Plaintext},
+    };
     use ecdsa::elliptic_curve::Field;
     use tracing_test::traced_test; // enable logs in tests
 
@@ -315,9 +327,14 @@ pub(crate) mod tests {
             &ek.mul(ciphertext1, &Plaintext::from_scalar(x)),
             &ek.encrypt_with_randomness(msg, randomness),
         );
+        let prover_id = TypedUsize::from_usize(1);
+        let verifier_id = TypedUsize::from_usize(4);
+        let bad_id = TypedUsize::from_usize(100);
 
         let stmt_wc = &StatementWc {
             stmt: Statement {
+                prover_id,
+                verifier_id,
                 ciphertext1,
                 ciphertext2,
                 ek,
@@ -336,13 +353,31 @@ pub(crate) mod tests {
         let proof_wc = zkp.mta_proof_wc(stmt_wc, wit).unwrap();
         assert!(zkp.verify_mta_proof_wc(stmt_wc, &proof_wc));
 
+        let mut bad_stmt_wc = &mut stmt_wc.clone();
+        bad_stmt_wc.stmt.prover_id = verifier_id;
+        bad_stmt_wc.stmt.verifier_id = prover_id;
+
+        let mut bad_stmt = &mut bad_stmt_wc.stmt.clone();
+
+        // test: valid proof and bad id
+        assert!(!zkp.verify_mta_proof(bad_stmt, &proof));
+        bad_stmt.verifier_id = bad_id;
+        assert!(!zkp.verify_mta_proof(bad_stmt, &proof));
+
+        // test: valid proof wc and bad id
+        assert!(!zkp.verify_mta_proof_wc(bad_stmt_wc, &proof_wc));
+        bad_stmt_wc.stmt.verifier_id = bad_id;
+        assert!(!zkp.verify_mta_proof_wc(bad_stmt_wc, &proof_wc));
+
         // test: bad proof
         let bad_proof = corrupt_proof(&proof);
         assert!(!zkp.verify_mta_proof(stmt, &bad_proof));
+        assert!(!zkp.verify_mta_proof(bad_stmt, &bad_proof));
 
         // test: bad proof wc (with check)
         let bad_proof_wc = corrupt_proof_wc(&proof_wc);
         assert!(!zkp.verify_mta_proof_wc(stmt_wc, &bad_proof_wc));
+        assert!(!zkp.verify_mta_proof_wc(bad_stmt_wc, &bad_proof_wc));
 
         // test: bad witness
         let bad_wit = &Witness {

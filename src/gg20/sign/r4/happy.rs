@@ -95,6 +95,7 @@ impl bcast_only::Executer for R4Happy {
 
         for (sign_peer_id, bcast) in &bcasts_in {
             let peer_stmt = pedersen::Statement {
+                prover_id: sign_peer_id,
                 commit: bcast.T_i.as_ref(),
             };
 

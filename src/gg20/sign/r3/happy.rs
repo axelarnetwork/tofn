@@ -131,12 +131,15 @@ impl bcast_and_p2p::Executer for R3Happy {
             let p2p_in = p2ps_in.get(sign_peer_id, sign_id)?;
 
             let peer_stmt = paillier::zk::mta::Statement {
+                prover_id: sign_peer_id,
+                verifier_id: sign_id,
                 ciphertext1: &self.r1bcasts.get(sign_id)?.k_i_ciphertext,
                 ciphertext2: &p2p_in.alpha_ciphertext,
                 ek,
             };
 
             // verify zk proof for step 2 of MtA k_i * gamma_j
+            // Note that the peer is the prover and we are the verifier
             if !zkp.verify_mta_proof(&peer_stmt, &p2p_in.alpha_proof) {
                 warn!(
                     "peer {} says: mta proof failed to verify for peer {}",
@@ -169,6 +172,8 @@ impl bcast_and_p2p::Executer for R3Happy {
 
             let peer_stmt = paillier::zk::mta::StatementWc {
                 stmt: paillier::zk::mta::Statement {
+                    prover_id: sign_peer_id,
+                    verifier_id: sign_id,
                     ciphertext1: &self.r1bcasts.get(sign_id)?.k_i_ciphertext,
                     ciphertext2: &p2p_in.mu_ciphertext,
                     ek,
@@ -176,6 +181,7 @@ impl bcast_and_p2p::Executer for R3Happy {
                 x_g: &peer_W_i,
             };
 
+            // Note that the peer is the prover and we are the verifier
             if !zkp.verify_mta_proof_wc(&peer_stmt, &p2p_in.mu_proof) {
                 warn!(
                     "peer {} says: mta_wc proof failed to verify for peer {}",
@@ -262,7 +268,10 @@ impl bcast_and_p2p::Executer for R3Happy {
 
         let (T_i, l_i) = pedersen::commit(&sigma_i);
         let T_i_proof = pedersen::prove(
-            &pedersen::Statement { commit: &T_i },
+            &pedersen::Statement {
+                prover_id: sign_id,
+                commit: &T_i,
+            },
             &pedersen::Witness {
                 msg: &sigma_i,
                 randomness: &l_i,

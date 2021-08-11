@@ -76,6 +76,7 @@ impl bcast_and_p2p::Executer for R3 {
             let peer_y_i = bcast.u_i_vss_commit.secret_commit();
             let peer_y_i_commit = hash::commit_with_randomness(
                 constants::Y_I_COMMIT_TAG,
+                keygen_peer_id,
                 to_bytes(peer_y_i),
                 &bcast.y_i_reveal,
             );
@@ -175,6 +176,7 @@ impl bcast_and_p2p::Executer for R3 {
 
         let x_i_proof = schnorr::prove(
             &schnorr::Statement {
+                prover_id: keygen_id,
                 base: &k256::ProjectivePoint::generator(),
                 target: all_X_i.get(keygen_id)?,
             },

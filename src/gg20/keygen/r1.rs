@@ -54,21 +54,22 @@ impl no_messages::Executer for R1 {
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
     ) -> TofnResult<KeygenProtocolBuilder> {
-        let _keygen_id = info.share_id();
+        let keygen_id = info.share_id();
 
         let u_i_vss = vss::Vss::new(self.threshold);
         let (y_i_commit, y_i_reveal) = hash::commit(
             constants::Y_I_COMMIT_TAG,
+            keygen_id,
             k256_serde::to_bytes(&(k256::ProjectivePoint::generator() * u_i_vss.get_secret())),
         );
 
-        corrupt!(y_i_commit, self.corrupt_commit(_keygen_id, y_i_commit));
+        corrupt!(y_i_commit, self.corrupt_commit(keygen_id, y_i_commit));
 
         let ek_proof = self.dk.correctness_proof();
         let zkp_proof = self.zkp_proof.clone();
 
-        corrupt!(ek_proof, self.corrupt_ek_proof(_keygen_id, ek_proof));
-        corrupt!(zkp_proof, self.corrupt_zkp_proof(_keygen_id, zkp_proof));
+        corrupt!(ek_proof, self.corrupt_ek_proof(keygen_id, ek_proof));
+        corrupt!(zkp_proof, self.corrupt_zkp_proof(keygen_id, zkp_proof));
 
         let bcast_out = serialize(&Bcast {
             y_i_commit,

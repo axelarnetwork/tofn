@@ -75,6 +75,7 @@ impl bcast_only::Executer for R4Happy {
         for (keygen_peer_id, bcast) in bcasts_in.iter() {
             if !schnorr::verify(
                 &schnorr::Statement {
+                    prover_id: keygen_peer_id,
                     base: &k256::ProjectivePoint::generator(),
                     target: self.all_X_i.get(keygen_peer_id)?,
                 },

@@ -245,6 +245,7 @@ impl bcast_and_p2p::Executer for R6 {
         let S_i_proof_wc = pedersen::prove_wc(
             &pedersen::StatementWc {
                 stmt: pedersen::Statement {
+                    prover_id: sign_id,
                     commit: self.r3bcasts.get(sign_id)?.T_i.as_ref(),
                 },
                 msg_g: &S_i,
