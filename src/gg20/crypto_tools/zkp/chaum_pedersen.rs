@@ -2,6 +2,7 @@ use crate::gg20::{constants, crypto_tools::k256_serde};
 use ecdsa::{elliptic_curve::Field, hazmat::FromDigest};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use tracing::warn;
 
 #[derive(Clone, Debug)]
 pub struct Statement<'a> {
@@ -46,7 +47,7 @@ pub fn prove(stmt: &Statement, wit: &Witness) -> Proof {
     }
 }
 
-pub fn verify(stmt: &Statement, proof: &Proof) -> Result<(), &'static str> {
+pub fn verify(stmt: &Statement, proof: &Proof) -> bool {
     let c = k256::Scalar::from_digest(
         Sha256::new()
             .chain(constants::CHAUM_PEDERSEN_PROOF_TAG.to_le_bytes())
@@ -61,12 +62,16 @@ pub fn verify(stmt: &Statement, proof: &Proof) -> Result<(), &'static str> {
     let lhs2 = stmt.base2 * proof.t.as_ref();
     let rhs1 = *proof.alpha1.as_ref() + stmt.target1 * &c;
     let rhs2 = *proof.alpha2.as_ref() + stmt.target2 * &c;
-    match (lhs1 == rhs1, lhs2 == rhs2) {
-        (true, true) => Ok(()),
-        (false, false) => Err("fail both targets"),
-        (false, true) => Err("fail target1"),
-        (true, false) => Err("fail target2"),
-    }
+    let err = match (lhs1 == rhs1, lhs2 == rhs2) {
+        (true, true) => return true,
+        (false, false) => "fail both targets",
+        (false, true) => "fail target1",
+        (true, false) => "fail target2",
+    };
+
+    warn!("chaum pedersen verify failed: {}", err);
+
+    false
 }
 
 // warning suppression: uncomment the next line to malicious feature
@@ -105,17 +110,17 @@ mod tests {
 
         // test: valid proof
         let proof = prove(&stmt, &wit);
-        verify(&stmt, &proof).unwrap();
+        assert!(verify(&stmt, &proof));
 
         // test: bad proof
         let bad_proof = malicious::corrupt_proof(&proof);
-        verify(&stmt, &bad_proof).unwrap_err();
+        assert!(!verify(&stmt, &bad_proof));
 
         // test: bad witness
         let bad_wit = Witness {
             scalar: &(*wit.scalar + k256::Scalar::one()),
         };
         let bad_proof = prove(&stmt, &bad_wit);
-        verify(&stmt, &bad_proof).unwrap_err();
+        assert!(!verify(&stmt, &bad_proof));
     }
 }

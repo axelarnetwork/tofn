@@ -152,32 +152,28 @@ mod tests {
         );
 
         // MtA step 2: party b (this module)
-        b_zkp
-            .verify_range_proof(
-                &range::Statement {
-                    ciphertext: &a_ciphertext,
-                    ek: &a_ek,
-                },
-                &a_range_proof,
-            )
-            .unwrap();
+        assert!(b_zkp.verify_range_proof(
+            &range::Statement {
+                ciphertext: &a_ciphertext,
+                ek: &a_ek,
+            },
+            &a_range_proof,
+        ));
         let (c_b, b_mta_proof_wc, b_secret) =
             mta_response_with_proof_wc(&a_zkp, &a_ek, &a_ciphertext, &b).unwrap();
 
         // MtA step 3: party a
-        a_zkp
-            .verify_mta_proof_wc(
-                &mta::StatementWc {
-                    stmt: mta::Statement {
-                        ciphertext1: &a_ciphertext,
-                        ciphertext2: &c_b,
-                        ek: &a_ek,
-                    },
-                    x_g: &b_g,
+        assert!(a_zkp.verify_mta_proof_wc(
+            &mta::StatementWc {
+                stmt: mta::Statement {
+                    ciphertext1: &a_ciphertext,
+                    ciphertext2: &c_b,
+                    ek: &a_ek,
                 },
-                &b_mta_proof_wc,
-            )
-            .unwrap();
+                x_g: &b_g,
+            },
+            &b_mta_proof_wc,
+        ));
         let alpha = a_dk.decrypt_with_randomness(&c_b).0.to_scalar();
 
         // test: correct MtA output: a * b = alpha + beta

@@ -227,10 +227,10 @@ impl bcast_only::Executer for R8Type7 {
                 target2: self.r6bcasts.get(sign_peer_id)?.S_i.as_ref(), // sigma_i * R == S_i
             };
 
-            if let Err(err) = chaum_pedersen::verify(peer_stmt, &bcast.proof) {
+            if !chaum_pedersen::verify(peer_stmt, &bcast.proof) {
                 warn!(
-                    "peer {} says: chaum_pedersen proof from peer {} failed to verify because [{}]",
-                    sign_id, sign_peer_id, err
+                    "peer {} says: chaum_pedersen proof from peer {} failed to verify",
+                    sign_id, sign_peer_id,
                 );
                 faulters.set(sign_peer_id, ProtocolFault)?;
                 continue;

@@ -2,6 +2,7 @@ use crate::gg20::{constants, crypto_tools::k256_serde};
 use ecdsa::{elliptic_curve::Field, hazmat::FromDigest};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use tracing::warn;
 
 #[derive(Clone, Debug)]
 pub struct Statement<'a> {
@@ -36,7 +37,7 @@ pub fn prove(stmt: &Statement, wit: &Witness) -> Proof {
     }
 }
 
-pub fn verify(stmt: &Statement, proof: &Proof) -> Result<(), &'static str> {
+pub fn verify(stmt: &Statement, proof: &Proof) -> bool {
     let alpha = stmt.base * proof.t.as_ref() + stmt.target * proof.c.as_ref();
     let c_check = k256::Scalar::from_digest(
         Sha256::new()
@@ -46,9 +47,10 @@ pub fn verify(stmt: &Statement, proof: &Proof) -> Result<(), &'static str> {
             .chain(k256_serde::to_bytes(&alpha)),
     );
     if &c_check == proof.c.as_ref() {
-        Ok(())
+        true
     } else {
-        Err("fail")
+        warn!("schnorr verify failed");
+        false
     }
 }
 
@@ -81,17 +83,17 @@ mod tests {
 
         // test: valid proof
         let proof = prove(&stmt, &wit);
-        verify(&stmt, &proof).unwrap();
+        assert!(verify(&stmt, &proof));
 
         // test: bad proof
         let bad_proof = malicious::corrupt_proof(&proof);
-        verify(&stmt, &bad_proof).unwrap_err();
+        assert!(!verify(&stmt, &bad_proof));
 
         // test: bad witness
         let bad_wit = Witness {
             scalar: &(*wit.scalar + k256::Scalar::one()),
         };
         let bad_proof = prove(&stmt, &bad_wit);
-        verify(&stmt, &bad_proof).unwrap_err();
+        assert!(!verify(&stmt, &bad_proof));
     }
 }

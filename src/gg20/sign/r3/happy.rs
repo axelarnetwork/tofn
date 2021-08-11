@@ -137,10 +137,10 @@ impl bcast_and_p2p::Executer for R3Happy {
             };
 
             // verify zk proof for step 2 of MtA k_i * gamma_j
-            if let Err(err) = zkp.verify_mta_proof(&peer_stmt, &p2p_in.alpha_proof) {
+            if !zkp.verify_mta_proof(&peer_stmt, &p2p_in.alpha_proof) {
                 warn!(
-                    "peer {} says: mta proof failed to verify for peer {} because [{}]",
-                    sign_id, sign_peer_id, err
+                    "peer {} says: mta proof failed to verify for peer {}",
+                    sign_id, sign_peer_id,
                 );
 
                 mta_complaints.set(sign_peer_id, Accusation::MtA)?;
@@ -176,10 +176,10 @@ impl bcast_and_p2p::Executer for R3Happy {
                 x_g: &peer_W_i,
             };
 
-            if let Err(err) = zkp.verify_mta_proof_wc(&peer_stmt, &p2p_in.mu_proof) {
+            if !zkp.verify_mta_proof_wc(&peer_stmt, &p2p_in.mu_proof) {
                 warn!(
-                    "peer {} says: mta_wc proof failed to verify for peer {} because [{}]",
-                    sign_id, sign_peer_id, err
+                    "peer {} says: mta_wc proof failed to verify for peer {}",
+                    sign_id, sign_peer_id,
                 );
 
                 mta_complaints.set(sign_peer_id, Accusation::MtAwc)?;

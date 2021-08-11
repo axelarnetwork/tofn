@@ -8,7 +8,7 @@ use ecdsa::{
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use tracing::error;
+use tracing::{error, warn};
 
 #[derive(Clone, Debug)]
 pub struct Statement<'a> {
@@ -79,7 +79,7 @@ pub fn prove(stmt: &Statement, wit: &Witness) -> Proof {
     prove_inner(stmt, None, wit).0
 }
 
-pub fn verify(stmt: &Statement, proof: &Proof) -> Result<(), &'static str> {
+pub fn verify(stmt: &Statement, proof: &Proof) -> bool {
     verify_inner(stmt, proof, None)
 }
 
@@ -100,7 +100,7 @@ pub fn prove_wc(stmt: &StatementWc, wit: &Witness) -> TofnResult<ProofWc> {
     Ok(ProofWc { proof, beta })
 }
 
-pub fn verify_wc(stmt: &StatementWc, proof: &ProofWc) -> Result<(), &'static str> {
+pub fn verify_wc(stmt: &StatementWc, proof: &ProofWc) -> bool {
     verify_inner(
         &stmt.stmt,
         &proof.proof,
@@ -144,7 +144,7 @@ fn verify_inner(
         &k256::ProjectivePoint,
         &k256::ProjectivePoint,
     )>, // (msg_g, g, beta))
-) -> Result<(), &'static str> {
+) -> bool {
     let c = k256::Scalar::from_digest(
         Sha256::new()
             .chain(constants::PEDERSEN_PROOF_TAG.to_le_bytes())
@@ -154,19 +154,24 @@ fn verify_inner(
             .chain(k256_serde::to_bytes(proof.alpha.as_ref()))
             .chain(&msg_g_g_beta.map_or(Vec::new(), |(_, _, beta)| k256_serde::to_bytes(beta))),
     );
+
     if let Some((msg_g, g, beta)) = msg_g_g_beta {
         let lhs = g * proof.t.as_ref();
         let rhs = msg_g * &c + beta;
         if lhs != rhs {
-            return Err("'wc' check fail");
+            warn!("'wc' check fail");
+            return false;
         }
     }
+
     let lhs = commit_with_randomness(proof.t.as_ref(), proof.u.as_ref());
     let rhs = stmt.commit * &c + proof.alpha.as_ref();
     if lhs != rhs {
-        return Err("verify fail");
+        warn!("verify fail");
+        return false;
     }
-    Ok(())
+
+    true
 }
 
 #[cfg(any(test, feature = "malicious"))]
@@ -214,19 +219,19 @@ mod tests {
 
         // test: valid proof
         let proof = prove(stmt, wit);
-        verify(stmt, &proof).unwrap();
+        assert!(verify(stmt, &proof));
 
         // test: valid proof wc (with check)
         let proof_wc = prove_wc(stmt_wc, wit).unwrap();
-        verify_wc(stmt_wc, &proof_wc).unwrap();
+        assert!(verify_wc(stmt_wc, &proof_wc));
 
         // test: bad proof
         let bad_proof = corrupt_proof(&proof);
-        verify(stmt, &bad_proof).unwrap_err();
+        assert!(!verify(stmt, &bad_proof));
 
         // test: bad proof wc (with check)
         let bad_proof_wc = corrupt_proof_wc(&proof_wc);
-        verify_wc(stmt_wc, &bad_proof_wc).unwrap_err();
+        assert!(!verify_wc(stmt_wc, &bad_proof_wc));
 
         // test: bad witness
         let bad_wit = &Witness {
@@ -234,10 +239,10 @@ mod tests {
             ..*wit
         };
         let bad_proof = prove(stmt, bad_wit);
-        verify(stmt, &bad_proof).unwrap_err();
+        assert!(!verify(stmt, &bad_proof));
 
         // test: bad witness wc (with check)
         let bad_wit_proof_wc = prove_wc(stmt_wc, bad_wit).unwrap();
-        verify_wc(stmt_wc, &bad_wit_proof_wc).unwrap_err();
+        assert!(!verify_wc(stmt_wc, &bad_wit_proof_wc));
     }
 }

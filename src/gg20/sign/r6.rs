@@ -131,10 +131,10 @@ impl bcast_and_p2p::Executer for R6 {
                 g: &self.R,
             };
 
-            if let Err(err) = zkp.verify_range_proof_wc(peer_stmt, &p2p_in.k_i_range_proof_wc) {
+            if !zkp.verify_range_proof_wc(peer_stmt, &p2p_in.k_i_range_proof_wc) {
                 warn!(
-                    "peer {} says: range proof wc failed to verify for peer {} because [{}]",
-                    sign_id, sign_peer_id, err
+                    "peer {} says: range proof wc failed to verify for peer {}",
+                    sign_id, sign_peer_id,
                 );
 
                 zkp_complaints.add(sign_peer_id)?;

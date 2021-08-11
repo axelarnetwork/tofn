@@ -17,7 +17,7 @@ use crate::{
 use ecdsa::hazmat::FromDigest;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use tracing::error;
+use tracing::{error, warn};
 
 use super::{mulm, secp256k1_modulus_cubed};
 
@@ -64,7 +64,7 @@ impl ZkSetup {
             .0
     }
 
-    pub fn verify_range_proof(&self, stmt: &Statement, proof: &Proof) -> Result<(), &'static str> {
+    pub fn verify_range_proof(&self, stmt: &Statement, proof: &Proof) -> bool {
         self.verify_range_proof_inner(constants::RANGE_PROOF_TAG, stmt, proof, None)
     }
 
@@ -91,11 +91,7 @@ impl ZkSetup {
         Ok(ProofWc { proof, u1 })
     }
 
-    pub fn verify_range_proof_wc(
-        &self,
-        stmt: &StatementWc,
-        proof: &ProofWc,
-    ) -> Result<(), &'static str> {
+    pub fn verify_range_proof_wc(&self, stmt: &StatementWc, proof: &ProofWc) -> bool {
         self.verify_range_proof_inner(
             constants::RANGE_PROOF_WC_TAG,
             &stmt.stmt,
@@ -158,9 +154,10 @@ impl ZkSetup {
             &k256::ProjectivePoint,
             &k256::ProjectivePoint,
         )>, // (msg_g, g, u1)
-    ) -> Result<(), &'static str> {
+    ) -> bool {
         if proof.s1.0 > secp256k1_modulus_cubed() || proof.s1.0 < BigInt::zero() {
-            return Err("s1 not in range q^3");
+            warn!("s1 not in range q^3");
+            return false;
         }
         let e = k256::Scalar::from_digest(
             Sha256::new()
@@ -182,7 +179,8 @@ impl ZkSetup {
             let s1_g = g * &s1;
             let u1_check = msg_g * &e_neg + s1_g;
             if u1_check != *u1 {
-                return Err("'wc' check fail");
+                warn!("'wc' check fail");
+                return false;
             }
         }
 
@@ -192,7 +190,8 @@ impl ZkSetup {
             &stmt.ek.0.nn,
         );
         if u_check != proof.u.0 {
-            return Err("u check fail");
+            warn!("u check fail");
+            return false;
         }
 
         let w_check = mulm(
@@ -201,10 +200,11 @@ impl ZkSetup {
             self.n_tilde(),
         );
         if w_check != proof.w {
-            return Err("w check fail");
+            warn!("w check fail");
+            return false;
         }
 
-        Ok(())
+        true
     }
 }
 
@@ -271,30 +271,28 @@ mod tests {
 
         // test: valid proof
         let proof = zkp.range_proof(stmt, wit);
-        zkp.verify_range_proof(stmt, &proof).unwrap();
+        assert!(zkp.verify_range_proof(stmt, &proof));
 
         // test: valid proof wc (with check)
         let proof_wc = zkp.range_proof_wc(stmt_wc, wit).unwrap();
-        zkp.verify_range_proof_wc(stmt_wc, &proof_wc).unwrap();
+        assert!(zkp.verify_range_proof_wc(stmt_wc, &proof_wc));
 
         // test: bad proof
         let bad_proof = corrupt_proof(&proof);
-        zkp.verify_range_proof(stmt, &bad_proof).unwrap_err();
+        assert!(!zkp.verify_range_proof(stmt, &bad_proof));
 
         // test: bad proof wc (with check)
         let bad_proof_wc = corrupt_proof_wc(&proof_wc);
-        zkp.verify_range_proof_wc(stmt_wc, &bad_proof_wc)
-            .unwrap_err();
-
+        assert!(!zkp.verify_range_proof_wc(stmt_wc, &bad_proof_wc));
         // test: bad witness
         let bad_wit = &Witness {
             msg: &(*wit.msg + k256::Scalar::one()),
             ..*wit
         };
         let bad_proof = zkp.range_proof(stmt, bad_wit);
-        zkp.verify_range_proof(stmt, &bad_proof).unwrap_err();
+        assert!(!zkp.verify_range_proof(stmt, &bad_proof));
+
         let bad_wit_proof_wc = zkp.range_proof_wc(stmt_wc, bad_wit).unwrap();
-        zkp.verify_range_proof_wc(stmt_wc, &bad_wit_proof_wc)
-            .unwrap_err();
+        assert!(!zkp.verify_range_proof_wc(stmt_wc, &bad_wit_proof_wc));
     }
 }

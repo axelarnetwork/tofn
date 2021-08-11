@@ -122,10 +122,10 @@ impl bcast_only::Executer for R7Happy {
                 g: &self.R,
             };
 
-            if let Err(err) = pedersen::verify_wc(peer_stmt, &bcast.S_i_proof_wc) {
+            if !pedersen::verify_wc(peer_stmt, &bcast.S_i_proof_wc) {
                 warn!(
-                    "peer {} says: pedersen proof wc failed to verify for peer {} because [{}]",
-                    sign_id, sign_peer_id, err
+                    "peer {} says: pedersen proof wc failed to verify for peer {}",
+                    sign_id, sign_peer_id,
                 );
 
                 faulters.set(sign_peer_id, ProtocolFault)?;

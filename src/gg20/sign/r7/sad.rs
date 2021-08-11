@@ -132,16 +132,12 @@ impl bcast_only::Executer for R7Sad {
                     .zkp();
 
                 match accuser_zkp.verify_range_proof_wc(accused_stmt, accused_proof) {
-                    Ok(_) => {
+                    true => {
                         log_fault_info(sign_id, accuser_sign_id, "false R5 p2p accusation");
                         faulters.set(accuser_sign_id, ProtocolFault)?;
                     }
-                    Err(err) => {
-                        log_fault_info(
-                            sign_id,
-                            accused_sign_id,
-                            &format!("invalid r5 p2p range proof wc because '{}'", err),
-                        );
+                    false => {
+                        log_fault_info(sign_id, accused_sign_id, "invalid r5 p2p range proof wc");
                         faulters.set(accused_sign_id, ProtocolFault)?;
                     }
                 };

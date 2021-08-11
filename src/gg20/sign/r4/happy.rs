@@ -99,10 +99,10 @@ impl bcast_only::Executer for R4Happy {
             };
 
             // verify zk proof for step 2 of MtA k_i * gamma_j
-            if let Err(err) = pedersen::verify(&peer_stmt, &bcast.T_i_proof) {
+            if !pedersen::verify(&peer_stmt, &bcast.T_i_proof) {
                 warn!(
-                    "peer {} says: pedersen proof failed to verify for peer {} because [{}]",
-                    sign_id, sign_peer_id, err
+                    "peer {} says: pedersen proof failed to verify for peer {}",
+                    sign_id, sign_peer_id,
                 );
 
                 faulters.set(sign_peer_id, ProtocolFault)?;

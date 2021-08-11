@@ -115,10 +115,10 @@ impl bcast_and_p2p::Executer for R2 {
                 .get(self.keygen_id)?
                 .zkp();
 
-            if let Err(err) = zkp.verify_range_proof(peer_stmt, peer_proof) {
+            if !zkp.verify_range_proof(peer_stmt, peer_proof) {
                 warn!(
-                    "peer {} says: range proof from peer {} failed to verify because [{}]",
-                    sign_id, sign_peer_id, err
+                    "peer {} says: range proof from peer {} failed to verify",
+                    sign_id, sign_peer_id,
                 );
 
                 zkp_complaints.add(sign_peer_id)?;
