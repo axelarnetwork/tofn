@@ -1,7 +1,11 @@
 //! Helpers for verifiable secret sharing
-use crate::gg20::crypto_tools::k256_serde;
+use crate::{
+    gg20::crypto_tools::k256_serde,
+    sdk::api::{TofnFatal, TofnResult},
+};
 use k256::elliptic_curve::Field;
 use serde::{Deserialize, Serialize};
+use tracing::error;
 use zeroize::Zeroize;
 
 #[derive(Debug, Zeroize)]
@@ -17,12 +21,15 @@ impl Vss {
             .collect();
         Self { secret_coeffs }
     }
+
     pub fn get_threshold(&self) -> usize {
         self.secret_coeffs.len() - 1
     }
+
     pub fn get_secret(&self) -> &k256::Scalar {
         &self.secret_coeffs[0]
     }
+
     pub fn commit(&self) -> Commit {
         Commit {
             coeff_commits: self
@@ -32,8 +39,10 @@ impl Vss {
                 .collect(),
         }
     }
+
     pub fn shares(&self, n: usize) -> Vec<Share> {
-        assert!(self.get_threshold() < n); // also ensures n > 0
+        debug_assert!(self.get_threshold() < n); // also ensures that n > 0
+
         (0..n)
             .map(|index| {
                 let index_scalar = k256::Scalar::from(index as u32 + 1); // vss indices start at 1
@@ -66,12 +75,14 @@ impl Commit {
             .iter()
             .rev()
             .fold(k256::ProjectivePoint::identity(), |acc, p| {
-                acc * index_scalar + p.unwrap()
+                acc * index_scalar + p.as_ref()
             })
     }
+
     pub fn secret_commit(&self) -> &k256::ProjectivePoint {
-        self.coeff_commits[0].unwrap()
+        self.coeff_commits[0].as_ref()
     }
+
     pub fn validate_share_commit(
         &self,
         share_commit: &k256::ProjectivePoint,
@@ -79,6 +90,7 @@ impl Commit {
     ) -> bool {
         self.share_commit(index) == *share_commit
     }
+
     pub fn validate_share(&self, share: &Share) -> bool {
         self.validate_share_commit(
             &(k256::ProjectivePoint::generator() * share.get_scalar()),
@@ -101,25 +113,14 @@ impl Share {
             index,
         }
     }
+
     pub fn get_scalar(&self) -> &k256::Scalar {
-        self.scalar.unwrap()
+        self.scalar.as_ref()
     }
+
     pub fn get_index(&self) -> usize {
         self.index
     }
-}
-
-// clippy appeasement: recover_secret currently used only in tests
-#[cfg(test)]
-pub fn recover_secret(shares: &[Share], threshold: usize) -> k256::Scalar {
-    assert!(shares.len() > threshold);
-    let indices: Vec<usize> = shares.iter().map(|s| s.index).collect();
-    shares
-        .iter()
-        .enumerate()
-        .fold(k256::Scalar::zero(), |sum, (i, share)| {
-            sum + share.scalar.unwrap() * &lagrange_coefficient(i, &indices)
-        })
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -137,23 +138,24 @@ impl ShareCommit {
 pub fn recover_secret_commit(
     share_commits: &[ShareCommit],
     threshold: usize,
-) -> k256::ProjectivePoint {
-    // TODO copied code from recover_secret
-    assert!(share_commits.len() > threshold);
+) -> TofnResult<k256::ProjectivePoint> {
+    debug_assert!(share_commits.len() > threshold);
+
     let indices: Vec<usize> = share_commits.iter().map(|s| s.index).collect();
-    share_commits.iter().enumerate().fold(
+    share_commits.iter().enumerate().try_fold(
         k256::ProjectivePoint::identity(),
         |sum, (i, share_commit)| {
-            sum + share_commit.point.unwrap() * &lagrange_coefficient(i, &indices)
+            Ok(sum + share_commit.point.as_ref() * &lagrange_coefficient(i, &indices)?)
         },
     )
 }
 
-pub fn lagrange_coefficient(i: usize, indices: &[usize]) -> k256::Scalar {
+pub fn lagrange_coefficient(i: usize, indices: &[usize]) -> TofnResult<k256::Scalar> {
     let scalars: Vec<k256::Scalar> = indices
         .iter()
         .map(|&index| k256::Scalar::from(index as u32 + 1))
         .collect();
+
     let (numerator, denominator) = scalars.iter().enumerate().fold(
         (k256::Scalar::one(), k256::Scalar::one()),
         |(num, den), (j, scalar_j)| {
@@ -164,7 +166,15 @@ pub fn lagrange_coefficient(i: usize, indices: &[usize]) -> k256::Scalar {
             }
         },
     );
-    numerator * denominator.invert().unwrap()
+
+    let den_inv = denominator.invert();
+
+    if bool::from(den_inv.is_none()) {
+        error!("Denominator in lagrange coefficient computation is 0");
+        return Err(TofnFatal);
+    }
+
+    Ok(numerator * den_inv.unwrap())
 }
 
 #[cfg(feature = "malicious")]
@@ -172,9 +182,20 @@ pub mod malicious {
     use super::*;
     impl Share {
         pub fn corrupt(&mut self) {
-            *self.scalar.unwrap_mut() += k256::Scalar::one();
+            *self.scalar.as_mut() += k256::Scalar::one();
         }
     }
+}
+
+#[cfg(test)]
+pub(crate) fn recover_secret(shares: &[Share]) -> k256::Scalar {
+    let indices: Vec<usize> = shares.iter().map(|s| s.index).collect();
+    shares
+        .iter()
+        .enumerate()
+        .fold(k256::Scalar::zero(), |sum, (i, share)| {
+            sum + share.scalar.as_ref() * &lagrange_coefficient(i, &indices).unwrap()
+        })
 }
 
 #[cfg(test)]
@@ -239,7 +260,7 @@ mod tests {
         let vss = Vss::new(t);
         let secret = vss.get_secret();
         let shuffled_shares = vss.shuffled_shares(n);
-        let recovered_secret = recover_secret(&shuffled_shares, t);
+        let recovered_secret = recover_secret(&shuffled_shares);
         assert_eq!(recovered_secret, *secret);
 
         let secret_commit = *vss.commit().secret_commit();
@@ -250,7 +271,7 @@ mod tests {
                 index: share.get_index(),
             })
             .collect();
-        let recovered_secret_commit = recover_secret_commit(&shuffled_share_commits, t);
+        let recovered_secret_commit = recover_secret_commit(&shuffled_share_commits, t).unwrap();
         assert_eq!(recovered_secret_commit, secret_commit);
     }
 
@@ -268,7 +289,7 @@ mod tests {
             .iter()
             .enumerate()
             .map(|(i, share)| Share {
-                scalar: (share.get_scalar() * &lagrange_coefficient(i, &indices)).into(),
+                scalar: (share.get_scalar() * &lagrange_coefficient(i, &indices).unwrap()).into(),
                 ..*share
             })
             .collect();

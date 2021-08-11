@@ -121,16 +121,12 @@ impl bcast_and_p2p::Executer for R3Sad {
                     .zkp();
 
                 match accuser_zkp.verify_range_proof(accused_stmt, accused_proof) {
-                    Ok(_) => {
+                    true => {
                         log_fault_info(sign_id, accuser_sign_id, "false accusation");
                         faulters.set(accuser_sign_id, ProtocolFault)?;
                     }
-                    Err(err) => {
-                        log_fault_info(
-                            sign_id,
-                            accused_sign_id,
-                            &format!("invalid r1 p2p range proof because '{}'", err),
-                        );
+                    false => {
+                        log_fault_info(sign_id, accused_sign_id, "invalid r1 p2p range proof");
                         faulters.set(accused_sign_id, ProtocolFault)?;
                     }
                 };

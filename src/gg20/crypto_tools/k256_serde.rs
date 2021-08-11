@@ -12,14 +12,15 @@ use zeroize::Zeroize;
 #[derive(Clone, Debug, PartialEq, Zeroize)]
 pub struct Scalar(k256::Scalar);
 
-impl Scalar {
-    pub fn unwrap(&self) -> &k256::Scalar {
+impl AsRef<k256::Scalar> for Scalar {
+    fn as_ref(&self) -> &k256::Scalar {
         &self.0
     }
+}
 
-    // clippy appeasement: unwrap_mut currently used only in malicious mode
-    #[cfg(feature = "malicious")]
-    pub fn unwrap_mut(&mut self) -> &mut k256::Scalar {
+#[cfg(feature = "malicious")]
+impl AsMut<k256::Scalar> for Scalar {
+    fn as_mut(&mut self) -> &mut k256::Scalar {
         &mut self.0
     }
 }
@@ -63,7 +64,7 @@ impl<'de> Visitor<'de> for ScalarVisitor {
     {
         if v.len() != 32 {
             return Err(E::custom(format!(
-                "invalid bytes length; expect 32, got {}",
+                "Invalid bytes length; expect 32, got {}",
                 v.len()
             )));
         }
@@ -120,10 +121,6 @@ impl<'de> Visitor<'de> for AffinePointVisitor {
 pub struct ProjectivePoint(k256::ProjectivePoint);
 
 impl ProjectivePoint {
-    pub fn unwrap(&self) -> &k256::ProjectivePoint {
-        &self.0
-    }
-
     /// Trying to make this look like a method of k256::ProjectivePoint
     /// Unfortunately, `p.into().bytes()` needs type annotations
     pub fn bytes(&self) -> Vec<u8> {
@@ -132,6 +129,12 @@ impl ProjectivePoint {
             .to_encoded_point(true)
             .as_bytes()
             .to_vec()
+    }
+}
+
+impl AsRef<k256::ProjectivePoint> for ProjectivePoint {
+    fn as_ref(&self) -> &k256::ProjectivePoint {
+        &self.0
     }
 }
 

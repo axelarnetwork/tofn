@@ -110,22 +110,22 @@ impl bcast_only::Executer for R7Happy {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
-        let bcasts_in = bcasts.unwrap_all()?;
+        let bcasts_in = bcasts.to_vecmap()?;
 
         // verify proofs
         for (sign_peer_id, bcast) in &bcasts_in {
             let peer_stmt = &pedersen::StatementWc {
                 stmt: pedersen::Statement {
-                    commit: self.r3bcasts.get(sign_peer_id)?.T_i.unwrap(),
+                    commit: self.r3bcasts.get(sign_peer_id)?.T_i.as_ref(),
                 },
-                msg_g: bcast.S_i.unwrap(),
+                msg_g: bcast.S_i.as_ref(),
                 g: &self.R,
             };
 
-            if let Err(err) = pedersen::verify_wc(peer_stmt, &bcast.S_i_proof_wc) {
+            if !pedersen::verify_wc(peer_stmt, &bcast.S_i_proof_wc) {
                 warn!(
-                    "peer {} says: pedersen proof wc failed to verify for peer {} because [{}]",
-                    sign_id, sign_peer_id, err
+                    "peer {} says: pedersen proof wc failed to verify for peer {}",
+                    sign_id, sign_peer_id,
                 );
 
                 faulters.set(sign_peer_id, ProtocolFault)?;
@@ -140,10 +140,10 @@ impl bcast_only::Executer for R7Happy {
         let S_i_sum = bcasts_in
             .iter()
             .fold(ProjectivePoint::identity(), |acc, (_, bcast)| {
-                acc + bcast.S_i.unwrap()
+                acc + bcast.S_i.as_ref()
             });
 
-        if &S_i_sum != self.secret_key_share.group().y().unwrap() {
+        if &S_i_sum != self.secret_key_share.group().y().as_ref() {
             warn!("peer {} says: 'type 7' fault detected", sign_id);
 
             // recover encryption randomness for mu; need to decrypt again to do so
@@ -165,7 +165,7 @@ impl bcast_only::Executer for R7Happy {
                     base1: &k256::ProjectivePoint::generator(),
                     base2: &self.R,
                     target1: &(k256::ProjectivePoint::generator() * self.sigma_i),
-                    target2: bcasts_in.get(sign_id)?.S_i.unwrap(),
+                    target2: bcasts_in.get(sign_id)?.S_i.as_ref(),
                 },
                 &chaum_pedersen::Witness {
                     scalar: &self.sigma_i,

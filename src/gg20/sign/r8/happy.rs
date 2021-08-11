@@ -72,12 +72,12 @@ impl bcast_only::Executer for R8Happy {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
-        let bcasts_in = bcasts.unwrap_all()?;
+        let bcasts_in = bcasts.to_vecmap()?;
 
         // compute s = sum_i s_i
         let s = bcasts_in
             .iter()
-            .fold(Scalar::zero(), |acc, (_, bcast)| acc + bcast.s_i.unwrap());
+            .fold(Scalar::zero(), |acc, (_, bcast)| acc + bcast.s_i.as_ref());
 
         let sig = {
             let mut sig = Signature::from_scalars(self.r, s).map_err(|_| {
@@ -93,7 +93,7 @@ impl bcast_only::Executer for R8Happy {
             sig
         };
 
-        let pub_key = &self.secret_key_share.group().y().unwrap().to_affine();
+        let pub_key = &self.secret_key_share.group().y().as_ref().to_affine();
 
         if pub_key.verify_prehashed(&self.msg_to_sign, &sig).is_ok() {
             // convert signature into ASN1/DER (Bitcoin) format
@@ -104,10 +104,10 @@ impl bcast_only::Executer for R8Happy {
 
         // verify proofs
         for (sign_peer_id, bcast) in &bcasts_in {
-            let R_i = self.r5bcasts.get(sign_peer_id)?.R_i.unwrap();
-            let S_i = self.r6bcasts.get(sign_peer_id)?.S_i.unwrap();
+            let R_i = self.r5bcasts.get(sign_peer_id)?.R_i.as_ref();
+            let S_i = self.r6bcasts.get(sign_peer_id)?.S_i.as_ref();
 
-            let R_s = self.R * bcast.s_i.unwrap();
+            let R_s = self.R * bcast.s_i.as_ref();
             let R_s_prime = R_i * &self.msg_to_sign + S_i * &self.r;
 
             if R_s != R_s_prime {

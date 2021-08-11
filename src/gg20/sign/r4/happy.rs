@@ -95,14 +95,14 @@ impl bcast_only::Executer for R4Happy {
 
         for (sign_peer_id, bcast) in &bcasts_in {
             let peer_stmt = pedersen::Statement {
-                commit: bcast.T_i.unwrap(),
+                commit: bcast.T_i.as_ref(),
             };
 
             // verify zk proof for step 2 of MtA k_i * gamma_j
-            if let Err(err) = pedersen::verify(&peer_stmt, &bcast.T_i_proof) {
+            if !pedersen::verify(&peer_stmt, &bcast.T_i_proof) {
                 warn!(
-                    "peer {} says: pedersen proof failed to verify for peer {} because [{}]",
-                    sign_id, sign_peer_id, err
+                    "peer {} says: pedersen proof failed to verify for peer {}",
+                    sign_id, sign_peer_id,
                 );
 
                 faulters.set(sign_peer_id, ProtocolFault)?;
@@ -117,7 +117,7 @@ impl bcast_only::Executer for R4Happy {
         let delta_inv = bcasts_in
             .iter()
             .fold(Scalar::zero(), |acc, (_, bcast)| {
-                acc + bcast.delta_i.unwrap()
+                acc + bcast.delta_i.as_ref()
             })
             .invert();
 

@@ -73,7 +73,7 @@ impl<F, K, P> Round<F, K, P> {
         let party_id = self.info().party_id();
 
         // unwrap metadata
-        let bytes_meta: WireBytes<K> = match wire_bytes::unwrap(bytes) {
+        let bytes_meta: WireBytes<K> = match wire_bytes::decode(bytes) {
             Some(w) => w,
             None => {
                 warn!(
@@ -269,9 +269,9 @@ impl<F, K, P> Round<F, K, P> {
             return Err(TofnFatal);
         }
 
-        let bcast_out = wire_bytes::wrap(bcast_out, share_id, Bcast)?;
+        let bcast_out = wire_bytes::encode(bcast_out, share_id, Bcast)?;
         let p2ps_out = p2ps_out
-            .map2_result(|(to, payload)| wire_bytes::wrap(payload, share_id, P2p { to }))?;
+            .map2_result(|(to, payload)| wire_bytes::encode(payload, share_id, P2p { to }))?;
 
         Ok(Self::new(
             info,
@@ -290,7 +290,7 @@ impl<F, K, P> Round<F, K, P> {
         info: ProtocolInfoDeluxe<K, P>,
         bcast_out: BytesVec,
     ) -> TofnResult<Self> {
-        let bcast_out = wire_bytes::wrap(bcast_out, info.share_info().share_id(), Bcast)?;
+        let bcast_out = wire_bytes::encode(bcast_out, info.share_info().share_id(), Bcast)?;
 
         let share_count = info.share_info().share_count();
 
@@ -325,7 +325,7 @@ impl<F, K, P> Round<F, K, P> {
         }
 
         let p2ps_out = p2ps_out
-            .map2_result(|(to, payload)| wire_bytes::wrap(payload, share_id, P2p { to }))?;
+            .map2_result(|(to, payload)| wire_bytes::encode(payload, share_id, P2p { to }))?;
 
         Ok(Self::new(
             info,

@@ -108,7 +108,7 @@ impl bcast_only::Executer for R7Sad {
                     .get(accused_keygen_id)?
                     .ek();
                 let accused_k_i_ciphertext = &self.r1bcasts.get(accused_sign_id)?.k_i_ciphertext;
-                let accused_R_i = self.r5bcasts.get(accused_sign_id)?.R_i.unwrap();
+                let accused_R_i = self.r5bcasts.get(accused_sign_id)?.R_i.as_ref();
 
                 let accused_stmt = &paillier::zk::range::StatementWc {
                     stmt: paillier::zk::range::Statement {
@@ -132,16 +132,12 @@ impl bcast_only::Executer for R7Sad {
                     .zkp();
 
                 match accuser_zkp.verify_range_proof_wc(accused_stmt, accused_proof) {
-                    Ok(_) => {
+                    true => {
                         log_fault_info(sign_id, accuser_sign_id, "false R5 p2p accusation");
                         faulters.set(accuser_sign_id, ProtocolFault)?;
                     }
-                    Err(err) => {
-                        log_fault_info(
-                            sign_id,
-                            accused_sign_id,
-                            &format!("invalid r5 p2p range proof wc because '{}'", err),
-                        );
+                    false => {
+                        log_fault_info(sign_id, accused_sign_id, "invalid r5 p2p range proof wc");
                         faulters.set(accused_sign_id, ProtocolFault)?;
                     }
                 };

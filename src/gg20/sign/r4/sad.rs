@@ -134,7 +134,7 @@ impl bcast_only::Executer for R4Sad {
                                 .iter()
                                 .map(|(_, keygen_accused_id)| keygen_accused_id.as_usize())
                                 .collect::<Vec<_>>(),
-                        );
+                        )?;
 
                         let accused_W_i = self
                             .secret_key_share
@@ -142,7 +142,7 @@ impl bcast_only::Executer for R4Sad {
                             .all_shares()
                             .get(accused_keygen_id)?
                             .X_i()
-                            .unwrap()
+                            .as_ref()
                             * accused_lambda_i_S;
 
                         let accused_stmt = paillier::zk::mta::StatementWc {
@@ -162,15 +162,15 @@ impl bcast_only::Executer for R4Sad {
                 };
 
                 match result {
-                    Ok(_) => {
+                    true => {
                         log_fault_info(sign_id, accuser_sign_id, "false r2 p2p accusation");
                         faulters.set(accuser_sign_id, ProtocolFault)?;
                     }
-                    Err(err) => {
+                    false => {
                         log_fault_info(
                             sign_id,
                             accused_sign_id,
-                            &format!("invalid r2 p2p {} proof because '{}'", accusation_type, err),
+                            &format!("invalid r2 p2p {} proof", accusation_type),
                         );
                         faulters.set(accused_sign_id, ProtocolFault)?;
                     }

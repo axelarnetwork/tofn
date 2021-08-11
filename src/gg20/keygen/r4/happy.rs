@@ -64,7 +64,7 @@ impl bcast_only::Executer for R4Happy {
             .execute(info, bcasts_in);
         }
 
-        // unwrap BcastHappy msgs
+        // we are now in happy path, so there should only be BcastHappy msgs
         let bcasts_in = bcasts_in.map2_result(|(_, bcast)| match bcast {
             r3::Bcast::Happy(h) => Ok(h),
             r3::Bcast::Sad(_) => Err(TofnFatal),
@@ -73,15 +73,13 @@ impl bcast_only::Executer for R4Happy {
         // verify proofs
         let mut faulters = FillVecMap::with_size(info.share_count());
         for (keygen_peer_id, bcast) in bcasts_in.iter() {
-            if schnorr::verify(
+            if !schnorr::verify(
                 &schnorr::Statement {
                     base: &k256::ProjectivePoint::generator(),
                     target: self.all_X_i.get(keygen_peer_id)?,
                 },
                 &bcast.x_i_proof,
-            )
-            .is_err()
-            {
+            ) {
                 log_fault_warn(keygen_id, keygen_peer_id, "bad DL proof");
 
                 faulters.set(keygen_peer_id, ProtocolFault)?;

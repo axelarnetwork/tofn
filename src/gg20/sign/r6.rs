@@ -127,14 +127,14 @@ impl bcast_and_p2p::Executer for R6 {
                     ciphertext: peer_k_i_ciphertext,
                     ek: peer_ek,
                 },
-                msg_g: bcast.R_i.unwrap(),
+                msg_g: bcast.R_i.as_ref(),
                 g: &self.R,
             };
 
-            if let Err(err) = zkp.verify_range_proof_wc(peer_stmt, &p2p_in.k_i_range_proof_wc) {
+            if !zkp.verify_range_proof_wc(peer_stmt, &p2p_in.k_i_range_proof_wc) {
                 warn!(
-                    "peer {} says: range proof wc failed to verify for peer {} because [{}]",
-                    sign_id, sign_peer_id, err
+                    "peer {} says: range proof wc failed to verify for peer {}",
+                    sign_id, sign_peer_id,
                 );
 
                 zkp_complaints.add(sign_peer_id)?;
@@ -169,7 +169,7 @@ impl bcast_and_p2p::Executer for R6 {
         let R_i_sum = bcasts_in
             .iter()
             .fold(ProjectivePoint::identity(), |acc, (_, bcast)| {
-                acc + bcast.R_i.unwrap()
+                acc + bcast.R_i.as_ref()
             });
 
         // malicious actor falsely claim type 5 fault by comparing against a corrupted curve generator
@@ -245,7 +245,7 @@ impl bcast_and_p2p::Executer for R6 {
         let S_i_proof_wc = pedersen::prove_wc(
             &pedersen::StatementWc {
                 stmt: pedersen::Statement {
-                    commit: self.r3bcasts.get(sign_id)?.T_i.unwrap(),
+                    commit: self.r3bcasts.get(sign_id)?.T_i.as_ref(),
                 },
                 msg_g: &S_i,
                 g: &self.R,
@@ -254,7 +254,7 @@ impl bcast_and_p2p::Executer for R6 {
                 msg: &self.sigma_i,
                 randomness: &self.l_i,
             },
-        );
+        )?;
 
         corrupt!(
             S_i_proof_wc,
@@ -349,7 +349,7 @@ mod malicious {
             if let R3BadBeta { victim } = self.behaviour {
                 if victim == recipient {
                     log_confess_info(sign_id, &self.behaviour, "step 2/2: beta_secret");
-                    *beta_secret.beta.unwrap_mut() += k256::Scalar::one();
+                    *beta_secret.beta.as_mut() += k256::Scalar::one();
                 }
             }
             beta_secret

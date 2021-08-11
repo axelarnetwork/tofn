@@ -63,9 +63,9 @@ impl no_messages::Executer for R1 {
                 .iter()
                 .map(|(_, keygen_peer_id)| keygen_peer_id.as_usize())
                 .collect::<Vec<_>>(),
-        );
+        )?;
 
-        let w_i = self.secret_key_share.share().x_i().unwrap() * lambda_i_S;
+        let w_i = self.secret_key_share.share().x_i().as_ref() * lambda_i_S;
 
         let k_i = k256::Scalar::random(rand::thread_rng());
         let gamma_i = k256::Scalar::random(rand::thread_rng());

@@ -137,10 +137,10 @@ impl bcast_and_p2p::Executer for R3Happy {
             };
 
             // verify zk proof for step 2 of MtA k_i * gamma_j
-            if let Err(err) = zkp.verify_mta_proof(&peer_stmt, &p2p_in.alpha_proof) {
+            if !zkp.verify_mta_proof(&peer_stmt, &p2p_in.alpha_proof) {
                 warn!(
-                    "peer {} says: mta proof failed to verify for peer {} because [{}]",
-                    sign_id, sign_peer_id, err
+                    "peer {} says: mta proof failed to verify for peer {}",
+                    sign_id, sign_peer_id,
                 );
 
                 mta_complaints.set(sign_peer_id, Accusation::MtA)?;
@@ -156,7 +156,7 @@ impl bcast_and_p2p::Executer for R3Happy {
                     .iter()
                     .map(|(_, keygen_peer_id)| keygen_peer_id.as_usize())
                     .collect::<Vec<_>>(),
-            );
+            )?;
 
             let peer_W_i = self
                 .secret_key_share
@@ -164,7 +164,7 @@ impl bcast_and_p2p::Executer for R3Happy {
                 .all_shares()
                 .get(keygen_peer_id)?
                 .X_i()
-                .unwrap()
+                .as_ref()
                 * peer_lambda_i_S;
 
             let peer_stmt = paillier::zk::mta::StatementWc {
@@ -176,10 +176,10 @@ impl bcast_and_p2p::Executer for R3Happy {
                 x_g: &peer_W_i,
             };
 
-            if let Err(err) = zkp.verify_mta_proof_wc(&peer_stmt, &p2p_in.mu_proof) {
+            if !zkp.verify_mta_proof_wc(&peer_stmt, &p2p_in.mu_proof) {
                 warn!(
-                    "peer {} says: mta_wc proof failed to verify for peer {} because [{}]",
-                    sign_id, sign_peer_id, err
+                    "peer {} says: mta_wc proof failed to verify for peer {}",
+                    sign_id, sign_peer_id,
                 );
 
                 mta_complaints.set(sign_peer_id, Accusation::MtAwc)?;
@@ -237,12 +237,12 @@ impl bcast_and_p2p::Executer for R3Happy {
         })?;
 
         // compute delta_i = k_i * gamma_i + sum_{j != i} alpha_ij + beta_ji
-        let delta_i = alphas.into_iter().zip(self.beta_secrets.iter()).fold(
-            self.k_i * self.gamma_i,
-            |acc, ((_, alpha), (_, beta))| {
-                acc + alpha + beta.beta.unwrap() // Why use k256_serde::Scalar here?
-            },
-        );
+        let delta_i = alphas
+            .into_iter()
+            .zip(self.beta_secrets.iter())
+            .fold(self.k_i * self.gamma_i, |acc, ((_, alpha), (_, beta))| {
+                acc + alpha + beta.beta.as_ref()
+            });
 
         // many malicious behaviours require corrupt delta_i to prepare
         corrupt!(delta_i, self.corrupt_delta_i(sign_id, delta_i));
@@ -251,12 +251,12 @@ impl bcast_and_p2p::Executer for R3Happy {
         corrupt!(delta_i, self.corrupt_beta(sign_id, delta_i));
 
         // compute sigma_i = k_i * w_i + sum_{j != i} mu_ij + nu_ji
-        let sigma_i = mus.into_iter().zip(self.nu_secrets.iter()).fold(
-            self.k_i * self.w_i,
-            |acc, ((_, mu), (_, nu))| {
-                acc + mu + nu.beta.unwrap() // Why use k256_serde::Scalar here?
-            },
-        );
+        let sigma_i = mus
+            .into_iter()
+            .zip(self.nu_secrets.iter())
+            .fold(self.k_i * self.w_i, |acc, ((_, mu), (_, nu))| {
+                acc + mu + nu.beta.as_ref()
+            });
 
         corrupt!(sigma_i, self.corrupt_sigma(sign_id, sigma_i));
 
@@ -272,8 +272,8 @@ impl bcast_and_p2p::Executer for R3Happy {
         corrupt!(T_i_proof, self.corrupt_T_i_proof(sign_id, T_i_proof));
 
         let bcast_out = serialize(&Bcast::Happy(BcastHappy {
-            delta_i: k256_serde::Scalar::from(delta_i),
-            T_i: k256_serde::ProjectivePoint::from(T_i),
+            delta_i: delta_i.into(),
+            T_i: T_i.into(),
             T_i_proof,
         }))?;
 

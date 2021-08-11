@@ -71,7 +71,7 @@ impl<T: Executer> ExecuterRaw for T {
 
         // attempt to deserialize p2ps
         let p2ps_deserialized: P2ps<_, Result<_, _>> =
-            p2ps_in.unwrap_all_map(|bytes| bincode::deserialize(&bytes))?;
+            p2ps_in.map_to_p2ps(|bytes| bincode::deserialize(&bytes))?;
 
         // check for deserialization faults
         for (from, to, p2p) in p2ps_deserialized.iter() {

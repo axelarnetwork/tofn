@@ -1,17 +1,21 @@
-use crate::gg20::{
-    constants,
-    crypto_tools::{
-        k256_serde,
-        paillier::{
-            to_bigint, to_scalar, to_vec,
-            zk::{mulm, random, ZkSetup},
-            BigInt, Ciphertext, EncryptionKey, Plaintext, Randomness,
+use crate::{
+    gg20::{
+        constants,
+        crypto_tools::{
+            k256_serde,
+            paillier::{
+                to_bigint, to_scalar, to_vec,
+                zk::{mulm, random, ZkSetup},
+                BigInt, Ciphertext, EncryptionKey, Plaintext, Randomness,
+            },
         },
     },
+    sdk::api::{TofnFatal, TofnResult},
 };
 use ecdsa::hazmat::FromDigest;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use tracing::{error, warn};
 
 use super::secp256k1_modulus_cubed;
 
@@ -66,7 +70,7 @@ impl ZkSetup {
             .0
     }
 
-    pub fn verify_mta_proof(&self, stmt: &Statement, proof: &Proof) -> Result<(), &'static str> {
+    pub fn verify_mta_proof(&self, stmt: &Statement, proof: &Proof) -> bool {
         self.verify_mta_proof_inner(constants::MTA_PROOF_TAG, stmt, proof, None)
     }
 
@@ -77,25 +81,26 @@ impl ZkSetup {
     // notation follows appendix A.2 of https://eprint.iacr.org/2019/114.pdf
     // used by Bob (the "respondent") in MtAwc protocol
     // MtAwc : Multiplicative to Additive with check
-    pub fn mta_proof_wc(&self, stmt: &StatementWc, wit: &Witness) -> ProofWc {
+    pub fn mta_proof_wc(&self, stmt: &StatementWc, wit: &Witness) -> TofnResult<ProofWc> {
         let (proof, u) =
             self.mta_proof_inner(constants::MTA_PROOF_WC_TAG, &stmt.stmt, Some(stmt.x_g), wit);
-        ProofWc {
-            proof,
-            u: k256_serde::ProjectivePoint::from(u.unwrap()),
-        }
+
+        let u = u
+            .ok_or_else(|| {
+                error!("mta proof wc: missing u");
+                TofnFatal
+            })?
+            .into();
+
+        Ok(ProofWc { proof, u })
     }
 
-    pub fn verify_mta_proof_wc(
-        &self,
-        stmt: &StatementWc,
-        proof: &ProofWc,
-    ) -> Result<(), &'static str> {
+    pub fn verify_mta_proof_wc(&self, stmt: &StatementWc, proof: &ProofWc) -> bool {
         self.verify_mta_proof_inner(
             constants::MTA_PROOF_WC_TAG,
             &stmt.stmt,
             &proof.proof,
-            Some((stmt.x_g, proof.u.unwrap())),
+            Some((stmt.x_g, proof.u.as_ref())),
         )
     }
 
@@ -184,10 +189,12 @@ impl ZkSetup {
         stmt: &Statement,
         proof: &Proof,
         x_g_u: Option<(&k256::ProjectivePoint, &k256::ProjectivePoint)>, // (x_g, u)
-    ) -> Result<(), &'static str> {
+    ) -> bool {
         if proof.s1 > secp256k1_modulus_cubed() || proof.s1 < BigInt::zero() {
-            return Err("s1 not in range q^3");
+            warn!("s1 not in range q^3");
+            return false;
         }
+
         let e = k256::Scalar::from_digest(
             Sha256::new()
                 .chain(tag.to_le_bytes())
@@ -209,7 +216,8 @@ impl ZkSetup {
             let s1_g = k256::ProjectivePoint::generator() * s1;
             let s1_g_check = x_g * &e + u;
             if s1_g_check != s1_g {
-                return Err("'wc' check fail");
+                warn!("'wc' check fail");
+                return false;
             }
         }
 
@@ -220,7 +228,8 @@ impl ZkSetup {
         );
         let z_e_z_prime_check = self.commit(&proof.s1, &proof.s2);
         if z_e_z_prime_check != z_e_z_prime {
-            return Err("z^e z_prime check fail");
+            warn!("z^e z_prime check fail");
+            return false;
         }
 
         let t_e_w = mulm(
@@ -230,7 +239,8 @@ impl ZkSetup {
         );
         let t_e_w_check = self.commit(&proof.t1.0, &proof.t2);
         if t_e_w_check != t_e_w {
-            return Err("t^e w check fail");
+            warn!("t^e w check fail");
+            return false;
         }
 
         let cipher_check_lhs = mulm(
@@ -244,9 +254,11 @@ impl ZkSetup {
             &stmt.ek.0.nn,
         );
         if cipher_check_lhs != cipher_check_rhs {
-            return Err("chipher check fail");
+            warn!("cipher check fail");
+            return false;
         }
-        Ok(())
+
+        true
     }
 }
 
@@ -272,7 +284,7 @@ pub mod malicious {
         let proof = proof.clone();
         ProofWc {
             u: k256_serde::ProjectivePoint::from(
-                k256::ProjectivePoint::generator() + proof.u.unwrap(),
+                k256::ProjectivePoint::generator() + proof.u.as_ref(),
             ),
             ..proof
         }
@@ -318,19 +330,19 @@ pub(crate) mod tests {
 
         // test: valid proof
         let proof = zkp.mta_proof(stmt, wit);
-        zkp.verify_mta_proof(stmt, &proof).unwrap();
+        assert!(zkp.verify_mta_proof(stmt, &proof));
 
         // test: valid proof wc (with check)
-        let proof_wc = zkp.mta_proof_wc(stmt_wc, wit);
-        zkp.verify_mta_proof_wc(stmt_wc, &proof_wc).unwrap();
+        let proof_wc = zkp.mta_proof_wc(stmt_wc, wit).unwrap();
+        assert!(zkp.verify_mta_proof_wc(stmt_wc, &proof_wc));
 
         // test: bad proof
         let bad_proof = corrupt_proof(&proof);
-        zkp.verify_mta_proof(stmt, &bad_proof).unwrap_err();
+        assert!(!zkp.verify_mta_proof(stmt, &bad_proof));
 
         // test: bad proof wc (with check)
         let bad_proof_wc = corrupt_proof_wc(&proof_wc);
-        zkp.verify_mta_proof_wc(stmt_wc, &bad_proof_wc).unwrap_err();
+        assert!(!zkp.verify_mta_proof_wc(stmt_wc, &bad_proof_wc));
 
         // test: bad witness
         let bad_wit = &Witness {
@@ -338,11 +350,10 @@ pub(crate) mod tests {
             ..*wit
         };
         let bad_wit_proof = zkp.mta_proof(stmt, bad_wit);
-        zkp.verify_mta_proof(stmt, &bad_wit_proof).unwrap_err();
+        assert!(!zkp.verify_mta_proof(stmt, &bad_wit_proof));
 
         // test: bad witness wc (with check)
-        let bad_wit_proof_wc = zkp.mta_proof_wc(stmt_wc, bad_wit);
-        zkp.verify_mta_proof_wc(stmt_wc, &bad_wit_proof_wc)
-            .unwrap_err();
+        let bad_wit_proof_wc = zkp.mta_proof_wc(stmt_wc, bad_wit).unwrap();
+        assert!(!zkp.verify_mta_proof_wc(stmt_wc, &bad_wit_proof_wc));
     }
 }

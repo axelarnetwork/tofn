@@ -79,7 +79,7 @@ impl bcast_only::Executer for R8Type7 {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
-        let bcasts_in = bcasts_sad.unwrap_all()?;
+        let bcasts_in = bcasts_sad.to_vecmap()?;
 
         // verify that each participant's data is consistent with earlier messages:
         // 1. ecdsa_nonce_summand (k_i)
@@ -92,7 +92,7 @@ impl bcast_only::Executer for R8Type7 {
 
             if peer_mta_wc_plaintexts.len() != self.peers.len() {
                 warn!(
-                    "peer {} says: peer {} sent {} MtA plaintexts, expected {}",
+                    "peer {} says: peer {} sent {} MtAwc plaintexts, expected {}",
                     sign_id,
                     sign_peer_id,
                     peer_mta_wc_plaintexts.len(),
@@ -128,7 +128,7 @@ impl bcast_only::Executer for R8Type7 {
 
             // k_i
             let k_i_ciphertext = peer_ek
-                .encrypt_with_randomness(&(bcast.k_i.unwrap()).into(), &bcast.k_i_randomness);
+                .encrypt_with_randomness(&(bcast.k_i.as_ref()).into(), &bcast.k_i_randomness);
             if k_i_ciphertext != self.r1bcasts.get(sign_peer_id)?.k_i_ciphertext {
                 warn!(
                     "peer {} says: invalid k_i detected from peer {}",
@@ -161,7 +161,7 @@ impl bcast_only::Executer for R8Type7 {
         // compute ecdsa nonce k = sum_i k_i
         let k = bcasts_in
             .iter()
-            .fold(Scalar::zero(), |acc, (_, bcast)| acc + bcast.k_i.unwrap());
+            .fold(Scalar::zero(), |acc, (_, bcast)| acc + bcast.k_i.as_ref());
 
         // verify zkps as per page 19 of https://eprint.iacr.org/2020/540.pdf doc version 20200511:155431
         for (sign_peer_id, bcast) in &bcasts_in {
@@ -203,7 +203,7 @@ impl bcast_only::Executer for R8Type7 {
                     .iter()
                     .map(|(_, keygen_peer_id)| keygen_peer_id.as_usize())
                     .collect::<Vec<_>>(),
-            );
+            )?;
 
             let keygen_peer_id = *self.participants.get(sign_peer_id)?;
 
@@ -213,7 +213,7 @@ impl bcast_only::Executer for R8Type7 {
                 .all_shares()
                 .get(keygen_peer_id)?
                 .X_i()
-                .unwrap()
+                .as_ref()
                 * peer_lambda_i_S;
 
             // compute sigma_i * G
@@ -224,13 +224,13 @@ impl bcast_only::Executer for R8Type7 {
                 base1: &k256::ProjectivePoint::generator(),
                 base2: &self.R,
                 target1: &peer_g_sigma_i, // sigma_i * G
-                target2: self.r6bcasts.get(sign_peer_id)?.S_i.unwrap(), // sigma_i * R == S_i
+                target2: self.r6bcasts.get(sign_peer_id)?.S_i.as_ref(), // sigma_i * R == S_i
             };
 
-            if let Err(err) = chaum_pedersen::verify(peer_stmt, &bcast.proof) {
+            if !chaum_pedersen::verify(peer_stmt, &bcast.proof) {
                 warn!(
-                    "peer {} says: chaum_pedersen proof from peer {} failed to verify because [{}]",
-                    sign_id, sign_peer_id, err
+                    "peer {} says: chaum_pedersen proof from peer {} failed to verify",
+                    sign_id, sign_peer_id,
                 );
                 faulters.set(sign_peer_id, ProtocolFault)?;
                 continue;

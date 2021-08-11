@@ -146,7 +146,7 @@ fn execute_sign(
     let y = ProjectivePoint::generator() * x;
 
     for key_share in &key_shares {
-        assert_eq!(y, *key_share.group().y().unwrap());
+        assert_eq!(y, *key_share.group().y().as_ref());
     }
 
     let k = r1_parties

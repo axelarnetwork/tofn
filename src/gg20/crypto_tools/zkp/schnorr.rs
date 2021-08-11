@@ -2,6 +2,7 @@ use crate::gg20::{constants, crypto_tools::k256_serde};
 use ecdsa::{elliptic_curve::Field, hazmat::FromDigest};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use tracing::warn;
 
 #[derive(Clone, Debug)]
 pub struct Statement<'a> {
@@ -36,8 +37,8 @@ pub fn prove(stmt: &Statement, wit: &Witness) -> Proof {
     }
 }
 
-pub fn verify(stmt: &Statement, proof: &Proof) -> Result<(), &'static str> {
-    let alpha = stmt.base * proof.t.unwrap() + stmt.target * proof.c.unwrap();
+pub fn verify(stmt: &Statement, proof: &Proof) -> bool {
+    let alpha = stmt.base * proof.t.as_ref() + stmt.target * proof.c.as_ref();
     let c_check = k256::Scalar::from_digest(
         Sha256::new()
             .chain(constants::SCHNORR_PROOF_TAG.to_le_bytes())
@@ -45,10 +46,11 @@ pub fn verify(stmt: &Statement, proof: &Proof) -> Result<(), &'static str> {
             .chain(k256_serde::to_bytes(stmt.target))
             .chain(k256_serde::to_bytes(&alpha)),
     );
-    if c_check == *proof.c.unwrap() {
-        Ok(())
+    if &c_check == proof.c.as_ref() {
+        true
     } else {
-        Err("fail")
+        warn!("schnorr verify failed");
+        false
     }
 }
 
@@ -60,7 +62,7 @@ pub(crate) mod malicious {
 
     pub fn corrupt_proof(proof: &Proof) -> Proof {
         Proof {
-            t: (proof.t.unwrap() + k256::Scalar::one()).into(),
+            t: (proof.t.as_ref() + k256::Scalar::one()).into(),
             ..proof.clone()
         }
     }
@@ -81,17 +83,17 @@ mod tests {
 
         // test: valid proof
         let proof = prove(&stmt, &wit);
-        verify(&stmt, &proof).unwrap();
+        assert!(verify(&stmt, &proof));
 
         // test: bad proof
         let bad_proof = malicious::corrupt_proof(&proof);
-        verify(&stmt, &bad_proof).unwrap_err();
+        assert!(!verify(&stmt, &bad_proof));
 
         // test: bad witness
         let bad_wit = Witness {
             scalar: &(*wit.scalar + k256::Scalar::one()),
         };
         let bad_proof = prove(&stmt, &bad_wit);
-        verify(&stmt, &bad_proof).unwrap_err();
+        assert!(!verify(&stmt, &bad_proof));
     }
 }
