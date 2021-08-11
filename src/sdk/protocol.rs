@@ -1,9 +1,17 @@
 use super::{
-    api::TofnResult, implementer_api::no_messages, party_share_counts::PartyShareCounts,
-    protocol_info::ProtocolInfoDeluxe, round::Round,
+    api::TofnResult,
+    implementer_api::no_messages,
+    party_share_counts::PartyShareCounts,
+    protocol_info::ProtocolInfoDeluxe,
+    round::{Round, XRound},
 };
 use crate::collections::{FillVecMap, TypedUsize};
 use serde::{Deserialize, Serialize};
+
+pub enum XProtocol<F, K, P> {
+    NotDone(XRound<F, K, P>),
+    Done(ProtocolOutput<F, P>),
+}
 
 pub enum Protocol<F, K, P> {
     NotDone(Round<F, K, P>),

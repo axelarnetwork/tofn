@@ -2,14 +2,29 @@ use tracing::{error, warn};
 
 use crate::{
     collections::{FillP2ps, FillVecMap, HoleVecMap, TypedUsize},
-    sdk::api::{BytesVec, Fault, Protocol, ProtocolFaulters, TofnFatal, TofnResult},
+    sdk::{
+        api::{BytesVec, Fault, Protocol, ProtocolFaulters, TofnFatal, TofnResult},
+        wire_bytes::ExpectedMsgTypes::{self, *},
+    },
 };
 
 use super::{
+    executer::ExecuterRaw,
     implementer_api::{bcast_and_p2p, bcast_only, no_messages, p2p_only},
     protocol_info::ProtocolInfoDeluxe,
-    wire_bytes::{self, MsgType::*, WireBytes},
+    wire_bytes::{self, MsgType::*, WireBytes, XWireBytes},
 };
+
+pub struct XRound<F, K, P> {
+    info: ProtocolInfoDeluxe<K, P>,
+    round: Box<dyn ExecuterRaw<FinalOutput = F, Index = K>>,
+    bcast_out: Option<BytesVec>,
+    p2ps_out: Option<HoleVecMap<K, BytesVec>>,
+    bcasts_in: FillVecMap<K, BytesVec>,
+    p2ps_in: FillP2ps<K, BytesVec>,
+    expected_msg_types: FillVecMap<K, ExpectedMsgTypes>,
+    msg_in_faulters: ProtocolFaulters<P>,
+}
 
 pub struct Round<F, K, P> {
     info: ProtocolInfoDeluxe<K, P>,
@@ -49,6 +64,213 @@ struct BcastAndP2pRound<F, K> {
 }
 
 // api: Round methods for tofn users
+impl<F, K, P> XRound<F, K, P> {
+    pub fn bcast_out(&self) -> Option<&BytesVec> {
+        self.bcast_out.as_ref()
+    }
+
+    pub fn p2ps_out(&self) -> Option<&HoleVecMap<K, BytesVec>> {
+        self.p2ps_out.as_ref()
+    }
+
+    /// we assume message autenticity
+    /// thus, it's a fatal error if `from` is out of bounds
+    pub fn msg_in(&mut self, from: TypedUsize<P>, bytes: &[u8]) -> TofnResult<()> {
+        let share_id = self.info().share_info().share_id();
+        let party_id = self.info().party_id();
+
+        // deserialize metadata
+        // TODO bounds check everything in bytes_meta
+        let bytes_meta: XWireBytes<K> = match wire_bytes::xunwrap(bytes) {
+            Some(w) => w,
+            None => {
+                warn!(
+                    "peer {} (party {}) says: msg_in fail to deserialize metadata for msg from party {}",
+                    share_id, party_id, from
+                );
+                self.msg_in_faulters.set(from, Fault::CorruptedMessage)?; // fatal error if `from` is out of bounds
+                return Ok(());
+            }
+        };
+
+        // verify share_id belongs to this party
+        match self
+            .info
+            .party_share_counts()
+            .share_to_party_id(bytes_meta.from)
+        {
+            Ok(from_party_id) if from_party_id == from => (), // happy path
+            _ => {
+                warn!(
+                    "peer {} (party {}) says: msg_in share id {} does not belong to party {}",
+                    share_id, party_id, bytes_meta.from, from
+                );
+                self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
+                return Ok(());
+            }
+        }
+
+        // store and check expected message types from this share_id
+        let expected_msg_type = match self.expected_msg_types.get(bytes_meta.from)? {
+            Some(msg_type) => {
+                if *msg_type != bytes_meta.expected_msg_types {
+                    warn!(
+                        "peer {} (party {}) says: msg_in share id {} gave conflicting expected message types",
+                        share_id, party_id, bytes_meta.from
+                    );
+                    self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
+                    return Ok(());
+                }
+                *msg_type
+            }
+            None => {
+                self.expected_msg_types
+                    .set(bytes_meta.from, bytes_meta.expected_msg_types)?;
+                bytes_meta.expected_msg_types
+            }
+        };
+
+        // store message payload according to round type (bcast and/or p2p)
+        match bytes_meta.msg_type {
+            // it sure would be nice to break out of match arms: https://stackoverflow.com/q/37814942
+            Bcast => {
+                if matches!(expected_msg_type, BcastAndP2p | BcastOnly) {
+                    if self.bcasts_in.is_none(bytes_meta.from)? {
+                        self.bcasts_in.set(bytes_meta.from, bytes_meta.payload)?;
+                    } else {
+                        warn!(
+                            "peer {} (party {}) says: duplicate message from peer {} (party {}) in round {}",
+                            share_id, party_id, bytes_meta.from, from, self.info.round(),
+                        );
+                        self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
+                    }
+                } else {
+                    warn!(
+                        "peer {} (party {}) says: peer {} (party {}) declared {:?} in round {} but sent Bcast",
+                        share_id, party_id, bytes_meta.from, from, expected_msg_type, self.info.round(),
+                    );
+                    self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
+                }
+            }
+            P2p { to } => {
+                if matches!(expected_msg_type, BcastAndP2p | P2pOnly) {
+                    if self.p2ps_in.is_none(bytes_meta.from, to)? {
+                        self.p2ps_in.set(bytes_meta.from, to, bytes_meta.payload)?;
+                    } else {
+                        warn!(
+                            "peer {} (party {}) says: duplicate message from peer {} (party {}) in round {}",
+                            share_id, party_id, bytes_meta.from, from, self.info.round(),
+                        );
+                        self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
+                    }
+                } else {
+                    warn!(
+                        "peer {} (party {}) says: peer {} (party {}) declared {:?} in round {} but sent P2p",
+                        share_id, party_id, bytes_meta.from, from, expected_msg_type, self.info.round(),
+                    );
+                    self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    // DONE TO HERE
+    pub fn expecting_more_msgs_this_round(&self) -> bool {
+        if !self.expected_msg_types.is_full() {
+            return true; // at least one party has not sent any messages yet
+        }
+        for (from, expected_msg_type) in self.expected_msg_types.iter_some() {}
+
+        // match &self.round_type {
+        //     RoundType::BcastAndP2p(r) => !r.bcasts_in.is_full() || !r.p2ps_in.is_full(),
+        //     RoundType::BcastOnly(r) => !r.bcasts_in.is_full(),
+        //     RoundType::P2pOnly(r) => !r.p2ps_in.is_full(),
+        //     RoundType::NoMessages(_) => false,
+        // }
+
+        todo!()
+    }
+
+    // pub fn execute_next_round(mut self) -> TofnResult<Protocol<F, K, P>> {
+    // }
+
+    pub fn info(&self) -> &ProtocolInfoDeluxe<K, P> {
+        &self.info
+    }
+
+    // private methods
+    pub(super) fn new(
+        round: Box<dyn ExecuterRaw<FinalOutput = F, Index = K>>,
+        info: ProtocolInfoDeluxe<K, P>,
+        bcast_out: Option<BytesVec>,
+        p2ps_out: Option<HoleVecMap<K, BytesVec>>,
+    ) -> TofnResult<Self> {
+        let total_share_count = info.share_info().share_count();
+        let my_share_id = info.share_info().share_id();
+
+        // validate args
+        if let Some(ref p2ps) = p2ps_out {
+            if p2ps.len() != total_share_count {
+                error!(
+                    "peer {} (party {}) says: p2ps_out length {} differs from total share count {}",
+                    my_share_id,
+                    info.party_id(),
+                    p2ps.len(),
+                    total_share_count,
+                );
+                return Err(TofnFatal);
+            }
+        }
+
+        // bundle metadata into outgoing messages
+        let expected_msg_types = match (&bcast_out, &p2ps_out) {
+            (None, None) => {
+                error!(
+                    "peer {} (party {}) says: rounds must send at least one outgoing message",
+                    my_share_id,
+                    info.party_id(),
+                );
+                return Err(TofnFatal);
+            }
+            (None, Some(_)) => P2pOnly,
+            (Some(_), None) => BcastOnly,
+            (Some(_), Some(_)) => BcastAndP2p,
+        };
+        // can't use Option::map because closure returns Result and uses ? operator
+        let bcast_out = if let Some(payload) = bcast_out {
+            Some(wire_bytes::xwrap(
+                payload,
+                my_share_id,
+                Bcast,
+                expected_msg_types,
+            )?)
+        } else {
+            None
+        };
+        let p2ps_out = if let Some(p2ps) = p2ps_out {
+            Some(p2ps.map2_result(|(to, payload)| {
+                wire_bytes::xwrap(payload, my_share_id, P2p { to }, expected_msg_types)
+            })?)
+        } else {
+            None
+        };
+
+        let party_count = info.party_share_counts().party_count();
+        Ok(Self {
+            info,
+            round,
+            bcast_out,
+            p2ps_out,
+            bcasts_in: FillVecMap::with_size(total_share_count),
+            p2ps_in: FillP2ps::with_size(total_share_count)?,
+            expected_msg_types: FillVecMap::with_size(total_share_count),
+            msg_in_faulters: FillVecMap::with_size(party_count),
+        })
+    }
+}
+
 impl<F, K, P> Round<F, K, P> {
     pub fn bcast_out(&self) -> Option<&BytesVec> {
         match &self.round_type {

@@ -19,6 +19,9 @@ impl<K, V> FillVecMap<K, V> {
             some_count: 0,
         }
     }
+    pub fn get(&self, index: TypedUsize<K>) -> TofnResult<Option<&V>> {
+        self.vec.get(index).map(Option::as_ref)
+    }
     pub fn size(&self) -> usize {
         self.vec.len()
     }
