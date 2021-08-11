@@ -27,9 +27,12 @@ pub mod keygen {
                 // each party use the same secret recovery key for all its subshares
                 let secret_recovery_key = super::dummy_secret_recovery_key(party_id);
 
-                let (party_keypair, party_zksetup) =
-                    create_party_keypair_and_zksetup_unsafe(&secret_recovery_key, session_nonce)
-                        .unwrap();
+                let (party_keypair, party_zksetup) = create_party_keypair_and_zksetup_unsafe(
+                    party_id,
+                    &secret_recovery_key,
+                    session_nonce,
+                )
+                .unwrap();
 
                 (0..party_share_count).map(move |subshare_id| {
                     new_keygen(

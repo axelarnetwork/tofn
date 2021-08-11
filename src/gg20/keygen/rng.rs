@@ -4,12 +4,16 @@ use rand_chacha::ChaCha20Rng;
 use sha2::Sha256;
 use tracing::error;
 
-use crate::sdk::api::{TofnFatal, TofnResult};
+use crate::{
+    collections::TypedUsize,
+    sdk::api::{TofnFatal, TofnResult},
+};
 
-use super::SecretRecoveryKey;
+use super::{KeygenPartyId, SecretRecoveryKey};
 
 pub(crate) fn rng_seed(
     tag: u8,
+    party_id: TypedUsize<KeygenPartyId>,
     secret_recovery_key: &SecretRecoveryKey,
     session_nonce: &[u8],
 ) -> TofnResult<impl CryptoRng + RngCore> {
@@ -24,6 +28,7 @@ pub(crate) fn rng_seed(
     let mut prf = Hmac::<Sha256>::new(secret_recovery_key.0[..].into());
 
     prf.update(&tag.to_le_bytes());
+    prf.update(&party_id.to_bytes());
     prf.update(session_nonce);
 
     let seed = prf.finalize().into_bytes().into();

@@ -84,6 +84,7 @@ impl TestCase {
                     .unwrap();
 
                 let (party_keypair, party_zksetup) = create_party_keypair_and_zksetup_unsafe(
+                    party_id,
                     &dummy_secret_recovery_key(share_id),
                     session_nonce,
                 )
