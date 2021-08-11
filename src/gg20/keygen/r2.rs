@@ -82,7 +82,7 @@ impl bcast_only::Executer for R2 {
         }
 
         let (peer_u_i_shares, u_i_share) =
-            VecMap::from_vec(self.u_i_vss.shares(info.share_count())).puncture_hole(keygen_id)?;
+            VecMap::from_vec(self.u_i_vss.shares(info.share_count())?).puncture_hole(keygen_id)?;
 
         corrupt!(
             peer_u_i_shares,

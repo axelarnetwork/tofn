@@ -107,7 +107,11 @@ impl EncryptionKey {
 
 /// return a random BigInt in [0,n)
 fn random(n: &BigInt) -> BigInt {
-    debug_assert!(*n > BigInt::zero());
+    let zero = BigInt::zero();
+
+    if n <= &zero {
+        return zero;
+    }
 
     let bit_len = n.bit_length();
     let byte_len = (bit_len - 1) / 8 + 1;

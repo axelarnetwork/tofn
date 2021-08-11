@@ -251,7 +251,7 @@ fn execute_keygen_from_recovery(
         .iter()
         .map(|k| vss::Share::from_scalar(*k.share().x_i().as_ref(), k.share().index().as_usize()))
         .collect();
-    let secret_key_recovered = vss::tests::recover_secret(&all_shares);
+    let secret_key_recovered = vss::recover_secret(&all_shares);
 
     assert_eq!(secret_key_recovered, secret_key_sum_u);
 

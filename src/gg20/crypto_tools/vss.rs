@@ -21,12 +21,15 @@ impl Vss {
             .collect();
         Self { secret_coeffs }
     }
+
     pub fn get_threshold(&self) -> usize {
         self.secret_coeffs.len() - 1
     }
+
     pub fn get_secret(&self) -> &k256::Scalar {
         &self.secret_coeffs[0]
     }
+
     pub fn commit(&self) -> Commit {
         Commit {
             coeff_commits: self
@@ -36,10 +39,19 @@ impl Vss {
                 .collect(),
         }
     }
-    pub fn shares(&self, n: usize) -> Vec<Share> {
-        debug_assert!(self.get_threshold() < n); // also ensures n > 0
 
-        (0..n)
+    pub fn shares(&self, n: usize) -> TofnResult<Vec<Share>> {
+        // also ensures that n > 0
+        if self.get_threshold() >= n {
+            error!(
+                "provided n {} is not larger than threshold {}",
+                n,
+                self.get_threshold()
+            );
+            return Err(TofnFatal);
+        }
+
+        Ok((0..n)
             .map(|index| {
                 let index_scalar = k256::Scalar::from(index as u32 + 1); // vss indices start at 1
                 Share {
@@ -55,7 +67,7 @@ impl Vss {
                     index,
                 }
             })
-            .collect()
+            .collect())
     }
 }
 
@@ -130,7 +142,10 @@ pub fn recover_secret_commit(
     share_commits: &[ShareCommit],
     threshold: usize,
 ) -> TofnResult<k256::ProjectivePoint> {
-    debug_assert!(share_commits.len() > threshold);
+    if share_commits.len() <= threshold {
+        error!("Share commits length not larger than threshold");
+        return Err(TofnFatal);
+    }
 
     let indices: Vec<usize> = share_commits.iter().map(|s| s.index).collect();
     share_commits.iter().enumerate().try_fold(
@@ -178,7 +193,18 @@ pub mod malicious {
 }
 
 #[cfg(test)]
-pub(crate) mod tests {
+pub(crate) fn recover_secret(shares: &[Share]) -> k256::Scalar {
+    let indices: Vec<usize> = shares.iter().map(|s| s.index).collect();
+    shares
+        .iter()
+        .enumerate()
+        .fold(k256::Scalar::zero(), |sum, (i, share)| {
+            sum + share.scalar.as_ref() * &lagrange_coefficient(i, &indices).unwrap()
+        })
+}
+
+#[cfg(test)]
+mod tests {
     use super::*;
     use rand::prelude::SliceRandom;
 
@@ -192,7 +218,7 @@ pub(crate) mod tests {
                 k256::Scalar::from(2u32),
             ],
         };
-        let shares = vss.shares(3);
+        let shares = vss.shares(3).unwrap();
         // expected shares:
         // index: 0, share: p(1) = 6
         // index: 1, share: p(2) = 14
@@ -218,7 +244,7 @@ pub(crate) mod tests {
     fn share_validation() {
         let (t, n) = (2, 5);
         let vss = Vss::new(t);
-        let shares = vss.shares(n);
+        let shares = vss.shares(n).unwrap();
         let commit = vss.commit();
         for s in shares.iter() {
             assert!(commit.validate_share(s));
@@ -227,20 +253,10 @@ pub(crate) mod tests {
 
     impl Vss {
         fn shuffled_shares(&self, n: usize) -> Vec<Share> {
-            let mut shares = self.shares(n);
+            let mut shares = self.shares(n).unwrap();
             shares.shuffle(&mut rand::thread_rng());
             shares
         }
-    }
-
-    pub fn recover_secret(shares: &[Share]) -> k256::Scalar {
-        let indices: Vec<usize> = shares.iter().map(|s| s.index).collect();
-        shares
-            .iter()
-            .enumerate()
-            .fold(k256::Scalar::zero(), |sum, (i, share)| {
-                sum + share.scalar.as_ref() * &lagrange_coefficient(i, &indices).unwrap()
-            })
     }
 
     #[test]

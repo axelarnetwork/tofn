@@ -190,11 +190,14 @@ fn to_vec(bigint: &BigInt) -> Vec<u8> {
 /// pad `v` with leading zero bytes until it has length 32
 /// panics if `v.len()` exceeds 32
 fn pad32(v: Vec<u8>) -> Vec<u8> {
-    debug_assert!(v.len() <= 32);
-
     if v.len() == 32 {
         return v;
     }
+
+    if v.len() > 32 {
+        return v[..32].to_vec();
+    }
+
     let mut v_pad = vec![0; 32];
     v_pad[(32 - v.len())..].copy_from_slice(&v);
     v_pad
