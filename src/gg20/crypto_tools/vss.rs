@@ -40,18 +40,10 @@ impl Vss {
         }
     }
 
-    pub fn shares(&self, n: usize) -> TofnResult<Vec<Share>> {
-        // also ensures that n > 0
-        if self.get_threshold() >= n {
-            error!(
-                "provided n {} is not larger than threshold {}",
-                n,
-                self.get_threshold()
-            );
-            return Err(TofnFatal);
-        }
+    pub fn shares(&self, n: usize) -> Vec<Share> {
+        debug_assert!(self.get_threshold() < n); // also ensures that n > 0
 
-        Ok((0..n)
+        (0..n)
             .map(|index| {
                 let index_scalar = k256::Scalar::from(index as u32 + 1); // vss indices start at 1
                 Share {
@@ -67,7 +59,7 @@ impl Vss {
                     index,
                 }
             })
-            .collect())
+            .collect()
     }
 }
 
@@ -86,9 +78,11 @@ impl Commit {
                 acc * index_scalar + p.as_ref()
             })
     }
+
     pub fn secret_commit(&self) -> &k256::ProjectivePoint {
         self.coeff_commits[0].as_ref()
     }
+
     pub fn validate_share_commit(
         &self,
         share_commit: &k256::ProjectivePoint,
@@ -96,6 +90,7 @@ impl Commit {
     ) -> bool {
         self.share_commit(index) == *share_commit
     }
+
     pub fn validate_share(&self, share: &Share) -> bool {
         self.validate_share_commit(
             &(k256::ProjectivePoint::generator() * share.get_scalar()),
@@ -118,9 +113,11 @@ impl Share {
             index,
         }
     }
+
     pub fn get_scalar(&self) -> &k256::Scalar {
         self.scalar.as_ref()
     }
+
     pub fn get_index(&self) -> usize {
         self.index
     }
@@ -142,10 +139,7 @@ pub fn recover_secret_commit(
     share_commits: &[ShareCommit],
     threshold: usize,
 ) -> TofnResult<k256::ProjectivePoint> {
-    if share_commits.len() <= threshold {
-        error!("Share commits length not larger than threshold");
-        return Err(TofnFatal);
-    }
+    debug_assert!(share_commits.len() > threshold);
 
     let indices: Vec<usize> = share_commits.iter().map(|s| s.index).collect();
     share_commits.iter().enumerate().try_fold(
@@ -161,6 +155,7 @@ pub fn lagrange_coefficient(i: usize, indices: &[usize]) -> TofnResult<k256::Sca
         .iter()
         .map(|&index| k256::Scalar::from(index as u32 + 1))
         .collect();
+
     let (numerator, denominator) = scalars.iter().enumerate().fold(
         (k256::Scalar::one(), k256::Scalar::one()),
         |(num, den), (j, scalar_j)| {
@@ -218,7 +213,7 @@ mod tests {
                 k256::Scalar::from(2u32),
             ],
         };
-        let shares = vss.shares(3).unwrap();
+        let shares = vss.shares(3);
         // expected shares:
         // index: 0, share: p(1) = 6
         // index: 1, share: p(2) = 14
@@ -244,7 +239,7 @@ mod tests {
     fn share_validation() {
         let (t, n) = (2, 5);
         let vss = Vss::new(t);
-        let shares = vss.shares(n).unwrap();
+        let shares = vss.shares(n);
         let commit = vss.commit();
         for s in shares.iter() {
             assert!(commit.validate_share(s));
@@ -253,7 +248,7 @@ mod tests {
 
     impl Vss {
         fn shuffled_shares(&self, n: usize) -> Vec<Share> {
-            let mut shares = self.shares(n).unwrap();
+            let mut shares = self.shares(n);
             shares.shuffle(&mut rand::thread_rng());
             shares
         }
