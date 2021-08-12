@@ -85,6 +85,7 @@ fn execute_keygen_from_recovery(
         .iter()
         .map(|(party_id, &party_share_count)| {
             let (party_keypair, party_zksetup) = create_party_keypair_and_zksetup_unsafe(
+                party_id,
                 secret_recovery_keys.get(party_id).unwrap(),
                 session_nonce,
             )
@@ -308,9 +309,12 @@ fn share_recovery() {
 
     let recovered_shares: Vec<SecretKeyShare> = (0..party_share_counts.party_count())
         .map(|party_id| {
-            let party_keypair =
-                recover_party_keypair_unsafe(&dummy_secret_recovery_key(party_id), session_nonce)
-                    .unwrap();
+            let party_keypair = recover_party_keypair_unsafe(
+                TypedUsize::from_usize(party_id),
+                &dummy_secret_recovery_key(party_id),
+                session_nonce,
+            )
+            .unwrap();
 
             let party_id = TypedUsize::<KeygenPartyId>::from_usize(party_id);
 

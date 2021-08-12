@@ -71,7 +71,7 @@ impl no_messages::Executer for R1 {
         let gamma_i = k256::Scalar::random(rand::thread_rng());
         let Gamma_i = k256::ProjectivePoint::generator() * gamma_i;
         let (Gamma_i_commit, Gamma_i_reveal) =
-            hash::commit(constants::GAMMA_I_COMMIT_TAG, to_bytes(&Gamma_i));
+            hash::commit(constants::GAMMA_I_COMMIT_TAG, sign_id, to_bytes(&Gamma_i));
 
         corrupt!(gamma_i, self.corrupt_gamma_i(sign_id, gamma_i));
 

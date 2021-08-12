@@ -1,4 +1,7 @@
-use crate::gg20::{constants, crypto_tools::k256_serde};
+use crate::{
+    collections::TypedUsize,
+    gg20::{constants, crypto_tools::k256_serde, sign::SignShareId},
+};
 use ecdsa::{elliptic_curve::Field, hazmat::FromDigest};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -6,15 +9,18 @@ use tracing::warn;
 
 #[derive(Clone, Debug)]
 pub struct Statement<'a> {
+    pub prover_id: TypedUsize<SignShareId>,
     pub base1: &'a k256::ProjectivePoint,
     pub base2: &'a k256::ProjectivePoint,
     pub target1: &'a k256::ProjectivePoint,
     pub target2: &'a k256::ProjectivePoint,
 }
+
 #[derive(Clone, Debug)]
 pub struct Witness<'a> {
     pub scalar: &'a k256::Scalar,
 }
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Proof {
     alpha1: k256_serde::ProjectivePoint,
@@ -33,6 +39,7 @@ pub fn prove(stmt: &Statement, wit: &Witness) -> Proof {
     let c = k256::Scalar::from_digest(
         Sha256::new()
             .chain(constants::CHAUM_PEDERSEN_PROOF_TAG.to_le_bytes())
+            .chain(stmt.prover_id.to_bytes())
             .chain(k256_serde::to_bytes(stmt.base1))
             .chain(k256_serde::to_bytes(stmt.base2))
             .chain(k256_serde::to_bytes(stmt.target1))
@@ -51,6 +58,7 @@ pub fn verify(stmt: &Statement, proof: &Proof) -> bool {
     let c = k256::Scalar::from_digest(
         Sha256::new()
             .chain(constants::CHAUM_PEDERSEN_PROOF_TAG.to_le_bytes())
+            .chain(stmt.prover_id.to_bytes())
             .chain(k256_serde::to_bytes(stmt.base1))
             .chain(k256_serde::to_bytes(stmt.base2))
             .chain(k256_serde::to_bytes(stmt.target1))
@@ -100,7 +108,9 @@ mod tests {
         let scalar = &k256::Scalar::random(rand::thread_rng());
         let target1 = &(base1 * scalar);
         let target2 = &(base2 * scalar);
+        let prover_id = TypedUsize::from_usize(1);
         let stmt = Statement {
+            prover_id,
             base1,
             base2,
             target1,
@@ -108,13 +118,26 @@ mod tests {
         };
         let wit = Witness { scalar };
 
+        let bad_id = TypedUsize::from_usize(100);
+        let bad_stmt = Statement {
+            prover_id: bad_id,
+            base1,
+            base2,
+            target1,
+            target2,
+        };
+
         // test: valid proof
         let proof = prove(&stmt, &wit);
         assert!(verify(&stmt, &proof));
 
+        // test: bad id
+        assert!(!verify(&bad_stmt, &proof));
+
         // test: bad proof
         let bad_proof = malicious::corrupt_proof(&proof);
         assert!(!verify(&stmt, &bad_proof));
+        assert!(!verify(&bad_stmt, &bad_proof));
 
         // test: bad witness
         let bad_wit = Witness {

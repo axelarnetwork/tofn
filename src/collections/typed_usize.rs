@@ -8,8 +8,14 @@ impl<K> TypedUsize<K> {
     pub fn from_usize(index: usize) -> Self {
         TypedUsize(index, PhantomData)
     }
+
     pub fn as_usize(&self) -> usize {
         self.0
+    }
+
+    // Platform-independent byte conversion
+    pub fn to_bytes(&self) -> [u8; 8] {
+        (self.0 as u64).to_le_bytes()
     }
 }
 

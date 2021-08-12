@@ -1,5 +1,6 @@
 use crate::{
-    gg20::{constants, crypto_tools::k256_serde},
+    collections::TypedUsize,
+    gg20::{constants, crypto_tools::k256_serde, sign::SignShareId},
     sdk::api::{TofnFatal, TofnResult},
 };
 use ecdsa::{
@@ -12,13 +13,16 @@ use tracing::{error, warn};
 
 #[derive(Clone, Debug)]
 pub struct Statement<'a> {
+    pub prover_id: TypedUsize<SignShareId>,
     pub commit: &'a k256::ProjectivePoint,
 }
+
 #[derive(Clone, Debug)]
 pub struct Witness<'a> {
     pub msg: &'a k256::Scalar,
     pub randomness: &'a k256::Scalar,
 }
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Proof {
     alpha: k256_serde::ProjectivePoint,
@@ -120,6 +124,7 @@ fn prove_inner(
     let c = k256::Scalar::from_digest(
         Sha256::new()
             .chain(constants::PEDERSEN_PROOF_TAG.to_le_bytes())
+            .chain(stmt.prover_id.to_bytes())
             .chain(k256_serde::to_bytes(stmt.commit))
             .chain(&msg_g_g.map_or(Vec::new(), |(msg_g, _)| k256_serde::to_bytes(msg_g)))
             .chain(&msg_g_g.map_or(Vec::new(), |(_, g)| k256_serde::to_bytes(g)))
@@ -148,6 +153,7 @@ fn verify_inner(
     let c = k256::Scalar::from_digest(
         Sha256::new()
             .chain(constants::PEDERSEN_PROOF_TAG.to_le_bytes())
+            .chain(stmt.prover_id.to_bytes())
             .chain(k256_serde::to_bytes(stmt.commit))
             .chain(&msg_g_g_beta.map_or(Vec::new(), |(msg_g, _, _)| k256_serde::to_bytes(msg_g)))
             .chain(&msg_g_g_beta.map_or(Vec::new(), |(_, g, _)| k256_serde::to_bytes(g)))
@@ -209,13 +215,25 @@ mod tests {
         let msg_g = &(g * msg);
         let (commit, randomness) = &commit(msg);
 
+        let prover_id = TypedUsize::from_usize(8921436);
         let stmt_wc = &StatementWc {
-            stmt: Statement { commit },
+            stmt: Statement { prover_id, commit },
             msg_g,
             g,
         };
         let stmt = &stmt_wc.stmt;
         let wit = &Witness { msg, randomness };
+
+        let bad_id = TypedUsize::from_usize(0);
+        let bad_stmt_wc = &StatementWc {
+            stmt: Statement {
+                prover_id: bad_id,
+                commit,
+            },
+            msg_g,
+            g,
+        };
+        let bad_stmt = &bad_stmt_wc.stmt;
 
         // test: valid proof
         let proof = prove(stmt, wit);
@@ -225,13 +243,21 @@ mod tests {
         let proof_wc = prove_wc(stmt_wc, wit).unwrap();
         assert!(verify_wc(stmt_wc, &proof_wc));
 
+        // test: valid proof and bad id
+        assert!(!verify(bad_stmt, &proof));
+
+        // test: valid proof wc and bad id
+        assert!(!verify_wc(bad_stmt_wc, &proof_wc));
+
         // test: bad proof
         let bad_proof = corrupt_proof(&proof);
         assert!(!verify(stmt, &bad_proof));
+        assert!(!verify(bad_stmt, &bad_proof));
 
         // test: bad proof wc (with check)
         let bad_proof_wc = corrupt_proof_wc(&proof_wc);
         assert!(!verify_wc(stmt_wc, &bad_proof_wc));
+        assert!(!verify_wc(bad_stmt_wc, &bad_proof_wc));
 
         // test: bad witness
         let bad_wit = &Witness {

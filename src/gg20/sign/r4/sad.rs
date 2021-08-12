@@ -116,6 +116,8 @@ impl bcast_only::Executer for R4Sad {
                 let (accusation_type, result) = match *accusation {
                     r3::Accusation::MtA => {
                         let accused_stmt = paillier::zk::mta::Statement {
+                            prover_id: accused_sign_id,
+                            verifier_id: accuser_sign_id,
                             ciphertext1: &self.r1bcasts.get(accuser_sign_id)?.k_i_ciphertext,
                             ciphertext2: &p2p.alpha_ciphertext,
                             ek: accuser_ek,
@@ -147,6 +149,8 @@ impl bcast_only::Executer for R4Sad {
 
                         let accused_stmt = paillier::zk::mta::StatementWc {
                             stmt: paillier::zk::mta::Statement {
+                                prover_id: accused_sign_id,
+                                verifier_id: accuser_sign_id,
                                 ciphertext1: &self.r1bcasts.get(accuser_sign_id)?.k_i_ciphertext,
                                 ciphertext2: &p2p.mu_ciphertext,
                                 ek: accuser_ek,

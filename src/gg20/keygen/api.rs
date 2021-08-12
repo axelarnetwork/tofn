@@ -63,22 +63,25 @@ pub struct PartyZkSetup {
 // Since safe prime generation is expensive, a party is expected to generate
 // a keypair once for all it's shares and provide it to new_keygen
 pub fn create_party_keypair_and_zksetup(
+    my_party_id: TypedUsize<KeygenPartyId>,
     secret_recovery_key: &SecretRecoveryKey,
     session_nonce: &[u8],
 ) -> TofnResult<(PartyKeyPair, PartyZkSetup)> {
-    let keypair = recover_party_keypair(secret_recovery_key, session_nonce)?;
+    let keypair = recover_party_keypair(my_party_id, secret_recovery_key, session_nonce)?;
 
-    let mut zksetup_rng = rng::rng_seed(ZKSETUP_TAG, secret_recovery_key, session_nonce)?;
+    let mut zksetup_rng =
+        rng::rng_seed(ZKSETUP_TAG, my_party_id, secret_recovery_key, session_nonce)?;
     let (zkp, zkp_proof) = ZkSetup::new(&mut zksetup_rng);
 
     Ok((keypair, PartyZkSetup { zkp, zkp_proof }))
 }
 
 pub fn recover_party_keypair(
+    my_party_id: TypedUsize<KeygenPartyId>,
     secret_recovery_key: &SecretRecoveryKey,
     session_nonce: &[u8],
 ) -> TofnResult<PartyKeyPair> {
-    let mut rng = rng::rng_seed(KEYPAIR_TAG, secret_recovery_key, session_nonce)?;
+    let mut rng = rng::rng_seed(KEYPAIR_TAG, my_party_id, secret_recovery_key, session_nonce)?;
 
     let (ek, dk) = paillier::keygen(&mut rng);
 
@@ -87,12 +90,14 @@ pub fn recover_party_keypair(
 
 // BEWARE: This is only made visible for faster integration testing
 pub fn create_party_keypair_and_zksetup_unsafe(
+    my_party_id: TypedUsize<KeygenPartyId>,
     secret_recovery_key: &SecretRecoveryKey,
     session_nonce: &[u8],
 ) -> TofnResult<(PartyKeyPair, PartyZkSetup)> {
-    let keypair = recover_party_keypair_unsafe(secret_recovery_key, session_nonce)?;
+    let keypair = recover_party_keypair_unsafe(my_party_id, secret_recovery_key, session_nonce)?;
 
-    let mut zksetup_rng = rng::rng_seed(ZKSETUP_TAG, secret_recovery_key, session_nonce)?;
+    let mut zksetup_rng =
+        rng::rng_seed(ZKSETUP_TAG, my_party_id, secret_recovery_key, session_nonce)?;
     let (zkp, zkp_proof) = ZkSetup::new_unsafe(&mut zksetup_rng);
 
     Ok((keypair, PartyZkSetup { zkp, zkp_proof }))
@@ -100,10 +105,11 @@ pub fn create_party_keypair_and_zksetup_unsafe(
 
 // BEWARE: This is only made visible for faster integration testing
 pub fn recover_party_keypair_unsafe(
+    my_party_id: TypedUsize<KeygenPartyId>,
     secret_recovery_key: &SecretRecoveryKey,
     session_nonce: &[u8],
 ) -> TofnResult<PartyKeyPair> {
-    let mut rng = rng::rng_seed(KEYPAIR_TAG, secret_recovery_key, session_nonce)?;
+    let mut rng = rng::rng_seed(KEYPAIR_TAG, my_party_id, secret_recovery_key, session_nonce)?;
 
     let (ek, dk) = paillier::keygen_unsafe(&mut rng);
 

@@ -221,6 +221,7 @@ impl bcast_only::Executer for R8Type7 {
 
             // verify zkp
             let peer_stmt = &chaum_pedersen::Statement {
+                prover_id: sign_peer_id,
                 base1: &k256::ProjectivePoint::generator(),
                 base2: &self.R,
                 target1: &peer_g_sigma_i, // sigma_i * G

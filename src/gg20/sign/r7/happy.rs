@@ -116,6 +116,7 @@ impl bcast_only::Executer for R7Happy {
         for (sign_peer_id, bcast) in &bcasts_in {
             let peer_stmt = &pedersen::StatementWc {
                 stmt: pedersen::Statement {
+                    prover_id: sign_peer_id,
                     commit: self.r3bcasts.get(sign_peer_id)?.T_i.as_ref(),
                 },
                 msg_g: bcast.S_i.as_ref(),
@@ -162,6 +163,7 @@ impl bcast_only::Executer for R7Happy {
 
             let proof = chaum_pedersen::prove(
                 &chaum_pedersen::Statement {
+                    prover_id: sign_id,
                     base1: &k256::ProjectivePoint::generator(),
                     base2: &self.R,
                     target1: &(k256::ProjectivePoint::generator() * self.sigma_i),

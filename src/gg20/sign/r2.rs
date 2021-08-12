@@ -168,8 +168,14 @@ impl bcast_and_p2p::Executer for R2 {
                 .get(keygen_peer_id)?
                 .zkp();
 
-            let (alpha_ciphertext, alpha_proof, beta_secret) =
-                mta::mta_response_with_proof(peer_zkp, peer_ek, peer_k_i_ciphertext, &self.gamma_i);
+            let (alpha_ciphertext, alpha_proof, beta_secret) = mta::mta_response_with_proof(
+                sign_id,
+                sign_peer_id,
+                peer_zkp,
+                peer_ek,
+                peer_k_i_ciphertext,
+                &self.gamma_i,
+            );
 
             corrupt!(
                 alpha_proof,
@@ -179,8 +185,14 @@ impl bcast_and_p2p::Executer for R2 {
             beta_secrets.set(sign_peer_id, beta_secret)?;
 
             // MtAwc step 2 for k_i * w_j
-            let (mu_ciphertext, mu_proof, nu_secret) =
-                mta::mta_response_with_proof_wc(peer_zkp, peer_ek, peer_k_i_ciphertext, &self.w_i)?;
+            let (mu_ciphertext, mu_proof, nu_secret) = mta::mta_response_with_proof_wc(
+                sign_id,
+                sign_peer_id,
+                peer_zkp,
+                peer_ek,
+                peer_k_i_ciphertext,
+                &self.w_i,
+            )?;
 
             corrupt!(
                 mu_proof,
