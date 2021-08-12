@@ -176,25 +176,48 @@ impl<F, K, P> XRound<F, K, P> {
         Ok(())
     }
 
-    // DONE TO HERE
-    pub fn expecting_more_msgs_this_round(&self) -> bool {
+    pub fn expecting_more_msgs_this_round(&self) -> TofnResult<bool> {
         if !self.expected_msg_types.is_full() {
-            return true; // at least one party has not sent any messages yet
+            return Ok(true); // at least one party has not sent any messages yet
         }
-        for (from, expected_msg_type) in self.expected_msg_types.iter_some() {}
 
-        // match &self.round_type {
-        //     RoundType::BcastAndP2p(r) => !r.bcasts_in.is_full() || !r.p2ps_in.is_full(),
-        //     RoundType::BcastOnly(r) => !r.bcasts_in.is_full(),
-        //     RoundType::P2pOnly(r) => !r.p2ps_in.is_full(),
-        //     RoundType::NoMessages(_) => false,
-        // }
+        // TODO maybe zip this iterator with bcasts_in, p2ps_in?
+        for (from, expected_msg_type) in self.expected_msg_types.iter_some() {
+            if matches!(expected_msg_type, BcastAndP2p | BcastOnly) {
+                if self.bcasts_in.is_none(from)? {
+                    return Ok(true);
+                }
+            }
+            if matches!(expected_msg_type, BcastAndP2p | P2pOnly) {
+                if !self.p2ps_in.xis_full(from)? {
+                    return Ok(true);
+                }
+            }
+        }
 
-        todo!()
+        Ok(false)
     }
 
-    // pub fn execute_next_round(mut self) -> TofnResult<Protocol<F, K, P>> {
-    // }
+    pub fn execute_next_round(mut self) -> TofnResult<Protocol<F, K, P>> {
+        let my_share_id = self.info().share_info().share_id();
+        let my_party_id = self.info().party_id();
+        let curr_round_num = self.info.round();
+
+        if !self.msg_in_faulters.is_empty() {
+            warn!(
+                "peer {} (party {}) says: faulters detected during msg_in: ending protocol in round {}",
+                my_share_id, my_party_id, curr_round_num,
+            );
+
+            return Ok(Protocol::Done(Err(self.msg_in_faulters)));
+        }
+
+        self.info.advance_round();
+
+        self.round
+            .execute_raw(self.info.share_info(), self.bcasts_in, self.p2ps_in)?
+            .build(self.info)
+    }
 
     pub fn info(&self) -> &ProtocolInfoDeluxe<K, P> {
         &self.info

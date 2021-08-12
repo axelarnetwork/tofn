@@ -223,6 +223,29 @@ impl<K, V> FillP2ps<K, V> {
     pub fn is_full(&self) -> bool {
         self.0.iter().all(|(_, v)| v.is_full())
     }
+    pub fn xis_full(&self, from: TypedUsize<K>) -> TofnResult<bool> {
+        Ok(self.0.get(from)?.is_full())
+    }
+    pub fn xmap_to_p2ps<W, F>(self, f: F) -> TofnResult<XP2ps<K, W>>
+    where
+        F: FnMut(V) -> W + Clone,
+    {
+        Ok(XP2ps::<K, W>(
+            self.0
+                .into_iter()
+                .map(|(_, v)| {
+                    if v.is_empty() {
+                        Ok(None)
+                    } else {
+                        v.map_to_holevec(f.clone()).map(|h| Some(h))
+                    }
+                })
+                .collect::<TofnResult<VecMap<_, _>>>()?,
+        ))
+    }
+    pub fn xto_p2ps(self) -> TofnResult<XP2ps<K, V>> {
+        self.xmap_to_p2ps(std::convert::identity)
+    }
     pub fn map_to_p2ps<W, F>(self, f: F) -> TofnResult<P2ps<K, W>>
     where
         F: FnMut(V) -> W + Clone,
