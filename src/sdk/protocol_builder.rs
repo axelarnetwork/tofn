@@ -20,6 +20,20 @@ pub struct XRoundBuilder<F, K> {
     p2ps_out: Option<HoleVecMap<K, BytesVec>>,
 }
 
+impl<F, K> XRoundBuilder<F, K> {
+    pub fn new(
+        round: Box<dyn ExecuterRaw<FinalOutput = F, Index = K>>,
+        bcast_out: Option<BytesVec>,
+        p2ps_out: Option<HoleVecMap<K, BytesVec>>,
+    ) -> Self {
+        Self {
+            round,
+            bcast_out,
+            p2ps_out,
+        }
+    }
+}
+
 impl<F, K> XProtocolBuilder<F, K> {
     pub(super) fn build<P>(self, info: ProtocolInfoDeluxe<K, P>) -> TofnResult<XProtocol<F, K, P>> {
         Ok(match self {

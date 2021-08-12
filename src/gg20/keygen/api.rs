@@ -15,8 +15,8 @@ use crate::{
         },
     },
     sdk::{
-        api::{PartyShareCounts, Protocol, TofnFatal, TofnResult},
-        implementer_api::{new_protocol, ProtocolBuilder},
+        api::{PartyShareCounts, Protocol, TofnFatal, TofnResult, XProtocol},
+        implementer_api::{new_protocol, xnew_protocol, ProtocolBuilder, XProtocolBuilder},
     },
 };
 use serde::{Deserialize, Serialize};
@@ -32,7 +32,9 @@ pub struct KeygenShareId;
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct KeygenPartyId;
 
+pub type XKeygenProtocol = XProtocol<SecretKeyShare, KeygenShareId, KeygenPartyId>;
 pub type KeygenProtocol = Protocol<SecretKeyShare, KeygenShareId, KeygenPartyId>;
+pub type XKeygenProtocolBuilder = XProtocolBuilder<SecretKeyShare, KeygenShareId>;
 pub type KeygenProtocolBuilder = ProtocolBuilder<SecretKeyShare, KeygenShareId>;
 pub type KeygenPartyShareCounts = PartyShareCounts<KeygenPartyId>;
 
@@ -138,7 +140,7 @@ pub fn new_keygen(
     party_keypair: &PartyKeyPair,
     party_zksetup: &PartyZkSetup,
     #[cfg(feature = "malicious")] behaviour: malicious::Behaviour,
-) -> TofnResult<KeygenProtocol> {
+) -> TofnResult<XKeygenProtocol> {
     // validate args
     if party_share_counts
         .iter()
@@ -165,19 +167,19 @@ pub fn new_keygen(
         return Err(TofnFatal);
     }
 
-    new_protocol(
-        party_share_counts.clone(),
-        my_share_id,
-        Box::new(r1::R1 {
-            threshold,
-            party_share_counts,
-            ek: party_keypair.ek.clone(),
-            dk: party_keypair.dk.clone(),
-            zkp: party_zksetup.zkp.clone(),
-            zkp_proof: party_zksetup.zkp_proof.clone(),
+    // TODO ugly way to start the protocol
+    let round2 = r1::R1 {
+        threshold,
+        party_share_counts,
+        ek: party_keypair.ek.clone(),
+        dk: party_keypair.dk.clone(),
+        zkp: party_zksetup.zkp.clone(),
+        zkp_proof: party_zksetup.zkp_proof.clone(),
 
-            #[cfg(feature = "malicious")]
-            behaviour,
-        }),
-    )
+        #[cfg(feature = "malicious")]
+        behaviour,
+    }
+    .start(my_share_id)?;
+
+    xnew_protocol(party_share_counts.clone(), my_share_id, round2)
 }

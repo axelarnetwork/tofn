@@ -2,6 +2,7 @@ use super::{
     api::TofnResult,
     implementer_api::no_messages,
     party_share_counts::PartyShareCounts,
+    protocol_builder::XProtocolBuilder,
     protocol_info::ProtocolInfoDeluxe,
     round::{Round, XRound},
 };
@@ -39,4 +40,12 @@ pub fn new_protocol<F, K, P>(
         first_round,
         ProtocolInfoDeluxe::new(party_share_counts, share_id)?,
     )?))
+}
+
+pub fn xnew_protocol<F, K, P>(
+    party_share_counts: PartyShareCounts<P>,
+    share_id: TypedUsize<K>,
+    first_round: XProtocolBuilder<F, K>,
+) -> TofnResult<XProtocol<F, K, P>> {
+    first_round.build(ProtocolInfoDeluxe::new(party_share_counts, share_id)?)
 }

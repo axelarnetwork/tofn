@@ -1,4 +1,5 @@
 use crate::{
+    collections::TypedUsize,
     corrupt,
     gg20::{
         constants,
@@ -14,13 +15,18 @@ use crate::{
         keygen::SecretKeyShare,
     },
     sdk::{
-        api::TofnResult,
-        implementer_api::{no_messages, serialize, ProtocolBuilder::*, ProtocolInfo, RoundBuilder},
+        api::{BytesVec, TofnResult},
+        implementer_api::{
+            no_messages, serialize, ProtocolBuilder::*, ProtocolInfo, RoundBuilder,
+            XProtocolBuilder, XRoundBuilder,
+        },
     },
 };
 use serde::{Deserialize, Serialize};
 
-use super::{r2, KeygenPartyShareCounts, KeygenProtocolBuilder, KeygenShareId};
+use super::{
+    r2, KeygenPartyShareCounts, KeygenProtocolBuilder, KeygenShareId, XKeygenProtocolBuilder,
+};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -44,6 +50,50 @@ pub struct Bcast {
     pub ek_proof: paillier::zk::EncryptionKeyProof,
     pub zkp: paillier::zk::ZkSetup,
     pub zkp_proof: paillier::zk::ZkSetupProof,
+}
+
+// TODO the first round is ugly after the round-type refactor
+impl R1 {
+    /// no incoming messages for round 1
+    /// returns (r2, bcast_out)
+    pub fn start(self, share_id: TypedUsize<KeygenShareId>) -> TofnResult<XKeygenProtocolBuilder> {
+        let u_i_vss = vss::Vss::new(self.threshold);
+        let (y_i_commit, y_i_reveal) = hash::commit(
+            constants::Y_I_COMMIT_TAG,
+            share_id,
+            k256_serde::to_bytes(&(k256::ProjectivePoint::generator() * u_i_vss.get_secret())),
+        );
+
+        corrupt!(y_i_commit, self.corrupt_commit(share_id, y_i_commit));
+
+        let ek_proof = self.dk.correctness_proof();
+        let zkp_proof = self.zkp_proof.clone();
+
+        corrupt!(ek_proof, self.corrupt_ek_proof(share_id, ek_proof));
+        corrupt!(zkp_proof, self.corrupt_zkp_proof(share_id, zkp_proof));
+
+        let bcast_out = Some(serialize(&Bcast {
+            y_i_commit,
+            ek: self.ek,
+            ek_proof,
+            zkp: self.zkp,
+            zkp_proof,
+        })?);
+
+        Ok(XProtocolBuilder::NotDone(XRoundBuilder::new(
+            Box::new(r2::R2 {
+                threshold: self.threshold,
+                party_share_counts: self.party_share_counts,
+                dk: self.dk,
+                u_i_vss,
+                y_i_reveal,
+                #[cfg(feature = "malicious")]
+                behaviour: self.behaviour,
+            }),
+            bcast_out,
+            None,
+        )))
+    }
 }
 
 impl no_messages::Executer for R1 {
