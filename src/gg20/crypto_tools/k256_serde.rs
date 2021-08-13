@@ -12,6 +12,8 @@ use k256::{
 use serde::{de, de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 use zeroize::Zeroize;
 
+use crate::sdk::api::BytesVec;
+
 #[derive(Clone, Debug, PartialEq, Zeroize)]
 pub struct Scalar(k256::Scalar);
 
@@ -126,7 +128,7 @@ pub struct ProjectivePoint(k256::ProjectivePoint);
 impl ProjectivePoint {
     /// Trying to make this look like a method of k256::ProjectivePoint
     /// Unfortunately, `p.into().bytes()` needs type annotations
-    pub fn bytes(&self) -> Vec<u8> {
+    pub fn bytes(&self) -> BytesVec {
         self.0
             .to_affine()
             .to_encoded_point(true)
@@ -147,7 +149,7 @@ impl AsRef<k256::ProjectivePoint> for ProjectivePoint {
     }
 }
 
-pub fn to_bytes(p: &k256::ProjectivePoint) -> Vec<u8> {
+pub fn to_bytes(p: &k256::ProjectivePoint) -> BytesVec {
     p.to_affine().to_encoded_point(true).as_bytes().to_vec()
 }
 

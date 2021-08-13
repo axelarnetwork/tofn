@@ -3,7 +3,7 @@ use crate::{
     collections::{TypedUsize, VecMap},
     gg20::crypto_tools::{k256_serde, paillier, vss},
     sdk::{
-        api::{TofnFatal, TofnResult},
+        api::{BytesVec, TofnFatal, TofnResult},
         decode, encode,
     },
 };
@@ -72,11 +72,11 @@ impl GroupPublicInfo {
         self.threshold
     }
 
-    pub fn pubkey_bytes(&self) -> Vec<u8> {
+    pub fn pubkey_bytes(&self) -> BytesVec {
         self.y.bytes()
     }
 
-    pub fn all_shares_bytes(&self) -> TofnResult<Vec<u8>> {
+    pub fn all_shares_bytes(&self) -> TofnResult<BytesVec> {
         encode(&self.all_shares)
     }
 
@@ -157,7 +157,7 @@ impl SecretKeyShare {
         &self.share
     }
 
-    pub fn recovery_info(&self) -> TofnResult<Vec<u8>> {
+    pub fn recovery_info(&self) -> TofnResult<BytesVec> {
         let index = self.share.index;
         let share = self.group.all_shares.get(index)?;
         let x_i_ciphertext = share.ek.encrypt(&self.share.x_i.as_ref().into()).0;
@@ -166,6 +166,8 @@ impl SecretKeyShare {
     }
 
     /// Recover a `SecretKeyShare`
+    /// We trust that group_info_bytes and pubkey_bytes are the values computed
+    /// by the majority of the parties.
     #[allow(clippy::too_many_arguments)]
     pub fn recover(
         party_keypair: &PartyKeyPair,
@@ -188,11 +190,6 @@ impl SecretKeyShare {
             return Err(TofnFatal);
         }
 
-        if share_count != party_share_counts.total_share_count() {
-            error!("party_share_counts and recovery_infos disagree on total share count",);
-            return Err(TofnFatal);
-        }
-
         let recovery_info: KeyShareRecoveryInfo = decode(recovery_info_bytes).ok_or_else(|| {
             error!(
                 "peer {} says: failed to deserialize recovery info",
@@ -201,6 +198,7 @@ impl SecretKeyShare {
             TofnFatal
         })?;
 
+        // Since we trust group_info_bytes, we expect the order of all_shares to be correct
         let all_shares: VecMap<KeygenShareId, SharePublicInfo> = decode(group_info_bytes)
             .ok_or_else(|| {
                 error!(

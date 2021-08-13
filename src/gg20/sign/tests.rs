@@ -87,7 +87,7 @@ fn basic_correctness() {
 
 #[allow(non_snake_case, clippy::many_single_char_names)]
 fn execute_sign(
-    key_shares: Vec<SecretKeyShare>,
+    key_shares: VecMap<KeygenShareId, SecretKeyShare>,
     test_case: &TestCase,
     msg_to_sign: &MessageDigest,
 ) {
@@ -116,7 +116,7 @@ fn execute_sign(
     let r0_parties: Vec<_> = sign_parties_share_ids
         .iter()
         .map(|(_, &keygen_id)| {
-            let key_share = key_shares.get(keygen_id.as_usize()).unwrap();
+            let key_share = key_shares.get(keygen_id).unwrap();
 
             match new_sign(
                 key_share.group(),
@@ -145,8 +145,13 @@ fn execute_sign(
 
     let y = ProjectivePoint::generator() * x;
 
-    for key_share in &key_shares {
-        assert_eq!(y, *key_share.group().y().as_ref());
+    for (keygen_id, key_share) in &key_shares {
+        assert_eq!(
+            y,
+            *key_share.group().y().as_ref(),
+            "Share {} has invalid group public key",
+            keygen_id
+        );
     }
 
     let k = r1_parties
