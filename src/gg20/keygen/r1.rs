@@ -96,53 +96,53 @@ impl R1 {
     }
 }
 
-impl no_messages::Executer for R1 {
-    type FinalOutput = SecretKeyShare;
-    type Index = KeygenShareId;
+// impl no_messages::Executer for R1 {
+//     type FinalOutput = SecretKeyShare;
+//     type Index = KeygenShareId;
 
-    fn execute(
-        self: Box<Self>,
-        info: &ProtocolInfo<Self::Index>,
-    ) -> TofnResult<KeygenProtocolBuilder> {
-        let keygen_id = info.share_id();
+//     fn execute(
+//         self: Box<Self>,
+//         info: &ProtocolInfo<Self::Index>,
+//     ) -> TofnResult<KeygenProtocolBuilder> {
+//         let keygen_id = info.share_id();
 
-        let u_i_vss = vss::Vss::new(self.threshold);
-        let (y_i_commit, y_i_reveal) = hash::commit(
-            constants::Y_I_COMMIT_TAG,
-            keygen_id,
-            k256_serde::to_bytes(&(k256::ProjectivePoint::generator() * u_i_vss.get_secret())),
-        );
+//         let u_i_vss = vss::Vss::new(self.threshold);
+//         let (y_i_commit, y_i_reveal) = hash::commit(
+//             constants::Y_I_COMMIT_TAG,
+//             keygen_id,
+//             k256_serde::to_bytes(&(k256::ProjectivePoint::generator() * u_i_vss.get_secret())),
+//         );
 
-        corrupt!(y_i_commit, self.corrupt_commit(keygen_id, y_i_commit));
+//         corrupt!(y_i_commit, self.corrupt_commit(keygen_id, y_i_commit));
 
-        let ek_proof = self.dk.correctness_proof();
-        let zkp_proof = self.zkp_proof.clone();
+//         let ek_proof = self.dk.correctness_proof();
+//         let zkp_proof = self.zkp_proof.clone();
 
-        corrupt!(ek_proof, self.corrupt_ek_proof(keygen_id, ek_proof));
-        corrupt!(zkp_proof, self.corrupt_zkp_proof(keygen_id, zkp_proof));
+//         corrupt!(ek_proof, self.corrupt_ek_proof(keygen_id, ek_proof));
+//         corrupt!(zkp_proof, self.corrupt_zkp_proof(keygen_id, zkp_proof));
 
-        let bcast_out = serialize(&Bcast {
-            y_i_commit,
-            ek: self.ek,
-            ek_proof,
-            zkp: self.zkp,
-            zkp_proof,
-        })?;
+//         let bcast_out = serialize(&Bcast {
+//             y_i_commit,
+//             ek: self.ek,
+//             ek_proof,
+//             zkp: self.zkp,
+//             zkp_proof,
+//         })?;
 
-        Ok(NotDone(RoundBuilder::BcastOnly {
-            round: Box::new(r2::R2 {
-                threshold: self.threshold,
-                party_share_counts: self.party_share_counts,
-                dk: self.dk,
-                u_i_vss,
-                y_i_reveal,
-                #[cfg(feature = "malicious")]
-                behaviour: self.behaviour,
-            }),
-            bcast_out,
-        }))
-    }
-}
+//         Ok(NotDone(RoundBuilder::BcastOnly {
+//             round: Box::new(r2::R2 {
+//                 threshold: self.threshold,
+//                 party_share_counts: self.party_share_counts,
+//                 dk: self.dk,
+//                 u_i_vss,
+//                 y_i_reveal,
+//                 #[cfg(feature = "malicious")]
+//                 behaviour: self.behaviour,
+//             }),
+//             bcast_out,
+//         }))
+//     }
+// }
 
 #[cfg(feature = "malicious")]
 mod malicious {

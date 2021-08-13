@@ -5,12 +5,14 @@ use crate::{
     collections::{FillP2ps, FillVecMap, XP2ps},
     sdk::{
         api::{BytesVec, Fault, TofnResult},
-        implementer_api::ProtocolBuilder,
         protocol_info::ProtocolInfo,
     },
 };
 
-use super::wire_bytes::ExpectedMsgTypes::{self, *};
+use super::{
+    protocol_builder::XProtocolBuilder,
+    wire_bytes::ExpectedMsgTypes::{self, *},
+};
 
 pub trait Executer: Send + Sync {
     type FinalOutput;
@@ -22,7 +24,7 @@ pub trait Executer: Send + Sync {
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
         p2ps_in: XP2ps<Self::Index, Self::P2p>,
-    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>>;
+    ) -> TofnResult<XProtocolBuilder<Self::FinalOutput, Self::Index>>;
 
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
@@ -40,7 +42,7 @@ pub trait ExecuterRaw: Send + Sync {
         bcasts_in: FillVecMap<Self::Index, BytesVec>,
         p2ps_in: FillP2ps<Self::Index, BytesVec>,
         expected_msg_types: FillVecMap<Self::Index, ExpectedMsgTypes>,
-    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>>;
+    ) -> TofnResult<XProtocolBuilder<Self::FinalOutput, Self::Index>>;
 
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
@@ -58,7 +60,7 @@ impl<T: Executer> ExecuterRaw for T {
         bcasts_in: FillVecMap<Self::Index, BytesVec>,
         p2ps_in: FillP2ps<Self::Index, BytesVec>,
         expected_msg_types: FillVecMap<Self::Index, ExpectedMsgTypes>,
-    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
+    ) -> TofnResult<XProtocolBuilder<Self::FinalOutput, Self::Index>> {
         let mut faulters = FillVecMap::with_size(info.share_count());
 
         // check for missing messages (timeout fault)
@@ -98,7 +100,7 @@ impl<T: Executer> ExecuterRaw for T {
             }
         }
         if !faulters.is_empty() {
-            return Ok(ProtocolBuilder::Done(Err(faulters)));
+            return Ok(XProtocolBuilder::Done(Err(faulters)));
         }
 
         // attempt to deserialize bcasts, p2ps
@@ -134,7 +136,7 @@ impl<T: Executer> ExecuterRaw for T {
             }
         }
         if !faulters.is_empty() {
-            return Ok(ProtocolBuilder::Done(Err(faulters)));
+            return Ok(XProtocolBuilder::Done(Err(faulters)));
         }
 
         // all deserialization succeeded---unwrap deserialized bcasts, p2ps

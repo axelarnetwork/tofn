@@ -147,8 +147,8 @@ fn execute_keygen_from_recovery(
             assert!(party.p2ps_out().is_none());
             assert!(!party.expecting_more_msgs_this_round().unwrap());
             match party.execute_next_round().unwrap() {
-                Protocol::NotDone(next_round) => next_round,
-                Protocol::Done(_) => panic!("party {} done, expect not done", i),
+                XProtocol::NotDone(next_round) => next_round,
+                XProtocol::Done(_) => panic!("party {} done, expect not done", i),
             }
         })
         .collect();
@@ -186,10 +186,10 @@ fn execute_keygen_from_recovery(
         .map(|(i, party)| {
             assert!(party.bcast_out().is_some());
             assert!(party.p2ps_out().as_ref().unwrap().len() == share_count);
-            assert!(!party.expecting_more_msgs_this_round());
+            assert!(!party.expecting_more_msgs_this_round().unwrap());
             match party.execute_next_round().unwrap() {
-                Protocol::NotDone(next_round) => next_round,
-                Protocol::Done(_) => panic!("party {} done, expect not done", i),
+                XProtocol::NotDone(next_round) => next_round,
+                XProtocol::Done(_) => panic!("party {} done, expect not done", i),
             }
         })
         .collect();
@@ -214,11 +214,11 @@ fn execute_keygen_from_recovery(
         .map(|(i, party)| {
             assert!(party.bcast_out().is_some());
             assert!(party.p2ps_out().is_none());
-            assert!(!party.expecting_more_msgs_this_round());
+            assert!(!party.expecting_more_msgs_this_round().unwrap());
             match party.execute_next_round().unwrap() {
-                Protocol::NotDone(_) => panic!("party {} not done, expect done", i),
-                Protocol::Done(Ok(secret_key_share)) => secret_key_share,
-                Protocol::Done(Err(criminals)) => panic!(
+                XProtocol::NotDone(_) => panic!("party {} not done, expect done", i),
+                XProtocol::Done(Ok(secret_key_share)) => secret_key_share,
+                XProtocol::Done(Err(criminals)) => panic!(
                     "party {} expect success got failure with criminals: {:?}",
                     i, criminals
                 ),

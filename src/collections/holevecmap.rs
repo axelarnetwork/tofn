@@ -15,6 +15,7 @@ pub struct HoleVecMap<K, V> {
 }
 
 impl<K, V> HoleVecMap<K, V> {
+    // TODO delete from_vecmap and instead use VecMap::remember_hole?
     pub fn from_vecmap(vec: VecMap<K, V>, hole: TypedUsize<K>) -> TofnResult<Self> {
         if hole.as_usize() > vec.len() {
             error!("hole {} out of bounds {}", hole.as_usize(), vec.len());

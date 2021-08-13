@@ -14,6 +14,10 @@ pub struct FillHoleVecMap<K, V> {
 impl<K, V> FillHoleVecMap<K, V> {
     /// if hole >= len-1 then use hole = len-1
     pub fn with_size(len: usize, hole: TypedUsize<K>) -> TofnResult<Self> {
+        if len == 0 {
+            error!("FillHoleVecMap must have positive size");
+            return Err(TofnFatal);
+        }
         Ok(Self {
             hole_vec: HoleVecMap::from_vecmap(
                 VecMap::from_vec((0..len - 1).map(|_| None).collect()),

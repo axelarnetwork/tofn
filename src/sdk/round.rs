@@ -9,6 +9,7 @@ use crate::{
 };
 
 use super::{
+    api::XProtocol,
     executer::ExecuterRaw,
     implementer_api::{bcast_and_p2p, bcast_only, no_messages, p2p_only},
     protocol_info::ProtocolInfoDeluxe,
@@ -198,7 +199,7 @@ impl<F, K, P> XRound<F, K, P> {
         Ok(false)
     }
 
-    pub fn execute_next_round(mut self) -> TofnResult<Protocol<F, K, P>> {
+    pub fn execute_next_round(mut self) -> TofnResult<XProtocol<F, K, P>> {
         let my_share_id = self.info().share_info().share_id();
         let my_party_id = self.info().party_id();
         let curr_round_num = self.info.round();
@@ -209,7 +210,7 @@ impl<F, K, P> XRound<F, K, P> {
                 my_share_id, my_party_id, curr_round_num,
             );
 
-            return Ok(Protocol::Done(Err(self.msg_in_faulters)));
+            return Ok(XProtocol::Done(Err(self.msg_in_faulters)));
         }
 
         self.info.advance_round();

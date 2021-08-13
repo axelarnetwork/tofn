@@ -74,6 +74,25 @@ impl<K, V> XP2ps<K, V> {
     //         v_option.map(|v| v.map2_result(f.clone()))
     //     })?))
     // }
+
+    pub fn map_to_p2ps<W, F>(self, f: F) -> TofnResult<P2ps<K, W>>
+    where
+        F: FnMut(V) -> W + Clone,
+    {
+        Ok(P2ps::<K, W>(self.0.map2_result(
+            |(from, hole_vec_option)| {
+                Ok(hole_vec_option
+                    .ok_or_else(|| {
+                        error!("missing HoleVecMap at index {}", from);
+                        TofnFatal
+                    })?
+                    .map(f.clone()))
+            },
+        )?))
+    }
+    pub fn to_p2ps(self) -> TofnResult<P2ps<K, V>> {
+        self.map_to_p2ps(std::convert::identity)
+    }
 }
 
 impl<K, V> IntoIterator for XP2ps<K, V> {
@@ -229,13 +248,18 @@ impl<K, V> FillP2ps<K, V> {
     pub fn xis_full(&self, from: TypedUsize<K>) -> TofnResult<bool> {
         Ok(self.0.get(from)?.is_full())
     }
+    // TODO if size == 1 then do we return `None` or an empty HoleVecMap`?
+    // maybe need to methods---one for each possibility
     pub fn xmap_to_p2ps<W, F>(self, f: F) -> TofnResult<XP2ps<K, W>>
     where
         F: FnMut(V) -> W + Clone,
     {
         Ok(XP2ps::<K, W>(self.0.map2_result(
             |(_, fill_hole_vec)| {
+                // a FillHoleVec can be both empty and full if its size is 1
+                // TODO change FillHoleVec API?
                 if fill_hole_vec.is_empty() {
+                    // if fill_hole_vec.is_empty() && !fill_hole_vec.is_full() {
                     Ok(None)
                 } else {
                     fill_hole_vec.map_to_holevec(f.clone()).map(|h| Some(h))
