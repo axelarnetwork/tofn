@@ -139,7 +139,7 @@ impl<F, K, P> XRound<F, K, P> {
                         self.bcasts_in.set(bytes_meta.from, bytes_meta.payload)?;
                     } else {
                         warn!(
-                            "peer {} (party {}) says: duplicate message from peer {} (party {}) in round {}",
+                            "peer {} (party {}) says: duplicate bcast message from peer {} (party {}) in round {}",
                             share_id, party_id, bytes_meta.from, from, self.info.round(),
                         );
                         self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
@@ -158,8 +158,8 @@ impl<F, K, P> XRound<F, K, P> {
                         self.p2ps_in.set(bytes_meta.from, to, bytes_meta.payload)?;
                     } else {
                         warn!(
-                            "peer {} (party {}) says: duplicate message from peer {} (party {}) in round {}",
-                            share_id, party_id, bytes_meta.from, from, self.info.round(),
+                            "peer {} (party {}) says: duplicate p2p to {} message from peer {} (party {}) in round {}",
+                            share_id, party_id, to, bytes_meta.from, from, self.info.round(),
                         );
                         self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
                     }
@@ -215,7 +215,12 @@ impl<F, K, P> XRound<F, K, P> {
         self.info.advance_round();
 
         self.round
-            .execute_raw(self.info.share_info(), self.bcasts_in, self.p2ps_in)?
+            .execute_raw(
+                self.info.share_info(),
+                self.bcasts_in,
+                self.p2ps_in,
+                self.expected_msg_types,
+            )?
             .build(self.info)
     }
 

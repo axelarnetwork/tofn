@@ -83,6 +83,16 @@ impl<K, V> FillVecMap<K, V> {
     pub fn to_vecmap(self) -> TofnResult<VecMap<K, V>> {
         self.map_to_vecmap(std::convert::identity)
     }
+
+    pub fn map<W, F>(self, f: F) -> FillVecMap<K, W>
+    where
+        F: FnMut(V) -> W + Clone,
+    {
+        FillVecMap::<K, W> {
+            vec: self.vec.map(|val_option| val_option.map(f.clone())),
+            some_count: self.some_count,
+        }
+    }
 }
 
 impl<K, V> IntoIterator for FillVecMap<K, V> {

@@ -65,6 +65,15 @@ impl<K, V> FillHoleVecMap<K, V> {
     pub fn to_holevec(self) -> TofnResult<HoleVecMap<K, V>> {
         self.map_to_holevec(std::convert::identity)
     }
+    pub fn map<W, F>(self, f: F) -> FillHoleVecMap<K, W>
+    where
+        F: FnMut(V) -> W + Clone,
+    {
+        FillHoleVecMap::<K, W> {
+            hole_vec: self.hole_vec.map(|val_option| val_option.map(f.clone())),
+            some_count: self.some_count,
+        }
+    }
 }
 
 impl<K, V> IntoIterator for FillHoleVecMap<K, V> {

@@ -15,7 +15,7 @@ use crate::{
         keygen::SecretKeyShare,
     },
     sdk::{
-        api::{BytesVec, TofnResult},
+        api::TofnResult,
         implementer_api::{
             no_messages, serialize, ProtocolBuilder::*, ProtocolInfo, RoundBuilder,
             XProtocolBuilder, XRoundBuilder,

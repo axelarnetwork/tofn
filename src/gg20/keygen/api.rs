@@ -16,7 +16,7 @@ use crate::{
     },
     sdk::{
         api::{PartyShareCounts, Protocol, TofnFatal, TofnResult, XProtocol},
-        implementer_api::{new_protocol, xnew_protocol, ProtocolBuilder, XProtocolBuilder},
+        implementer_api::{xnew_protocol, ProtocolBuilder, XProtocolBuilder},
     },
 };
 use serde::{Deserialize, Serialize};
@@ -167,10 +167,10 @@ pub fn new_keygen(
         return Err(TofnFatal);
     }
 
-    // TODO ugly way to start the protocol
+    // TODO ugly way to start the protocol -- just do all this math right here?
     let round2 = r1::R1 {
         threshold,
-        party_share_counts,
+        party_share_counts: party_share_counts.clone(),
         ek: party_keypair.ek.clone(),
         dk: party_keypair.dk.clone(),
         zkp: party_zksetup.zkp.clone(),
@@ -181,5 +181,5 @@ pub fn new_keygen(
     }
     .start(my_share_id)?;
 
-    xnew_protocol(party_share_counts.clone(), my_share_id, round2)
+    xnew_protocol(party_share_counts, my_share_id, round2)
 }

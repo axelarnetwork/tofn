@@ -211,6 +211,9 @@ impl<K, V> FillP2ps<K, V> {
                 .collect::<TofnResult<_>>()?,
         ))
     }
+    pub fn size(&self) -> usize {
+        self.0.len()
+    }
     pub fn set(&mut self, from: TypedUsize<K>, to: TypedUsize<K>, value: V) -> TofnResult<()> {
         self.0.get_mut(from)?.set(to, value)
     }
@@ -230,18 +233,27 @@ impl<K, V> FillP2ps<K, V> {
     where
         F: FnMut(V) -> W + Clone,
     {
-        Ok(XP2ps::<K, W>(
-            self.0
-                .into_iter()
-                .map(|(_, v)| {
-                    if v.is_empty() {
-                        Ok(None)
-                    } else {
-                        v.map_to_holevec(f.clone()).map(|h| Some(h))
-                    }
-                })
-                .collect::<TofnResult<VecMap<_, _>>>()?,
-        ))
+        Ok(XP2ps::<K, W>(self.0.map2_result(
+            |(_, fill_hole_vec)| {
+                if fill_hole_vec.is_empty() {
+                    Ok(None)
+                } else {
+                    fill_hole_vec.map_to_holevec(f.clone()).map(|h| Some(h))
+                }
+            },
+        )?))
+        // Ok(XP2ps::<K, W>(
+        //     self.0
+        //         .into_iter()
+        //         .map(|(_, v)| {
+        //             if v.is_empty() {
+        //                 Ok(None)
+        //             } else {
+        //                 v.map_to_holevec(f.clone()).map(|h| Some(h))
+        //             }
+        //         })
+        //         .collect::<TofnResult<VecMap<_, _>>>()?,
+        // ))
     }
     pub fn xto_p2ps(self) -> TofnResult<XP2ps<K, V>> {
         self.xmap_to_p2ps(std::convert::identity)
@@ -259,6 +271,24 @@ impl<K, V> FillP2ps<K, V> {
     }
     pub fn to_p2ps(self) -> TofnResult<P2ps<K, V>> {
         self.map_to_p2ps(std::convert::identity)
+    }
+    pub fn to_xp2ps(self) -> TofnResult<XP2ps<K, V>> {
+        self.xmap_to_p2ps(std::convert::identity)
+        // Ok(XP2ps::<K, V>(self.0.map2_result(
+        //     |(_, fill_hole_vec)| {
+        //         if fill_hole_vec.is_empty() {
+        //             Ok(None)
+        //         } else {
+        //             fill_hole_vec.to_holevec().map(|h| Some(h))
+        //         }
+        //     },
+        // )?))
+    }
+    pub fn map<W, F>(self, f: F) -> FillP2ps<K, W>
+    where
+        F: FnMut(V) -> W + Clone,
+    {
+        FillP2ps::<K, W>(self.0.map(|h| h.map(f.clone())))
     }
     pub fn iter(
         &self,
