@@ -156,6 +156,11 @@ impl Executer for R2 {
             p2ps_out,
         }))
     }
+
+    #[cfg(test)]
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 impl bcast_only::Executer for R2 {

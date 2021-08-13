@@ -297,6 +297,11 @@ impl<F, K, P> XRound<F, K, P> {
             msg_in_faulters: FillVecMap::with_size(party_count),
         })
     }
+
+    #[cfg(test)]
+    pub fn round_as_any(&self) -> &dyn std::any::Any {
+        self.round.as_any()
+    }
 }
 
 impl<F, K, P> Round<F, K, P> {
