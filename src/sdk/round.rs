@@ -269,9 +269,10 @@ impl<F, K, P> Round<F, K, P> {
             return Err(TofnFatal);
         }
 
-        let bcast_out = wire_bytes::encode(bcast_out, share_id, Bcast)?;
-        let p2ps_out = p2ps_out
-            .map2_result(|(to, payload)| wire_bytes::encode(payload, share_id, P2p { to }))?;
+        let bcast_out = wire_bytes::encode_message(bcast_out, share_id, Bcast)?;
+        let p2ps_out = p2ps_out.map2_result(|(to, payload)| {
+            wire_bytes::encode_message(payload, share_id, P2p { to })
+        })?;
 
         Ok(Self::new(
             info,
@@ -290,7 +291,7 @@ impl<F, K, P> Round<F, K, P> {
         info: ProtocolInfoDeluxe<K, P>,
         bcast_out: BytesVec,
     ) -> TofnResult<Self> {
-        let bcast_out = wire_bytes::encode(bcast_out, info.share_info().share_id(), Bcast)?;
+        let bcast_out = wire_bytes::encode_message(bcast_out, info.share_info().share_id(), Bcast)?;
 
         let share_count = info.share_info().share_count();
 
@@ -324,8 +325,9 @@ impl<F, K, P> Round<F, K, P> {
             return Err(TofnFatal);
         }
 
-        let p2ps_out = p2ps_out
-            .map2_result(|(to, payload)| wire_bytes::encode(payload, share_id, P2p { to }))?;
+        let p2ps_out = p2ps_out.map2_result(|(to, payload)| {
+            wire_bytes::encode_message(payload, share_id, P2p { to })
+        })?;
 
         Ok(Self::new(
             info,

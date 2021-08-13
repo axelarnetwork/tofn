@@ -5,9 +5,14 @@
 //! [Implementing Serialize · Serde](https://serde.rs/impl-serialize.html)
 //! [Implementing Deserialize · Serde](https://serde.rs/impl-deserialize.html)
 
-use k256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
+use k256::{
+    elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint},
+    EncodedPoint,
+};
 use serde::{de, de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 use zeroize::Zeroize;
+
+use crate::sdk::api::BytesVec;
 
 #[derive(Clone, Debug, PartialEq, Zeroize)]
 pub struct Scalar(k256::Scalar);
@@ -123,12 +128,18 @@ pub struct ProjectivePoint(k256::ProjectivePoint);
 impl ProjectivePoint {
     /// Trying to make this look like a method of k256::ProjectivePoint
     /// Unfortunately, `p.into().bytes()` needs type annotations
-    pub fn bytes(&self) -> Vec<u8> {
+    pub fn bytes(&self) -> BytesVec {
         self.0
             .to_affine()
             .to_encoded_point(true)
             .as_bytes()
             .to_vec()
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
+        Some(Self(k256::ProjectivePoint::from_encoded_point(
+            &EncodedPoint::from_bytes(bytes).ok()?,
+        )?))
     }
 }
 
@@ -138,7 +149,7 @@ impl AsRef<k256::ProjectivePoint> for ProjectivePoint {
     }
 }
 
-pub fn to_bytes(p: &k256::ProjectivePoint) -> Vec<u8> {
+pub fn to_bytes(p: &k256::ProjectivePoint) -> BytesVec {
     p.to_affine().to_encoded_point(true).as_bytes().to_vec()
 }
 

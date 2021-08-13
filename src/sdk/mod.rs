@@ -7,3 +7,5 @@ mod protocol_builder;
 mod protocol_info;
 mod round;
 mod wire_bytes;
+
+pub use wire_bytes::{decode, encode};

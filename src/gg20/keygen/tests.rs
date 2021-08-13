@@ -4,7 +4,6 @@ use crate::{
     gg20::crypto_tools::vss,
     sdk::api::{BytesVec, Protocol},
 };
-use rand::prelude::SliceRandom;
 use tracing_test::traced_test;
 
 #[cfg(feature = "malicious")]
@@ -39,12 +38,12 @@ fn test_case_list() -> Vec<TestCase> {
 pub fn execute_keygen(
     party_share_counts: &KeygenPartyShareCounts,
     threshold: usize,
-) -> Vec<SecretKeyShare> {
+) -> VecMap<KeygenShareId, SecretKeyShare> {
     execute_keygen_with_recovery(party_share_counts, threshold).shares
 }
 
 pub struct KeySharesWithRecovery {
-    pub shares: Vec<SecretKeyShare>,
+    pub shares: VecMap<KeygenShareId, SecretKeyShare>,
     pub secret_recovery_keys: VecMap<KeygenPartyId, SecretRecoveryKey>,
     pub session_nonce: Vec<u8>,
 }
@@ -77,7 +76,7 @@ fn execute_keygen_from_recovery(
     threshold: usize,
     secret_recovery_keys: &VecMap<KeygenPartyId, SecretRecoveryKey>,
     session_nonce: &[u8],
-) -> Vec<SecretKeyShare> {
+) -> VecMap<KeygenShareId, SecretKeyShare> {
     assert_eq!(secret_recovery_keys.len(), party_share_counts.party_count());
     let share_count = party_share_counts.total_share_count();
 
@@ -223,7 +222,7 @@ fn execute_keygen_from_recovery(
     }
 
     // execute round 3 all parties
-    let all_secret_key_shares: Vec<SecretKeyShare> = r3_parties
+    let all_secret_key_shares: VecMap<KeygenShareId, SecretKeyShare> = r3_parties
         .into_iter()
         .enumerate()
         .map(|(i, party)| {
@@ -248,29 +247,33 @@ fn execute_keygen_from_recovery(
         .iter()
         .fold(k256::Scalar::zero(), |acc, &x| acc + x);
 
-    let all_shares: Vec<vss::Share> = all_secret_key_shares
+    let all_vss_shares: Vec<vss::Share> = all_secret_key_shares
         .iter()
-        .map(|k| vss::Share::from_scalar(*k.share().x_i().as_ref(), k.share().index().as_usize()))
+        .map(|(id, k)| vss::Share::from_scalar(*k.share().x_i().as_ref(), id.as_usize()))
         .collect();
-    let secret_key_recovered = vss::recover_secret(&all_shares);
+    let secret_key_recovered = vss::recover_secret(&all_vss_shares);
 
     assert_eq!(secret_key_recovered, secret_key_sum_u);
 
     // test: verify that the reconstructed secret key yields the public key everyone deduced
-    for secret_key_share in all_secret_key_shares.iter() {
+    for (share_id, secret_key_share) in all_secret_key_shares.iter() {
         let test_pubkey = k256::ProjectivePoint::generator() * secret_key_recovered;
-        assert_eq!(&test_pubkey, secret_key_share.group().y().as_ref());
+        assert_eq!(
+            &test_pubkey,
+            secret_key_share.group().y().as_ref(),
+            "share {} has invalid pub key",
+            share_id
+        );
     }
 
     // test: everyone computed everyone else's public key share correctly
-    // TODO why not use VecMap?
-    for (i, secret_key_share) in all_secret_key_shares.iter().enumerate() {
-        for (j, other_secret_key_share) in all_secret_key_shares.iter().enumerate() {
+    for (i, secret_key_share) in all_secret_key_shares.iter() {
+        for (j, other_secret_key_share) in all_secret_key_shares.iter() {
             assert_eq!(
                 *secret_key_share
                     .group()
                     .all_shares()
-                    .get(TypedUsize::from_usize(j))
+                    .get(j)
                     .unwrap()
                     .X_i()
                     .as_ref(),
@@ -282,63 +285,70 @@ fn execute_keygen_from_recovery(
         }
     }
 
+    // Test secret key share recovery on every keygen
+    share_recovery(
+        party_share_counts,
+        threshold,
+        secret_recovery_keys,
+        session_nonce,
+        &all_secret_key_shares,
+    );
+
     all_secret_key_shares
 }
 
-#[test]
-fn share_recovery() {
-    let party_share_counts = &KeygenPartyShareCounts::from_vec(vec![2, 3, 1]).unwrap();
-    let threshold = 4;
-    let session_nonce = b"foobar";
-    let secret_recovery_keys = VecMap::from_vec(
-        (0..party_share_counts.party_count())
-            .map(dummy_secret_recovery_key)
-            .collect(),
-    );
-
-    let shares = execute_keygen_from_recovery(
-        party_share_counts,
-        threshold,
-        &secret_recovery_keys,
-        session_nonce,
-    );
-
-    let mut recovery_infos: Vec<_> = shares.iter().map(|s| s.recovery_info().unwrap()).collect();
-    recovery_infos.shuffle(&mut rand::thread_rng()); // simulate nondeterministic message receipt
-    let recovery_infos = &recovery_infos;
-
-    let recovered_shares: Vec<SecretKeyShare> = (0..party_share_counts.party_count())
-        .map(|party_id| {
-            let party_keypair = recover_party_keypair_unsafe(
-                TypedUsize::from_usize(party_id),
-                &dummy_secret_recovery_key(party_id),
-                session_nonce,
-            )
-            .unwrap();
-
-            let party_id = TypedUsize::<KeygenPartyId>::from_usize(party_id);
-
-            (0..party_share_counts.party_share_count(party_id).unwrap()).map(move |subshare_id| {
-                SecretKeyShare::recover(
-                    &party_keypair,
-                    recovery_infos,
-                    party_id,
-                    subshare_id,
-                    party_share_counts.clone(),
-                    threshold,
-                )
-                .unwrap()
-            })
-        })
-        .flatten()
+fn share_recovery(
+    party_share_counts: &KeygenPartyShareCounts,
+    threshold: usize,
+    secret_recovery_keys: &VecMap<KeygenPartyId, SecretRecoveryKey>,
+    session_nonce: &[u8],
+    shares: &VecMap<KeygenShareId, SecretKeyShare>,
+) {
+    let recovery_info_bytes: VecMap<KeygenShareId, _> = shares
+        .iter()
+        .map(|(_, s)| s.recovery_info().unwrap())
         .collect();
 
-    assert_eq!(
-        recovered_shares, shares,
-        "comment-out this assert and use the following code to narrow down the discrepancy"
-    );
+    // The public info of any party should work for all shares
+    let first_share_id = TypedUsize::from_usize(0);
+    let group_info = shares.get(first_share_id).unwrap().group();
+    let group_info_bytes = group_info.all_shares_bytes().unwrap();
+    let pubkey_bytes = group_info.pubkey_bytes();
 
-    for (i, (s, r)) in shares.iter().zip(recovered_shares.iter()).enumerate() {
+    let recovered_party_keypairs: VecMap<KeygenPartyId, PartyKeyPair> = (0..party_share_counts
+        .party_count())
+        .map(|party_id| {
+            let party_id = TypedUsize::from_usize(party_id);
+
+            recover_party_keypair_unsafe(
+                party_id,
+                secret_recovery_keys.get(party_id).unwrap(),
+                session_nonce,
+            )
+            .unwrap()
+        })
+        .collect();
+
+    let recovered_shares = recovery_info_bytes.map2(|(share_id, recovery_info)| {
+        let (party_id, subshare_id) = party_share_counts
+            .share_to_party_subshare_ids(share_id)
+            .unwrap();
+        let party_keypair = recovered_party_keypairs.get(party_id).unwrap();
+
+        SecretKeyShare::recover(
+            party_keypair,
+            &recovery_info,
+            &group_info_bytes,
+            &pubkey_bytes,
+            party_id,
+            subshare_id,
+            party_share_counts.clone(),
+            threshold,
+        )
+        .unwrap()
+    });
+
+    for ((i, s), (_, r)) in shares.iter().zip(recovered_shares.iter()) {
         assert_eq!(s.share(), r.share(), "party {}", i);
         for (j, ss, rr) in zip2(s.group().all_shares(), r.group().all_shares()) {
             assert_eq!(ss.X_i(), rr.X_i(), "party {} public info on party {}", i, j);
@@ -348,6 +358,9 @@ fn share_recovery() {
         assert_eq!(s.group().threshold(), r.group().threshold(), "party {}", i);
         assert_eq!(s.group().y(), r.group().y(), "party {}", i);
     }
+
+    // Also test that equality works on the share struct
+    assert_eq!(&recovered_shares, shares);
 }
 
 /// return the all-zero array with the first bytes set to the bytes of `index`
