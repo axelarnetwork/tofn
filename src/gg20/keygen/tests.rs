@@ -4,7 +4,6 @@ use crate::{
     gg20::crypto_tools::vss,
     sdk::api::{BytesVec, Protocol},
 };
-use rand::prelude::SliceRandom;
 use tracing_test::traced_test;
 
 #[cfg(feature = "malicious")]
@@ -303,9 +302,7 @@ fn share_recovery() {
         session_nonce,
     );
 
-    let mut recovery_infos: Vec<_> = shares.iter().map(|s| s.recovery_info().unwrap()).collect();
-    recovery_infos.shuffle(&mut rand::thread_rng()); // simulate nondeterministic message receipt
-    let recovery_infos = &recovery_infos;
+    let recovery_info_bytes: Vec<_> = shares.iter().map(|s| s.recovery_info().unwrap()).collect();
 
     let recovered_shares: Vec<SecretKeyShare> = (0..party_share_counts.party_count())
         .map(|party_id| {
@@ -318,10 +315,26 @@ fn share_recovery() {
 
             let party_id = TypedUsize::<KeygenPartyId>::from_usize(party_id);
 
+            // The public info of one share of the party should work for all other shares
+            let first_share_id = party_share_counts
+                .party_to_share_id::<KeygenShareId>(party_id, 0)
+                .unwrap()
+                .as_usize();
+            let group_info_bytes = shares[first_share_id].group().all_shares_bytes().unwrap();
+            let pubkey_bytes = shares[first_share_id].group().pubkey_bytes();
+            let recovery_info_bytes = recovery_info_bytes.clone();
+
             (0..party_share_counts.party_share_count(party_id).unwrap()).map(move |subshare_id| {
+                let share_id = party_share_counts
+                    .party_to_share_id::<KeygenShareId>(party_id, subshare_id)
+                    .unwrap()
+                    .as_usize();
+
                 SecretKeyShare::recover(
                     &party_keypair,
-                    recovery_infos,
+                    &recovery_info_bytes[share_id],
+                    &group_info_bytes,
+                    &pubkey_bytes,
                     party_id,
                     subshare_id,
                     party_share_counts.clone(),
@@ -333,11 +346,6 @@ fn share_recovery() {
         .flatten()
         .collect();
 
-    assert_eq!(
-        recovered_shares, shares,
-        "comment-out this assert and use the following code to narrow down the discrepancy"
-    );
-
     for (i, (s, r)) in shares.iter().zip(recovered_shares.iter()).enumerate() {
         assert_eq!(s.share(), r.share(), "party {}", i);
         for (j, ss, rr) in zip2(s.group().all_shares(), r.group().all_shares()) {
@@ -348,6 +356,11 @@ fn share_recovery() {
         assert_eq!(s.group().threshold(), r.group().threshold(), "party {}", i);
         assert_eq!(s.group().y(), r.group().y(), "party {}", i);
     }
+
+    assert_eq!(
+        recovered_shares, shares,
+        "comment-out this assert and use the following code to narrow down the discrepancy"
+    );
 }
 
 /// return the all-zero array with the first bytes set to the bytes of `index`

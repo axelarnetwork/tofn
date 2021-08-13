@@ -5,7 +5,10 @@
 //! [Implementing Serialize · Serde](https://serde.rs/impl-serialize.html)
 //! [Implementing Deserialize · Serde](https://serde.rs/impl-deserialize.html)
 
-use k256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
+use k256::{
+    elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint},
+    EncodedPoint,
+};
 use serde::{de, de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 use zeroize::Zeroize;
 
@@ -129,6 +132,12 @@ impl ProjectivePoint {
             .to_encoded_point(true)
             .as_bytes()
             .to_vec()
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
+        Some(Self(k256::ProjectivePoint::from_encoded_point(
+            &EncodedPoint::from_bytes(bytes).ok()?,
+        )?))
     }
 }
 
