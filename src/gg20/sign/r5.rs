@@ -1,5 +1,5 @@
 use crate::{
-    collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
+    collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap, XP2ps},
     corrupt,
     gg20::{
         constants,
@@ -13,7 +13,10 @@ use crate::{
     },
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnResult},
-        implementer_api::{bcast_only, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder},
+        implementer_api::{
+            bcast_only, serialize, Executer, ProtocolBuilder, ProtocolInfo, RoundBuilder,
+            XProtocolBuilder,
+        },
     },
 };
 use k256::{ProjectivePoint, Scalar};
@@ -56,6 +59,28 @@ pub struct Bcast {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct P2p {
     pub k_i_range_proof_wc: zk::range::ProofWc,
+}
+
+impl Executer for R5 {
+    type FinalOutput = BytesVec;
+    type Index = SignShareId;
+    type Bcast = r4::Bcast;
+    type P2p = ();
+
+    #[allow(non_snake_case)]
+    fn execute(
+        self: Box<Self>,
+        info: &ProtocolInfo<Self::Index>,
+        bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
+        p2ps_in: XP2ps<Self::Index, Self::P2p>,
+    ) -> TofnResult<XProtocolBuilder<Self::FinalOutput, Self::Index>> {
+        todo!()
+    }
+
+    #[cfg(test)]
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 impl bcast_only::Executer for R5 {

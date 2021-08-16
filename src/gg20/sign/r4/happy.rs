@@ -10,6 +10,7 @@ use crate::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
         implementer_api::{
             bcast_only, serialize, Executer, ProtocolBuilder, ProtocolInfo, RoundBuilder,
+            XProtocolBuilder, XRoundBuilder,
         },
     },
 };
@@ -66,7 +67,141 @@ impl Executer for R4Happy {
         p2ps_in: crate::collections::XP2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<crate::sdk::implementer_api::XProtocolBuilder<Self::FinalOutput, Self::Index>>
     {
-        todo!()
+        let my_share_id = info.share_id();
+        let mut faulters = FillVecMap::with_size(info.share_count());
+
+        // anyone who did not send a bcast is a faulter
+        for (share_id, bcast) in bcasts_in.iter() {
+            if bcast.is_none() {
+                warn!(
+                    "peer {} says: missing bcast from peer {}",
+                    my_share_id, share_id
+                );
+                faulters.set(share_id, ProtocolFault)?;
+            }
+        }
+        // anyone who did not send p2ps is a faulter
+        for (share_id, p2ps) in p2ps_in.iter() {
+            if p2ps.is_none() {
+                warn!(
+                    "peer {} says: missing p2ps from peer {}",
+                    my_share_id, share_id
+                );
+                faulters.set(share_id, ProtocolFault)?;
+            }
+        }
+        if !faulters.is_empty() {
+            return Ok(XProtocolBuilder::Done(Err(faulters)));
+        }
+
+        // if anyone complained then move to sad path
+        if bcasts_in.iter().any(|(_, bcast_option)| {
+            if let Some(bcast) = bcast_option {
+                matches!(bcast, r3::Bcast::Sad(_))
+            } else {
+                false
+            }
+        }) {
+            warn!(
+                "peer {} says: received an R3 complaint from others",
+                my_share_id,
+            );
+
+            return Box::new(r4::R4Sad {
+                secret_key_share: self.secret_key_share,
+                participants: self.participants,
+                r1bcasts: self.r1bcasts,
+                r2p2ps: self.r2p2ps,
+
+                #[cfg(feature = "malicious")]
+                behaviour: self.behaviour,
+            })
+            .execute(info, bcasts_in, p2ps_in);
+        }
+
+        // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
+        let bcasts_in = bcasts_in.to_vecmap()?;
+        let p2ps_in = p2ps_in.to_p2ps()?;
+
+        let bcasts_in = bcasts_in.map2_result(|(_, bcast)| match bcast {
+            r3::Bcast::Happy(b) => Ok(b),
+            r3::Bcast::Sad(_) => Err(TofnFatal),
+        })?;
+
+        for (sign_peer_id, bcast) in &bcasts_in {
+            let peer_stmt = pedersen::Statement {
+                prover_id: sign_peer_id,
+                commit: bcast.T_i.as_ref(),
+            };
+
+            // verify zk proof for step 2 of MtA k_i * gamma_j
+            if !pedersen::verify(&peer_stmt, &bcast.T_i_proof) {
+                warn!(
+                    "peer {} says: pedersen proof failed to verify for peer {}",
+                    my_share_id, sign_peer_id,
+                );
+
+                faulters.set(sign_peer_id, ProtocolFault)?;
+            }
+        }
+        if !faulters.is_empty() {
+            return Ok(XProtocolBuilder::Done(Err(faulters)));
+        }
+
+        // compute delta_inv
+        let delta_inv = bcasts_in
+            .iter()
+            .fold(Scalar::zero(), |acc, (_, bcast)| {
+                acc + bcast.delta_i.as_ref()
+            })
+            .invert();
+
+        // TODO: A malicious attacker can make it so that the delta_i sum is equal to 0,
+        // so that delta_inv is not defined. While the protocol accounts for maliciously
+        // chosen delta_i values, it only does this verification later, and we need to
+        // compute delta_inv to reach that stage. So, this seems to be an oversight in the
+        // protocol spec. While the fix to identify the faulter is easy, this will be changed
+        // after discussion with the authors.
+        if bool::from(delta_inv.is_none()) {
+            warn!("peer {} says: delta inv computation failed", my_share_id);
+            return Err(TofnFatal);
+        }
+
+        let Gamma_i_reveal = self.Gamma_i_reveal.clone();
+        corrupt!(
+            Gamma_i_reveal,
+            self.corrupt_Gamma_i_reveal(my_share_id, Gamma_i_reveal)
+        );
+
+        let bcast_out = Some(serialize(&Bcast {
+            Gamma_i: self.Gamma_i.into(),
+            Gamma_i_reveal,
+        })?);
+
+        Ok(XProtocolBuilder::NotDone(XRoundBuilder::new(
+            Box::new(r5::R5 {
+                secret_key_share: self.secret_key_share,
+                msg_to_sign: self.msg_to_sign,
+                peers: self.peers,
+                participants: self.participants,
+                keygen_id: self.keygen_id,
+                gamma_i: self.gamma_i,
+                k_i: self.k_i,
+                k_i_randomness: self.k_i_randomness,
+                sigma_i: self.sigma_i,
+                l_i: self.l_i,
+                beta_secrets: self.beta_secrets,
+                r1bcasts: self.r1bcasts,
+                r2p2ps: self.r2p2ps,
+                r3bcasts: bcasts_in,
+                delta_inv: delta_inv.unwrap(),
+
+                #[cfg(feature = "malicious")]
+                behaviour: self.behaviour,
+            }),
+            bcast_out,
+            None,
+        )))
     }
 
     #[cfg(test)]
