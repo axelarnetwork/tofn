@@ -2,7 +2,7 @@ use serde::de::DeserializeOwned;
 use tracing::warn;
 
 use crate::{
-    collections::{FillP2ps, FillVecMap, XP2ps},
+    collections::{FillP2ps, FillVecMap, TypedUsize, XP2ps},
     sdk::{
         api::{BytesVec, Fault, TofnResult},
         protocol_info::ProtocolInfo,
@@ -64,7 +64,7 @@ impl<T: Executer> ExecuterRaw for T {
         let mut faulters = FillVecMap::with_size(info.share_count());
 
         // check for missing messages (timeout fault)
-        // each party A has told us what to expect form A (bcast and/or p2p)
+        // each party A has told us what to expect from A (bcast and/or p2p)
         debug_assert_eq!(bcasts_in.size(), expected_msg_types.size());
         debug_assert_eq!(p2ps_in.size(), expected_msg_types.size());
         for (from, expected_msg_type) in expected_msg_types.iter() {
@@ -92,7 +92,7 @@ impl<T: Executer> ExecuterRaw for T {
                 }
             } else {
                 warn!(
-                    "peer {} says: expected_msg_type not set for peer {} (this peer did not send any messages)",
+                    "peer {} says: expected_msg_type not set for peer {} (this peer did not send any messages)\nTODO: support expected_msg_type P2pOnly and total_share_count == 1",
                     info.share_id(),
                     from
                 );
@@ -102,6 +102,8 @@ impl<T: Executer> ExecuterRaw for T {
         if !faulters.is_empty() {
             return Ok(XProtocolBuilder::Done(Err(faulters)));
         }
+
+        let expected_msg_types = expected_msg_types.to_vecmap()?;
 
         // attempt to deserialize bcasts, p2ps
         let bcasts_deserialized: FillVecMap<_, Result<_, _>> =
@@ -142,9 +144,18 @@ impl<T: Executer> ExecuterRaw for T {
         // all deserialization succeeded---unwrap deserialized bcasts, p2ps
         // TODO instead of unwrap() make a map2_result() for FillVecMap, FillP2ps
         let bcasts_in = bcasts_deserialized.map(Result::unwrap);
-        let p2ps_in = p2ps_deserialized.map(Result::unwrap);
+        let p2ps_in = p2ps_deserialized.map(Result::unwrap).to_xp2ps()?;
 
-        self.execute(info, bcasts_in, p2ps_in.to_xp2ps()?)
+        // special case: total_share_count == 1: `p2ps_in` is `[None]` by default
+        let expected_msg_type = expected_msg_types.get(TypedUsize::from_usize(0))?;
+        let p2ps_in =
+            if info.share_count() == 1 && matches!(expected_msg_type, BcastAndP2p | P2pOnly) {
+                XP2ps::new_size_1_some()?
+            } else {
+                p2ps_in
+            };
+
+        self.execute(info, bcasts_in, p2ps_in)
     }
 
     #[cfg(test)]

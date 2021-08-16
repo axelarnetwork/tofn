@@ -11,6 +11,12 @@ use crate::{
 pub struct XP2ps<K, V>(VecMap<K, Option<HoleVecMap<K, V>>>);
 
 impl<K, V> XP2ps<K, V> {
+    pub fn new_size_1_some() -> TofnResult<Self> {
+        Ok(Self(VecMap::from_vec(vec![Some(HoleVecMap::from_vecmap(
+            VecMap::from_vec(vec![]),
+            TypedUsize::from_usize(0),
+        )?)])))
+    }
     pub fn get(&self, from: TypedUsize<K>) -> TofnResult<&Option<HoleVecMap<K, V>>> {
         self.0.get(from)
     }
@@ -62,7 +68,10 @@ impl<K, V> XP2ps<K, V> {
     where
         F: FnMut(V) -> W + Clone,
     {
-        XP2ps::<K, W>(self.0.map(|v_option| v_option.map(|v| v.map(f.clone()))))
+        XP2ps::<K, W>(
+            self.0
+                .map(|hole_vec_option| hole_vec_option.map(|hole_vec| hole_vec.map(f.clone()))),
+        )
     }
 
     // TODO still needed?
@@ -250,7 +259,7 @@ impl<K, V> FillP2ps<K, V> {
     }
     // TODO if size == 1 then do we return `None` or an empty HoleVecMap`?
     // maybe need to methods---one for each possibility
-    pub fn xmap_to_p2ps<W, F>(self, f: F) -> TofnResult<XP2ps<K, W>>
+    pub fn map_to_xp2ps<W, F>(self, f: F) -> TofnResult<XP2ps<K, W>>
     where
         F: FnMut(V) -> W + Clone,
     {
@@ -279,9 +288,6 @@ impl<K, V> FillP2ps<K, V> {
         //         .collect::<TofnResult<VecMap<_, _>>>()?,
         // ))
     }
-    pub fn xto_p2ps(self) -> TofnResult<XP2ps<K, V>> {
-        self.xmap_to_p2ps(std::convert::identity)
-    }
     pub fn map_to_p2ps<W, F>(self, f: F) -> TofnResult<P2ps<K, W>>
     where
         F: FnMut(V) -> W + Clone,
@@ -297,7 +303,7 @@ impl<K, V> FillP2ps<K, V> {
         self.map_to_p2ps(std::convert::identity)
     }
     pub fn to_xp2ps(self) -> TofnResult<XP2ps<K, V>> {
-        self.xmap_to_p2ps(std::convert::identity)
+        self.map_to_xp2ps(std::convert::identity)
         // Ok(XP2ps::<K, V>(self.0.map2_result(
         //     |(_, fill_hole_vec)| {
         //         if fill_hole_vec.is_empty() {
