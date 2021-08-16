@@ -7,7 +7,7 @@ use crate::{
     },
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
-        implementer_api::{bcast_only, log_fault_info, ProtocolBuilder, ProtocolInfo},
+        implementer_api::{bcast_only, log_fault_info, Executer, ProtocolBuilder, ProtocolInfo},
     },
 };
 
@@ -27,6 +27,29 @@ pub struct R4Sad {
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
+}
+
+impl Executer for R4Sad {
+    type FinalOutput = BytesVec;
+    type Index = SignShareId;
+    type Bcast = r3::Bcast;
+    type P2p = ();
+
+    #[allow(non_snake_case)]
+    fn execute(
+        self: Box<Self>,
+        info: &ProtocolInfo<Self::Index>,
+        bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
+        p2ps_in: crate::collections::XP2ps<Self::Index, Self::P2p>,
+    ) -> TofnResult<crate::sdk::implementer_api::XProtocolBuilder<Self::FinalOutput, Self::Index>>
+    {
+        todo!()
+    }
+
+    #[cfg(test)]
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 impl bcast_only::Executer for R4Sad {

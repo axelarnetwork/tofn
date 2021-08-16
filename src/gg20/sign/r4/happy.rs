@@ -8,7 +8,9 @@ use crate::{
     },
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
-        implementer_api::{bcast_only, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder},
+        implementer_api::{
+            bcast_only, serialize, Executer, ProtocolBuilder, ProtocolInfo, RoundBuilder,
+        },
     },
 };
 use k256::{ProjectivePoint, Scalar};
@@ -50,6 +52,29 @@ pub struct Bcast {
     pub Gamma_i_reveal: Randomness,
 }
 
+impl Executer for R4Happy {
+    type FinalOutput = BytesVec;
+    type Index = SignShareId;
+    type Bcast = r3::Bcast;
+    type P2p = ();
+
+    #[allow(non_snake_case)]
+    fn execute(
+        self: Box<Self>,
+        info: &ProtocolInfo<Self::Index>,
+        bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
+        p2ps_in: crate::collections::XP2ps<Self::Index, Self::P2p>,
+    ) -> TofnResult<crate::sdk::implementer_api::XProtocolBuilder<Self::FinalOutput, Self::Index>>
+    {
+        todo!()
+    }
+
+    #[cfg(test)]
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
 impl bcast_only::Executer for R4Happy {
     type FinalOutput = BytesVec;
     type Index = SignShareId;
@@ -76,16 +101,19 @@ impl bcast_only::Executer for R4Happy {
                 sign_id,
             );
 
-            return Box::new(r4::R4Sad {
-                secret_key_share: self.secret_key_share,
-                participants: self.participants,
-                r1bcasts: self.r1bcasts,
-                r2p2ps: self.r2p2ps,
+            return bcast_only::Executer::execute(
+                Box::new(r4::R4Sad {
+                    secret_key_share: self.secret_key_share,
+                    participants: self.participants,
+                    r1bcasts: self.r1bcasts,
+                    r2p2ps: self.r2p2ps,
 
-                #[cfg(feature = "malicious")]
-                behaviour: self.behaviour,
-            })
-            .execute(info, bcasts_in);
+                    #[cfg(feature = "malicious")]
+                    behaviour: self.behaviour,
+                }),
+                info,
+                bcasts_in,
+            );
         }
 
         let bcasts_in = bcasts_in.map2_result(|(_, bcast)| match bcast {
