@@ -2,7 +2,7 @@ use super::*;
 use crate::{
     collections::{zip2, HoleVecMap, TypedUsize, VecMap},
     gg20::crypto_tools::vss,
-    sdk::api::{BytesVec, Protocol, XProtocol},
+    sdk::api::{BytesVec, XProtocol},
 };
 use tracing_test::traced_test;
 

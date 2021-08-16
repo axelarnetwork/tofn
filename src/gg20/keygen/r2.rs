@@ -10,14 +10,11 @@ use crate::{
     },
     sdk::{
         api::{Fault::ProtocolFault, TofnResult},
-        implementer_api::{
-            bcast_only, serialize, Executer, ProtocolBuilder, ProtocolInfo, RoundBuilder,
-            XProtocolBuilder, XRoundBuilder,
-        },
+        implementer_api::{serialize, Executer, ProtocolInfo, XProtocolBuilder, XRoundBuilder},
     },
 };
 
-use super::{r1, KeygenPartyShareCounts, KeygenProtocolBuilder, KeygenShareId};
+use super::{r1, KeygenPartyShareCounts, KeygenShareId};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -163,97 +160,6 @@ impl Executer for R2 {
         self
     }
 }
-
-// impl bcast_only::Executer for R2 {
-//     type FinalOutput = SecretKeyShare;
-//     type Index = KeygenShareId;
-//     type Bcast = r1::Bcast;
-
-//     fn execute(
-//         self: Box<Self>,
-//         info: &ProtocolInfo<Self::Index>,
-//         bcasts_in: VecMap<Self::Index, Self::Bcast>,
-//     ) -> TofnResult<KeygenProtocolBuilder> {
-//         let keygen_id = info.share_id();
-//         let mut faulters = FillVecMap::with_size(info.share_count());
-
-//         // check Paillier proofs
-//         for (keygen_peer_id, bcast) in bcasts_in.iter() {
-//             if !bcast.ek.verify(&bcast.ek_proof) {
-//                 warn!(
-//                     "peer {} says: ek proof from peer {} failed to verify",
-//                     keygen_id, keygen_peer_id
-//                 );
-
-//                 faulters.set(keygen_peer_id, ProtocolFault)?;
-//                 continue;
-//             }
-
-//             if !bcast.zkp.verify(&bcast.zkp_proof) {
-//                 warn!(
-//                     "peer {} says: zk setup proof from peer {} failed to verify",
-//                     keygen_id, keygen_peer_id,
-//                 );
-
-//                 faulters.set(keygen_peer_id, ProtocolFault)?;
-//                 continue;
-//             }
-//         }
-
-//         if !faulters.is_empty() {
-//             return Ok(ProtocolBuilder::Done(Err(faulters)));
-//         }
-
-//         let (peer_u_i_shares, u_i_share) =
-//             VecMap::from_vec(self.u_i_vss.shares(info.share_count())).puncture_hole(keygen_id)?;
-
-//         corrupt!(
-//             peer_u_i_shares,
-//             self.corrupt_share(keygen_id, peer_u_i_shares)?
-//         );
-
-//         let p2ps_out = peer_u_i_shares.map2_result(|(keygen_peer_id, share)| {
-//             // encrypt the share for party i
-//             let (peer_u_i_share_ciphertext, _) = bcasts_in
-//                 .get(keygen_peer_id)?
-//                 .ek
-//                 .encrypt(&share.get_scalar().into());
-
-//             corrupt!(
-//                 peer_u_i_share_ciphertext,
-//                 self.corrupt_ciphertext(keygen_id, keygen_peer_id, peer_u_i_share_ciphertext)
-//             );
-
-//             serialize(&P2p {
-//                 u_i_share_ciphertext: peer_u_i_share_ciphertext,
-//             })
-//         })?;
-
-//         let bcast_out = serialize(&Bcast {
-//             y_i_reveal: self.y_i_reveal.clone(),
-//             u_i_vss_commit: self.u_i_vss.commit(),
-//         })?;
-
-//         Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastAndP2p {
-//             round: Box::new(r3::R3 {
-//                 threshold: self.threshold,
-//                 party_share_counts: self.party_share_counts,
-//                 dk: self.dk,
-//                 u_i_share,
-//                 r1bcasts: bcasts_in,
-//                 #[cfg(feature = "malicious")]
-//                 behaviour: self.behaviour,
-//             }),
-//             bcast_out,
-//             p2ps_out,
-//         }))
-//     }
-
-//     #[cfg(test)]
-//     fn as_any(&self) -> &dyn std::any::Any {
-//         self
-//     }
-// }
 
 #[cfg(feature = "malicious")]
 mod malicious {
