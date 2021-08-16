@@ -10,7 +10,9 @@ use crate::{
     },
     sdk::{
         api::{BytesVec, TofnResult},
-        implementer_api::{bcast_and_p2p, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder},
+        implementer_api::{
+            bcast_and_p2p, serialize, Executer, ProtocolBuilder, ProtocolInfo, RoundBuilder,
+        },
     },
 };
 use k256::{ProjectivePoint, Scalar};
@@ -66,6 +68,23 @@ pub struct P2pHappy {
     pub alpha_proof: paillier::zk::mta::Proof,
     pub mu_ciphertext: Ciphertext,
     pub mu_proof: paillier::zk::mta::ProofWc,
+}
+
+impl Executer for R2 {
+    type FinalOutput = BytesVec;
+    type Index = SignShareId;
+    type Bcast = r1::Bcast;
+    type P2p = r1::P2p;
+
+    fn execute(
+        self: Box<Self>,
+        info: &ProtocolInfo<Self::Index>,
+        bcasts_in: crate::collections::FillVecMap<Self::Index, Self::Bcast>,
+        p2ps_in: crate::collections::XP2ps<Self::Index, Self::P2p>,
+    ) -> TofnResult<crate::sdk::implementer_api::XProtocolBuilder<Self::FinalOutput, Self::Index>>
+    {
+        todo!()
+    }
 }
 
 impl bcast_and_p2p::Executer for R2 {

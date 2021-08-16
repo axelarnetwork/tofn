@@ -7,7 +7,7 @@ use crate::{
         keygen::{tests::execute_keygen, KeygenPartyShareCounts, KeygenShareId, SecretKeyShare},
         sign::api::{new_sign, SignShareId},
     },
-    sdk::api::{BytesVec, Fault, Protocol, Round},
+    sdk::api::{BytesVec, Fault, Protocol, Round, XProtocol},
 };
 use ecdsa::{elliptic_curve::sec1::ToEncodedPoint, hazmat::VerifyPrimitive};
 use k256::{ecdsa::Signature, ProjectivePoint};
@@ -17,7 +17,9 @@ use tracing_test::traced_test;
 #[cfg(feature = "malicious")]
 use crate::gg20::sign::malicious::Behaviour::Honest;
 
+type XParty = Round<BytesVec, SignShareId, SignPartyId>;
 type Party = Round<BytesVec, SignShareId, SignPartyId>;
+type XParties = Vec<XParty>;
 type Parties = Vec<Party>;
 type PartyBcast = Result<VecMap<SignShareId, BytesVec>, ()>;
 type PartyP2p = Result<VecMap<SignShareId, HoleVecMap<SignShareId, BytesVec>>, ()>;
@@ -113,7 +115,7 @@ fn execute_sign(
                 .unwrap(),
         );
 
-    let r0_parties: Vec<_> = sign_parties_share_ids
+    let r1_parties: Vec<_> = sign_parties_share_ids
         .iter()
         .map(|(_, &keygen_id)| {
             let key_share = key_shares.get(keygen_id).unwrap();
@@ -128,19 +130,19 @@ fn execute_sign(
             )
             .unwrap()
             {
-                Protocol::NotDone(round) => round,
-                Protocol::Done(_) => panic!("`new_sign` returned a `Done` protocol"),
+                XProtocol::NotDone(round) => round,
+                XProtocol::Done(_) => panic!("`new_sign` returned a `Done` protocol"),
             }
         })
         .collect();
 
     // execute round 1 all parties
-    let (r1_parties, ..) = execute_round(r0_parties, 1, true, true);
+    // let (r1_parties, ..) = execute_round(r0_parties, 1, true, true);
 
     // TEST: secret key shares yield the pubkey
     let x = r1_parties
         .iter()
-        .map(|party| round_cast::<r2::R2>(party).w_i)
+        .map(|party| xround_cast::<r2::R2>(party).w_i)
         .fold(k256::Scalar::zero(), |acc, w_i| acc + w_i);
 
     let y = ProjectivePoint::generator() * x;
@@ -156,12 +158,12 @@ fn execute_sign(
 
     let k = r1_parties
         .iter()
-        .map(|party| round_cast::<r2::R2>(party).k_i)
+        .map(|party| xround_cast::<r2::R2>(party).k_i)
         .fold(k256::Scalar::zero(), |acc, k_i| acc + k_i);
 
     let gamma = r1_parties
         .iter()
-        .map(|party| round_cast::<r2::R2>(party).gamma_i)
+        .map(|party| xround_cast::<r2::R2>(party).gamma_i)
         .fold(k256::Scalar::zero(), |acc, gamma_i| acc + gamma_i);
 
     let (r2_parties, ..) = execute_round(r1_parties, 2, true, true);
@@ -234,6 +236,10 @@ fn execute_sign(
     // TEST: signature verification
     let pub_key = y.to_affine();
     assert!(pub_key.verify_prehashed(&m, &sig).is_ok());
+}
+
+fn xround_cast<T: 'static>(party: &XParty) -> &T {
+    return party.round_as_any().downcast_ref::<T>().unwrap();
 }
 
 fn round_cast<T: 'static>(party: &Party) -> &T {

@@ -9,8 +9,8 @@ use crate::{
         GroupPublicInfo, KeygenPartyId, KeygenShareId, SecretKeyShare, ShareSecretInfo,
     },
     sdk::{
-        api::{BytesVec, PartyShareCounts, Protocol, TofnFatal, TofnResult},
-        implementer_api::{new_protocol, ProtocolBuilder},
+        api::{BytesVec, PartyShareCounts, Protocol, TofnFatal, TofnResult, XProtocol},
+        implementer_api::{xnew_protocol, ProtocolBuilder, XProtocolBuilder},
     },
 };
 use serde::{Deserialize, Serialize};
@@ -22,7 +22,9 @@ use super::r1;
 use super::malicious;
 
 pub type SignProtocol = Protocol<BytesVec, SignShareId, SignPartyId>;
+pub type XSignProtocol = XProtocol<BytesVec, SignShareId, SignPartyId>;
 pub type SignProtocolBuilder = ProtocolBuilder<BytesVec, SignShareId>;
+pub type XSignProtocolBuilder = XProtocolBuilder<BytesVec, SignShareId>;
 
 // This includes all shares participating in the current signing protocol
 pub type Participants = VecMap<SignShareId, TypedUsize<KeygenShareId>>;
@@ -63,7 +65,7 @@ pub fn new_sign(
     sign_parties: &SignParties,
     msg_to_sign: &MessageDigest,
     #[cfg(feature = "malicious")] behaviour: malicious::Behaviour,
-) -> TofnResult<SignProtocol> {
+) -> TofnResult<XSignProtocol> {
     let participants = VecMap::from_vec(group.party_share_counts().share_id_subset(sign_parties)?);
 
     // participant share count must be at least threshold + 1
@@ -77,7 +79,7 @@ pub fn new_sign(
     }
 
     // find my keygen share_id
-    let index = participants
+    let my_share_id = participants
         .iter()
         .find(|(_, &k)| k == share.index())
         .map(|(s, _)| s)
@@ -89,19 +91,14 @@ pub fn new_sign(
     let sign_party_share_counts =
         PartyShareCounts::from_vec(group.party_share_counts().subset(sign_parties)?)?;
 
-    let (peers, keygen_id) = participants.clone().puncture_hole(index)?;
+    let round2 = r1::start(
+        my_share_id,
+        SecretKeyShare::new(group.clone(), share.clone()),
+        msg_to_sign.into(),
+        participants,
+        #[cfg(feature = "malicious")]
+        behaviour,
+    )?;
 
-    new_protocol(
-        sign_party_share_counts,
-        index,
-        Box::new(r1::R1 {
-            secret_key_share: SecretKeyShare::new(group.clone(), share.clone()),
-            msg_to_sign: msg_to_sign.into(),
-            peers,
-            participants,
-            keygen_id,
-            #[cfg(feature = "malicious")]
-            behaviour,
-        }),
-    )
+    xnew_protocol(sign_party_share_counts, my_share_id, round2)
 }
