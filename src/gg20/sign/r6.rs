@@ -12,7 +12,9 @@ use crate::{
     },
     sdk::{
         api::{BytesVec, TofnResult},
-        implementer_api::{bcast_and_p2p, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder},
+        implementer_api::{
+            bcast_and_p2p, serialize, Executer, ProtocolBuilder, ProtocolInfo, RoundBuilder,
+        },
     },
 };
 use k256::{ProjectivePoint, Scalar};
@@ -84,6 +86,29 @@ pub struct MtaPlaintext {
     pub alpha_plaintext: Plaintext,
     pub alpha_randomness: paillier::Randomness,
     pub(crate) beta_secret: mta::Secret,
+}
+
+impl Executer for R6 {
+    type FinalOutput = BytesVec;
+    type Index = SignShareId;
+    type Bcast = r5::Bcast;
+    type P2p = r5::P2p;
+
+    #[allow(non_snake_case)]
+    fn execute(
+        self: Box<Self>,
+        info: &ProtocolInfo<Self::Index>,
+        bcasts_in: crate::collections::FillVecMap<Self::Index, Self::Bcast>,
+        p2ps_in: crate::collections::XP2ps<Self::Index, Self::P2p>,
+    ) -> TofnResult<crate::sdk::implementer_api::XProtocolBuilder<Self::FinalOutput, Self::Index>>
+    {
+        todo!()
+    }
+
+    #[cfg(test)]
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 impl bcast_and_p2p::Executer for R6 {

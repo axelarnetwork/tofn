@@ -80,11 +80,11 @@ impl Executer for R4Happy {
                 faulters.set(share_id, ProtocolFault)?;
             }
         }
-        // anyone who did not send p2ps is a faulter
+        // anyone who sent p2ps is a faulter
         for (share_id, p2ps) in p2ps_in.iter() {
-            if p2ps.is_none() {
+            if p2ps.is_some() {
                 warn!(
-                    "peer {} says: missing p2ps from peer {}",
+                    "peer {} says: unexpected p2ps from peer {}",
                     my_share_id, share_id
                 );
                 faulters.set(share_id, ProtocolFault)?;
@@ -121,7 +121,6 @@ impl Executer for R4Happy {
 
         // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
         let bcasts_in = bcasts_in.to_vecmap()?;
-        let p2ps_in = p2ps_in.to_p2ps()?;
 
         let bcasts_in = bcasts_in.map2_result(|(_, bcast)| match bcast {
             r3::Bcast::Happy(b) => Ok(b),
