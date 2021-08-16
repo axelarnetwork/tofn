@@ -7,7 +7,7 @@ use crate::{
     },
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
-        implementer_api::{bcast_only, ProtocolBuilder, ProtocolInfo},
+        implementer_api::{bcast_only, Executer, ProtocolBuilder, ProtocolInfo},
     },
 };
 use k256::ProjectivePoint;
@@ -33,6 +33,28 @@ pub(crate) struct R7Type5 {
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
+}
+
+impl Executer for R7Type5 {
+    type FinalOutput = BytesVec;
+    type Index = SignShareId;
+    type Bcast = r6::Bcast;
+    type P2p = ();
+
+    fn execute(
+        self: Box<Self>,
+        info: &ProtocolInfo<Self::Index>,
+        bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
+        p2ps_in: crate::collections::XP2ps<Self::Index, Self::P2p>,
+    ) -> TofnResult<crate::sdk::implementer_api::XProtocolBuilder<Self::FinalOutput, Self::Index>>
+    {
+        todo!()
+    }
+
+    #[cfg(test)]
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 impl bcast_only::Executer for R7Type5 {
@@ -61,18 +83,21 @@ impl bcast_only::Executer for R7Type5 {
                 sign_id,
             );
 
-            return Box::new(r7::sad::R7Sad {
-                secret_key_share: self.secret_key_share,
-                participants: self.participants,
-                r1bcasts: self.r1bcasts,
-                R: self.R,
-                r5bcasts: self.r5bcasts,
-                r5p2ps: self.r5p2ps,
+            return bcast_only::Executer::execute(
+                Box::new(r7::sad::R7Sad {
+                    secret_key_share: self.secret_key_share,
+                    participants: self.participants,
+                    r1bcasts: self.r1bcasts,
+                    R: self.R,
+                    r5bcasts: self.r5bcasts,
+                    r5p2ps: self.r5p2ps,
 
-                #[cfg(feature = "malicious")]
-                behaviour: self.behaviour,
-            })
-            .execute(info, bcasts_in);
+                    #[cfg(feature = "malicious")]
+                    behaviour: self.behaviour,
+                }),
+                info,
+                bcasts_in,
+            );
         }
 
         let mut faulters = FillVecMap::with_size(participants_count);
