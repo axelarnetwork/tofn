@@ -8,7 +8,9 @@ use crate::{
     },
     sdk::{
         api::{BytesVec, TofnFatal, TofnResult},
-        implementer_api::{bcast_and_p2p, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder},
+        implementer_api::{
+            bcast_and_p2p, serialize, Executer, ProtocolBuilder, ProtocolInfo, RoundBuilder,
+        },
     },
 };
 use k256::{ProjectivePoint, Scalar};
@@ -67,6 +69,29 @@ pub enum Accusation {
     MtAwc,
 }
 
+impl Executer for R3Happy {
+    type FinalOutput = BytesVec;
+    type Index = SignShareId;
+    type Bcast = r2::Bcast;
+    type P2p = r2::P2p;
+
+    #[allow(non_snake_case)]
+    fn execute(
+        self: Box<Self>,
+        info: &ProtocolInfo<Self::Index>,
+        bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
+        p2ps_in: crate::collections::XP2ps<Self::Index, Self::P2p>,
+    ) -> TofnResult<crate::sdk::implementer_api::XProtocolBuilder<Self::FinalOutput, Self::Index>>
+    {
+        todo!()
+    }
+
+    #[cfg(test)]
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
 impl bcast_and_p2p::Executer for R3Happy {
     type FinalOutput = BytesVec;
     type Index = SignShareId;
@@ -93,16 +118,20 @@ impl bcast_and_p2p::Executer for R3Happy {
                 sign_id,
             );
 
-            return Box::new(r3::R3Sad {
-                secret_key_share: self.secret_key_share,
-                participants: self.participants,
-                r1bcasts: self.r1bcasts,
-                r1p2ps: self.r1p2ps,
+            return bcast_and_p2p::Executer::execute(
+                Box::new(r3::R3Sad {
+                    secret_key_share: self.secret_key_share,
+                    participants: self.participants,
+                    r1bcasts: self.r1bcasts,
+                    r1p2ps: self.r1p2ps,
 
-                #[cfg(feature = "malicious")]
-                behaviour: self.behaviour,
-            })
-            .execute(info, bcasts_in, p2ps_in);
+                    #[cfg(feature = "malicious")]
+                    behaviour: self.behaviour,
+                }),
+                info,
+                bcasts_in,
+                p2ps_in,
+            );
         }
 
         // TODO: This will be changed once we switch to using P2ps for complaints in R3

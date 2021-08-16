@@ -1,5 +1,5 @@
 use crate::{
-    collections::{P2ps, Subset, TypedUsize, VecMap},
+    collections::{FillVecMap, P2ps, Subset, TypedUsize, VecMap, XP2ps},
     corrupt,
     gg20::{
         crypto_tools::{
@@ -9,9 +9,10 @@ use crate::{
         keygen::{KeygenShareId, SecretKeyShare},
     },
     sdk::{
-        api::{BytesVec, TofnResult},
+        api::{BytesVec, Fault::ProtocolFault, TofnResult},
         implementer_api::{
             bcast_and_p2p, serialize, Executer, ProtocolBuilder, ProtocolInfo, RoundBuilder,
+            XProtocolBuilder, XRoundBuilder,
         },
     },
 };
@@ -79,11 +80,202 @@ impl Executer for R2 {
     fn execute(
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
-        bcasts_in: crate::collections::FillVecMap<Self::Index, Self::Bcast>,
-        p2ps_in: crate::collections::XP2ps<Self::Index, Self::P2p>,
-    ) -> TofnResult<crate::sdk::implementer_api::XProtocolBuilder<Self::FinalOutput, Self::Index>>
-    {
-        todo!()
+        bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
+        p2ps_in: XP2ps<Self::Index, Self::P2p>,
+    ) -> TofnResult<XProtocolBuilder<Self::FinalOutput, Self::Index>> {
+        let my_share_id = info.share_id();
+        let mut faulters = FillVecMap::with_size(info.share_count());
+
+        // anyone who did not send a bcast is a faulter
+        for (share_id, bcast) in bcasts_in.iter() {
+            if bcast.is_none() {
+                warn!(
+                    "peer {} says: missing bcast from peer {}",
+                    my_share_id, share_id
+                );
+                faulters.set(share_id, ProtocolFault)?;
+            }
+        }
+        // anyone who did not send p2ps is a faulter
+        for (share_id, p2ps) in p2ps_in.iter() {
+            if p2ps.is_none() {
+                warn!(
+                    "peer {} says: missing p2ps from peer {}",
+                    my_share_id, share_id
+                );
+                faulters.set(share_id, ProtocolFault)?;
+            }
+        }
+        if !faulters.is_empty() {
+            return Ok(XProtocolBuilder::Done(Err(faulters)));
+        }
+
+        // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
+        let bcasts_in = bcasts_in.to_vecmap()?;
+        let p2ps_in = p2ps_in.to_p2ps()?;
+
+        let participants_count = info.share_count();
+        let mut zkp_complaints = Subset::with_max_size(participants_count);
+
+        let mut beta_secrets = info.create_fill_hole_map(participants_count)?;
+        let mut nu_secrets = info.create_fill_hole_map(participants_count)?;
+
+        // step 2 for MtA protocols:
+        // 1. k_i (other) * gamma_j (me)
+        // 2. k_i (other) * w_j (me)
+        for (sign_peer_id, &keygen_peer_id) in &self.peers {
+            // verify zk proof for first message of MtA
+            let peer_ek = &self
+                .secret_key_share
+                .group()
+                .all_shares()
+                .get(keygen_peer_id)?
+                .ek();
+            let peer_k_i_ciphertext = &bcasts_in.get(sign_peer_id)?.k_i_ciphertext;
+
+            let peer_stmt = &paillier::zk::range::Statement {
+                ciphertext: peer_k_i_ciphertext,
+                ek: peer_ek,
+            };
+
+            let peer_proof = &p2ps_in.get(sign_peer_id, my_share_id)?.range_proof;
+
+            let zkp = &self
+                .secret_key_share
+                .group()
+                .all_shares()
+                .get(self.keygen_id)?
+                .zkp();
+
+            if !zkp.verify_range_proof(peer_stmt, peer_proof) {
+                warn!(
+                    "peer {} says: range proof from peer {} failed to verify",
+                    my_share_id, sign_peer_id,
+                );
+
+                zkp_complaints.add(sign_peer_id)?;
+            }
+        }
+
+        corrupt!(
+            zkp_complaints,
+            self.corrupt_complaint(my_share_id, zkp_complaints)?
+        );
+
+        if !zkp_complaints.is_empty() {
+            let bcast_out = Some(serialize(&Bcast::Sad(BcastSad { zkp_complaints }))?);
+            let p2ps_out = Some(self.peers.map_ref(|_| serialize(&P2p::Sad))?);
+
+            return Ok(XProtocolBuilder::NotDone(XRoundBuilder::new(
+                Box::new(r3::R3Sad {
+                    secret_key_share: self.secret_key_share,
+                    participants: self.participants,
+                    r1bcasts: bcasts_in,
+                    r1p2ps: p2ps_in,
+
+                    #[cfg(feature = "malicious")]
+                    behaviour: self.behaviour,
+                }),
+                bcast_out,
+                p2ps_out,
+            )));
+        }
+
+        let mut p2ps_out = info.create_fill_hole_map(participants_count)?;
+
+        for (sign_peer_id, &keygen_peer_id) in &self.peers {
+            // MtA step 2 for k_i * gamma_j
+            let peer_ek = &self
+                .secret_key_share
+                .group()
+                .all_shares()
+                .get(keygen_peer_id)?
+                .ek();
+            let peer_k_i_ciphertext = &bcasts_in.get(sign_peer_id)?.k_i_ciphertext;
+            let peer_zkp = &self
+                .secret_key_share
+                .group()
+                .all_shares()
+                .get(keygen_peer_id)?
+                .zkp();
+
+            let (alpha_ciphertext, alpha_proof, beta_secret) = mta::mta_response_with_proof(
+                my_share_id,
+                sign_peer_id,
+                peer_zkp,
+                peer_ek,
+                peer_k_i_ciphertext,
+                &self.gamma_i,
+            );
+
+            corrupt!(
+                alpha_proof,
+                self.corrupt_alpha_proof(my_share_id, sign_peer_id, alpha_proof)
+            );
+
+            beta_secrets.set(sign_peer_id, beta_secret)?;
+
+            // MtAwc step 2 for k_i * w_j
+            let (mu_ciphertext, mu_proof, nu_secret) = mta::mta_response_with_proof_wc(
+                my_share_id,
+                sign_peer_id,
+                peer_zkp,
+                peer_ek,
+                peer_k_i_ciphertext,
+                &self.w_i,
+            )?;
+
+            corrupt!(
+                mu_proof,
+                self.corrupt_mu_proof(my_share_id, sign_peer_id, mu_proof)
+            );
+
+            nu_secrets.set(sign_peer_id, nu_secret)?;
+
+            let p2p = serialize(&P2p::Happy(P2pHappy {
+                alpha_ciphertext,
+                alpha_proof,
+                mu_ciphertext,
+                mu_proof,
+            }))?;
+
+            p2ps_out.set(sign_peer_id, p2p)?;
+        }
+
+        let beta_secrets = beta_secrets.to_holevec()?;
+        let nu_secrets = nu_secrets.to_holevec()?;
+        let p2ps_out = Some(p2ps_out.to_holevec()?);
+        let bcast_out = Some(serialize(&Bcast::Happy)?);
+
+        Ok(XProtocolBuilder::NotDone(XRoundBuilder::new(
+            Box::new(r3::R3Happy {
+                secret_key_share: self.secret_key_share,
+                msg_to_sign: self.msg_to_sign,
+                peers: self.peers,
+                participants: self.participants,
+                keygen_id: self.keygen_id,
+                gamma_i: self.gamma_i,
+                Gamma_i: self.Gamma_i,
+                Gamma_i_reveal: self.Gamma_i_reveal,
+                w_i: self.w_i,
+                k_i: self.k_i,
+                k_i_randomness: self.k_i_randomness,
+                beta_secrets,
+                nu_secrets,
+                r1bcasts: bcasts_in,
+                r1p2ps: p2ps_in,
+
+                #[cfg(feature = "malicious")]
+                behaviour: self.behaviour,
+            }),
+            bcast_out,
+            p2ps_out,
+        )))
+    }
+
+    #[cfg(test)]
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
