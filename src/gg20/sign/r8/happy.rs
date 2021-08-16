@@ -1,9 +1,9 @@
 use crate::{
-    collections::{FillVecMap, VecMap},
+    collections::{FillVecMap, VecMap, XP2ps},
     gg20::{crypto_tools::k256_serde, keygen::SecretKeyShare},
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
-        implementer_api::{bcast_only, ProtocolBuilder, ProtocolInfo},
+        implementer_api::{bcast_only, Executer, ProtocolBuilder, ProtocolInfo, XProtocolBuilder},
     },
 };
 use ecdsa::hazmat::VerifyPrimitive;
@@ -33,6 +33,27 @@ pub struct R8Happy {
 #[allow(non_snake_case)]
 pub struct Bcast {
     pub s_i: k256_serde::Scalar,
+}
+
+impl Executer for R8Happy {
+    type FinalOutput = BytesVec;
+    type Index = SignShareId;
+    type Bcast = r7::Bcast;
+    type P2p = ();
+
+    fn execute(
+        self: Box<Self>,
+        info: &ProtocolInfo<Self::Index>,
+        bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
+        p2ps_in: XP2ps<Self::Index, Self::P2p>,
+    ) -> TofnResult<XProtocolBuilder<Self::FinalOutput, Self::Index>> {
+        todo!()
+    }
+
+    #[cfg(test)]
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 impl bcast_only::Executer for R8Happy {
