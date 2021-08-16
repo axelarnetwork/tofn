@@ -167,19 +167,15 @@ pub fn new_keygen(
         return Err(TofnFatal);
     }
 
-    // TODO ugly way to start the protocol -- just do all this math right here?
-    let round2 = r1::R1 {
+    let round2 = r1::start(
+        my_share_id,
         threshold,
-        party_share_counts: party_share_counts.clone(),
-        ek: party_keypair.ek.clone(),
-        dk: party_keypair.dk.clone(),
-        zkp: party_zksetup.zkp.clone(),
-        zkp_proof: party_zksetup.zkp_proof.clone(),
-
+        party_share_counts.clone(),
+        party_keypair,
+        party_zksetup,
         #[cfg(feature = "malicious")]
         behaviour,
-    }
-    .start(my_share_id)?;
+    )?;
 
     xnew_protocol(party_share_counts, my_share_id, round2)
 }
