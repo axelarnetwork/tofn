@@ -6,7 +6,7 @@ use std::sync::mpsc::Receiver;
 // https://github.com/rust-lang/rust/issues/83248
 use tofn::{
     collections::TypedUsize,
-    sdk::api::{BytesVec, Protocol, ProtocolOutput, TofnFatal, TofnResult, XProtocol},
+    sdk::api::{BytesVec, ProtocolOutput, TofnFatal, TofnResult, XProtocol},
 };
 use tracing::error;
 

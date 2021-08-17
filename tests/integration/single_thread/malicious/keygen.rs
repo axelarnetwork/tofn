@@ -3,7 +3,7 @@ use tofn::{
     gg20::keygen::{
         create_party_keypair_and_zksetup_unsafe,
         malicious::Behaviour::{self, *},
-        new_keygen, KeygenPartyId, KeygenProtocol, KeygenShareId, SecretKeyShare, XKeygenProtocol,
+        new_keygen, KeygenPartyId, KeygenShareId, SecretKeyShare, XKeygenProtocol,
     },
     sdk::api::{Fault, PartyShareCounts, ProtocolOutput, XProtocol::*},
 };

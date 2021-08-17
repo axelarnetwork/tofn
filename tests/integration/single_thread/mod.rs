@@ -9,7 +9,7 @@ use tofn::{
         keygen::{KeygenShareId, SecretKeyShare},
         sign::{new_sign, MessageDigest, SignParties, SignShareId},
     },
-    sdk::api::{PartyShareCounts, Protocol, XProtocol},
+    sdk::api::{PartyShareCounts, XProtocol},
 };
 
 #[cfg(feature = "malicious")]

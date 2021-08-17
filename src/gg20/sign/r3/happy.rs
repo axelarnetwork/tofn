@@ -137,7 +137,6 @@ impl Executer for R3Happy {
         }
 
         // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
-        let bcasts_in = bcasts_in.to_vecmap()?;
         let p2ps_in = p2ps_in.to_p2ps()?;
 
         let participants_count = info.share_count();

@@ -2,7 +2,7 @@
 
 use tofn::{
     collections::{HoleVecMap, VecMap},
-    sdk::api::{BytesVec, Protocol, TofnResult, XProtocol},
+    sdk::api::{BytesVec, TofnResult, XProtocol},
 };
 use tracing::warn;
 

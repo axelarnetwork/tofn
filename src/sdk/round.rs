@@ -622,7 +622,6 @@ pub mod malicious {
 
     use crate::sdk::{
         api::TofnFatal,
-        round::RoundType,
         wire_bytes::{
             malicious::corrupt_payload,
             MsgType::{self, *},

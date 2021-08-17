@@ -6,8 +6,8 @@ pub mod keygen {
     use tofn::{
         collections::VecMap,
         gg20::keygen::{
-            create_party_keypair_and_zksetup_unsafe, new_keygen, KeygenPartyId, KeygenProtocol,
-            KeygenShareId, XKeygenProtocol,
+            create_party_keypair_and_zksetup_unsafe, new_keygen, KeygenPartyId, KeygenShareId,
+            XKeygenProtocol,
         },
         sdk::api::PartyShareCounts,
     };

@@ -5,8 +5,7 @@ use self::{FaultType::*, MsgType::*};
 use tofn::{
     collections::{FillVecMap, HoleVecMap, TypedUsize, VecMap},
     sdk::api::{
-        BytesVec, Fault, MsgType, PartyShareCounts, Protocol, ProtocolFaulters, TofnResult,
-        XProtocol,
+        BytesVec, Fault, MsgType, PartyShareCounts, ProtocolFaulters, TofnResult, XProtocol,
     },
 };
 use tracing::{info, warn};

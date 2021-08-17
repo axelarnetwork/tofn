@@ -7,7 +7,7 @@ use crate::{
         keygen::{tests::execute_keygen, KeygenPartyShareCounts, KeygenShareId, SecretKeyShare},
         sign::api::{new_sign, SignShareId},
     },
-    sdk::api::{BytesVec, Fault, Protocol, Round, XProtocol, XRound},
+    sdk::api::{BytesVec, Fault, XProtocol, XRound},
 };
 use ecdsa::{elliptic_curve::sec1::ToEncodedPoint, hazmat::VerifyPrimitive};
 use k256::{ecdsa::Signature, ProjectivePoint};
@@ -18,9 +18,7 @@ use tracing_test::traced_test;
 use crate::gg20::sign::malicious::Behaviour::Honest;
 
 type XParty = XRound<BytesVec, SignShareId, SignPartyId>;
-type Party = Round<BytesVec, SignShareId, SignPartyId>;
 type XParties = Vec<XParty>;
-type Parties = Vec<Party>;
 type PartyBcast = Result<VecMap<SignShareId, BytesVec>, ()>;
 type PartyP2p = Result<VecMap<SignShareId, HoleVecMap<SignShareId, BytesVec>>, ()>;
 type PartyResult = Result<BytesVec, FillVecMap<SignPartyId, Fault>>;
@@ -246,10 +244,6 @@ fn execute_sign(
 }
 
 fn xround_cast<T: 'static>(party: &XParty) -> &T {
-    return party.round_as_any().downcast_ref::<T>().unwrap();
-}
-
-fn round_cast<T: 'static>(party: &Party) -> &T {
     return party.round_as_any().downcast_ref::<T>().unwrap();
 }
 
