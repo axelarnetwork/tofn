@@ -44,18 +44,18 @@ pub(super) struct R5 {
     pub(super) delta_inv: Scalar,
 
     #[cfg(feature = "malicious")]
-    pub behaviour: Behaviour,
+    pub(super) behaviour: Behaviour,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(non_snake_case)]
-pub struct Bcast {
-    pub R_i: k256_serde::ProjectivePoint,
+pub(super) struct Bcast {
+    pub(super) R_i: k256_serde::ProjectivePoint,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct P2p {
-    pub k_i_range_proof_wc: zk::range::ProofWc,
+pub(super) struct P2p {
+    pub(super) k_i_range_proof_wc: zk::range::ProofWc,
 }
 
 impl Executer for R5 {

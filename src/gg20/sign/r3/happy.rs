@@ -39,7 +39,7 @@ pub(in super::super) struct R3Happy {
     pub(in super::super) r1p2ps: P2ps<SignShareId, r1::P2p>,
 
     #[cfg(feature = "malicious")]
-    pub behaviour: Behaviour,
+    pub(in super::super) behaviour: Behaviour,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

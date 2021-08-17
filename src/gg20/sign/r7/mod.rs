@@ -16,30 +16,30 @@ pub(super) use type5::R7Type5;
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum Bcast {
+pub(super) enum Bcast {
     Happy(BcastHappy),
     SadType7(BcastSadType7),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(non_snake_case)]
-pub struct BcastHappy {
+pub(super) struct BcastHappy {
     pub s_i: k256_serde::Scalar,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BcastSadType7 {
-    pub k_i: k256_serde::Scalar,
-    pub k_i_randomness: paillier::Randomness,
-    pub proof: chaum_pedersen::Proof,
-    pub mta_wc_plaintexts: HoleVecMap<SignShareId, MtaWcPlaintext>,
+pub(super) struct BcastSadType7 {
+    pub(super) k_i: k256_serde::Scalar,
+    pub(super) k_i_randomness: paillier::Randomness,
+    pub(super) proof: chaum_pedersen::Proof,
+    pub(super) mta_wc_plaintexts: HoleVecMap<SignShareId, MtaWcPlaintext>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MtaWcPlaintext {
+pub(super) struct MtaWcPlaintext {
     // mu_plaintext instead of mu
     // because mu_plaintext may differ from mu
     // why? because the ciphertext was formed from homomorphic Paillier operations, not just encrypting mu
-    pub mu_plaintext: paillier::Plaintext,
-    pub mu_randomness: paillier::Randomness,
+    pub(super) mu_plaintext: paillier::Plaintext,
+    pub(super) mu_randomness: paillier::Randomness,
 }

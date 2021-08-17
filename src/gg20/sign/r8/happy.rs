@@ -13,26 +13,20 @@ use tracing::{error, warn};
 
 use super::super::{r5, r6, r7, SignShareId};
 
-#[cfg(feature = "malicious")]
-use super::super::malicious::Behaviour;
-
 #[allow(non_snake_case)]
-pub struct R8Happy {
-    pub(crate) secret_key_share: SecretKeyShare,
-    pub(crate) msg_to_sign: Scalar,
-    pub(crate) R: ProjectivePoint,
-    pub(crate) r: Scalar,
-    pub(crate) r5bcasts: VecMap<SignShareId, r5::Bcast>,
-    pub(crate) r6bcasts: VecMap<SignShareId, r6::BcastHappy>,
-
-    #[cfg(feature = "malicious")]
-    pub behaviour: Behaviour,
+pub(in super::super) struct R8Happy {
+    pub(in super::super) secret_key_share: SecretKeyShare,
+    pub(in super::super) msg_to_sign: Scalar,
+    pub(in super::super) R: ProjectivePoint,
+    pub(in super::super) r: Scalar,
+    pub(in super::super) r5bcasts: VecMap<SignShareId, r5::Bcast>,
+    pub(in super::super) r6bcasts: VecMap<SignShareId, r6::BcastHappy>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(non_snake_case)]
-pub struct Bcast {
-    pub s_i: k256_serde::Scalar,
+pub(in super::super) struct Bcast {
+    pub(in super::super) s_i: k256_serde::Scalar,
 }
 
 impl Executer for R8Happy {

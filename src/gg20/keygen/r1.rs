@@ -28,7 +28,7 @@ pub(super) struct Bcast {
     pub(super) zkp_proof: paillier::zk::ZkSetupProof,
 }
 
-pub fn start(
+pub(super) fn start(
     my_share_id: TypedUsize<KeygenShareId>,
     threshold: usize,
     party_share_counts: KeygenPartyShareCounts,

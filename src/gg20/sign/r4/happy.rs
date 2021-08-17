@@ -40,14 +40,14 @@ pub(in super::super) struct R4Happy {
     pub(in super::super) r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
 
     #[cfg(feature = "malicious")]
-    pub behaviour: Behaviour,
+    pub(in super::super) behaviour: Behaviour,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(non_snake_case)]
-pub struct Bcast {
-    pub Gamma_i: k256_serde::ProjectivePoint,
-    pub Gamma_i_reveal: Randomness,
+pub(in super::super) struct Bcast {
+    pub(in super::super) Gamma_i: k256_serde::ProjectivePoint,
+    pub(in super::super) Gamma_i_reveal: Randomness,
 }
 
 impl Executer for R4Happy {

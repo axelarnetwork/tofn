@@ -33,7 +33,7 @@ pub(super) struct P2p {
 }
 
 #[allow(non_snake_case)]
-pub fn start(
+pub(super) fn start(
     my_share_id: TypedUsize<SignShareId>,
     my_secret_key_share: SecretKeyShare,
     msg_to_sign: Scalar,

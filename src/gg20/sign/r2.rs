@@ -37,7 +37,7 @@ pub(super) struct R2 {
     pub(super) k_i_randomness: paillier::Randomness,
 
     #[cfg(feature = "malicious")]
-    pub behaviour: Behaviour,
+    pub(super) behaviour: Behaviour,
 }
 
 // TODO: Since the happy path expects P2ps only, switch to using P2ps for issuing complaints

@@ -23,25 +23,25 @@ use super::{r1, r2, KeygenPartyShareCounts, KeygenShareId};
 use super::malicious::Behaviour;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum Bcast {
+pub(super) enum Bcast {
     Happy(BcastHappy),
     Sad(BcastSad),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BcastHappy {
-    pub x_i_proof: schnorr::Proof,
+pub(super) struct BcastHappy {
+    pub(super) x_i_proof: schnorr::Proof,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BcastSad {
-    pub vss_complaints: FillVecMap<KeygenShareId, ShareInfo>,
+pub(super) struct BcastSad {
+    pub(super) vss_complaints: FillVecMap<KeygenShareId, ShareInfo>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ShareInfo {
-    pub share: vss::Share,
-    pub randomness: paillier::Randomness,
+pub(super) struct ShareInfo {
+    pub(super) share: vss::Share,
+    pub(super) randomness: paillier::Randomness,
 }
 
 pub(super) struct R3 {

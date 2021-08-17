@@ -30,8 +30,8 @@ pub(in super::super) struct R8Type7 {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(non_snake_case)]
-pub struct Bcast {
-    pub s_i: k256_serde::Scalar,
+pub(in super::super) struct Bcast {
+    pub(in super::super) s_i: k256_serde::Scalar,
 }
 
 impl Executer for R8Type7 {

@@ -251,9 +251,6 @@ impl Executer for R7Happy {
                 r,
                 r5bcasts: self.r5bcasts,
                 r6bcasts: bcasts_in,
-
-                #[cfg(feature = "malicious")]
-                behaviour: self.behaviour,
             }),
             bcast_out,
             None,

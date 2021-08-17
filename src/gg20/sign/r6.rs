@@ -44,11 +44,11 @@ pub(super) struct R6 {
     pub(super) R: ProjectivePoint,
 
     #[cfg(feature = "malicious")]
-    pub behaviour: Behaviour,
+    pub(super) behaviour: Behaviour,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum Bcast {
+pub(super) enum Bcast {
     Happy(BcastHappy),
     Sad(BcastSad),
     SadType5(BcastSadType5),
@@ -56,34 +56,34 @@ pub enum Bcast {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(non_snake_case)]
-pub struct BcastHappy {
-    pub S_i: k256_serde::ProjectivePoint,
-    pub S_i_proof_wc: pedersen::ProofWc,
+pub(super) struct BcastHappy {
+    pub(super) S_i: k256_serde::ProjectivePoint,
+    pub(super) S_i_proof_wc: pedersen::ProofWc,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BcastSad {
-    pub zkp_complaints: Subset<SignShareId>,
+pub(super) struct BcastSad {
+    pub(super) zkp_complaints: Subset<SignShareId>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BcastSadType5 {
-    pub k_i: k256_serde::Scalar,
-    pub k_i_randomness: paillier::Randomness,
-    pub gamma_i: k256_serde::Scalar,
+pub(super) struct BcastSadType5 {
+    pub(super) k_i: k256_serde::Scalar,
+    pub(super) k_i_randomness: paillier::Randomness,
+    pub(super) gamma_i: k256_serde::Scalar,
     // TODO: Switch away from serializing a HoleVecMap since it's an attack vector due to it's
     // internal hole being serialized: https://github.com/axelarnetwork/tofn/issues/105
-    pub mta_plaintexts: HoleVecMap<SignShareId, MtaPlaintext>,
+    pub(super) mta_plaintexts: HoleVecMap<SignShareId, MtaPlaintext>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MtaPlaintext {
+pub(super) struct MtaPlaintext {
     // need alpha_plaintext instead of alpha
     // because alpha_plaintext may differ from alpha
     // why? because the ciphertext was formed from homomorphic Paillier operations, not just encrypting alpha
-    pub alpha_plaintext: Plaintext,
-    pub alpha_randomness: paillier::Randomness,
-    pub(crate) beta_secret: mta::Secret,
+    pub(super) alpha_plaintext: Plaintext,
+    pub(super) alpha_randomness: paillier::Randomness,
+    pub(super) beta_secret: mta::Secret,
 }
 
 impl Executer for R6 {
