@@ -13,17 +13,14 @@ use crate::{
     },
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnResult},
-        implementer_api::{
-            bcast_only, serialize, Executer, ProtocolBuilder, ProtocolInfo, RoundBuilder,
-            XProtocolBuilder, XRoundBuilder,
-        },
+        implementer_api::{serialize, Executer, ProtocolInfo, XProtocolBuilder, XRoundBuilder},
     },
 };
 use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::{r1, r2, r3, r4, r6, Participants, Peers, SignProtocolBuilder, SignShareId};
+use super::{r1, r2, r3, r4, r6, Participants, Peers, SignShareId};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -202,129 +199,6 @@ impl Executer for R5 {
             bcast_out,
             p2ps_out,
         )))
-    }
-
-    #[cfg(test)]
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-}
-
-impl bcast_only::Executer for R5 {
-    type FinalOutput = BytesVec;
-    type Index = SignShareId;
-    type Bcast = r4::Bcast;
-
-    #[allow(non_snake_case)]
-    fn execute(
-        self: Box<Self>,
-        info: &ProtocolInfo<Self::Index>,
-        bcasts_in: VecMap<Self::Index, Self::Bcast>,
-    ) -> TofnResult<SignProtocolBuilder> {
-        let sign_id = info.share_id();
-        let participants_count = info.share_count();
-
-        let mut faulters = FillVecMap::with_size(participants_count);
-
-        // verify commits
-        for (sign_peer_id, bcast) in &bcasts_in {
-            let peer_Gamma_i_commit = hash::commit_with_randomness(
-                constants::GAMMA_I_COMMIT_TAG,
-                sign_peer_id,
-                bcast.Gamma_i.bytes(),
-                &bcast.Gamma_i_reveal,
-            );
-
-            if peer_Gamma_i_commit != self.r1bcasts.get(sign_peer_id)?.Gamma_i_commit {
-                warn!(
-                    "peer {} says: Gamma_i_commit failed to verify for peer {}",
-                    sign_id, sign_peer_id
-                );
-
-                faulters.set(sign_peer_id, ProtocolFault)?;
-            }
-        }
-
-        if !faulters.is_empty() {
-            return Ok(ProtocolBuilder::Done(Err(faulters)));
-        }
-
-        let Gamma = bcasts_in
-            .iter()
-            .fold(ProjectivePoint::identity(), |acc, (_, bcast)| {
-                acc + bcast.Gamma_i.as_ref()
-            });
-
-        let R = Gamma * self.delta_inv;
-        let R_i = R * self.k_i;
-
-        // statement and witness
-        let k_i_ciphertext = &self.r1bcasts.get(sign_id)?.k_i_ciphertext;
-        let ek = &self
-            .secret_key_share
-            .group()
-            .all_shares()
-            .get(self.keygen_id)?
-            .ek();
-
-        let stmt_wc = &zk::range::StatementWc {
-            stmt: zk::range::Statement {
-                ciphertext: k_i_ciphertext,
-                ek,
-            },
-            msg_g: &R_i,
-            g: &R,
-        };
-        let wit = &zk::range::Witness {
-            msg: &self.k_i,
-            randomness: &self.k_i_randomness,
-        };
-
-        let p2ps_out = self.peers.map_ref(|(_sign_peer_id, &keygen_peer_id)| {
-            let peer_zkp = &self
-                .secret_key_share
-                .group()
-                .all_shares()
-                .get(keygen_peer_id)?
-                .zkp();
-
-            let k_i_range_proof_wc = peer_zkp.range_proof_wc(stmt_wc, wit)?;
-
-            corrupt!(
-                k_i_range_proof_wc,
-                self.corrupt_k_i_range_proof_wc(sign_id, _sign_peer_id, k_i_range_proof_wc)
-            );
-
-            serialize(&P2p { k_i_range_proof_wc })
-        })?;
-
-        let bcast_out = serialize(&Bcast { R_i: R_i.into() })?;
-
-        Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastAndP2p {
-            round: Box::new(r6::R6 {
-                secret_key_share: self.secret_key_share,
-                msg_to_sign: self.msg_to_sign,
-                peers: self.peers,
-                participants: self.participants,
-                keygen_id: self.keygen_id,
-                gamma_i: self.gamma_i,
-                k_i: self.k_i,
-                k_i_randomness: self.k_i_randomness,
-                sigma_i: self.sigma_i,
-                l_i: self.l_i,
-                beta_secrets: self.beta_secrets,
-                r1bcasts: self.r1bcasts,
-                r2p2ps: self.r2p2ps,
-                r3bcasts: self.r3bcasts,
-                r4bcasts: bcasts_in,
-                R,
-
-                #[cfg(feature = "malicious")]
-                behaviour: self.behaviour,
-            }),
-            bcast_out,
-            p2ps_out,
-        }))
     }
 
     #[cfg(test)]

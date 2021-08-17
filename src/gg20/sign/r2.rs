@@ -1,5 +1,5 @@
 use crate::{
-    collections::{FillVecMap, P2ps, Subset, TypedUsize, VecMap, XP2ps},
+    collections::{FillVecMap, Subset, TypedUsize, XP2ps},
     corrupt,
     gg20::{
         crypto_tools::{
@@ -10,17 +10,14 @@ use crate::{
     },
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnResult},
-        implementer_api::{
-            bcast_and_p2p, serialize, Executer, ProtocolBuilder, ProtocolInfo, RoundBuilder,
-            XProtocolBuilder, XRoundBuilder,
-        },
+        implementer_api::{serialize, Executer, ProtocolInfo, XProtocolBuilder, XRoundBuilder},
     },
 };
 use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::{r1, r3, Participants, Peers, SignProtocolBuilder, SignShareId};
+use super::{r1, r3, Participants, Peers, SignShareId};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -268,184 +265,6 @@ impl Executer for R2 {
             bcast_out,
             p2ps_out,
         )))
-    }
-
-    #[cfg(test)]
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-}
-
-impl bcast_and_p2p::Executer for R2 {
-    type FinalOutput = BytesVec;
-    type Index = SignShareId;
-    type Bcast = r1::Bcast;
-    type P2p = r1::P2p;
-
-    fn execute(
-        self: Box<Self>,
-        info: &ProtocolInfo<Self::Index>,
-        bcasts_in: VecMap<Self::Index, Self::Bcast>,
-        p2ps_in: P2ps<Self::Index, Self::P2p>,
-    ) -> TofnResult<SignProtocolBuilder> {
-        let sign_id = info.share_id();
-        let participants_count = info.share_count();
-
-        let mut zkp_complaints = Subset::with_max_size(participants_count);
-
-        let mut beta_secrets = info.create_fill_hole_map(participants_count)?;
-        let mut nu_secrets = info.create_fill_hole_map(participants_count)?;
-
-        // step 2 for MtA protocols:
-        // 1. k_i (other) * gamma_j (me)
-        // 2. k_i (other) * w_j (me)
-        for (sign_peer_id, &keygen_peer_id) in &self.peers {
-            // verify zk proof for first message of MtA
-            let peer_ek = &self
-                .secret_key_share
-                .group()
-                .all_shares()
-                .get(keygen_peer_id)?
-                .ek();
-            let peer_k_i_ciphertext = &bcasts_in.get(sign_peer_id)?.k_i_ciphertext;
-
-            let peer_stmt = &paillier::zk::range::Statement {
-                ciphertext: peer_k_i_ciphertext,
-                ek: peer_ek,
-            };
-
-            let peer_proof = &p2ps_in.get(sign_peer_id, sign_id)?.range_proof;
-
-            let zkp = &self
-                .secret_key_share
-                .group()
-                .all_shares()
-                .get(self.keygen_id)?
-                .zkp();
-
-            if !zkp.verify_range_proof(peer_stmt, peer_proof) {
-                warn!(
-                    "peer {} says: range proof from peer {} failed to verify",
-                    sign_id, sign_peer_id,
-                );
-
-                zkp_complaints.add(sign_peer_id)?;
-            }
-        }
-
-        corrupt!(
-            zkp_complaints,
-            self.corrupt_complaint(sign_id, zkp_complaints)?
-        );
-
-        if !zkp_complaints.is_empty() {
-            let bcast_out = serialize(&Bcast::Sad(BcastSad { zkp_complaints }))?;
-
-            let p2ps_out = self.peers.map_ref(|_| serialize(&P2p::Sad))?;
-
-            return Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastAndP2p {
-                round: Box::new(r3::R3Sad {
-                    secret_key_share: self.secret_key_share,
-                    participants: self.participants,
-                    r1bcasts: bcasts_in,
-                    r1p2ps: p2ps_in,
-                }),
-                bcast_out,
-                p2ps_out,
-            }));
-        }
-
-        let mut p2ps_out = info.create_fill_hole_map(participants_count)?;
-
-        for (sign_peer_id, &keygen_peer_id) in &self.peers {
-            // MtA step 2 for k_i * gamma_j
-            let peer_ek = &self
-                .secret_key_share
-                .group()
-                .all_shares()
-                .get(keygen_peer_id)?
-                .ek();
-            let peer_k_i_ciphertext = &bcasts_in.get(sign_peer_id)?.k_i_ciphertext;
-            let peer_zkp = &self
-                .secret_key_share
-                .group()
-                .all_shares()
-                .get(keygen_peer_id)?
-                .zkp();
-
-            let (alpha_ciphertext, alpha_proof, beta_secret) = mta::mta_response_with_proof(
-                sign_id,
-                sign_peer_id,
-                peer_zkp,
-                peer_ek,
-                peer_k_i_ciphertext,
-                &self.gamma_i,
-            );
-
-            corrupt!(
-                alpha_proof,
-                self.corrupt_alpha_proof(sign_id, sign_peer_id, alpha_proof)
-            );
-
-            beta_secrets.set(sign_peer_id, beta_secret)?;
-
-            // MtAwc step 2 for k_i * w_j
-            let (mu_ciphertext, mu_proof, nu_secret) = mta::mta_response_with_proof_wc(
-                sign_id,
-                sign_peer_id,
-                peer_zkp,
-                peer_ek,
-                peer_k_i_ciphertext,
-                &self.w_i,
-            )?;
-
-            corrupt!(
-                mu_proof,
-                self.corrupt_mu_proof(sign_id, sign_peer_id, mu_proof)
-            );
-
-            nu_secrets.set(sign_peer_id, nu_secret)?;
-
-            let p2p = serialize(&P2p::Happy(P2pHappy {
-                alpha_ciphertext,
-                alpha_proof,
-                mu_ciphertext,
-                mu_proof,
-            }))?;
-
-            p2ps_out.set(sign_peer_id, p2p)?;
-        }
-
-        let beta_secrets = beta_secrets.to_holevec()?;
-        let nu_secrets = nu_secrets.to_holevec()?;
-        let p2ps_out = p2ps_out.to_holevec()?;
-
-        let bcast_out = serialize(&Bcast::Happy)?;
-
-        Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastAndP2p {
-            round: Box::new(r3::R3Happy {
-                secret_key_share: self.secret_key_share,
-                msg_to_sign: self.msg_to_sign,
-                peers: self.peers,
-                participants: self.participants,
-                keygen_id: self.keygen_id,
-                gamma_i: self.gamma_i,
-                Gamma_i: self.Gamma_i,
-                Gamma_i_reveal: self.Gamma_i_reveal,
-                w_i: self.w_i,
-                k_i: self.k_i,
-                k_i_randomness: self.k_i_randomness,
-                beta_secrets,
-                nu_secrets,
-                r1bcasts: bcasts_in,
-                r1p2ps: p2ps_in,
-
-                #[cfg(feature = "malicious")]
-                behaviour: self.behaviour,
-            }),
-            bcast_out,
-            p2ps_out,
-        }))
     }
 
     #[cfg(test)]

@@ -15,8 +15,8 @@ use crate::{
         },
     },
     sdk::{
-        api::{PartyShareCounts, Protocol, TofnFatal, TofnResult, XProtocol},
-        implementer_api::{xnew_protocol, ProtocolBuilder, XProtocolBuilder},
+        api::{PartyShareCounts, TofnFatal, TofnResult, XProtocol},
+        implementer_api::{xnew_protocol, XProtocolBuilder},
     },
 };
 use serde::{Deserialize, Serialize};
@@ -33,9 +33,7 @@ pub struct KeygenShareId;
 pub struct KeygenPartyId;
 
 pub type XKeygenProtocol = XProtocol<SecretKeyShare, KeygenShareId, KeygenPartyId>;
-pub type KeygenProtocol = Protocol<SecretKeyShare, KeygenShareId, KeygenPartyId>;
 pub type XKeygenProtocolBuilder = XProtocolBuilder<SecretKeyShare, KeygenShareId>;
-pub type KeygenProtocolBuilder = ProtocolBuilder<SecretKeyShare, KeygenShareId>;
 pub type KeygenPartyShareCounts = PartyShareCounts<KeygenPartyId>;
 
 #[derive(Debug, Clone, Zeroize)]
