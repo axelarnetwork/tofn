@@ -7,7 +7,7 @@ use crate::{
         keygen::{tests::execute_keygen, KeygenPartyShareCounts, KeygenShareId, SecretKeyShare},
         sign::api::{new_sign, SignShareId},
     },
-    sdk::api::{BytesVec, Fault, Protocol, Round, XProtocol},
+    sdk::api::{BytesVec, Fault, Protocol, Round, XProtocol, XRound},
 };
 use ecdsa::{elliptic_curve::sec1::ToEncodedPoint, hazmat::VerifyPrimitive};
 use k256::{ecdsa::Signature, ProjectivePoint};
@@ -17,7 +17,7 @@ use tracing_test::traced_test;
 #[cfg(feature = "malicious")]
 use crate::gg20::sign::malicious::Behaviour::Honest;
 
-type XParty = Round<BytesVec, SignShareId, SignPartyId>;
+type XParty = XRound<BytesVec, SignShareId, SignPartyId>;
 type Party = Round<BytesVec, SignShareId, SignPartyId>;
 type XParties = Vec<XParty>;
 type Parties = Vec<Party>;
@@ -93,6 +93,13 @@ fn execute_sign(
     test_case: &TestCase,
     msg_to_sign: &MessageDigest,
 ) {
+    debug!(
+        "execute sign: total_share_count {}, threshold {}, sign_share_count {}",
+        test_case.party_share_counts.total_share_count(),
+        test_case.threshold,
+        test_case.sign_share_count
+    );
+
     let mut share_count = 0;
     let mut sign_parties = Subset::with_max_size(test_case.party_share_counts.party_count());
     for (i, _) in test_case.party_share_counts.iter() {
@@ -168,19 +175,19 @@ fn execute_sign(
 
     let (r2_parties, ..) = execute_round(r1_parties, 2, true, true);
 
-    let (r3_parties, ..) = execute_round(r2_parties, 3, true, false);
+    let (r3_parties, ..) = execute_round(r2_parties, 3, true, true);
 
     // TEST: MtA for delta_i, sigma_i
     let k_gamma = r3_parties
         .iter()
-        .map(|party| round_cast::<r4::R4Happy>(party)._delta_i)
+        .map(|party| xround_cast::<r4::R4Happy>(party)._delta_i)
         .fold(k256::Scalar::zero(), |acc, delta_i| acc + delta_i);
 
     assert_eq!(k_gamma, k * gamma);
 
     let k_x = r3_parties
         .iter()
-        .map(|party| round_cast::<r4::R4Happy>(party).sigma_i)
+        .map(|party| xround_cast::<r4::R4Happy>(party).sigma_i)
         .fold(k256::Scalar::zero(), |acc, sigma_i| acc + sigma_i);
 
     assert_eq!(k_x, k * x);
@@ -189,26 +196,26 @@ fn execute_sign(
 
     // TEST: everyone correctly computed delta = k * gamma
     for party in &r4_parties {
-        let delta_inv = round_cast::<r5::R5>(party).delta_inv;
+        let delta_inv = xround_cast::<r5::R5>(party).delta_inv;
 
         assert_eq!(delta_inv * k_gamma, k256::Scalar::one());
     }
 
-    let (r5_parties, ..) = execute_round(r4_parties, 5, true, true);
+    let (r5_parties, ..) = execute_round(r4_parties, 5, true, false);
 
     // TEST: everyone correctly computed R
     let R = k256::ProjectivePoint::generator() * k.invert().unwrap();
     for party in &r5_parties {
-        let party_R = round_cast::<r6::R6>(party).R;
+        let party_R = xround_cast::<r6::R6>(party).R;
 
         assert_eq!(party_R, R);
     }
 
-    let (r6_parties, ..) = execute_round(r5_parties, 6, true, false);
+    let (r6_parties, ..) = execute_round(r5_parties, 6, true, true);
 
     let (r7_parties, ..) = execute_round(r6_parties, 7, true, false);
 
-    let results = execute_final_round(r7_parties, 8);
+    let results = execute_final_round(r7_parties, 8, true, false);
 
     // TEST: everyone correctly computed the signature using non-threshold ECDSA sign
     let m: k256::Scalar = msg_to_sign.into();
@@ -247,50 +254,59 @@ fn round_cast<T: 'static>(party: &Party) -> &T {
 }
 
 fn execute_round(
-    parties: Parties,
+    mut parties: XParties,
     round_num: usize,
-    expect_bcast_out: bool,
-    expect_p2p_out: bool,
-) -> (Parties, PartyBcast, PartyP2p) {
-    let mut next_round_parties: Parties = parties
+    expect_bcast_in: bool,
+    expect_p2p_in: bool,
+) -> (XParties, PartyBcast, PartyP2p) {
+    debug!("execute round {}", round_num);
+
+    let bcasts = retrieve_and_set_bcasts(&mut parties, expect_bcast_in, round_num);
+    let p2ps = retrieve_and_set_p2ps(&mut parties, expect_p2p_in, round_num);
+
+    let next_round_parties: XParties = parties
         .into_iter()
         .enumerate()
         .map(|(i, party)| {
-            assert!(!party.expecting_more_msgs_this_round());
+            assert!(!party.expecting_more_msgs_this_round().unwrap());
+            assert_eq!(party.bcast_out().is_some(), expect_bcast_in);
+            assert_eq!(party.p2ps_out().is_some(), expect_p2p_in);
+
             let round = match party
                 .execute_next_round()
                 .expect("Encountered protocol fault")
             {
-                Protocol::NotDone(next_round) => next_round,
-                Protocol::Done(_) => panic!(
+                XProtocol::NotDone(next_round) => next_round,
+                XProtocol::Done(_) => panic!(
                     "party {} done after round {}, expected not done",
                     i, round_num
                 ),
             };
-
-            assert_eq!(round.bcast_out().is_some(), expect_bcast_out);
-            assert_eq!(round.p2ps_out().is_some(), expect_p2p_out);
-
             round
         })
         .collect();
 
-    let bcasts = retrieve_and_set_bcasts(&mut next_round_parties, expect_bcast_out, round_num);
-    let p2ps = retrieve_and_set_p2ps(&mut next_round_parties, expect_p2p_out, round_num);
-
     (next_round_parties, bcasts, p2ps)
 }
 
-fn execute_final_round(parties: Parties, round_num: usize) -> Vec<PartyResult> {
+fn execute_final_round(
+    mut parties: XParties,
+    round_num: usize,
+    expect_bcast_in: bool,
+    expect_p2p_in: bool,
+) -> Vec<PartyResult> {
+    let _bcasts = retrieve_and_set_bcasts(&mut parties, expect_bcast_in, round_num);
+    let _p2ps = retrieve_and_set_p2ps(&mut parties, expect_p2p_in, round_num);
+
     let mut results = Vec::new();
 
     debug!("Executing the final round");
 
     for (i, party) in parties.into_iter().enumerate() {
-        assert!(!party.expecting_more_msgs_this_round());
+        assert!(!party.expecting_more_msgs_this_round().unwrap());
         let res = match party.execute_next_round().unwrap() {
-            Protocol::Done(res) => res,
-            Protocol::NotDone(_) => panic!(
+            XProtocol::Done(res) => res,
+            XProtocol::NotDone(_) => panic!(
                 "party {} not done after round {}, expected done",
                 i, round_num
             ),
@@ -303,7 +319,7 @@ fn execute_final_round(parties: Parties, round_num: usize) -> Vec<PartyResult> {
 }
 
 fn retrieve_and_set_bcasts(
-    parties: &mut Parties,
+    parties: &mut XParties,
     expect_bcast: bool,
     round_num: usize,
 ) -> PartyBcast {
@@ -327,7 +343,7 @@ fn retrieve_and_set_bcasts(
     Ok(bcasts.into_iter().map(|(_, (_, bcast))| bcast).collect())
 }
 
-fn retrieve_and_set_p2ps(parties: &mut Parties, expect_p2p: bool, round_num: usize) -> PartyP2p {
+fn retrieve_and_set_p2ps(parties: &mut XParties, expect_p2p: bool, round_num: usize) -> PartyP2p {
     if !expect_p2p {
         return Err(());
     }
