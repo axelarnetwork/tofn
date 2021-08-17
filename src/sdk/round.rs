@@ -629,42 +629,31 @@ pub mod malicious {
         },
     };
 
-    use super::{Round, TofnResult};
+    use super::{TofnResult, XRound};
 
-    impl<F, K, P> Round<F, K, P> {
+    impl<F, K, P> XRound<F, K, P> {
         pub fn corrupt_msg_payload(&mut self, msg_type: MsgType<K>) -> TofnResult<()> {
             info!(
                 "malicious party {} corrupt msg",
                 self.info.share_info().share_id()
             );
-            match &mut self.round_type {
-                RoundType::BcastAndP2p(r) => match msg_type {
-                    Bcast => r.bcast_out = corrupt_payload::<K>(&r.bcast_out)?,
-                    P2p { to } => {
-                        let p2p_out = r.p2ps_out.get_mut(to)?;
-                        *p2p_out = corrupt_payload::<K>(p2p_out)?
-                    }
-                },
-                RoundType::BcastOnly(r) => match msg_type {
-                    Bcast => r.bcast_out = corrupt_payload::<K>(&r.bcast_out)?,
-                    P2p { to: _ } => {
-                        error!("no p2ps expected this round, can't corrupt msg bytes",);
+            match msg_type {
+                Bcast => {
+                    if let Some(ref mut bcast) = self.bcast_out {
+                        *bcast = corrupt_payload::<K>(&bcast)?
+                    } else {
+                        error!("no outgoing bcast from this party during this round; can't corrupt msg bytes",);
                         return Err(TofnFatal);
                     }
-                },
-                RoundType::P2pOnly(r) => match msg_type {
-                    Bcast => {
-                        error!("no bcasts expected this round, can't corrupt msg bytes",);
+                }
+                P2p { to } => {
+                    if let Some(ref mut p2ps) = self.p2ps_out {
+                        let p2p = p2ps.get_mut(to)?;
+                        *p2p = corrupt_payload::<K>(p2p)?
+                    } else {
+                        error!("no outgoing p2ps from this party during this round; can't corrupt msg bytes",);
                         return Err(TofnFatal);
                     }
-                    P2p { to } => {
-                        let p2p_out = r.p2ps_out.get_mut(to)?;
-                        *p2p_out = corrupt_payload::<K>(p2p_out)?
-                    }
-                },
-                RoundType::NoMessages(_) => {
-                    error!("no messages expected this round, can't corrupt msg bytes",);
-                    return Err(TofnFatal);
                 }
             }
             Ok(())

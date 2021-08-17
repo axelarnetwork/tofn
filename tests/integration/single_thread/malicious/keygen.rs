@@ -3,9 +3,9 @@ use tofn::{
     gg20::keygen::{
         create_party_keypair_and_zksetup_unsafe,
         malicious::Behaviour::{self, *},
-        new_keygen, KeygenPartyId, KeygenProtocol, KeygenShareId, SecretKeyShare,
+        new_keygen, KeygenPartyId, KeygenProtocol, KeygenShareId, SecretKeyShare, XKeygenProtocol,
     },
-    sdk::api::{Fault, PartyShareCounts, Protocol::*, ProtocolOutput},
+    sdk::api::{Fault, PartyShareCounts, ProtocolOutput, XProtocol::*},
 };
 use tracing::info;
 
@@ -73,7 +73,7 @@ impl TestCase {
             }
         }
     }
-    pub fn initialize_malicious_parties(&self) -> VecMap<KeygenShareId, KeygenProtocol> {
+    pub fn initialize_malicious_parties(&self) -> VecMap<KeygenShareId, XKeygenProtocol> {
         let session_nonce = b"foobar";
         self.share_behaviours
             .iter()

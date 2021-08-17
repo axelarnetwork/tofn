@@ -6,6 +6,7 @@ use tofn::{
     collections::{FillVecMap, HoleVecMap, TypedUsize, VecMap},
     sdk::api::{
         BytesVec, Fault, MsgType, PartyShareCounts, Protocol, ProtocolFaulters, TofnResult,
+        XProtocol,
     },
 };
 use tracing::{info, warn};
@@ -94,7 +95,7 @@ pub enum FaultType {
 }
 
 fn execute_test_case<F, K, P>(
-    shares: VecMap<K, Protocol<F, K, P>>,
+    shares: VecMap<K, XProtocol<F, K, P>>,
     test_case: SingleFaulterTestCase<K, P>,
 ) where
     K: PartialEq + std::fmt::Debug + Clone + Copy, // TODO can't quite escape ugly trait bounds :(
@@ -106,8 +107,8 @@ fn execute_test_case<F, K, P>(
     for (i, party) in shares.iter() {
         if i != test_case.faulter_share_id {
             let result = match party {
-                Protocol::NotDone(_) => panic!("honest party {} not done yet", i),
-                Protocol::Done(result) => result,
+                XProtocol::NotDone(_) => panic!("honest party {} not done yet", i),
+                XProtocol::Done(result) => result,
             };
             match result {
                 Ok(_) => panic!("expect failure, got success"),
@@ -120,25 +121,25 @@ fn execute_test_case<F, K, P>(
 }
 
 pub fn execute_protocol<F, K, P>(
-    mut parties: VecMap<K, Protocol<F, K, P>>,
+    mut parties: VecMap<K, XProtocol<F, K, P>>,
     test_case: &SingleFaulterTestCase<K, P>,
-) -> TofnResult<VecMap<K, Protocol<F, K, P>>>
+) -> TofnResult<VecMap<K, XProtocol<F, K, P>>>
 where
     K: Clone + Copy,
 {
     let mut current_round = 0;
     while nobody_done(&parties) {
-        parties = next_round(parties, test_case, current_round)?;
         current_round += 1;
+        parties = next_round(parties, test_case, current_round)?;
     }
     Ok(parties)
 }
 
 fn next_round<F, K, P>(
-    parties: VecMap<K, Protocol<F, K, P>>,
+    parties: VecMap<K, XProtocol<F, K, P>>,
     test_case: &SingleFaulterTestCase<K, P>,
     current_round: usize,
-) -> TofnResult<VecMap<K, Protocol<F, K, P>>>
+) -> TofnResult<VecMap<K, XProtocol<F, K, P>>>
 where
     K: Clone + Copy,
 {
@@ -146,8 +147,8 @@ where
     let mut rounds: VecMap<K, _> = parties
         .into_iter()
         .map(|(i, party)| match party {
-            Protocol::NotDone(round) => round,
-            Protocol::Done(_) => panic!("next_round called but party {} is done", i),
+            XProtocol::NotDone(round) => round,
+            XProtocol::Done(_) => panic!("next_round called but party {} is done", i),
         })
         .collect();
 
@@ -265,7 +266,7 @@ where
     rounds
         .into_iter()
         .map(|(i, round)| {
-            if round.expecting_more_msgs_this_round() {
+            if round.expecting_more_msgs_this_round()? {
                 warn!(
                     "all messages delivered in round {} but party {} still expecting messages",
                     current_round, i,

@@ -134,12 +134,12 @@ pub mod malicious {
 
     use crate::sdk::api::{BytesVec, TofnFatal, TofnResult};
 
-    use super::{decode, encode_message, WireBytes};
+    use super::{encode_message, xunwrap, XWireBytes};
 
     pub fn corrupt_payload<K>(bytes: &[u8]) -> TofnResult<BytesVec> {
         // for simplicity, deserialization error is treated as fatal
         // (we're in a malicious module so who cares?)
-        let wire_bytes: WireBytes<K> = decode(bytes).ok_or_else(|| {
+        let wire_bytes: XWireBytes<K> = xunwrap(bytes).ok_or_else(|| {
             error!("can't corrupt payload: deserialization failure");
             TofnFatal
         })?;
