@@ -6,7 +6,7 @@ mod vecmap_iter;
 mod vecmap_zip;
 pub use vecmap::VecMap;
 pub use vecmap_iter::VecMapIter;
-pub use vecmap_zip::zip2;
+pub use vecmap_zip::xzip2;
 
 mod fillvecmap;
 pub use fillvecmap::FillVecMap;

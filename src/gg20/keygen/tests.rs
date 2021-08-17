@@ -1,6 +1,6 @@
 use super::*;
 use crate::{
-    collections::{zip2, HoleVecMap, TypedUsize, VecMap},
+    collections::{xzip2, HoleVecMap, TypedUsize, VecMap},
     gg20::crypto_tools::vss,
     sdk::api::{BytesVec, XProtocol},
 };
@@ -336,7 +336,7 @@ fn share_recovery(
 
     for ((i, s), (_, r)) in shares.iter().zip(recovered_shares.iter()) {
         assert_eq!(s.share(), r.share(), "party {}", i);
-        for (j, ss, rr) in zip2(s.group().all_shares(), r.group().all_shares()) {
+        for (j, ss, rr) in xzip2(s.group().all_shares(), r.group().all_shares()) {
             assert_eq!(ss.X_i(), rr.X_i(), "party {} public info on party {}", i, j);
             assert_eq!(ss.ek(), rr.ek(), "party {} public info on party {}", i, j);
             assert_eq!(ss.zkp(), rr.zkp(), "party {} public info on party {}", i, j);
