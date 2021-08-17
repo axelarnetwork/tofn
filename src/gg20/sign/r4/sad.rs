@@ -17,18 +17,12 @@ use tracing::{error, warn};
 
 use super::super::{r1, r2, r3, SignProtocolBuilder, SignShareId};
 
-#[cfg(feature = "malicious")]
-use super::super::malicious::Behaviour;
-
 #[allow(non_snake_case)]
-pub struct R4Sad {
-    pub(crate) secret_key_share: SecretKeyShare,
-    pub(crate) participants: Participants,
-    pub(crate) r1bcasts: VecMap<SignShareId, r1::Bcast>,
-    pub(crate) r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
-
-    #[cfg(feature = "malicious")]
-    pub behaviour: Behaviour,
+pub(in super::super) struct R4Sad {
+    pub(in super::super) secret_key_share: SecretKeyShare,
+    pub(in super::super) participants: Participants,
+    pub(in super::super) r1bcasts: VecMap<SignShareId, r1::Bcast>,
+    pub(in super::super) r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
 }
 
 impl Executer for R4Sad {

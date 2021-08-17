@@ -15,23 +15,17 @@ use crate::{
     },
 };
 
-#[cfg(feature = "malicious")]
-use crate::gg20::keygen::malicious::Behaviour;
-
 #[allow(non_snake_case)]
-pub struct R4Happy {
-    pub(crate) threshold: usize,
-    pub(crate) party_share_counts: KeygenPartyShareCounts,
-    pub(crate) dk: paillier::DecryptionKey,
-    pub(crate) r1bcasts: VecMap<KeygenShareId, r1::Bcast>,
-    pub(crate) r2bcasts: VecMap<KeygenShareId, r2::Bcast>,
-    pub(crate) r2p2ps: P2ps<KeygenShareId, r2::P2p>,
-    pub(crate) y: k256::ProjectivePoint,
-    pub(crate) x_i: k256::Scalar,
-    pub(crate) all_X_i: VecMap<KeygenShareId, k256::ProjectivePoint>,
-
-    #[cfg(feature = "malicious")]
-    pub behaviour: Behaviour,
+pub(in super::super) struct R4Happy {
+    pub(in super::super) threshold: usize,
+    pub(in super::super) party_share_counts: KeygenPartyShareCounts,
+    pub(in super::super) dk: paillier::DecryptionKey,
+    pub(in super::super) r1bcasts: VecMap<KeygenShareId, r1::Bcast>,
+    pub(in super::super) r2bcasts: VecMap<KeygenShareId, r2::Bcast>,
+    pub(in super::super) r2p2ps: P2ps<KeygenShareId, r2::P2p>,
+    pub(in super::super) y: k256::ProjectivePoint,
+    pub(in super::super) x_i: k256::Scalar,
+    pub(in super::super) all_X_i: VecMap<KeygenShareId, k256::ProjectivePoint>,
 }
 
 impl Executer for R4Happy {

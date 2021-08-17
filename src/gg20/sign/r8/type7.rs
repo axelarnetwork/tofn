@@ -16,22 +16,16 @@ use tracing::{error, warn};
 
 use super::super::{r1, r6, r7, Peers, SignProtocolBuilder, SignShareId};
 
-#[cfg(feature = "malicious")]
-use super::super::malicious::Behaviour;
-
 #[allow(non_snake_case)]
-pub struct R8Type7 {
-    pub(crate) secret_key_share: SecretKeyShare,
-    pub(crate) peers: Peers,
-    pub(crate) participants: Participants,
-    pub(crate) keygen_id: TypedUsize<KeygenShareId>,
-    pub(crate) r1bcasts: VecMap<SignShareId, r1::Bcast>,
-    pub(crate) r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
-    pub(crate) R: ProjectivePoint,
-    pub(crate) r6bcasts: VecMap<SignShareId, r6::BcastHappy>,
-
-    #[cfg(feature = "malicious")]
-    pub behaviour: Behaviour,
+pub(in super::super) struct R8Type7 {
+    pub(in super::super) secret_key_share: SecretKeyShare,
+    pub(in super::super) peers: Peers,
+    pub(in super::super) participants: Participants,
+    pub(in super::super) keygen_id: TypedUsize<KeygenShareId>,
+    pub(in super::super) r1bcasts: VecMap<SignShareId, r1::Bcast>,
+    pub(in super::super) r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
+    pub(in super::super) R: ProjectivePoint,
+    pub(in super::super) r6bcasts: VecMap<SignShareId, r6::BcastHappy>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -24,48 +24,48 @@ use super::super::{r1, r2, Peers, SignProtocolBuilder, SignShareId};
 use super::super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
-pub struct R3Happy {
-    pub(crate) secret_key_share: SecretKeyShare,
-    pub(crate) msg_to_sign: Scalar,
-    pub(crate) peers: Peers,
-    pub(crate) participants: Participants,
-    pub(crate) keygen_id: TypedUsize<KeygenShareId>,
-    pub(crate) gamma_i: Scalar,
-    pub(crate) Gamma_i: ProjectivePoint,
-    pub(crate) Gamma_i_reveal: Randomness,
-    pub(crate) w_i: Scalar,
-    pub(crate) k_i: Scalar,
-    pub(crate) k_i_randomness: paillier::Randomness,
-    pub(crate) beta_secrets: HoleVecMap<SignShareId, Secret>,
-    pub(crate) nu_secrets: HoleVecMap<SignShareId, Secret>,
-    pub(crate) r1bcasts: VecMap<SignShareId, r1::Bcast>,
-    pub(crate) r1p2ps: P2ps<SignShareId, r1::P2p>,
+pub(in super::super) struct R3Happy {
+    pub(in super::super) secret_key_share: SecretKeyShare,
+    pub(in super::super) msg_to_sign: Scalar,
+    pub(in super::super) peers: Peers,
+    pub(in super::super) participants: Participants,
+    pub(in super::super) keygen_id: TypedUsize<KeygenShareId>,
+    pub(in super::super) gamma_i: Scalar,
+    pub(in super::super) Gamma_i: ProjectivePoint,
+    pub(in super::super) Gamma_i_reveal: Randomness,
+    pub(in super::super) w_i: Scalar,
+    pub(in super::super) k_i: Scalar,
+    pub(in super::super) k_i_randomness: paillier::Randomness,
+    pub(in super::super) beta_secrets: HoleVecMap<SignShareId, Secret>,
+    pub(in super::super) nu_secrets: HoleVecMap<SignShareId, Secret>,
+    pub(in super::super) r1bcasts: VecMap<SignShareId, r1::Bcast>,
+    pub(in super::super) r1p2ps: P2ps<SignShareId, r1::P2p>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum Bcast {
+pub(in super::super) enum Bcast {
     Happy(BcastHappy),
     Sad(BcastSad),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(non_snake_case)]
-pub struct BcastHappy {
+pub(in super::super) struct BcastHappy {
     pub delta_i: k256_serde::Scalar,
     pub T_i: k256_serde::ProjectivePoint,
     pub T_i_proof: pedersen::Proof,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BcastSad {
+pub(in super::super) struct BcastSad {
     pub mta_complaints: FillVecMap<SignShareId, Accusation>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum Accusation {
+pub(in super::super) enum Accusation {
     MtA,
     MtAwc,
 }
@@ -129,9 +129,6 @@ impl Executer for R3Happy {
                 participants: self.participants,
                 r1bcasts: self.r1bcasts,
                 r1p2ps: self.r1p2ps,
-
-                #[cfg(feature = "malicious")]
-                behaviour: self.behaviour,
             })
             .execute(info, bcasts_in, p2ps_in);
         }
@@ -244,9 +241,6 @@ impl Executer for R3Happy {
                     participants: self.participants,
                     r1bcasts: self.r1bcasts,
                     r2p2ps: p2ps_in,
-
-                    #[cfg(feature = "malicious")]
-                    behaviour: self.behaviour,
                 }),
                 bcast_out,
                 None,
@@ -391,9 +385,6 @@ impl bcast_and_p2p::Executer for R3Happy {
                     participants: self.participants,
                     r1bcasts: self.r1bcasts,
                     r1p2ps: self.r1p2ps,
-
-                    #[cfg(feature = "malicious")]
-                    behaviour: self.behaviour,
                 }),
                 info,
                 bcasts_in,
@@ -504,9 +495,6 @@ impl bcast_and_p2p::Executer for R3Happy {
                     participants: self.participants,
                     r1bcasts: self.r1bcasts,
                     r2p2ps: p2ps_in,
-
-                    #[cfg(feature = "malicious")]
-                    behaviour: self.behaviour,
                 }),
                 bcast_out,
             }));

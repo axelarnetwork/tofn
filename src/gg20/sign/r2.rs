@@ -26,18 +26,18 @@ use super::{r1, r3, Participants, Peers, SignProtocolBuilder, SignShareId};
 use super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
-pub struct R2 {
-    pub(crate) secret_key_share: SecretKeyShare,
-    pub(crate) msg_to_sign: Scalar,
-    pub(crate) peers: Peers,
-    pub(crate) participants: Participants,
-    pub(crate) keygen_id: TypedUsize<KeygenShareId>,
-    pub(crate) gamma_i: Scalar,
-    pub(crate) Gamma_i: ProjectivePoint,
-    pub(crate) Gamma_i_reveal: hash::Randomness,
-    pub(crate) w_i: Scalar,
-    pub(crate) k_i: Scalar,
-    pub(crate) k_i_randomness: paillier::Randomness,
+pub(super) struct R2 {
+    pub(super) secret_key_share: SecretKeyShare,
+    pub(super) msg_to_sign: Scalar,
+    pub(super) peers: Peers,
+    pub(super) participants: Participants,
+    pub(super) keygen_id: TypedUsize<KeygenShareId>,
+    pub(super) gamma_i: Scalar,
+    pub(super) Gamma_i: ProjectivePoint,
+    pub(super) Gamma_i_reveal: hash::Randomness,
+    pub(super) w_i: Scalar,
+    pub(super) k_i: Scalar,
+    pub(super) k_i_randomness: paillier::Randomness,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
@@ -47,24 +47,24 @@ pub struct R2 {
 // so that we don't have an empty Bcast::Happy in the happy path
 // https://github.com/axelarnetwork/tofn/issues/94
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum Bcast {
+pub(super) enum Bcast {
     Happy,
     Sad(BcastSad),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BcastSad {
-    pub zkp_complaints: Subset<SignShareId>,
+pub(super) struct BcastSad {
+    pub(super) zkp_complaints: Subset<SignShareId>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum P2p {
+pub(super) enum P2p {
     Happy(P2pHappy),
     Sad,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct P2pHappy {
+pub(super) struct P2pHappy {
     pub alpha_ciphertext: Ciphertext,
     pub alpha_proof: paillier::zk::mta::Proof,
     pub mu_ciphertext: Ciphertext,
@@ -172,9 +172,6 @@ impl Executer for R2 {
                     participants: self.participants,
                     r1bcasts: bcasts_in,
                     r1p2ps: p2ps_in,
-
-                    #[cfg(feature = "malicious")]
-                    behaviour: self.behaviour,
                 }),
                 bcast_out,
                 p2ps_out,
@@ -352,9 +349,6 @@ impl bcast_and_p2p::Executer for R2 {
                     participants: self.participants,
                     r1bcasts: bcasts_in,
                     r1p2ps: p2ps_in,
-
-                    #[cfg(feature = "malicious")]
-                    behaviour: self.behaviour,
                 }),
                 bcast_out,
                 p2ps_out,

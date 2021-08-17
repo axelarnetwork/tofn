@@ -24,23 +24,23 @@ use super::super::{r1, r2, r3, r5, Peers, SignProtocolBuilder, SignShareId};
 use super::super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
-pub struct R4Happy {
-    pub(crate) secret_key_share: SecretKeyShare,
-    pub(crate) msg_to_sign: Scalar,
-    pub(crate) peers: Peers,
-    pub(crate) participants: Participants,
-    pub(crate) keygen_id: TypedUsize<KeygenShareId>,
-    pub(crate) gamma_i: Scalar,
-    pub(crate) Gamma_i: ProjectivePoint,
-    pub(crate) Gamma_i_reveal: Randomness,
-    pub(crate) k_i: Scalar,
-    pub(crate) k_i_randomness: paillier::Randomness,
-    pub(crate) sigma_i: Scalar,
-    pub(crate) l_i: Scalar,
-    pub(crate) _delta_i: Scalar,
-    pub(crate) beta_secrets: HoleVecMap<SignShareId, Secret>,
-    pub(crate) r1bcasts: VecMap<SignShareId, r1::Bcast>,
-    pub(crate) r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
+pub(in super::super) struct R4Happy {
+    pub(in super::super) secret_key_share: SecretKeyShare,
+    pub(in super::super) msg_to_sign: Scalar,
+    pub(in super::super) peers: Peers,
+    pub(in super::super) participants: Participants,
+    pub(in super::super) keygen_id: TypedUsize<KeygenShareId>,
+    pub(in super::super) gamma_i: Scalar,
+    pub(in super::super) Gamma_i: ProjectivePoint,
+    pub(in super::super) Gamma_i_reveal: Randomness,
+    pub(in super::super) k_i: Scalar,
+    pub(in super::super) k_i_randomness: paillier::Randomness,
+    pub(in super::super) sigma_i: Scalar,
+    pub(in super::super) l_i: Scalar,
+    pub(in super::super) _delta_i: Scalar,
+    pub(in super::super) beta_secrets: HoleVecMap<SignShareId, Secret>,
+    pub(in super::super) r1bcasts: VecMap<SignShareId, r1::Bcast>,
+    pub(in super::super) r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
@@ -112,9 +112,6 @@ impl Executer for R4Happy {
                 participants: self.participants,
                 r1bcasts: self.r1bcasts,
                 r2p2ps: self.r2p2ps,
-
-                #[cfg(feature = "malicious")]
-                behaviour: self.behaviour,
             })
             .execute(info, bcasts_in, p2ps_in);
         }
@@ -241,9 +238,6 @@ impl bcast_only::Executer for R4Happy {
                     participants: self.participants,
                     r1bcasts: self.r1bcasts,
                     r2p2ps: self.r2p2ps,
-
-                    #[cfg(feature = "malicious")]
-                    behaviour: self.behaviour,
                 }),
                 info,
                 bcasts_in,

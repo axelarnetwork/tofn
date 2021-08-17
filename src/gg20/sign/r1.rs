@@ -22,14 +22,14 @@ use super::malicious::Behaviour;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(non_snake_case)]
-pub struct Bcast {
-    pub Gamma_i_commit: hash::Output,
-    pub k_i_ciphertext: paillier::Ciphertext,
+pub(super) struct Bcast {
+    pub(super) Gamma_i_commit: hash::Output,
+    pub(super) k_i_ciphertext: paillier::Ciphertext,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct P2p {
-    pub range_proof: paillier::zk::range::Proof,
+pub(super) struct P2p {
+    pub(super) range_proof: paillier::zk::range::Proof,
 }
 
 #[allow(non_snake_case)]

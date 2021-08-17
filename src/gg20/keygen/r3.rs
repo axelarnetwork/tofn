@@ -44,12 +44,12 @@ pub struct ShareInfo {
     pub randomness: paillier::Randomness,
 }
 
-pub struct R3 {
-    pub(crate) threshold: usize,
-    pub(crate) party_share_counts: KeygenPartyShareCounts,
-    pub(crate) dk: paillier::DecryptionKey,
-    pub(crate) u_i_share: vss::Share,
-    pub(crate) r1bcasts: VecMap<KeygenShareId, r1::Bcast>,
+pub(super) struct R3 {
+    pub(super) threshold: usize,
+    pub(super) party_share_counts: KeygenPartyShareCounts,
+    pub(super) dk: paillier::DecryptionKey,
+    pub(super) u_i_share: vss::Share,
+    pub(super) r1bcasts: VecMap<KeygenShareId, r1::Bcast>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
@@ -225,8 +225,6 @@ impl Executer for R3 {
                 y,
                 x_i,
                 all_X_i,
-                #[cfg(feature = "malicious")]
-                behaviour: self.behaviour,
             }),
             bcast_out,
             None,

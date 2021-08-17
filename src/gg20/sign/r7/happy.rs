@@ -30,24 +30,24 @@ use super::super::{r1, r2, r3, r5, r6, r8, Peers, SignProtocolBuilder};
 use super::super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
-pub struct R7Happy {
-    pub(crate) secret_key_share: SecretKeyShare,
-    pub(crate) msg_to_sign: Scalar,
-    pub(crate) peers: Peers,
-    pub(crate) participants: Participants,
-    pub(crate) keygen_id: TypedUsize<KeygenShareId>,
-    pub(crate) k_i: Scalar,
-    pub(crate) k_i_randomness: paillier::Randomness,
-    pub(crate) sigma_i: Scalar,
-    pub(crate) r1bcasts: VecMap<SignShareId, r1::Bcast>,
-    pub(crate) r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
-    pub(crate) r3bcasts: VecMap<SignShareId, r3::BcastHappy>,
-    pub(crate) R: ProjectivePoint,
-    pub(crate) r5bcasts: VecMap<SignShareId, r5::Bcast>,
-    pub(crate) r5p2ps: P2ps<SignShareId, r5::P2p>,
+pub(in super::super) struct R7Happy {
+    pub(in super::super) secret_key_share: SecretKeyShare,
+    pub(in super::super) msg_to_sign: Scalar,
+    pub(in super::super) peers: Peers,
+    pub(in super::super) participants: Participants,
+    pub(in super::super) keygen_id: TypedUsize<KeygenShareId>,
+    pub(in super::super) k_i: Scalar,
+    pub(in super::super) k_i_randomness: paillier::Randomness,
+    pub(in super::super) sigma_i: Scalar,
+    pub(in super::super) r1bcasts: VecMap<SignShareId, r1::Bcast>,
+    pub(in super::super) r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
+    pub(in super::super) r3bcasts: VecMap<SignShareId, r3::BcastHappy>,
+    pub(in super::super) R: ProjectivePoint,
+    pub(in super::super) r5bcasts: VecMap<SignShareId, r5::Bcast>,
+    pub(in super::super) r5p2ps: P2ps<SignShareId, r5::P2p>,
 
     #[cfg(feature = "malicious")]
-    pub behaviour: Behaviour,
+    pub(in super::super) behaviour: Behaviour,
 }
 
 impl Executer for R7Happy {
@@ -112,9 +112,6 @@ impl Executer for R7Happy {
                 R: self.R,
                 r5bcasts: self.r5bcasts,
                 r5p2ps: self.r5p2ps,
-
-                #[cfg(feature = "malicious")]
-                behaviour: self.behaviour,
             })
             .execute(info, bcasts_in, p2ps_in);
         }
@@ -224,9 +221,6 @@ impl Executer for R7Happy {
                     r2p2ps: self.r2p2ps,
                     R: self.R,
                     r6bcasts: bcasts_in,
-
-                    #[cfg(feature = "malicious")]
-                    behaviour: self.behaviour,
                 }),
                 bcast_out,
                 None,
@@ -307,9 +301,6 @@ impl bcast_only::Executer for R7Happy {
                     R: self.R,
                     r5bcasts: self.r5bcasts,
                     r5p2ps: self.r5p2ps,
-
-                    #[cfg(feature = "malicious")]
-                    behaviour: self.behaviour,
                 }),
                 info,
                 bcasts_in,
@@ -422,9 +413,6 @@ impl bcast_only::Executer for R7Happy {
                     r2p2ps: self.r2p2ps,
                     R: self.R,
                     r6bcasts: bcasts_in,
-
-                    #[cfg(feature = "malicious")]
-                    behaviour: self.behaviour,
                 }),
                 bcast_out,
             }));

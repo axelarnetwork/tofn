@@ -20,12 +20,12 @@ use super::{
 use super::malicious::Behaviour;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Bcast {
-    pub y_i_commit: hash::Output,
-    pub ek: paillier::EncryptionKey,
-    pub ek_proof: paillier::zk::EncryptionKeyProof,
-    pub zkp: paillier::zk::ZkSetup,
-    pub zkp_proof: paillier::zk::ZkSetupProof,
+pub(super) struct Bcast {
+    pub(super) y_i_commit: hash::Output,
+    pub(super) ek: paillier::EncryptionKey,
+    pub(super) ek_proof: paillier::zk::EncryptionKeyProof,
+    pub(super) zkp: paillier::zk::ZkSetup,
+    pub(super) zkp_proof: paillier::zk::ZkSetupProof,
 }
 
 pub fn start(

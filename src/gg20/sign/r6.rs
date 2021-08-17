@@ -28,23 +28,23 @@ use super::{r1, r2, r3, r4, r5, r7, Participants, Peers, SignProtocolBuilder, Si
 use super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
-pub struct R6 {
-    pub(crate) secret_key_share: SecretKeyShare,
-    pub(crate) msg_to_sign: Scalar,
-    pub(crate) peers: Peers,
-    pub(crate) participants: Participants,
-    pub(crate) keygen_id: TypedUsize<KeygenShareId>,
-    pub(crate) gamma_i: Scalar,
-    pub(crate) k_i: Scalar,
-    pub(crate) k_i_randomness: paillier::Randomness,
-    pub(crate) sigma_i: Scalar,
-    pub(crate) l_i: Scalar,
-    pub(crate) beta_secrets: HoleVecMap<SignShareId, Secret>,
-    pub(crate) r1bcasts: VecMap<SignShareId, r1::Bcast>,
-    pub(crate) r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
-    pub(crate) r3bcasts: VecMap<SignShareId, r3::BcastHappy>,
-    pub(crate) r4bcasts: VecMap<SignShareId, r4::Bcast>,
-    pub(crate) R: ProjectivePoint,
+pub(super) struct R6 {
+    pub(super) secret_key_share: SecretKeyShare,
+    pub(super) msg_to_sign: Scalar,
+    pub(super) peers: Peers,
+    pub(super) participants: Participants,
+    pub(super) keygen_id: TypedUsize<KeygenShareId>,
+    pub(super) gamma_i: Scalar,
+    pub(super) k_i: Scalar,
+    pub(super) k_i_randomness: paillier::Randomness,
+    pub(super) sigma_i: Scalar,
+    pub(super) l_i: Scalar,
+    pub(super) beta_secrets: HoleVecMap<SignShareId, Secret>,
+    pub(super) r1bcasts: VecMap<SignShareId, r1::Bcast>,
+    pub(super) r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
+    pub(super) r3bcasts: VecMap<SignShareId, r3::BcastHappy>,
+    pub(super) r4bcasts: VecMap<SignShareId, r4::Bcast>,
+    pub(super) R: ProjectivePoint,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
@@ -191,9 +191,6 @@ impl Executer for R6 {
                     R: self.R,
                     r5bcasts: bcasts_in,
                     r5p2ps: p2ps_in,
-
-                    #[cfg(feature = "malicious")]
-                    behaviour: self.behaviour,
                 }),
                 bcast_out,
                 None,
@@ -268,9 +265,6 @@ impl Executer for R6 {
                     R: self.R,
                     r5bcasts: bcasts_in,
                     r5p2ps: p2ps_in,
-
-                    #[cfg(feature = "malicious")]
-                    behaviour: self.behaviour,
                 }),
                 bcast_out,
                 None,
@@ -405,9 +399,6 @@ impl bcast_and_p2p::Executer for R6 {
                     R: self.R,
                     r5bcasts: bcasts_in,
                     r5p2ps: p2ps_in,
-
-                    #[cfg(feature = "malicious")]
-                    behaviour: self.behaviour,
                 }),
                 bcast_out,
             }));
@@ -481,9 +472,6 @@ impl bcast_and_p2p::Executer for R6 {
                     R: self.R,
                     r5bcasts: bcasts_in,
                     r5p2ps: p2ps_in,
-
-                    #[cfg(feature = "malicious")]
-                    behaviour: self.behaviour,
                 }),
                 bcast_out,
             }));

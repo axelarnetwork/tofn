@@ -20,22 +20,22 @@ use super::{r1, KeygenPartyShareCounts, KeygenShareId};
 use super::malicious::Behaviour;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Bcast {
-    pub y_i_reveal: hash::Randomness,
-    pub u_i_vss_commit: vss::Commit,
+pub(super) struct Bcast {
+    pub(super) y_i_reveal: hash::Randomness,
+    pub(super) u_i_vss_commit: vss::Commit,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct P2p {
-    pub u_i_share_ciphertext: paillier::Ciphertext,
+pub(super) struct P2p {
+    pub(super) u_i_share_ciphertext: paillier::Ciphertext,
 }
 
-pub struct R2 {
-    pub(crate) threshold: usize,
-    pub(crate) party_share_counts: KeygenPartyShareCounts,
-    pub(crate) dk: paillier::DecryptionKey,
-    pub(crate) u_i_vss: vss::Vss,
-    pub(crate) y_i_reveal: hash::Randomness,
+pub(super) struct R2 {
+    pub(super) threshold: usize,
+    pub(super) party_share_counts: KeygenPartyShareCounts,
+    pub(super) dk: paillier::DecryptionKey,
+    pub(super) u_i_vss: vss::Vss,
+    pub(super) y_i_reveal: hash::Randomness,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,

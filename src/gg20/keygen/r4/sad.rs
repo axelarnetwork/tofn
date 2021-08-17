@@ -10,10 +10,10 @@ use crate::{
 };
 
 #[allow(non_snake_case)]
-pub struct R4Sad {
-    pub(crate) r1bcasts: VecMap<KeygenShareId, r1::Bcast>,
-    pub(crate) r2bcasts: VecMap<KeygenShareId, r2::Bcast>,
-    pub(crate) r2p2ps: P2ps<KeygenShareId, r2::P2p>,
+pub(in super::super) struct R4Sad {
+    pub(in super::super) r1bcasts: VecMap<KeygenShareId, r1::Bcast>,
+    pub(in super::super) r2bcasts: VecMap<KeygenShareId, r2::Bcast>,
+    pub(in super::super) r2p2ps: P2ps<KeygenShareId, r2::P2p>,
 }
 
 impl Executer for R4Sad {
