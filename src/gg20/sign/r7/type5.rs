@@ -1,5 +1,5 @@
 use crate::{
-    collections::{FillVecMap, P2ps, VecMap},
+    collections::{FillVecMap, P2ps, VecMap, XP2ps},
     gg20::{
         crypto_tools::mta,
         keygen::SecretKeyShare,
@@ -7,7 +7,7 @@ use crate::{
     },
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
-        implementer_api::{bcast_only, Executer, ProtocolBuilder, ProtocolInfo},
+        implementer_api::{bcast_only, Executer, ProtocolBuilder, ProtocolInfo, XProtocolBuilder},
     },
 };
 use k256::ProjectivePoint;
@@ -41,14 +41,247 @@ impl Executer for R7Type5 {
     type Bcast = r6::Bcast;
     type P2p = ();
 
+    #[allow(non_snake_case)]
     fn execute(
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
-        p2ps_in: crate::collections::XP2ps<Self::Index, Self::P2p>,
-    ) -> TofnResult<crate::sdk::implementer_api::XProtocolBuilder<Self::FinalOutput, Self::Index>>
-    {
-        todo!()
+        p2ps_in: XP2ps<Self::Index, Self::P2p>,
+    ) -> TofnResult<XProtocolBuilder<Self::FinalOutput, Self::Index>> {
+        let my_share_id = info.share_id();
+        let mut faulters = FillVecMap::with_size(info.share_count());
+
+        // anyone who did not send a bcast is a faulter
+        for (share_id, bcast) in bcasts_in.iter() {
+            if bcast.is_none() {
+                warn!(
+                    "peer {} says: missing bcast from peer {}",
+                    my_share_id, share_id
+                );
+                faulters.set(share_id, ProtocolFault)?;
+            }
+        }
+        // anyone who sent p2ps is a faulter
+        for (share_id, p2ps) in p2ps_in.iter() {
+            if p2ps.is_some() {
+                warn!(
+                    "peer {} says: unexpected p2ps from peer {}",
+                    my_share_id, share_id
+                );
+                faulters.set(share_id, ProtocolFault)?;
+            }
+        }
+        if !faulters.is_empty() {
+            return Ok(XProtocolBuilder::Done(Err(faulters)));
+        }
+
+        let participants_count = info.share_count();
+
+        // check for complaints
+        // If someone broadcasts a Sad complaint, switch to verifying that accusation.
+        // While there might also be a Type 5 fault, we prioritize accusations.
+        if bcasts_in.iter().any(|(_, bcast_option)| {
+            if let Some(bcast) = bcast_option {
+                matches!(bcast, r6::Bcast::Sad(_))
+            } else {
+                false
+            }
+        }) {
+            warn!(
+                "peer {} says: received an R6 complaint from others while in Type5 path",
+                my_share_id,
+            );
+
+            return Box::new(r7::sad::R7Sad {
+                secret_key_share: self.secret_key_share,
+                participants: self.participants,
+                r1bcasts: self.r1bcasts,
+                R: self.R,
+                r5bcasts: self.r5bcasts,
+                r5p2ps: self.r5p2ps,
+
+                #[cfg(feature = "malicious")]
+                behaviour: self.behaviour,
+            })
+            .execute(info, bcasts_in, p2ps_in);
+        }
+
+        // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
+        let bcasts_in = bcasts_in.to_vecmap()?;
+
+        let mut bcasts_sad = FillVecMap::with_size(participants_count);
+
+        // our check for 'type 5` error failed, so any peer broadcasting a success is a faulter
+        for (sign_peer_id, bcast) in bcasts_in.into_iter() {
+            match bcast {
+                r6::Bcast::SadType5(bcast) => {
+                    bcasts_sad.set(sign_peer_id, bcast)?;
+                }
+                r6::Bcast::Sad(_) => return Err(TofnFatal), // This should never happen
+                r6::Bcast::Happy(_) => {
+                    warn!(
+                        "peer {} says: peer {} did not broadcast a 'type 5' failure",
+                        my_share_id, sign_peer_id
+                    );
+                    faulters.set(sign_peer_id, ProtocolFault)?;
+                }
+            }
+        }
+
+        if !faulters.is_empty() {
+            return Ok(XProtocolBuilder::Done(Err(faulters)));
+        }
+
+        let bcasts_in = bcasts_sad.to_vecmap()?;
+
+        // verify that each participant's data is consistent with earlier messages:
+        for (sign_peer_id, bcast) in &bcasts_in {
+            let peer_mta_plaintexts = &bcast.mta_plaintexts;
+
+            if peer_mta_plaintexts.len() != self.peers.len() {
+                warn!(
+                    "peer {} says: peer {} sent {} MtA plaintexts, expected {}",
+                    my_share_id,
+                    sign_peer_id,
+                    peer_mta_plaintexts.len(),
+                    self.peers.len()
+                );
+
+                faulters.set(sign_peer_id, ProtocolFault)?;
+                continue;
+            }
+
+            if peer_mta_plaintexts.get_hole() != sign_peer_id {
+                warn!(
+                    "peer {} says: peer {} sent MtA plaintexts with an unexpected hole {}",
+                    my_share_id,
+                    sign_peer_id,
+                    peer_mta_plaintexts.get_hole()
+                );
+
+                faulters.set(sign_peer_id, ProtocolFault)?;
+                continue;
+            }
+
+            // verify correct computation of delta_i
+            let delta_i = peer_mta_plaintexts.iter().fold(
+                bcast.k_i.as_ref() * bcast.gamma_i.as_ref(),
+                |acc, (_, mta_plaintext)| {
+                    acc + mta_plaintext.alpha_plaintext.to_scalar()
+                        + mta_plaintext.beta_secret.beta.as_ref()
+                },
+            );
+
+            if &delta_i != self.r3bcasts.get(sign_peer_id)?.delta_i.as_ref() {
+                warn!(
+                    "peer {} says: delta_i for peer {} does not match",
+                    my_share_id, sign_peer_id
+                );
+                faulters.set(sign_peer_id, ProtocolFault)?;
+                continue;
+            }
+
+            // verify R7 peer data is consistent with earlier messages:
+            // 1. k_i
+            // 2. gamma_i
+            // 3. beta_ij
+            // 4. alpha_ij
+            let keygen_peer_id = *self.participants.get(sign_peer_id)?;
+
+            let peer_ek = &self
+                .secret_key_share
+                .group()
+                .all_shares()
+                .get(keygen_peer_id)?
+                .ek();
+
+            // k_i
+            let k_i_ciphertext = peer_ek
+                .encrypt_with_randomness(&(bcast.k_i.as_ref()).into(), &bcast.k_i_randomness);
+            if k_i_ciphertext != self.r1bcasts.get(sign_peer_id)?.k_i_ciphertext {
+                warn!(
+                    "peer {} says: invalid k_i detected from peer {}",
+                    my_share_id, sign_peer_id
+                );
+                faulters.set(sign_peer_id, ProtocolFault)?;
+                continue;
+            }
+
+            // gamma_i
+            let Gamma_i = ProjectivePoint::generator() * bcast.gamma_i.as_ref();
+            if &Gamma_i != self.r4bcasts.get(sign_peer_id)?.Gamma_i.as_ref() {
+                warn!(
+                    "peer {} says: invalid Gamma_i detected from peer {}",
+                    my_share_id, sign_peer_id
+                );
+                faulters.set(sign_peer_id, ProtocolFault)?;
+                continue;
+            }
+
+            // beta_ij, alpha_ij
+            for (sign_peer2_id, peer_mta_plaintext) in peer_mta_plaintexts {
+                let keygen_peer2_id = *self.participants.get(sign_peer2_id)?;
+
+                // beta_ij
+                let peer2_ek = &self
+                    .secret_key_share
+                    .group()
+                    .all_shares()
+                    .get(keygen_peer2_id)?
+                    .ek();
+                let peer2_k_i_ciphertext = &self.r1bcasts.get(sign_peer2_id)?.k_i_ciphertext;
+                let peer2_alpha_ciphertext = &self
+                    .r2p2ps
+                    .get(sign_peer_id, sign_peer2_id)?
+                    .alpha_ciphertext;
+
+                if !mta::verify_mta_response(
+                    peer2_ek,
+                    peer2_k_i_ciphertext,
+                    bcast.gamma_i.as_ref(),
+                    peer2_alpha_ciphertext,
+                    &peer_mta_plaintext.beta_secret,
+                ) {
+                    warn!(
+                        "peer {} says: invalid beta from peer {} to victim peer {}",
+                        my_share_id, sign_peer_id, sign_peer2_id
+                    );
+
+                    faulters.set(sign_peer_id, ProtocolFault)?;
+                    continue;
+                }
+
+                // alpha_ij
+                let peer_alpha_ciphertext = peer_ek.encrypt_with_randomness(
+                    &peer_mta_plaintext.alpha_plaintext,
+                    &peer_mta_plaintext.alpha_randomness,
+                );
+                if peer_alpha_ciphertext
+                    != self
+                        .r2p2ps
+                        .get(sign_peer2_id, sign_peer_id)?
+                        .alpha_ciphertext
+                {
+                    warn!(
+                        "peer {} says: invalid alpha from peer {} to victim peer {}",
+                        my_share_id, sign_peer_id, sign_peer2_id
+                    );
+
+                    faulters.set(sign_peer_id, ProtocolFault)?;
+                    continue;
+                }
+            }
+        }
+
+        if faulters.is_empty() {
+            error!(
+                "peer {} says: No faulters found in 'type 5' failure protocol",
+                my_share_id
+            );
+            return Err(TofnFatal);
+        }
+
+        Ok(XProtocolBuilder::Done(Err(faulters)))
     }
 
     #[cfg(test)]

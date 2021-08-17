@@ -59,10 +59,10 @@ impl Executer for R4Sad {
         // everyone sent a bcast---unwrap all bcasts
         let bcasts_in = bcasts_in.to_vecmap()?;
 
-        // check for no complaints
-        if bcasts_in
+        // we should have received at least one complaint
+        if !bcasts_in
             .iter()
-            .all(|(_, bcast)| matches!(bcast, r3::Bcast::Happy(_)))
+            .any(|(_, bcast)| matches!(bcast, r3::Bcast::Sad(_)))
         {
             error!(
                 "peer {} says: entered R4 sad path with no complaints",
