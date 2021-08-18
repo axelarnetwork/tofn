@@ -14,8 +14,8 @@ pub struct HoleVecMap<K, V> {
 }
 
 impl<K, V> HoleVecMap<K, V> {
-    // TODO delete from_vecmap and instead use VecMap::remember_hole?
-    pub fn from_vecmap(vec: VecMap<K, V>, hole: TypedUsize<K>) -> TofnResult<Self> {
+    // private constructor; use VecMap::remember_hole instead
+    pub(super) fn from_vecmap(vec: VecMap<K, V>, hole: TypedUsize<K>) -> TofnResult<Self> {
         if hole.as_usize() > vec.len() {
             error!("hole {} out of bounds {}", hole.as_usize(), vec.len());
             return Err(TofnFatal);
@@ -90,8 +90,10 @@ impl<K, V> HoleVecMap<K, V> {
     where
         F: FnMut(V) -> W,
     {
-        // TODO: Return a Result instead
-        HoleVecMap::<K, W>::from_vecmap(self.vec.map(f), self.hole).expect("hole out of bounds")
+        HoleVecMap::<K, W> {
+            vec: self.vec.map(f),
+            hole: self.hole,
+        }
     }
 
     pub fn map2_result<W, F>(self, f: F) -> TofnResult<HoleVecMap<K, W>>
