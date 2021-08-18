@@ -1,5 +1,5 @@
 use crate::{
-    collections::{FillVecMap, VecMap, XP2ps},
+    collections::{FillVecMap, P2ps, VecMap},
     gg20::{crypto_tools::k256_serde, keygen::SecretKeyShare},
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
@@ -40,7 +40,7 @@ impl Executer for R8Happy {
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
-        p2ps_in: XP2ps<Self::Index, Self::P2p>,
+        p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
         let my_share_id = info.share_id();
         let mut faulters = FillVecMap::with_size(info.share_count());

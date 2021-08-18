@@ -8,9 +8,9 @@ use crate::{
 };
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct XP2ps<K, V>(VecMap<K, Option<HoleVecMap<K, V>>>);
+pub struct P2ps<K, V>(VecMap<K, Option<HoleVecMap<K, V>>>);
 
-impl<K, V> XP2ps<K, V> {
+impl<K, V> P2ps<K, V> {
     pub fn new_size_1_some() -> TofnResult<Self> {
         Ok(Self(VecMap::from_vec(vec![Some(HoleVecMap::from_vecmap(
             VecMap::from_vec(vec![]),
@@ -56,39 +56,21 @@ impl<K, V> XP2ps<K, V> {
         )
     }
 
-    // TODO still needed?
-    // pub fn map_to_me2<W, F>(&self, me: TypedUsize<K>, f: F) -> TofnResult<HoleVecMap<K, W>>
-    // where
-    //     F: FnMut((TypedUsize<K>, Option<&V>)) -> W,
-    // {
-    //     HoleVecMap::from_vecmap(VecMap::from_vec(self.to_me(me)?.map(f).collect()), me)
-    // }
-
-    pub fn map<W, F>(self, f: F) -> XP2ps<K, W>
+    pub fn map<W, F>(self, f: F) -> P2ps<K, W>
     where
         F: FnMut(V) -> W + Clone,
     {
-        XP2ps::<K, W>(
+        P2ps::<K, W>(
             self.0
                 .map(|hole_vec_option| hole_vec_option.map(|hole_vec| hole_vec.map(f.clone()))),
         )
     }
 
-    // TODO still needed?
-    // pub fn map2_result<W, F>(self, f: F) -> TofnResult<XP2ps<K, W>>
-    // where
-    //     F: FnMut((TypedUsize<K>, V)) -> TofnResult<W> + Clone,
-    // {
-    //     Ok(XP2ps::<K, W>(self.0.map2_result(|(_, v_option)| {
-    //         v_option.map(|v| v.map2_result(f.clone()))
-    //     })?))
-    // }
-
-    pub fn map_to_p2ps<W, F>(self, f: F) -> TofnResult<P2ps<K, W>>
+    pub fn map_to_fullp2ps<W, F>(self, f: F) -> TofnResult<FullP2ps<K, W>>
     where
         F: FnMut(V) -> W + Clone,
     {
-        Ok(P2ps::<K, W>(self.0.map2_result(
+        Ok(FullP2ps::<K, W>(self.0.map2_result(
             |(from, hole_vec_option)| {
                 Ok(hole_vec_option
                     .ok_or_else(|| {
@@ -99,13 +81,13 @@ impl<K, V> XP2ps<K, V> {
             },
         )?))
     }
-    pub fn to_p2ps(self) -> TofnResult<P2ps<K, V>> {
-        self.map_to_p2ps(std::convert::identity)
+    pub fn to_fullp2ps(self) -> TofnResult<FullP2ps<K, V>> {
+        self.map_to_fullp2ps(std::convert::identity)
     }
 }
 
 #[allow(clippy::type_complexity)]
-impl<K, V> IntoIterator for XP2ps<K, V> {
+impl<K, V> IntoIterator for P2ps<K, V> {
     type Item = (
         TypedUsize<K>,
         <std::vec::IntoIter<Option<HoleVecMap<K, V>>> as Iterator>::Item,
@@ -120,7 +102,7 @@ impl<K, V> IntoIterator for XP2ps<K, V> {
 /// impl IntoIterator for &P2ps as suggested here: https://doc.rust-lang.org/std/iter/index.html#iterating-by-reference
 /// follow the template of Vec: https://doc.rust-lang.org/src/alloc/vec/mod.rs.html#2451-2458
 #[allow(clippy::type_complexity)]
-impl<'a, K, V> IntoIterator for &'a XP2ps<K, V> {
+impl<'a, K, V> IntoIterator for &'a P2ps<K, V> {
     type Item = (
         TypedUsize<K>,
         <std::slice::Iter<'a, Option<HoleVecMap<K, V>>> as Iterator>::Item,
@@ -132,11 +114,12 @@ impl<'a, K, V> IntoIterator for &'a XP2ps<K, V> {
     }
 }
 
+// TODO is `FullP2ps` too similar to `FillP2ps`?
 // do not derive serde for anything with a `HoleVecMap`
 #[derive(Debug, Clone, PartialEq)]
-pub struct P2ps<K, V>(VecMap<K, HoleVecMap<K, V>>);
+pub struct FullP2ps<K, V>(VecMap<K, HoleVecMap<K, V>>);
 
-impl<K, V> P2ps<K, V> {
+impl<K, V> FullP2ps<K, V> {
     pub fn get(&self, from: TypedUsize<K>, to: TypedUsize<K>) -> TofnResult<&V> {
         self.0.get(from)?.get(to)
     }
@@ -176,32 +159,24 @@ impl<K, V> P2ps<K, V> {
     {
         HoleVecMap::from_vecmap(VecMap::from_vec(self.to_me(me)?.map(f).collect()), me)
     }
-    pub fn map<W, F>(self, f: F) -> P2ps<K, W>
+    pub fn map<W, F>(self, f: F) -> FullP2ps<K, W>
     where
         F: FnMut(V) -> W + Clone,
     {
-        P2ps::<K, W>(self.0.map(|v| v.map(f.clone())))
+        FullP2ps::<K, W>(self.0.map(|v| v.map(f.clone())))
     }
 
-    // TODO temp method to get a XP2ps
-    pub fn xmap<W, F>(self, f: F) -> XP2ps<K, W>
-    where
-        F: FnMut(V) -> W + Clone,
-    {
-        XP2ps::<K, W>(self.0.map(|v| Some(v.map(f.clone()))))
-    }
-
-    pub fn map2_result<W, F>(self, f: F) -> TofnResult<P2ps<K, W>>
+    pub fn map2_result<W, F>(self, f: F) -> TofnResult<FullP2ps<K, W>>
     where
         F: FnMut((TypedUsize<K>, V)) -> TofnResult<W> + Clone,
     {
-        Ok(P2ps::<K, W>(
+        Ok(FullP2ps::<K, W>(
             self.0.map2_result(|(_, v)| v.map2_result(f.clone()))?,
         ))
     }
 }
 
-impl<K, V> IntoIterator for P2ps<K, V> {
+impl<K, V> IntoIterator for FullP2ps<K, V> {
     type Item = (
         TypedUsize<K>,
         TypedUsize<K>,
@@ -216,7 +191,7 @@ impl<K, V> IntoIterator for P2ps<K, V> {
 
 /// impl IntoIterator for &P2ps as suggested here: https://doc.rust-lang.org/std/iter/index.html#iterating-by-reference
 /// follow the template of Vec: https://doc.rust-lang.org/src/alloc/vec/mod.rs.html#2451-2458
-impl<'a, K, V> IntoIterator for &'a P2ps<K, V> {
+impl<'a, K, V> IntoIterator for &'a FullP2ps<K, V> {
     type Item = (
         TypedUsize<K>,
         TypedUsize<K>,
@@ -253,65 +228,40 @@ impl<K, V> FillP2ps<K, V> {
     pub fn is_full(&self) -> bool {
         self.0.iter().all(|(_, v)| v.is_full())
     }
-    pub fn xis_full(&self, from: TypedUsize<K>) -> TofnResult<bool> {
+    pub fn is_full_from(&self, from: TypedUsize<K>) -> TofnResult<bool> {
         Ok(self.0.get(from)?.is_full())
     }
-    // TODO if size == 1 then do we return `None` or an empty HoleVecMap`?
-    // maybe need to methods---one for each possibility
-    pub fn map_to_xp2ps<W, F>(self, f: F) -> TofnResult<XP2ps<K, W>>
-    where
-        F: FnMut(V) -> W + Clone,
-    {
-        Ok(XP2ps::<K, W>(self.0.map2_result(
-            |(_, fill_hole_vec)| {
-                // a FillHoleVec can be both empty and full if its size is 1
-                // TODO change FillHoleVec API?
-                if fill_hole_vec.is_empty() {
-                    // if fill_hole_vec.is_empty() && !fill_hole_vec.is_full() {
-                    Ok(None)
-                } else {
-                    fill_hole_vec.map_to_holevec(f.clone()).map(Some)
-                }
-            },
-        )?))
-        // Ok(XP2ps::<K, W>(
-        //     self.0
-        //         .into_iter()
-        //         .map(|(_, v)| {
-        //             if v.is_empty() {
-        //                 Ok(None)
-        //             } else {
-        //                 v.map_to_holevec(f.clone()).map(|h| Some(h))
-        //             }
-        //         })
-        //         .collect::<TofnResult<VecMap<_, _>>>()?,
-        // ))
-    }
+
+    // if size = 1 then return `None` and not an empty size-1 `HoleVecMap`
     pub fn map_to_p2ps<W, F>(self, f: F) -> TofnResult<P2ps<K, W>>
     where
         F: FnMut(V) -> W + Clone,
     {
-        Ok(P2ps::<K, W>(
+        Ok(P2ps::<K, W>(self.0.map2_result(|(_, fill_hole_vec)| {
+            if fill_hole_vec.is_empty() {
+                Ok(None)
+            } else {
+                fill_hole_vec.map_to_holevec(f.clone()).map(Some)
+            }
+        })?))
+    }
+
+    pub fn map_to_fullp2ps<W, F>(self, f: F) -> TofnResult<FullP2ps<K, W>>
+    where
+        F: FnMut(V) -> W + Clone,
+    {
+        Ok(FullP2ps::<K, W>(
             self.0
                 .into_iter()
                 .map(|(_, v)| v.map_to_holevec(f.clone()))
                 .collect::<TofnResult<VecMap<_, _>>>()?,
         ))
     }
+    pub fn to_fullp2ps(self) -> TofnResult<FullP2ps<K, V>> {
+        self.map_to_fullp2ps(std::convert::identity)
+    }
     pub fn to_p2ps(self) -> TofnResult<P2ps<K, V>> {
         self.map_to_p2ps(std::convert::identity)
-    }
-    pub fn to_xp2ps(self) -> TofnResult<XP2ps<K, V>> {
-        self.map_to_xp2ps(std::convert::identity)
-        // Ok(XP2ps::<K, V>(self.0.map2_result(
-        //     |(_, fill_hole_vec)| {
-        //         if fill_hole_vec.is_empty() {
-        //             Ok(None)
-        //         } else {
-        //             fill_hole_vec.to_holevec().map(|h| Some(h))
-        //         }
-        //     },
-        // )?))
     }
     pub fn map<W, F>(self, f: F) -> FillP2ps<K, W>
     where
@@ -371,7 +321,7 @@ mod tests {
         fill_p2ps.set(two, zero, 4).unwrap();
         fill_p2ps.set(two, one, 5).unwrap();
         assert!(fill_p2ps.is_full());
-        let p2ps = fill_p2ps.to_p2ps().unwrap();
+        let p2ps = fill_p2ps.to_fullp2ps().unwrap();
 
         let expects: Vec<(_, _, &usize)> = vec![
             (zero, one, &0),

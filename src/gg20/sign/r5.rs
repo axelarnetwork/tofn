@@ -1,5 +1,5 @@
 use crate::{
-    collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap, XP2ps},
+    collections::{FillVecMap, FullP2ps, HoleVecMap, P2ps, TypedUsize, VecMap},
     corrupt,
     gg20::{
         constants,
@@ -39,7 +39,7 @@ pub(super) struct R5 {
     pub(super) l_i: Scalar,
     pub(super) beta_secrets: HoleVecMap<SignShareId, Secret>,
     pub(super) r1bcasts: VecMap<SignShareId, r1::Bcast>,
-    pub(super) r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
+    pub(super) r2p2ps: FullP2ps<SignShareId, r2::P2pHappy>,
     pub(super) r3bcasts: VecMap<SignShareId, r3::BcastHappy>,
     pub(super) delta_inv: Scalar,
 
@@ -69,7 +69,7 @@ impl Executer for R5 {
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
-        p2ps_in: XP2ps<Self::Index, Self::P2p>,
+        p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
         let my_share_id = info.share_id();
         let mut faulters = FillVecMap::with_size(info.share_count());

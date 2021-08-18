@@ -1,11 +1,11 @@
 use tracing::{error, warn};
 
 use crate::{
-    collections::{FillVecMap, P2ps, VecMap, XP2ps},
+    collections::{FillVecMap, FullP2ps, P2ps, VecMap},
     gg20::keygen::{r1, r2, r3, KeygenShareId, SecretKeyShare},
     sdk::{
         api::{Fault::ProtocolFault, TofnFatal, TofnResult},
-        implementer_api::{log_fault_info, Executer, ProtocolInfo, ProtocolBuilder},
+        implementer_api::{log_fault_info, Executer, ProtocolBuilder, ProtocolInfo},
     },
 };
 
@@ -13,7 +13,7 @@ use crate::{
 pub(in super::super) struct R4Sad {
     pub(in super::super) r1bcasts: VecMap<KeygenShareId, r1::Bcast>,
     pub(in super::super) r2bcasts: VecMap<KeygenShareId, r2::Bcast>,
-    pub(in super::super) r2p2ps: P2ps<KeygenShareId, r2::P2p>,
+    pub(in super::super) r2p2ps: FullP2ps<KeygenShareId, r2::P2p>,
 }
 
 impl Executer for R4Sad {
@@ -27,7 +27,7 @@ impl Executer for R4Sad {
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
-        p2ps_in: XP2ps<Self::Index, Self::P2p>,
+        p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
         let keygen_id = info.share_id();
         let mut faulters = FillVecMap::with_size(info.share_count());

@@ -1,5 +1,5 @@
 use crate::{
-    collections::{FillVecMap, HoleVecMap, P2ps, Subset, TypedUsize, VecMap},
+    collections::{FillVecMap, FullP2ps, HoleVecMap, Subset, TypedUsize, VecMap},
     corrupt,
     gg20::{
         crypto_tools::{
@@ -38,7 +38,7 @@ pub(super) struct R6 {
     pub(super) l_i: Scalar,
     pub(super) beta_secrets: HoleVecMap<SignShareId, Secret>,
     pub(super) r1bcasts: VecMap<SignShareId, r1::Bcast>,
-    pub(super) r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
+    pub(super) r2p2ps: FullP2ps<SignShareId, r2::P2pHappy>,
     pub(super) r3bcasts: VecMap<SignShareId, r3::BcastHappy>,
     pub(super) r4bcasts: VecMap<SignShareId, r4::Bcast>,
     pub(super) R: ProjectivePoint,
@@ -97,7 +97,7 @@ impl Executer for R6 {
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: crate::collections::FillVecMap<Self::Index, Self::Bcast>,
-        p2ps_in: crate::collections::XP2ps<Self::Index, Self::P2p>,
+        p2ps_in: crate::collections::P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<crate::sdk::implementer_api::ProtocolBuilder<Self::FinalOutput, Self::Index>>
     {
         let my_share_id = info.share_id();
@@ -129,7 +129,7 @@ impl Executer for R6 {
 
         // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
         let bcasts_in = bcasts_in.to_vecmap()?;
-        let p2ps_in = p2ps_in.to_p2ps()?;
+        let p2ps_in = p2ps_in.to_fullp2ps()?;
 
         let participants_count = info.share_count();
 

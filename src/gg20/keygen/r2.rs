@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 use crate::{
-    collections::{FillVecMap, VecMap, XP2ps},
+    collections::{FillVecMap, P2ps, VecMap},
     corrupt,
     gg20::{
         crypto_tools::{hash, paillier, vss},
@@ -51,7 +51,7 @@ impl Executer for R2 {
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
-        p2ps_in: XP2ps<Self::Index, Self::P2p>,
+        p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
         let keygen_id = info.share_id();
         let mut faulters = FillVecMap::with_size(info.share_count());

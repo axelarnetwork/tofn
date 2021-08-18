@@ -1,5 +1,5 @@
 use crate::{
-    collections::{FillVecMap, P2ps, VecMap},
+    collections::{FillVecMap, FullP2ps, VecMap},
     gg20::{crypto_tools::paillier, keygen::SecretKeyShare, sign::Participants},
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
@@ -16,7 +16,7 @@ pub(in super::super) struct R3Sad {
     pub(in super::super) secret_key_share: SecretKeyShare,
     pub(in super::super) participants: Participants,
     pub(in super::super) r1bcasts: VecMap<SignShareId, r1::Bcast>,
-    pub(in super::super) r1p2ps: P2ps<SignShareId, r1::P2p>,
+    pub(in super::super) r1p2ps: FullP2ps<SignShareId, r1::P2p>,
 }
 
 impl Executer for R3Sad {
@@ -30,7 +30,7 @@ impl Executer for R3Sad {
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
-        p2ps_in: crate::collections::XP2ps<Self::Index, Self::P2p>,
+        p2ps_in: crate::collections::P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<crate::sdk::implementer_api::ProtocolBuilder<Self::FinalOutput, Self::Index>>
     {
         let my_share_id = info.share_id();
@@ -64,7 +64,7 @@ impl Executer for R3Sad {
 
         // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
         let bcasts_in = bcasts_in.to_vecmap()?;
-        let _p2ps_in = p2ps_in.to_p2ps()?;
+        let _p2ps_in = p2ps_in.to_fullp2ps()?;
 
         let participants_count = info.share_count();
 

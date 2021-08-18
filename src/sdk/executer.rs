@@ -2,7 +2,7 @@ use serde::de::DeserializeOwned;
 use tracing::warn;
 
 use crate::{
-    collections::{FillP2ps, FillVecMap, TypedUsize, XP2ps},
+    collections::{FillP2ps, FillVecMap, P2ps, TypedUsize},
     sdk::{
         api::{BytesVec, Fault, TofnResult},
         protocol_info::ProtocolInfo,
@@ -23,7 +23,7 @@ pub trait Executer: Send + Sync {
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
-        p2ps_in: XP2ps<Self::Index, Self::P2p>,
+        p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>>;
 
     #[cfg(test)]
@@ -81,7 +81,9 @@ impl<T: Executer> ExecuterRaw for T {
                 }
 
                 // if p2ps are expected from party A then _all_ p2ps from A must be present
-                if matches!(expected_msg_type, BcastAndP2p | P2pOnly) && !p2ps_in.xis_full(from)? {
+                if matches!(expected_msg_type, BcastAndP2p | P2pOnly)
+                    && !p2ps_in.is_full_from(from)?
+                {
                     // TODO log `to` for missing p2p message?
                     warn!(
                         "peer {} says: detected missing p2p from peer {}",
@@ -144,13 +146,13 @@ impl<T: Executer> ExecuterRaw for T {
         // all deserialization succeeded---unwrap deserialized bcasts, p2ps
         // TODO instead of unwrap() make a map2_result() for FillVecMap, FillP2ps
         let bcasts_in = bcasts_deserialized.map(Result::unwrap);
-        let p2ps_in = p2ps_deserialized.map(Result::unwrap).to_xp2ps()?;
+        let p2ps_in = p2ps_deserialized.map(Result::unwrap).to_p2ps()?;
 
         // special case: total_share_count == 1: `p2ps_in` is `[None]` by default
         let expected_msg_type = expected_msg_types.get(TypedUsize::from_usize(0))?;
         let p2ps_in =
             if info.share_count() == 1 && matches!(expected_msg_type, BcastAndP2p | P2pOnly) {
-                XP2ps::new_size_1_some()?
+                P2ps::new_size_1_some()?
             } else {
                 p2ps_in
             };

@@ -1,5 +1,5 @@
 use crate::{
-    collections::{FillVecMap, P2ps, VecMap, XP2ps},
+    collections::{FillVecMap, FullP2ps, P2ps, VecMap},
     gg20::{
         crypto_tools::{paillier, vss},
         keygen::SecretKeyShare,
@@ -20,7 +20,7 @@ pub(in super::super) struct R4Sad {
     pub(in super::super) secret_key_share: SecretKeyShare,
     pub(in super::super) participants: Participants,
     pub(in super::super) r1bcasts: VecMap<SignShareId, r1::Bcast>,
-    pub(in super::super) r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
+    pub(in super::super) r2p2ps: FullP2ps<SignShareId, r2::P2pHappy>,
 }
 
 impl Executer for R4Sad {
@@ -34,7 +34,7 @@ impl Executer for R4Sad {
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
-        p2ps_in: XP2ps<Self::Index, Self::P2p>,
+        p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
         let my_share_id = info.share_id();
         let mut faulters = FillVecMap::with_size(info.share_count());

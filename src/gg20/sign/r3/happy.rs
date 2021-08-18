@@ -1,5 +1,5 @@
 use crate::{
-    collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
+    collections::{FillVecMap, FullP2ps, HoleVecMap, TypedUsize, VecMap},
     corrupt,
     gg20::{
         crypto_tools::{hash::Randomness, k256_serde, mta::Secret, paillier, vss, zkp::pedersen},
@@ -36,7 +36,7 @@ pub(in super::super) struct R3Happy {
     pub(in super::super) beta_secrets: HoleVecMap<SignShareId, Secret>,
     pub(in super::super) nu_secrets: HoleVecMap<SignShareId, Secret>,
     pub(in super::super) r1bcasts: VecMap<SignShareId, r1::Bcast>,
-    pub(in super::super) r1p2ps: P2ps<SignShareId, r1::P2p>,
+    pub(in super::super) r1p2ps: FullP2ps<SignShareId, r1::P2p>,
 
     #[cfg(feature = "malicious")]
     pub(in super::super) behaviour: Behaviour,
@@ -78,7 +78,7 @@ impl Executer for R3Happy {
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
-        p2ps_in: crate::collections::XP2ps<Self::Index, Self::P2p>,
+        p2ps_in: crate::collections::P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<crate::sdk::implementer_api::ProtocolBuilder<Self::FinalOutput, Self::Index>>
     {
         let my_share_id = info.share_id();
@@ -128,7 +128,7 @@ impl Executer for R3Happy {
         }
 
         // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
-        let p2ps_in = p2ps_in.to_p2ps()?;
+        let p2ps_in = p2ps_in.to_fullp2ps()?;
 
         let participants_count = info.share_count();
 

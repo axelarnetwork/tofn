@@ -1,5 +1,5 @@
 use crate::{
-    collections::{FillVecMap, Subset, TypedUsize, XP2ps},
+    collections::{FillVecMap, P2ps, Subset, TypedUsize},
     corrupt,
     gg20::{
         crypto_tools::{
@@ -78,7 +78,7 @@ impl Executer for R2 {
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
-        p2ps_in: XP2ps<Self::Index, Self::P2p>,
+        p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
         let my_share_id = info.share_id();
         let mut faulters = FillVecMap::with_size(info.share_count());
@@ -109,7 +109,7 @@ impl Executer for R2 {
 
         // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
         let bcasts_in = bcasts_in.to_vecmap()?;
-        let p2ps_in = p2ps_in.to_p2ps()?;
+        let p2ps_in = p2ps_in.to_fullp2ps()?;
 
         let participants_count = info.share_count();
         let mut zkp_complaints = Subset::with_max_size(participants_count);

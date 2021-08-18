@@ -1,5 +1,5 @@
 use crate::{
-    collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
+    collections::{FillVecMap, FullP2ps, HoleVecMap, TypedUsize, VecMap},
     corrupt,
     gg20::{
         crypto_tools::{hash::Randomness, k256_serde, mta::Secret, paillier, zkp::pedersen},
@@ -37,7 +37,7 @@ pub(in super::super) struct R4Happy {
     pub(in super::super) _delta_i: Scalar,
     pub(in super::super) beta_secrets: HoleVecMap<SignShareId, Secret>,
     pub(in super::super) r1bcasts: VecMap<SignShareId, r1::Bcast>,
-    pub(in super::super) r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
+    pub(in super::super) r2p2ps: FullP2ps<SignShareId, r2::P2pHappy>,
 
     #[cfg(feature = "malicious")]
     pub(in super::super) behaviour: Behaviour,
@@ -61,7 +61,7 @@ impl Executer for R4Happy {
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
-        p2ps_in: crate::collections::XP2ps<Self::Index, Self::P2p>,
+        p2ps_in: crate::collections::P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<crate::sdk::implementer_api::ProtocolBuilder<Self::FinalOutput, Self::Index>>
     {
         let my_share_id = info.share_id();

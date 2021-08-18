@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 use crate::{
-    collections::{FillVecMap, VecMap, XP2ps},
+    collections::{FillVecMap, P2ps, VecMap},
     corrupt,
     gg20::{
         constants,
@@ -66,7 +66,7 @@ impl Executer for R3 {
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
-        p2ps_in: XP2ps<Self::Index, Self::P2p>,
+        p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
         let keygen_id = info.share_id();
         let mut faulters = FillVecMap::with_size(info.share_count());
@@ -97,7 +97,7 @@ impl Executer for R3 {
 
         // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
         let bcasts_in = bcasts_in.to_vecmap()?;
-        let p2ps_in = p2ps_in.to_p2ps()?;
+        let p2ps_in = p2ps_in.to_fullp2ps()?;
 
         // check y_i commits
         for (keygen_peer_id, bcast) in bcasts_in.iter() {

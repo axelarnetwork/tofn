@@ -19,7 +19,7 @@ mod fillholevecmap;
 pub use fillholevecmap::FillHoleVecMap;
 
 mod p2ps;
-pub use p2ps::{FillP2ps, P2ps, XP2ps};
+pub use p2ps::{FillP2ps, FullP2ps, P2ps};
 mod p2ps_iter;
 pub use p2ps_iter::P2psIter;
 

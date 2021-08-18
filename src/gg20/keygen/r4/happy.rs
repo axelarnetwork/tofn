@@ -1,7 +1,7 @@
 use tracing::warn;
 
 use crate::{
-    collections::{FillVecMap, P2ps, VecMap, XP2ps},
+    collections::{FillVecMap, FullP2ps, P2ps, VecMap},
     gg20::{
         crypto_tools::{paillier, zkp::schnorr},
         keygen::{
@@ -22,7 +22,7 @@ pub(in super::super) struct R4Happy {
     pub(in super::super) dk: paillier::DecryptionKey,
     pub(in super::super) r1bcasts: VecMap<KeygenShareId, r1::Bcast>,
     pub(in super::super) r2bcasts: VecMap<KeygenShareId, r2::Bcast>,
-    pub(in super::super) r2p2ps: P2ps<KeygenShareId, r2::P2p>,
+    pub(in super::super) r2p2ps: FullP2ps<KeygenShareId, r2::P2p>,
     pub(in super::super) y: k256::ProjectivePoint,
     pub(in super::super) x_i: k256::Scalar,
     pub(in super::super) all_X_i: VecMap<KeygenShareId, k256::ProjectivePoint>,
@@ -38,7 +38,7 @@ impl Executer for R4Happy {
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
-        p2ps_in: XP2ps<Self::Index, Self::P2p>,
+        p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
         let keygen_id = info.share_id();
         let mut faulters = FillVecMap::with_size(info.share_count());
