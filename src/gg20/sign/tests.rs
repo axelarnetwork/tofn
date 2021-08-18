@@ -262,7 +262,7 @@ fn execute_round(
         .into_iter()
         .enumerate()
         .map(|(i, party)| {
-            assert!(!party.expecting_more_msgs_this_round().unwrap());
+            assert!(!party.expecting_more_msgs_this_round());
             assert_eq!(party.bcast_out().is_some(), expect_bcast_in);
             assert_eq!(party.p2ps_out().is_some(), expect_p2p_in);
 
@@ -297,7 +297,7 @@ fn execute_final_round(
     debug!("Executing the final round");
 
     for (i, party) in parties.into_iter().enumerate() {
-        assert!(!party.expecting_more_msgs_this_round().unwrap());
+        assert!(!party.expecting_more_msgs_this_round());
         let res = match party.execute_next_round().unwrap() {
             Protocol::Done(res) => res,
             Protocol::NotDone(_) => panic!(

@@ -62,7 +62,7 @@ where
 
         future_messages = Vec::new();
 
-        while round.expecting_more_msgs_this_round()? {
+        while round.expecting_more_msgs_this_round() {
             let msg = input.recv().expect("recv fail");
 
             if msg.round_num == round_num + 1 {

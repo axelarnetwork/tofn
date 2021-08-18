@@ -139,7 +139,7 @@ impl<F, K, P> Round<F, K, P> {
         Ok(())
     }
 
-    pub fn expecting_more_msgs_this_round(&self) -> TofnResult<bool> {
+    pub fn expecting_more_msgs_this_round(&self) -> bool {
         debug_assert_eq!(self.expected_msg_types.size(), self.bcasts_in.size());
         debug_assert_eq!(self.expected_msg_types.size(), self.p2ps_in.size());
 
@@ -150,14 +150,14 @@ impl<F, K, P> Round<F, K, P> {
                 if (matches!(expected_msg_type, BcastAndP2p | BcastOnly) && bcast_option.is_none())
                     || (matches!(expected_msg_type, BcastAndP2p | P2pOnly) && !p2ps.is_full())
                 {
-                    return Ok(true);
+                    return true;
                 }
             } else {
-                return Ok(true); // this party has not yet sent any messages
+                return true; // this party has not yet sent any messages
             }
         }
 
-        Ok(false)
+        false
     }
 
     pub fn execute_next_round(mut self) -> TofnResult<Protocol<F, K, P>> {

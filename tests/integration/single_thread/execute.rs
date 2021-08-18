@@ -101,7 +101,7 @@ where
     rounds
         .into_iter()
         .map(|(i, round)| {
-            if round.expecting_more_msgs_this_round()? {
+            if round.expecting_more_msgs_this_round() {
                 warn!(
                     "all messages delivered this round but party {} still expecting messages",
                     i,
