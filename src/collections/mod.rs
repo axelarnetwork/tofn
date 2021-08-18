@@ -18,9 +18,13 @@ pub use holevecmap::HoleVecMap;
 mod fillholevecmap;
 pub use fillholevecmap::FillHoleVecMap;
 
+mod fillp2ps;
+mod fullp2ps;
 mod p2ps;
-pub use p2ps::{FillP2ps, FullP2ps, P2ps};
 mod p2ps_iter;
+pub use fillp2ps::FillP2ps;
+pub use fullp2ps::FullP2ps;
+pub use p2ps::P2ps;
 pub use p2ps_iter::P2psIter;
 
 mod subset;
