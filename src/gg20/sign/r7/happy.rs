@@ -9,7 +9,7 @@ use crate::{
         keygen::{KeygenShareId, SecretKeyShare},
         sign::{
             r7::{self, Bcast, BcastHappy, BcastSadType7, MtaWcPlaintext},
-            Participants, SignShareId,
+            KeygenShareIds, SignShareId,
         },
     },
     sdk::{
@@ -31,7 +31,7 @@ pub(in super::super) struct R7Happy {
     pub(in super::super) secret_key_share: SecretKeyShare,
     pub(in super::super) msg_to_sign: Scalar,
     pub(in super::super) peers: Peers,
-    pub(in super::super) participants: Participants,
+    pub(in super::super) participants: KeygenShareIds,
     pub(in super::super) keygen_id: TypedUsize<KeygenShareId>,
     pub(in super::super) k_i: Scalar,
     pub(in super::super) k_i_randomness: paillier::Randomness,

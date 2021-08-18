@@ -3,7 +3,7 @@ use crate::{
     gg20::{
         crypto_tools::{k256_serde, vss, zkp::chaum_pedersen},
         keygen::{KeygenShareId, SecretKeyShare},
-        sign::{r2, Participants},
+        sign::{r2, KeygenShareIds},
     },
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
@@ -20,7 +20,7 @@ use super::super::{r1, r6, r7, Peers, SignShareId};
 pub(in super::super) struct R8Type7 {
     pub(in super::super) secret_key_share: SecretKeyShare,
     pub(in super::super) peers: Peers,
-    pub(in super::super) participants: Participants,
+    pub(in super::super) participants: KeygenShareIds,
     pub(in super::super) keygen_id: TypedUsize<KeygenShareId>,
     pub(in super::super) r1bcasts: VecMap<SignShareId, r1::Bcast>,
     pub(in super::super) r2p2ps: FullP2ps<SignShareId, r2::P2pHappy>,

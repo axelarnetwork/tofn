@@ -25,7 +25,7 @@ pub type SignProtocol = Protocol<BytesVec, SignShareId, SignPartyId>;
 pub type SignProtocolBuilder = ProtocolBuilder<BytesVec, SignShareId>;
 
 // This includes all shares participating in the current signing protocol
-pub type Participants = VecMap<SignShareId, TypedUsize<KeygenShareId>>;
+pub type KeygenShareIds = VecMap<SignShareId, TypedUsize<KeygenShareId>>;
 // This includes all shares (excluding self) participating in the current signing protocol
 pub type Peers = HoleVecMap<SignShareId, TypedUsize<KeygenShareId>>;
 // This is the set of parties participating in the current signing protocol

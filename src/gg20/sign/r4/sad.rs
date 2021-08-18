@@ -3,7 +3,7 @@ use crate::{
     gg20::{
         crypto_tools::{paillier, vss},
         keygen::SecretKeyShare,
-        sign::Participants,
+        sign::KeygenShareIds,
     },
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
@@ -18,7 +18,7 @@ use super::super::{r1, r2, r3, SignShareId};
 #[allow(non_snake_case)]
 pub(in super::super) struct R4Sad {
     pub(in super::super) secret_key_share: SecretKeyShare,
-    pub(in super::super) participants: Participants,
+    pub(in super::super) participants: KeygenShareIds,
     pub(in super::super) r1bcasts: VecMap<SignShareId, r1::Bcast>,
     pub(in super::super) r2p2ps: FullP2ps<SignShareId, r2::P2pHappy>,
 }

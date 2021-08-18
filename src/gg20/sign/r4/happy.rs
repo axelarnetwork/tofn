@@ -4,7 +4,7 @@ use crate::{
     gg20::{
         crypto_tools::{hash::Randomness, k256_serde, mta::Secret, paillier, zkp::pedersen},
         keygen::{KeygenShareId, SecretKeyShare},
-        sign::{r4, Participants},
+        sign::{r4, KeygenShareIds},
     },
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
@@ -25,7 +25,7 @@ pub(in super::super) struct R4Happy {
     pub(in super::super) secret_key_share: SecretKeyShare,
     pub(in super::super) msg_to_sign: Scalar,
     pub(in super::super) peers: Peers,
-    pub(in super::super) participants: Participants,
+    pub(in super::super) participants: KeygenShareIds,
     pub(in super::super) keygen_id: TypedUsize<KeygenShareId>,
     pub(in super::super) gamma_i: Scalar,
     pub(in super::super) Gamma_i: ProjectivePoint,

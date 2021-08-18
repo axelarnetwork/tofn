@@ -1,6 +1,6 @@
 use crate::{
     collections::{FillVecMap, FullP2ps, VecMap},
-    gg20::{crypto_tools::paillier, keygen::SecretKeyShare, sign::Participants},
+    gg20::{crypto_tools::paillier, keygen::SecretKeyShare, sign::KeygenShareIds},
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
         implementer_api::{log_fault_info, Executer, ProtocolBuilder, ProtocolInfo},
@@ -14,7 +14,7 @@ use super::super::{r1, r2, SignShareId};
 #[allow(non_snake_case)]
 pub(in super::super) struct R3Sad {
     pub(in super::super) secret_key_share: SecretKeyShare,
-    pub(in super::super) participants: Participants,
+    pub(in super::super) participants: KeygenShareIds,
     pub(in super::super) r1bcasts: VecMap<SignShareId, r1::Bcast>,
     pub(in super::super) r1p2ps: FullP2ps<SignShareId, r1::P2p>,
 }

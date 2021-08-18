@@ -20,7 +20,7 @@ use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::{r1, r2, r3, r4, r6, Participants, Peers, SignShareId};
+use super::{r1, r2, r3, r4, r6, KeygenShareIds, Peers, SignShareId};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -30,7 +30,7 @@ pub(super) struct R5 {
     pub(super) secret_key_share: SecretKeyShare,
     pub(super) msg_to_sign: Scalar,
     pub(super) peers: Peers,
-    pub(super) participants: Participants,
+    pub(super) participants: KeygenShareIds,
     pub(super) keygen_id: TypedUsize<KeygenShareId>,
     pub(super) gamma_i: Scalar,
     pub(super) k_i: Scalar,
