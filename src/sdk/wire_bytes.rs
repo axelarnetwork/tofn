@@ -60,11 +60,13 @@ pub fn encode_message<K>(
     payload: BytesVec,
     from: TypedUsize<K>,
     msg_type: MsgType<K>,
+    expected_msg_types: ExpectedMsgTypes,
 ) -> TofnResult<BytesVec> {
-    encode(&WireBytes {
+    encode(&XWireBytes {
         msg_type,
         from,
         payload,
+        expected_msg_types,
     })
 }
 
@@ -97,13 +99,6 @@ pub struct XWireBytes<K> {
     pub from: TypedUsize<K>,
     pub payload: BytesVec,
     pub expected_msg_types: ExpectedMsgTypes,
-}
-#[derive(Serialize, Deserialize)]
-#[serde(bound(serialize = "", deserialize = ""))] // disable serde trait bounds on `K`: https://serde.rs/attr-bound.html
-pub struct WireBytes<K> {
-    pub msg_type: MsgType<K>,
-    pub from: TypedUsize<K>,
-    pub payload: BytesVec,
 }
 
 // TODO serde can derive Serialize for structs with a type parameter.
@@ -147,6 +142,7 @@ pub mod malicious {
             b"these bytes are corrupted 1234".to_vec(),
             wire_bytes.from,
             wire_bytes.msg_type,
+            wire_bytes.expected_msg_types,
         )
     }
 }
