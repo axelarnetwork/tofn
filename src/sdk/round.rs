@@ -289,7 +289,7 @@ pub mod malicious {
             match msg_type {
                 Bcast => {
                     if let Some(ref mut bcast) = self.bcast_out {
-                        *bcast = corrupt_payload::<K>(&bcast)?
+                        *bcast = corrupt_payload::<K>(bcast)?
                     } else {
                         error!("no outgoing bcast from this party during this round; can't corrupt msg bytes",);
                         return Err(TofnFatal);

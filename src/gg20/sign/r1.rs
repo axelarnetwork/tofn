@@ -283,7 +283,7 @@ mod malicious {
         mut gamma_i: k256::Scalar,
     ) -> k256::Scalar {
         if let Behaviour::R1BadGammaI = my_behaviour {
-            log_confess_info(my_share_id, &my_behaviour, "");
+            log_confess_info(my_share_id, my_behaviour, "");
             gamma_i += k256::Scalar::one();
         }
         gamma_i
@@ -297,7 +297,7 @@ mod malicious {
     ) -> range::Proof {
         if let Behaviour::R1BadProof { victim } = my_behaviour {
             if *victim == peer_share_id {
-                log_confess_info(my_share_id, &my_behaviour, "");
+                log_confess_info(my_share_id, my_behaviour, "");
                 return paillier::zk::range::malicious::corrupt_proof(&range_proof);
             }
         }
