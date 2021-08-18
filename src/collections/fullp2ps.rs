@@ -14,24 +14,37 @@ impl<K, V> FullP2ps<K, V> {
     pub fn get(&self, from: TypedUsize<K>, to: TypedUsize<K>) -> TofnResult<&V> {
         self.0.get(from)?.get(to)
     }
+
     pub fn to_me(
         &self,
         me: TypedUsize<K>,
     ) -> TofnResult<impl Iterator<Item = (TypedUsize<K>, &V)> + '_> {
-        // check `me` manually now instead of using `?` inside closure
         if me.as_usize() >= self.0.len() {
             error!("index {} out of bounds {}", me, self.0.len());
             return Err(TofnFatal);
         }
-        Ok(self.0.iter().filter_map(move |(k, hole_vec)| {
-            if k == me {
+        Ok(self.0.iter().filter_map(move |(from, hole_vec)| {
+            if from == me {
                 None
             } else {
-                // TODO: Remove possible panic using Result
-                Some((k, hole_vec.get(me).expect("index out of bounds")))
+                // Avoid panic: we already checked `me` so `get(me)` should never fail.
+                // Normally we would bubble the error from `get(me)` via Result::collect`.
+                // But we can't do that here because this method returns an iterator.
+                // Instead we log the error and discard failures by returning `None` in the `filter_map` closure.
+                match hole_vec.get(me) {
+                    Ok(v) => Some((from, v)),
+                    Err(err) => {
+                        error!(
+                            "unreachable because we already verified `me` {} is in bounds {} (from {}, err {:?})",
+                            me, self.0.len(), from, err,
+                        );
+                        None
+                    }
+                }
             }
         }))
     }
+
     pub fn iter(&self) -> P2psIter<K, std::slice::Iter<HoleVecMap<K, V>>, std::slice::Iter<V>> {
         P2psIter::new(self.0.iter())
     }
