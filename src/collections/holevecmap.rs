@@ -11,7 +11,6 @@ use super::{holevecmap_iter::HoleVecMapIter, TypedUsize, VecMap};
 pub struct HoleVecMap<K, V> {
     vec: VecMap<K, V>,
     hole: TypedUsize<K>,
-    phantom: std::marker::PhantomData<TypedUsize<K>>,
 }
 
 impl<K, V> HoleVecMap<K, V> {
@@ -21,11 +20,7 @@ impl<K, V> HoleVecMap<K, V> {
             error!("hole {} out of bounds {}", hole.as_usize(), vec.len());
             return Err(TofnFatal);
         }
-        Ok(HoleVecMap {
-            vec,
-            hole,
-            phantom: std::marker::PhantomData,
-        })
+        Ok(HoleVecMap { vec, hole })
     }
 
     pub fn get(&self, index: TypedUsize<K>) -> TofnResult<&V> {
