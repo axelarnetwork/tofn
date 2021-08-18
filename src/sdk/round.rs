@@ -143,25 +143,17 @@ impl<F, K, P> Round<F, K, P> {
         debug_assert_eq!(self.expected_msg_types.size(), self.bcasts_in.size());
         debug_assert_eq!(self.expected_msg_types.size(), self.p2ps_in.size());
 
-        // for (from, expected_msg_type, bcast, p2ps) in
-        //     zip3(&self.expected_msg_types, &self.bcasts_in, &self.p2ps_in)
-        // {
-        //     match (expected_msg_type, bcast, p2ps) {}
-        // }
-
-        if !self.expected_msg_types.is_full() {
-            return Ok(true); // at least one party has not sent any messages yet
-        }
-
-        // TODO maybe zip this iterator with bcasts_in, p2ps_in?
-        for (from, expected_msg_type) in self.expected_msg_types.iter_some() {
-            if matches!(expected_msg_type, BcastAndP2p | BcastOnly)
-                && self.bcasts_in.is_none(from)?
-            {
-                return Ok(true);
-            }
-            if matches!(expected_msg_type, BcastAndP2p | P2pOnly) && !self.p2ps_in.xis_full(from)? {
-                return Ok(true);
+        for (_from, expected_msg_type_option, bcast_option, p2ps) in
+            zip3(&self.expected_msg_types, &self.bcasts_in, &self.p2ps_in)
+        {
+            if let Some(expected_msg_type) = expected_msg_type_option {
+                if (matches!(expected_msg_type, BcastAndP2p | BcastOnly) && bcast_option.is_none())
+                    || (matches!(expected_msg_type, BcastAndP2p | P2pOnly) && !p2ps.is_full())
+                {
+                    return Ok(true);
+                }
+            } else {
+                return Ok(true); // this party has not yet sent any messages
             }
         }
 

@@ -327,35 +327,31 @@ impl<K, V> FillP2ps<K, V> {
     }
 }
 
-// impl<K, V> IntoIterator for FillP2ps<K, V> {
-//     type Item = (
-//         TypedUsize<K>,
-//         TypedUsize<K>,
-//         <std::vec::IntoIter<Option<V>> as Iterator>::Item,
-//     );
-//     type IntoIter =
-//         P2psIter<K, std::vec::IntoIter<FillHoleVecMap<K, V>>, std::vec::IntoIter<Option<V>>>;
+impl<K, V> IntoIterator for FillP2ps<K, V> {
+    type Item = (
+        TypedUsize<K>,
+        <std::vec::IntoIter<FillHoleVecMap<K, V>> as Iterator>::Item,
+    );
+    type IntoIter = VecMapIter<K, std::vec::IntoIter<FillHoleVecMap<K, V>>>;
 
-//     fn into_iter(self) -> Self::IntoIter {
-//         P2psIter::new(self.0.into_iter())
-//     }
-// }
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
 
-// /// impl IntoIterator for &FillP2ps as suggested here: https://doc.rust-lang.org/std/iter/index.html#iterating-by-reference
-// /// follow the template of Vec: https://doc.rust-lang.org/src/alloc/vec/mod.rs.html#2451-2458
-// impl<'a, K, V> IntoIterator for &'a FillP2ps<K, V> {
-//     type Item = (
-//         TypedUsize<K>,
-//         TypedUsize<K>,
-//         <std::slice::Iter<'a, Option<V>> as Iterator>::Item,
-//     );
-//     type IntoIter =
-//         P2psIter<K, std::slice::Iter<'a, FillHoleVecMap<K, V>>, std::slice::Iter<'a, Option<V>>>;
+/// impl IntoIterator for &FillP2ps as suggested here: https://doc.rust-lang.org/std/iter/index.html#iterating-by-reference
+/// follow the template of Vec: https://doc.rust-lang.org/src/alloc/vec/mod.rs.html#2451-2458
+impl<'a, K, V> IntoIterator for &'a FillP2ps<K, V> {
+    type Item = (
+        TypedUsize<K>,
+        <std::slice::Iter<'a, FillHoleVecMap<K, V>> as Iterator>::Item,
+    );
+    type IntoIter = VecMapIter<K, std::slice::Iter<'a, FillHoleVecMap<K, V>>>;
 
-//     fn into_iter(self) -> Self::IntoIter {
-//         self.iter()
-//     }
-// }
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
 
 #[cfg(test)]
 mod tests {
