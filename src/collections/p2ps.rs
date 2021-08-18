@@ -21,39 +21,8 @@ impl<K, V> P2ps<K, V> {
         self.0.get(from)
     }
 
-    pub fn to_me(
-        &self,
-        me: TypedUsize<K>,
-    ) -> TofnResult<impl Iterator<Item = (TypedUsize<K>, Option<&V>)> + '_> {
-        // check `me` manually now instead of using `?` inside closure
-        if me.as_usize() >= self.0.len() {
-            error!("index {} out of bounds {}", me, self.0.len());
-            return Err(TofnFatal);
-        }
-        Ok(self.0.iter().filter_map(move |(k, hole_vec_option)| {
-            if k == me {
-                None
-            } else {
-                Some((
-                    k,
-                    hole_vec_option
-                        .as_ref()
-                        .map(|hole_vec| hole_vec.get(me).expect("index out of bounds")),
-                ))
-            }
-        }))
-    }
     pub fn iter(&self) -> VecMapIter<K, std::slice::Iter<Option<HoleVecMap<K, V>>>> {
         self.0.iter()
-    }
-    pub fn map_to_me<W, F>(&self, me: TypedUsize<K>, mut f: F) -> TofnResult<HoleVecMap<K, W>>
-    where
-        F: FnMut(Option<&V>) -> W,
-    {
-        HoleVecMap::from_vecmap(
-            VecMap::from_vec(self.to_me(me)?.map(|(_, v)| f(v)).collect()),
-            me,
-        )
     }
 
     pub fn map<W, F>(self, f: F) -> P2ps<K, W>
