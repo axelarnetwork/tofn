@@ -154,23 +154,30 @@ impl Executer for R5 {
             randomness: &self.k_i_randomness,
         };
 
-        let p2ps_out = Some(self.peers.map_ref(|(_sign_peer_id, &keygen_peer_id)| {
-            let peer_zkp = &self
-                .secret_key_share
-                .group()
-                .all_shares()
-                .get(keygen_peer_id)?
-                .zkp();
+        let p2ps_out = Some(
+            self.peers
+                .clone_map2_result(|(_sign_peer_id, &keygen_peer_id)| {
+                    let peer_zkp = &self
+                        .secret_key_share
+                        .group()
+                        .all_shares()
+                        .get(keygen_peer_id)?
+                        .zkp();
 
-            let k_i_range_proof_wc = peer_zkp.range_proof_wc(stmt_wc, wit)?;
+                    let k_i_range_proof_wc = peer_zkp.range_proof_wc(stmt_wc, wit)?;
 
-            corrupt!(
-                k_i_range_proof_wc,
-                self.corrupt_k_i_range_proof_wc(my_share_id, _sign_peer_id, k_i_range_proof_wc)
-            );
+                    corrupt!(
+                        k_i_range_proof_wc,
+                        self.corrupt_k_i_range_proof_wc(
+                            my_share_id,
+                            _sign_peer_id,
+                            k_i_range_proof_wc
+                        )
+                    );
 
-            serialize(&P2p { k_i_range_proof_wc })
-        })?);
+                    serialize(&P2p { k_i_range_proof_wc })
+                })?,
+        );
 
         let bcast_out = Some(serialize(&Bcast { R_i: R_i.into() })?);
 

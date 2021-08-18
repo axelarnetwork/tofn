@@ -212,33 +212,39 @@ impl Executer for R6 {
         if R_i_sum != _curve_generator {
             warn!("peer {} says: 'type 5' fault detected", my_share_id);
 
-            let mta_plaintexts = self.beta_secrets.map_ref(|(sign_peer_id, beta_secret)| {
-                let r2p2p = self.r2p2ps.get(sign_peer_id, my_share_id)?;
+            let mta_plaintexts =
+                self.beta_secrets
+                    .clone_map2_result(|(sign_peer_id, beta_secret)| {
+                        let r2p2p = self.r2p2ps.get(sign_peer_id, my_share_id)?;
 
-                let (alpha_plaintext, alpha_randomness) = self
-                    .secret_key_share
-                    .share()
-                    .dk()
-                    .decrypt_with_randomness(&r2p2p.alpha_ciphertext);
+                        let (alpha_plaintext, alpha_randomness) = self
+                            .secret_key_share
+                            .share()
+                            .dk()
+                            .decrypt_with_randomness(&r2p2p.alpha_ciphertext);
 
-                corrupt!(
-                    alpha_plaintext,
-                    self.corrupt_alpha_plaintext(my_share_id, sign_peer_id, alpha_plaintext)
-                );
+                        corrupt!(
+                            alpha_plaintext,
+                            self.corrupt_alpha_plaintext(
+                                my_share_id,
+                                sign_peer_id,
+                                alpha_plaintext
+                            )
+                        );
 
-                let beta_secret = beta_secret.clone();
+                        let beta_secret = beta_secret.clone();
 
-                corrupt!(
-                    beta_secret,
-                    self.corrupt_beta_secret(my_share_id, sign_peer_id, beta_secret)
-                );
+                        corrupt!(
+                            beta_secret,
+                            self.corrupt_beta_secret(my_share_id, sign_peer_id, beta_secret)
+                        );
 
-                Ok(MtaPlaintext {
-                    alpha_plaintext,
-                    alpha_randomness,
-                    beta_secret,
-                })
-            })?;
+                        Ok(MtaPlaintext {
+                            alpha_plaintext,
+                            alpha_randomness,
+                            beta_secret,
+                        })
+                    })?;
 
             let k_i = self.k_i;
             corrupt!(k_i, self.corrupt_k_i(my_share_id, k_i));

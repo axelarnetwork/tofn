@@ -241,7 +241,7 @@ impl Executer for R3Happy {
             )));
         }
 
-        let alphas = self.peers.map_ref(|(sign_peer_id, _)| {
+        let alphas = self.peers.clone_map2_result(|(sign_peer_id, _)| {
             let p2p_in = p2ps_in.get(sign_peer_id, my_share_id)?;
 
             let alpha = self
@@ -254,7 +254,7 @@ impl Executer for R3Happy {
             Ok(alpha)
         })?;
 
-        let mus = self.peers.map_ref(|(sign_peer_id, _)| {
+        let mus = self.peers.clone_map2_result(|(sign_peer_id, _)| {
             let p2p_in = p2ps_in.get(sign_peer_id, my_share_id)?;
 
             let mu = self

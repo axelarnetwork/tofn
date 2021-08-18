@@ -76,7 +76,7 @@ impl<K, V> HoleVecMap<K, V> {
         }
     }
 
-    pub fn map_ref<W, F>(&self, f: F) -> TofnResult<HoleVecMap<K, W>>
+    pub fn clone_map2_result<W, F>(&self, f: F) -> TofnResult<HoleVecMap<K, W>>
     where
         F: Fn((TypedUsize<K>, &V)) -> TofnResult<W>,
     {

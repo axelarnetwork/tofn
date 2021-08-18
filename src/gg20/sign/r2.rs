@@ -161,7 +161,7 @@ impl Executer for R2 {
 
         if !zkp_complaints.is_empty() {
             let bcast_out = Some(serialize(&Bcast::Sad(BcastSad { zkp_complaints }))?);
-            let p2ps_out = Some(self.peers.map_ref(|_| serialize(&P2p::Sad))?);
+            let p2ps_out = Some(self.peers.clone_map2_result(|_| serialize(&P2p::Sad))?);
 
             return Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
                 Box::new(r3::R3Sad {
