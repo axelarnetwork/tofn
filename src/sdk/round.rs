@@ -44,7 +44,7 @@ impl<F, K, P> XRound<F, K, P> {
 
         // deserialize metadata
         // TODO bounds check everything in bytes_meta
-        let bytes_meta: XWireBytes<K> = match wire_bytes::xunwrap(bytes) {
+        let bytes_meta: XWireBytes<K> = match wire_bytes::decode_message(bytes) {
             Some(w) => w,
             None => {
                 warn!(
@@ -231,7 +231,7 @@ impl<F, K, P> XRound<F, K, P> {
         };
         // can't use Option::map because closure returns Result and uses ? operator
         let bcast_out = if let Some(payload) = bcast_out {
-            Some(wire_bytes::xwrap(
+            Some(wire_bytes::encode_message(
                 payload,
                 my_share_id,
                 Bcast,
@@ -242,7 +242,7 @@ impl<F, K, P> XRound<F, K, P> {
         };
         let p2ps_out = if let Some(p2ps) = p2ps_out {
             Some(p2ps.map2_result(|(to, payload)| {
-                wire_bytes::xwrap(payload, my_share_id, P2p { to }, expected_msg_types)
+                wire_bytes::encode_message(payload, my_share_id, P2p { to }, expected_msg_types)
             })?)
         } else {
             None

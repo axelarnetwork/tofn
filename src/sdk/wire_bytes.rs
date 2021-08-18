@@ -7,23 +7,19 @@ use super::{
     implementer_api::serialize,
 };
 
-const TOFN_SERIALIZATION_VERSION_X: u16 = 1;
 const TOFN_SERIALIZATION_VERSION: u16 = 0;
 
-pub fn xwrap<K>(
+pub fn encode_message<K>(
     payload: BytesVec,
     from: TypedUsize<K>,
     msg_type: MsgType<K>,
     expected_msg_types: ExpectedMsgTypes,
 ) -> TofnResult<BytesVec> {
-    serialize(&BytesVecVersioned {
-        version: TOFN_SERIALIZATION_VERSION_X,
-        payload: serialize(&XWireBytes {
-            msg_type,
-            from,
-            payload,
-            expected_msg_types,
-        })?,
+    encode(&XWireBytes {
+        msg_type,
+        from,
+        payload,
+        expected_msg_types,
     })
 }
 
@@ -56,40 +52,8 @@ pub fn decode<T: DeserializeOwned>(bytes: &[u8]) -> Option<T> {
         .ok()
 }
 
-pub fn encode_message<K>(
-    payload: BytesVec,
-    from: TypedUsize<K>,
-    msg_type: MsgType<K>,
-    expected_msg_types: ExpectedMsgTypes,
-) -> TofnResult<BytesVec> {
-    encode(&XWireBytes {
-        msg_type,
-        from,
-        payload,
-        expected_msg_types,
-    })
-}
-
-// TODO: Look into using bincode::config::Bounded to limit the max pre-allocation size
-/// deserialization failures are non-fatal: do not return TofnResult
-pub fn xunwrap<K>(bytes: &[u8]) -> Option<XWireBytes<K>> {
-    let bytes_versioned: BytesVecVersioned = bincode::deserialize(bytes)
-        .map_err(|err| {
-            warn!("outer deserialization failure: {}", err.to_string());
-        })
-        .ok()?;
-    if bytes_versioned.version != TOFN_SERIALIZATION_VERSION_X {
-        warn!(
-            "encoding version {}, expected {}",
-            bytes_versioned.version, TOFN_SERIALIZATION_VERSION_X
-        );
-        return None;
-    }
-    bincode::deserialize(&bytes_versioned.payload)
-        .map_err(|err| {
-            warn!("inner deserialization failure: {}", err.to_string());
-        })
-        .ok()
+pub fn decode_message<K>(bytes: &[u8]) -> Option<XWireBytes<K>> {
+    decode(bytes)
 }
 
 #[derive(Serialize, Deserialize)]
@@ -129,12 +93,12 @@ pub mod malicious {
 
     use crate::sdk::api::{BytesVec, TofnFatal, TofnResult};
 
-    use super::{encode_message, xunwrap, XWireBytes};
+    use super::{decode_message, encode_message, XWireBytes};
 
     pub fn corrupt_payload<K>(bytes: &[u8]) -> TofnResult<BytesVec> {
         // for simplicity, deserialization error is treated as fatal
         // (we're in a malicious module so who cares?)
-        let wire_bytes: XWireBytes<K> = xunwrap(bytes).ok_or_else(|| {
+        let wire_bytes: XWireBytes<K> = decode_message(bytes).ok_or_else(|| {
             error!("can't corrupt payload: deserialization failure");
             TofnFatal
         })?;
