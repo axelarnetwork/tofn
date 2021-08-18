@@ -1,6 +1,6 @@
 //! A fillable VecMap
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use tracing::{error, warn};
+use tracing::error;
 
 use crate::sdk::api::{TofnFatal, TofnResult};
 
@@ -26,19 +26,10 @@ impl<K, V> FillVecMap<K, V> {
         self.vec.len()
     }
     pub fn set(&mut self, index: TypedUsize<K>, value: V) -> TofnResult<()> {
-        self.set_impl(index, value, false)
-    }
-    pub fn set_warn(&mut self, index: TypedUsize<K>, value: V) -> TofnResult<()> {
-        self.set_impl(index, value, true)
-    }
-    fn set_impl(&mut self, index: TypedUsize<K>, value: V, warn: bool) -> TofnResult<()> {
         let stored = self.vec.get_mut(index)?;
         if stored.is_none() {
             self.some_count += 1;
-        } else if warn {
-            warn!("overwrite existing value at index {}", index);
         }
-
         *stored = Some(value);
         Ok(())
     }

@@ -247,9 +247,6 @@ impl<K, V> FillP2ps<K, V> {
     pub fn set(&mut self, from: TypedUsize<K>, to: TypedUsize<K>, value: V) -> TofnResult<()> {
         self.0.get_mut(from)?.set(to, value)
     }
-    pub fn set_warn(&mut self, from: TypedUsize<K>, to: TypedUsize<K>, value: V) -> TofnResult<()> {
-        self.0.get_mut(from)?.set_warn(to, value)
-    }
     pub fn is_none(&self, from: TypedUsize<K>, to: TypedUsize<K>) -> TofnResult<bool> {
         self.0.get(from)?.is_none(to)
     }
