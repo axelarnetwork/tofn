@@ -43,9 +43,8 @@ pub(super) fn start(
     #[cfg(feature = "malicious")]
     use malicious::*;
 
-    // Store a separate `peer_keygen_ids` as a `HoleVecMap` for future iteration.
-    // It would be idiomatic to instead get a punctured iterator over `all_keygen_ids`,
-    // but `HoleVecMap` does not impl `FromIterator` so we cannot use `collect`.
+    // `HoleVecMap` has limited options for construction,
+    // so we store a separate `peer_keygen_ids` to generate future `HoleVecMap`s.
     let (peer_keygen_ids, my_keygen_id) = all_keygen_ids.clone().puncture_hole(my_sign_id)?;
 
     let lambda_i_S = &vss::lagrange_coefficient(
@@ -118,11 +117,11 @@ pub(super) fn start(
 
     Ok(SignProtocolBuilder::NotDone(RoundBuilder::new(
         Box::new(r2::R2 {
-            secret_key_share: my_secret_key_share,
+            my_secret_key_share,
             msg_to_sign,
-            peers: peer_keygen_ids,
-            participants: all_keygen_ids,
-            keygen_id: my_keygen_id,
+            peer_keygen_ids,
+            all_keygen_ids,
+            my_keygen_id,
             gamma_i,
             Gamma_i,
             Gamma_i_reveal,
@@ -131,7 +130,7 @@ pub(super) fn start(
             k_i_randomness,
 
             #[cfg(feature = "malicious")]
-            behaviour: my_behaviour,
+            my_behaviour,
         }),
         bcast_out,
         p2ps_out,

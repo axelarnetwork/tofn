@@ -61,7 +61,7 @@ impl<T: Executer> ExecuterRaw for T {
         p2ps_in: FillP2ps<Self::Index, BytesVec>,
         expected_msg_types: FillVecMap<Self::Index, ExpectedMsgTypes>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
-        let mut faulters = FillVecMap::with_size(info.share_count());
+        let mut faulters = FillVecMap::with_size(info.total_share_count());
 
         // check for missing messages (timeout fault)
         // each party A has told us what to expect from A (bcast and/or p2p)
@@ -74,7 +74,7 @@ impl<T: Executer> ExecuterRaw for T {
                 {
                     warn!(
                         "peer {} says: detected missing bcast from peer {}",
-                        info.share_id(),
+                        info.my_id(),
                         from
                     );
                     faulters.set(from, Fault::MissingMessage)?;
@@ -87,7 +87,7 @@ impl<T: Executer> ExecuterRaw for T {
                     // TODO log `to` for missing p2p message?
                     warn!(
                         "peer {} says: detected missing p2p from peer {}",
-                        info.share_id(),
+                        info.my_id(),
                         from
                     );
                     faulters.set(from, Fault::MissingMessage)?;
@@ -95,7 +95,7 @@ impl<T: Executer> ExecuterRaw for T {
             } else {
                 warn!(
                     "peer {} says: expected_msg_type not set for peer {} (this peer did not send any messages)\nTODO: support expected_msg_type P2pOnly and total_share_count == 1",
-                    info.share_id(),
+                    info.my_id(),
                     from
                 );
                 faulters.set(from, Fault::MissingMessage)?;
@@ -119,7 +119,7 @@ impl<T: Executer> ExecuterRaw for T {
                 if bcast.is_err() {
                     warn!(
                         "peer {} says: detected corrupted bcast from peer {}",
-                        info.share_id(),
+                        info.my_id(),
                         from
                     );
                     faulters.set(from, Fault::CorruptedMessage)?;
@@ -131,7 +131,7 @@ impl<T: Executer> ExecuterRaw for T {
                 if let Some(Err(_)) = p2p {
                     warn!(
                         "peer {} says: detected corrupted p2p from peer {} to peer {}",
-                        info.share_id(),
+                        info.my_id(),
                         from,
                         to
                     );
@@ -150,12 +150,13 @@ impl<T: Executer> ExecuterRaw for T {
 
         // special case: total_share_count == 1: `p2ps_in` is `[None]` by default
         let expected_msg_type = expected_msg_types.get(TypedUsize::from_usize(0))?;
-        let p2ps_in =
-            if info.share_count() == 1 && matches!(expected_msg_type, BcastAndP2p | P2pOnly) {
-                P2ps::new_size_1_some()?
-            } else {
-                p2ps_in
-            };
+        let p2ps_in = if info.total_share_count() == 1
+            && matches!(expected_msg_type, BcastAndP2p | P2pOnly)
+        {
+            P2ps::new_size_1_some()?
+        } else {
+            p2ps_in
+        };
 
         self.execute(info, bcasts_in, p2ps_in)
     }

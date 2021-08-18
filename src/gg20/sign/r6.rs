@@ -100,8 +100,8 @@ impl Executer for R6 {
         p2ps_in: crate::collections::P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<crate::sdk::implementer_api::ProtocolBuilder<Self::FinalOutput, Self::Index>>
     {
-        let my_share_id = info.share_id();
-        let mut faulters = FillVecMap::with_size(info.share_count());
+        let my_share_id = info.my_id();
+        let mut faulters = FillVecMap::with_size(info.total_share_count());
 
         // anyone who did not send a bcast is a faulter
         for (share_id, bcast) in bcasts_in.iter() {
@@ -131,7 +131,7 @@ impl Executer for R6 {
         let bcasts_in = bcasts_in.to_vecmap()?;
         let p2ps_in = p2ps_in.to_fullp2ps()?;
 
-        let participants_count = info.share_count();
+        let participants_count = info.total_share_count();
 
         let mut zkp_complaints = Subset::with_max_size(participants_count);
 
@@ -203,10 +203,7 @@ impl Executer for R6 {
 
         // malicious actor falsely claim type 5 fault by comparing against a corrupted curve generator
         let _curve_generator = ProjectivePoint::generator();
-        corrupt!(
-            _curve_generator,
-            self.corrupt_curve_generator(info.share_id())
-        );
+        corrupt!(_curve_generator, self.corrupt_curve_generator(info.my_id()));
 
         // check for type 5 fault
         if R_i_sum != _curve_generator {

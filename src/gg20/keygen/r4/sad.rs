@@ -29,8 +29,8 @@ impl Executer for R4Sad {
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
-        let keygen_id = info.share_id();
-        let mut faulters = FillVecMap::with_size(info.share_count());
+        let keygen_id = info.my_id();
+        let mut faulters = FillVecMap::with_size(info.total_share_count());
 
         // anyone who did not send a bcast is a faulter
         for (keygen_peer_id, bcast) in bcasts_in.iter() {
@@ -80,7 +80,7 @@ impl Executer for R4Sad {
 
         // verify complaints
         for (accuser_keygen_id, accusations) in accusations_iter {
-            if accusations.vss_complaints.size() != info.share_count() {
+            if accusations.vss_complaints.size() != info.total_share_count() {
                 log_fault_info(
                     keygen_id,
                     accuser_keygen_id,

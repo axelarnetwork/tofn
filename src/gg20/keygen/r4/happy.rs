@@ -40,8 +40,8 @@ impl Executer for R4Happy {
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
-        let keygen_id = info.share_id();
-        let mut faulters = FillVecMap::with_size(info.share_count());
+        let keygen_id = info.my_id();
+        let mut faulters = FillVecMap::with_size(info.total_share_count());
 
         // TODO boilerplate
         // anyone who did not send a bcast is a faulter

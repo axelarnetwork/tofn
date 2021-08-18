@@ -53,8 +53,8 @@ impl Executer for R2 {
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
-        let keygen_id = info.share_id();
-        let mut faulters = FillVecMap::with_size(info.share_count());
+        let keygen_id = info.my_id();
+        let mut faulters = FillVecMap::with_size(info.total_share_count());
 
         // anyone who did not send a bcast is a faulter
         for (keygen_peer_id, bcast) in bcasts_in.iter() {
@@ -111,7 +111,8 @@ impl Executer for R2 {
         }
 
         let (peer_u_i_shares, u_i_share) =
-            VecMap::from_vec(self.u_i_vss.shares(info.share_count())).puncture_hole(keygen_id)?;
+            VecMap::from_vec(self.u_i_vss.shares(info.total_share_count()))
+                .puncture_hole(keygen_id)?;
 
         corrupt!(
             peer_u_i_shares,

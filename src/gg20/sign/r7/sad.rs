@@ -38,8 +38,8 @@ impl Executer for R7Sad {
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
-        let my_share_id = info.share_id();
-        let mut faulters = FillVecMap::with_size(info.share_count());
+        let my_share_id = info.my_id();
+        let mut faulters = FillVecMap::with_size(info.total_share_count());
 
         // anyone who did not send a bcast is a faulter
         for (share_id, bcast) in bcasts_in.iter() {
@@ -68,7 +68,7 @@ impl Executer for R7Sad {
         // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
         let bcasts_in = bcasts_in.to_vecmap()?;
 
-        let participants_count = info.share_count();
+        let participants_count = info.total_share_count();
 
         // we should have received at least one complaint
         if !bcasts_in

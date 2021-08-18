@@ -21,11 +21,11 @@ pub struct ProtocolInfo<K> {
 }
 
 impl<K> ProtocolInfo<K> {
-    pub fn share_count(&self) -> usize {
+    pub fn total_share_count(&self) -> usize {
         self.share_count
     }
 
-    pub fn share_id(&self) -> TypedUsize<K> {
+    pub fn my_id(&self) -> TypedUsize<K> {
         self.share_id
     }
 

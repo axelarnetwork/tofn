@@ -64,8 +64,8 @@ impl Executer for R4Happy {
         p2ps_in: crate::collections::P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<crate::sdk::implementer_api::ProtocolBuilder<Self::FinalOutput, Self::Index>>
     {
-        let my_share_id = info.share_id();
-        let mut faulters = FillVecMap::with_size(info.share_count());
+        let my_share_id = info.my_id();
+        let mut faulters = FillVecMap::with_size(info.total_share_count());
 
         // anyone who did not send a bcast is a faulter
         for (share_id, bcast) in bcasts_in.iter() {

@@ -39,7 +39,7 @@ impl<F, K, P> Round<F, K, P> {
     /// we assume message autenticity
     /// thus, it's a fatal error if `from` is out of bounds
     pub fn msg_in(&mut self, from: TypedUsize<P>, bytes: &[u8]) -> TofnResult<()> {
-        let share_id = self.info().share_info().share_id();
+        let share_id = self.info().share_info().my_id();
         let party_id = self.info().party_id();
 
         // deserialize metadata
@@ -161,7 +161,7 @@ impl<F, K, P> Round<F, K, P> {
     }
 
     pub fn execute_next_round(mut self) -> TofnResult<Protocol<F, K, P>> {
-        let my_share_id = self.info().share_info().share_id();
+        let my_share_id = self.info().share_info().my_id();
         let my_party_id = self.info().party_id();
         let curr_round_num = self.info.round();
 
@@ -197,8 +197,8 @@ impl<F, K, P> Round<F, K, P> {
         bcast_out: Option<BytesVec>,
         p2ps_out: Option<HoleVecMap<K, BytesVec>>,
     ) -> TofnResult<Self> {
-        let total_share_count = info.share_info().share_count();
-        let my_share_id = info.share_info().share_id();
+        let total_share_count = info.share_info().total_share_count();
+        let my_share_id = info.share_info().my_id();
 
         // validate args
         if let Some(ref p2ps) = p2ps_out {
@@ -284,7 +284,7 @@ pub mod malicious {
         pub fn corrupt_msg_payload(&mut self, msg_type: MsgType<K>) -> TofnResult<()> {
             info!(
                 "malicious party {} corrupt msg",
-                self.info.share_info().share_id()
+                self.info.share_info().my_id()
             );
             match msg_type {
                 Bcast => {

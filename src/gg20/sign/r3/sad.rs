@@ -33,8 +33,8 @@ impl Executer for R3Sad {
         p2ps_in: crate::collections::P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<crate::sdk::implementer_api::ProtocolBuilder<Self::FinalOutput, Self::Index>>
     {
-        let my_share_id = info.share_id();
-        let mut faulters = FillVecMap::with_size(info.share_count());
+        let my_share_id = info.my_id();
+        let mut faulters = FillVecMap::with_size(info.total_share_count());
 
         // TODO sad path should not have p2ps
 
@@ -66,7 +66,7 @@ impl Executer for R3Sad {
         let bcasts_in = bcasts_in.to_vecmap()?;
         let _p2ps_in = p2ps_in.to_fullp2ps()?;
 
-        let participants_count = info.share_count();
+        let participants_count = info.total_share_count();
 
         // we should have received at least one complaint
         if !bcasts_in
