@@ -8,7 +8,7 @@ use crate::{
     },
     sdk::{
         api::TofnResult,
-        implementer_api::{serialize, XRoundBuilder},
+        implementer_api::{serialize, RoundBuilder},
     },
 };
 use ecdsa::elliptic_curve::Field;
@@ -116,7 +116,7 @@ pub(super) fn start(
         k_i_ciphertext,
     })?);
 
-    Ok(XSignProtocolBuilder::NotDone(XRoundBuilder::new(
+    Ok(XSignProtocolBuilder::NotDone(RoundBuilder::new(
         Box::new(r2::R2 {
             secret_key_share: my_secret_key_share,
             msg_to_sign: msg_to_sign,

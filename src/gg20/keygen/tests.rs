@@ -2,7 +2,7 @@ use super::*;
 use crate::{
     collections::{xzip2, HoleVecMap, TypedUsize, VecMap},
     gg20::crypto_tools::vss,
-    sdk::api::{BytesVec, XProtocol},
+    sdk::api::{BytesVec, Protocol},
 };
 use tracing_test::traced_test;
 
@@ -104,8 +104,8 @@ fn execute_keygen_from_recovery(
                 )
                 .unwrap()
                 {
-                    XProtocol::NotDone(round) => round,
-                    XProtocol::Done(_) => panic!("`new_keygen` returned a `Done` protocol"),
+                    Protocol::NotDone(round) => round,
+                    Protocol::Done(_) => panic!("`new_keygen` returned a `Done` protocol"),
                 }
             })
         })
@@ -147,8 +147,8 @@ fn execute_keygen_from_recovery(
             assert!(party.p2ps_out().is_none());
             assert!(!party.expecting_more_msgs_this_round().unwrap());
             match party.execute_next_round().unwrap() {
-                XProtocol::NotDone(next_round) => next_round,
-                XProtocol::Done(_) => panic!("party {} done, expect not done", i),
+                Protocol::NotDone(next_round) => next_round,
+                Protocol::Done(_) => panic!("party {} done, expect not done", i),
             }
         })
         .collect();
@@ -188,8 +188,8 @@ fn execute_keygen_from_recovery(
             assert!(party.p2ps_out().as_ref().unwrap().len() == share_count);
             assert!(!party.expecting_more_msgs_this_round().unwrap());
             match party.execute_next_round().unwrap() {
-                XProtocol::NotDone(next_round) => next_round,
-                XProtocol::Done(_) => panic!("party {} done, expect not done", i),
+                Protocol::NotDone(next_round) => next_round,
+                Protocol::Done(_) => panic!("party {} done, expect not done", i),
             }
         })
         .collect();
@@ -216,9 +216,9 @@ fn execute_keygen_from_recovery(
             assert!(party.p2ps_out().is_none());
             assert!(!party.expecting_more_msgs_this_round().unwrap());
             match party.execute_next_round().unwrap() {
-                XProtocol::NotDone(_) => panic!("party {} not done, expect done", i),
-                XProtocol::Done(Ok(secret_key_share)) => secret_key_share,
-                XProtocol::Done(Err(criminals)) => panic!(
+                Protocol::NotDone(_) => panic!("party {} not done, expect done", i),
+                Protocol::Done(Ok(secret_key_share)) => secret_key_share,
+                Protocol::Done(Err(criminals)) => panic!(
                     "party {} expect success got failure with criminals: {:?}",
                     i, criminals
                 ),

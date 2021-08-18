@@ -5,7 +5,7 @@ use tofn::{
         malicious::Behaviour::{self, *},
         new_keygen, KeygenPartyId, KeygenShareId, SecretKeyShare, XKeygenProtocol,
     },
-    sdk::api::{Fault, PartyShareCounts, ProtocolOutput, XProtocol::*},
+    sdk::api::{Fault, PartyShareCounts, Protocol::*, ProtocolOutput},
 };
 use tracing::info;
 

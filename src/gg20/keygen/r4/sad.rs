@@ -5,7 +5,7 @@ use crate::{
     gg20::keygen::{r1, r2, r3, KeygenShareId, SecretKeyShare},
     sdk::{
         api::{Fault::ProtocolFault, TofnFatal, TofnResult},
-        implementer_api::{log_fault_info, Executer, ProtocolInfo, XProtocolBuilder},
+        implementer_api::{log_fault_info, Executer, ProtocolInfo, ProtocolBuilder},
     },
 };
 
@@ -28,7 +28,7 @@ impl Executer for R4Sad {
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
         p2ps_in: XP2ps<Self::Index, Self::P2p>,
-    ) -> TofnResult<XProtocolBuilder<Self::FinalOutput, Self::Index>> {
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
         let keygen_id = info.share_id();
         let mut faulters = FillVecMap::with_size(info.share_count());
 
@@ -53,7 +53,7 @@ impl Executer for R4Sad {
             }
         }
         if !faulters.is_empty() {
-            return Ok(XProtocolBuilder::Done(Err(faulters)));
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
         // everyone sent a bcast---unwrap all bcasts
@@ -148,7 +148,7 @@ impl Executer for R4Sad {
             return Err(TofnFatal);
         }
 
-        Ok(XProtocolBuilder::Done(Err(faulters)))
+        Ok(ProtocolBuilder::Done(Err(faulters)))
     }
 
     #[cfg(test)]

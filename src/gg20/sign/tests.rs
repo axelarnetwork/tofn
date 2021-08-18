@@ -7,7 +7,7 @@ use crate::{
         keygen::{tests::execute_keygen, KeygenPartyShareCounts, KeygenShareId, SecretKeyShare},
         sign::api::{new_sign, SignShareId},
     },
-    sdk::api::{BytesVec, Fault, XProtocol, XRound},
+    sdk::api::{BytesVec, Fault, Protocol, Round},
 };
 use ecdsa::{elliptic_curve::sec1::ToEncodedPoint, hazmat::VerifyPrimitive};
 use k256::{ecdsa::Signature, ProjectivePoint};
@@ -17,7 +17,7 @@ use tracing_test::traced_test;
 #[cfg(feature = "malicious")]
 use crate::gg20::sign::malicious::Behaviour::Honest;
 
-type XParty = XRound<BytesVec, SignShareId, SignPartyId>;
+type XParty = Round<BytesVec, SignShareId, SignPartyId>;
 type XParties = Vec<XParty>;
 type PartyBcast = Result<VecMap<SignShareId, BytesVec>, ()>;
 type PartyP2p = Result<VecMap<SignShareId, HoleVecMap<SignShareId, BytesVec>>, ()>;
@@ -135,8 +135,8 @@ fn execute_sign(
             )
             .unwrap()
             {
-                XProtocol::NotDone(round) => round,
-                XProtocol::Done(_) => panic!("`new_sign` returned a `Done` protocol"),
+                Protocol::NotDone(round) => round,
+                Protocol::Done(_) => panic!("`new_sign` returned a `Done` protocol"),
             }
         })
         .collect();
@@ -270,8 +270,8 @@ fn execute_round(
                 .execute_next_round()
                 .expect("Encountered protocol fault")
             {
-                XProtocol::NotDone(next_round) => next_round,
-                XProtocol::Done(_) => panic!(
+                Protocol::NotDone(next_round) => next_round,
+                Protocol::Done(_) => panic!(
                     "party {} done after round {}, expected not done",
                     i, round_num
                 ),
@@ -299,8 +299,8 @@ fn execute_final_round(
     for (i, party) in parties.into_iter().enumerate() {
         assert!(!party.expecting_more_msgs_this_round().unwrap());
         let res = match party.execute_next_round().unwrap() {
-            XProtocol::Done(res) => res,
-            XProtocol::NotDone(_) => panic!(
+            Protocol::Done(res) => res,
+            Protocol::NotDone(_) => panic!(
                 "party {} not done after round {}, expected done",
                 i, round_num
             ),

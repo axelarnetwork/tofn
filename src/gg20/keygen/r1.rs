@@ -7,7 +7,7 @@ use crate::{
     },
     sdk::{
         api::TofnResult,
-        implementer_api::{serialize, XProtocolBuilder, XRoundBuilder},
+        implementer_api::{serialize, ProtocolBuilder, RoundBuilder},
     },
 };
 use serde::{Deserialize, Serialize};
@@ -71,7 +71,7 @@ pub(super) fn start(
         zkp_proof,
     })?);
 
-    Ok(XProtocolBuilder::NotDone(XRoundBuilder::new(
+    Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
         Box::new(r2::R2 {
             threshold,
             party_share_counts,

@@ -13,7 +13,7 @@ use crate::{
     },
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnResult},
-        implementer_api::{serialize, Executer, ProtocolInfo, XProtocolBuilder, XRoundBuilder},
+        implementer_api::{serialize, Executer, ProtocolBuilder, ProtocolInfo, RoundBuilder},
     },
 };
 use k256::{ProjectivePoint, Scalar};
@@ -70,7 +70,7 @@ impl Executer for R5 {
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
         p2ps_in: XP2ps<Self::Index, Self::P2p>,
-    ) -> TofnResult<XProtocolBuilder<Self::FinalOutput, Self::Index>> {
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
         let my_share_id = info.share_id();
         let mut faulters = FillVecMap::with_size(info.share_count());
 
@@ -95,7 +95,7 @@ impl Executer for R5 {
             }
         }
         if !faulters.is_empty() {
-            return Ok(XProtocolBuilder::Done(Err(faulters)));
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
         // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
@@ -120,7 +120,7 @@ impl Executer for R5 {
             }
         }
         if !faulters.is_empty() {
-            return Ok(XProtocolBuilder::Done(Err(faulters)));
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
         let Gamma = bcasts_in
@@ -174,7 +174,7 @@ impl Executer for R5 {
 
         let bcast_out = Some(serialize(&Bcast { R_i: R_i.into() })?);
 
-        Ok(XProtocolBuilder::NotDone(XRoundBuilder::new(
+        Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
             Box::new(r6::R6 {
                 secret_key_share: self.secret_key_share,
                 msg_to_sign: self.msg_to_sign,

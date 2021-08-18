@@ -9,13 +9,13 @@ use crate::{
 };
 
 use super::{
-    api::XProtocol,
+    api::Protocol,
     executer::ExecuterRaw,
     protocol_info::ProtocolInfoDeluxe,
     wire_bytes::{self, MsgType::*, XWireBytes},
 };
 
-pub struct XRound<F, K, P> {
+pub struct Round<F, K, P> {
     info: ProtocolInfoDeluxe<K, P>,
     round: Box<dyn ExecuterRaw<FinalOutput = F, Index = K>>,
     bcast_out: Option<BytesVec>,
@@ -27,7 +27,7 @@ pub struct XRound<F, K, P> {
 }
 
 // api: Round methods for tofn users
-impl<F, K, P> XRound<F, K, P> {
+impl<F, K, P> Round<F, K, P> {
     pub fn bcast_out(&self) -> Option<&BytesVec> {
         self.bcast_out.as_ref()
     }
@@ -161,7 +161,7 @@ impl<F, K, P> XRound<F, K, P> {
         Ok(false)
     }
 
-    pub fn execute_next_round(mut self) -> TofnResult<XProtocol<F, K, P>> {
+    pub fn execute_next_round(mut self) -> TofnResult<Protocol<F, K, P>> {
         let my_share_id = self.info().share_info().share_id();
         let my_party_id = self.info().party_id();
         let curr_round_num = self.info.round();
@@ -172,7 +172,7 @@ impl<F, K, P> XRound<F, K, P> {
                 my_share_id, my_party_id, curr_round_num,
             );
 
-            return Ok(XProtocol::Done(Err(self.msg_in_faulters)));
+            return Ok(Protocol::Done(Err(self.msg_in_faulters)));
         }
 
         self.info.advance_round();
@@ -279,9 +279,9 @@ pub mod malicious {
         },
     };
 
-    use super::{TofnResult, XRound};
+    use super::{Round, TofnResult};
 
-    impl<F, K, P> XRound<F, K, P> {
+    impl<F, K, P> Round<F, K, P> {
         pub fn corrupt_msg_payload(&mut self, msg_type: MsgType<K>) -> TofnResult<()> {
             info!(
                 "malicious party {} corrupt msg",

@@ -11,7 +11,7 @@ use crate::{
     },
     sdk::{
         api::{Fault::ProtocolFault, TofnFatal, TofnResult},
-        implementer_api::{log_fault_warn, Executer, ProtocolInfo, XProtocolBuilder},
+        implementer_api::{log_fault_warn, Executer, ProtocolInfo, ProtocolBuilder},
     },
 };
 
@@ -39,7 +39,7 @@ impl Executer for R4Happy {
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
         p2ps_in: XP2ps<Self::Index, Self::P2p>,
-    ) -> TofnResult<XProtocolBuilder<Self::FinalOutput, Self::Index>> {
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
         let keygen_id = info.share_id();
         let mut faulters = FillVecMap::with_size(info.share_count());
 
@@ -65,7 +65,7 @@ impl Executer for R4Happy {
             }
         }
         if !faulters.is_empty() {
-            return Ok(XProtocolBuilder::Done(Err(faulters)));
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
         // move to sad path if necessary
@@ -115,7 +115,7 @@ impl Executer for R4Happy {
         }
 
         if !faulters.is_empty() {
-            return Ok(XProtocolBuilder::Done(Err(faulters)));
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
         // prepare data for final output
@@ -131,7 +131,7 @@ impl Executer for R4Happy {
             })
             .collect::<TofnResult<VecMap<_, _>>>()?;
 
-        Ok(XProtocolBuilder::Done(Ok(SecretKeyShare::new(
+        Ok(ProtocolBuilder::Done(Ok(SecretKeyShare::new(
             GroupPublicInfo::new(
                 self.party_share_counts,
                 self.threshold,

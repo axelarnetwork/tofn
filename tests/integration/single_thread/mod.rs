@@ -9,7 +9,7 @@ use tofn::{
         keygen::{KeygenShareId, SecretKeyShare},
         sign::{new_sign, MessageDigest, SignParties, SignShareId},
     },
-    sdk::api::{PartyShareCounts, XProtocol},
+    sdk::api::{PartyShareCounts, Protocol},
 };
 
 #[cfg(feature = "malicious")]
@@ -44,8 +44,8 @@ fn basic_correctness() {
     let keygen_share_outputs = execute_protocol(keygen_shares).expect("internal tofn error");
     let secret_key_shares: VecMap<KeygenShareId, SecretKeyShare> =
         keygen_share_outputs.map2(|(keygen_share_id, keygen_share)| match keygen_share {
-            XProtocol::NotDone(_) => panic!("share_id {} not done yet", keygen_share_id),
-            XProtocol::Done(result) => result.expect("share finished with error"),
+            Protocol::NotDone(_) => panic!("share_id {} not done yet", keygen_share_id),
+            Protocol::Done(result) => result.expect("share finished with error"),
         });
 
     // sign
@@ -74,8 +74,8 @@ fn basic_correctness() {
     });
     let sign_share_outputs = execute_protocol(sign_shares).unwrap();
     let signatures = sign_share_outputs.map(|output| match output {
-        XProtocol::NotDone(_) => panic!("sign share not done yet"),
-        XProtocol::Done(result) => result.expect("sign share finished with error"),
+        Protocol::NotDone(_) => panic!("sign share not done yet"),
+        Protocol::Done(result) => result.expect("sign share finished with error"),
     });
 
     // grab pubkey bytes from one of the shares

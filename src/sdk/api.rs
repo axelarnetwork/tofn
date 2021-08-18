@@ -4,8 +4,8 @@ pub type BytesVec = Vec<u8>;
 
 pub use super::{
     party_share_counts::PartyShareCounts,
-    protocol::{Fault, ProtocolFaulters, ProtocolOutput, XProtocol},
-    round::XRound,
+    protocol::{Fault, Protocol, ProtocolFaulters, ProtocolOutput},
+    round::Round,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]

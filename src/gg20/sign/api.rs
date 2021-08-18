@@ -9,8 +9,8 @@ use crate::{
         GroupPublicInfo, KeygenPartyId, KeygenShareId, SecretKeyShare, ShareSecretInfo,
     },
     sdk::{
-        api::{BytesVec, PartyShareCounts, TofnFatal, TofnResult, XProtocol},
-        implementer_api::{xnew_protocol, XProtocolBuilder},
+        api::{BytesVec, PartyShareCounts, Protocol, TofnFatal, TofnResult},
+        implementer_api::{new_protocol, ProtocolBuilder},
     },
 };
 use serde::{Deserialize, Serialize};
@@ -21,8 +21,8 @@ use super::r1;
 #[cfg(feature = "malicious")]
 use super::malicious;
 
-pub type XSignProtocol = XProtocol<BytesVec, SignShareId, SignPartyId>;
-pub type XSignProtocolBuilder = XProtocolBuilder<BytesVec, SignShareId>;
+pub type XSignProtocol = Protocol<BytesVec, SignShareId, SignPartyId>;
+pub type XSignProtocolBuilder = ProtocolBuilder<BytesVec, SignShareId>;
 
 // This includes all shares participating in the current signing protocol
 pub type Participants = VecMap<SignShareId, TypedUsize<KeygenShareId>>;
@@ -98,5 +98,5 @@ pub fn new_sign(
         behaviour,
     )?;
 
-    xnew_protocol(sign_party_share_counts, my_share_id, round2)
+    new_protocol(sign_party_share_counts, my_share_id, round2)
 }

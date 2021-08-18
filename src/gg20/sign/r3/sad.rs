@@ -3,7 +3,7 @@ use crate::{
     gg20::{crypto_tools::paillier, keygen::SecretKeyShare, sign::Participants},
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
-        implementer_api::{log_fault_info, Executer, ProtocolInfo, XProtocolBuilder},
+        implementer_api::{log_fault_info, Executer, ProtocolBuilder, ProtocolInfo},
     },
 };
 
@@ -31,7 +31,7 @@ impl Executer for R3Sad {
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
         p2ps_in: crate::collections::XP2ps<Self::Index, Self::P2p>,
-    ) -> TofnResult<crate::sdk::implementer_api::XProtocolBuilder<Self::FinalOutput, Self::Index>>
+    ) -> TofnResult<crate::sdk::implementer_api::ProtocolBuilder<Self::FinalOutput, Self::Index>>
     {
         let my_share_id = info.share_id();
         let mut faulters = FillVecMap::with_size(info.share_count());
@@ -59,7 +59,7 @@ impl Executer for R3Sad {
             }
         }
         if !faulters.is_empty() {
-            return Ok(XProtocolBuilder::Done(Err(faulters)));
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
         // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
@@ -163,7 +163,7 @@ impl Executer for R3Sad {
             return Err(TofnFatal);
         }
 
-        Ok(XProtocolBuilder::Done(Err(faulters)))
+        Ok(ProtocolBuilder::Done(Err(faulters)))
     }
 
     #[cfg(test)]

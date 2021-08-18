@@ -12,7 +12,7 @@ use tofn::{
             new_sign, MessageDigest, SignParties, SignPartyId, SignShareId,
         },
     },
-    sdk::api::{BytesVec, Fault, PartyShareCounts, ProtocolOutput, XProtocol::*},
+    sdk::api::{BytesVec, Fault, PartyShareCounts, Protocol::*, ProtocolOutput},
 };
 use tracing::info;
 

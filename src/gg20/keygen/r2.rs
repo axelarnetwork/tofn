@@ -10,7 +10,7 @@ use crate::{
     },
     sdk::{
         api::{Fault::ProtocolFault, TofnResult},
-        implementer_api::{serialize, Executer, ProtocolInfo, XProtocolBuilder, XRoundBuilder},
+        implementer_api::{serialize, Executer, ProtocolBuilder, ProtocolInfo, RoundBuilder},
     },
 };
 
@@ -52,7 +52,7 @@ impl Executer for R2 {
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
         p2ps_in: XP2ps<Self::Index, Self::P2p>,
-    ) -> TofnResult<XProtocolBuilder<Self::FinalOutput, Self::Index>> {
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
         let keygen_id = info.share_id();
         let mut faulters = FillVecMap::with_size(info.share_count());
 
@@ -77,7 +77,7 @@ impl Executer for R2 {
             }
         }
         if !faulters.is_empty() {
-            return Ok(XProtocolBuilder::Done(Err(faulters)));
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
         // everyone sent a bcast---unwrap all bcasts
@@ -107,7 +107,7 @@ impl Executer for R2 {
         }
 
         if !faulters.is_empty() {
-            return Ok(XProtocolBuilder::Done(Err(faulters)));
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
         let (peer_u_i_shares, u_i_share) =
@@ -140,7 +140,7 @@ impl Executer for R2 {
             u_i_vss_commit: self.u_i_vss.commit(),
         })?);
 
-        Ok(XProtocolBuilder::NotDone(XRoundBuilder::new(
+        Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
             Box::new(r3::R3 {
                 threshold: self.threshold,
                 party_share_counts: self.party_share_counts,

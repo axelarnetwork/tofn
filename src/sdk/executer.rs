@@ -10,7 +10,7 @@ use crate::{
 };
 
 use super::{
-    protocol_builder::XProtocolBuilder,
+    protocol_builder::ProtocolBuilder,
     wire_bytes::ExpectedMsgTypes::{self, *},
 };
 
@@ -24,7 +24,7 @@ pub trait Executer: Send + Sync {
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
         p2ps_in: XP2ps<Self::Index, Self::P2p>,
-    ) -> TofnResult<XProtocolBuilder<Self::FinalOutput, Self::Index>>;
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>>;
 
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
@@ -42,7 +42,7 @@ pub trait ExecuterRaw: Send + Sync {
         bcasts_in: FillVecMap<Self::Index, BytesVec>,
         p2ps_in: FillP2ps<Self::Index, BytesVec>,
         expected_msg_types: FillVecMap<Self::Index, ExpectedMsgTypes>,
-    ) -> TofnResult<XProtocolBuilder<Self::FinalOutput, Self::Index>>;
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>>;
 
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {
@@ -60,7 +60,7 @@ impl<T: Executer> ExecuterRaw for T {
         bcasts_in: FillVecMap<Self::Index, BytesVec>,
         p2ps_in: FillP2ps<Self::Index, BytesVec>,
         expected_msg_types: FillVecMap<Self::Index, ExpectedMsgTypes>,
-    ) -> TofnResult<XProtocolBuilder<Self::FinalOutput, Self::Index>> {
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
         let mut faulters = FillVecMap::with_size(info.share_count());
 
         // check for missing messages (timeout fault)
@@ -100,7 +100,7 @@ impl<T: Executer> ExecuterRaw for T {
             }
         }
         if !faulters.is_empty() {
-            return Ok(XProtocolBuilder::Done(Err(faulters)));
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
         let expected_msg_types = expected_msg_types.to_vecmap()?;
@@ -138,7 +138,7 @@ impl<T: Executer> ExecuterRaw for T {
             }
         }
         if !faulters.is_empty() {
-            return Ok(XProtocolBuilder::Done(Err(faulters)));
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
         // all deserialization succeeded---unwrap deserialized bcasts, p2ps

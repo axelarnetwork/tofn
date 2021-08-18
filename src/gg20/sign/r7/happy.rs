@@ -14,7 +14,7 @@ use crate::{
     },
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
-        implementer_api::{serialize, Executer, ProtocolInfo, XProtocolBuilder, XRoundBuilder},
+        implementer_api::{serialize, Executer, ProtocolBuilder, ProtocolInfo, RoundBuilder},
     },
 };
 use ecdsa::elliptic_curve::sec1::ToEncodedPoint;
@@ -59,7 +59,7 @@ impl Executer for R7Happy {
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
         p2ps_in: XP2ps<Self::Index, Self::P2p>,
-    ) -> TofnResult<XProtocolBuilder<Self::FinalOutput, Self::Index>> {
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
         let my_share_id = info.share_id();
         let mut faulters = FillVecMap::with_size(info.share_count());
 
@@ -84,7 +84,7 @@ impl Executer for R7Happy {
             }
         }
         if !faulters.is_empty() {
-            return Ok(XProtocolBuilder::Done(Err(faulters)));
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
         let participants_count = info.share_count();
@@ -135,7 +135,7 @@ impl Executer for R7Happy {
             }
         }
         if !faulters.is_empty() {
-            return Ok(XProtocolBuilder::Done(Err(faulters)));
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
         let bcasts_in = bcasts.to_vecmap()?;
@@ -161,7 +161,7 @@ impl Executer for R7Happy {
             }
         }
         if !faulters.is_empty() {
-            return Ok(XProtocolBuilder::Done(Err(faulters)));
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
         // check for failure of type 7 from section 4.2 of https://eprint.iacr.org/2020/540.pdf
@@ -208,7 +208,7 @@ impl Executer for R7Happy {
                 mta_wc_plaintexts,
             }))?);
 
-            return Ok(XProtocolBuilder::NotDone(XRoundBuilder::new(
+            return Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
                 Box::new(r8::R8Type7 {
                     secret_key_share: self.secret_key_share,
                     peers: self.peers,
@@ -243,7 +243,7 @@ impl Executer for R7Happy {
 
         let bcast_out = Some(serialize(&Bcast::Happy(BcastHappy { s_i: s_i.into() }))?);
 
-        Ok(XProtocolBuilder::NotDone(XRoundBuilder::new(
+        Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
             Box::new(r8::R8Happy {
                 secret_key_share: self.secret_key_share,
                 msg_to_sign: self.msg_to_sign,

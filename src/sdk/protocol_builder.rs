@@ -3,23 +3,23 @@ use crate::collections::{FillVecMap, HoleVecMap};
 use super::{
     api::{BytesVec, TofnResult},
     executer::ExecuterRaw,
-    protocol::{Fault, XProtocol},
+    protocol::{Fault, Protocol},
     protocol_info::ProtocolInfoDeluxe,
-    round::XRound,
+    round::Round,
 };
 
-pub enum XProtocolBuilder<F, K> {
-    NotDone(XRoundBuilder<F, K>),
+pub enum ProtocolBuilder<F, K> {
+    NotDone(RoundBuilder<F, K>),
     Done(ProtocolBuilderOutput<F, K>),
 }
 
-pub struct XRoundBuilder<F, K> {
+pub struct RoundBuilder<F, K> {
     round: Box<dyn ExecuterRaw<FinalOutput = F, Index = K>>,
     bcast_out: Option<BytesVec>,
     p2ps_out: Option<HoleVecMap<K, BytesVec>>,
 }
 
-impl<F, K> XRoundBuilder<F, K> {
+impl<F, K> RoundBuilder<F, K> {
     pub fn new(
         round: Box<dyn ExecuterRaw<FinalOutput = F, Index = K>>,
         bcast_out: Option<BytesVec>,
@@ -33,16 +33,16 @@ impl<F, K> XRoundBuilder<F, K> {
     }
 }
 
-impl<F, K> XProtocolBuilder<F, K> {
-    pub(super) fn build<P>(self, info: ProtocolInfoDeluxe<K, P>) -> TofnResult<XProtocol<F, K, P>> {
+impl<F, K> ProtocolBuilder<F, K> {
+    pub(super) fn build<P>(self, info: ProtocolInfoDeluxe<K, P>) -> TofnResult<Protocol<F, K, P>> {
         Ok(match self {
-            Self::NotDone(builder) => XProtocol::NotDone(XRound::new(
+            Self::NotDone(builder) => Protocol::NotDone(Round::new(
                 builder.round,
                 info,
                 builder.bcast_out,
                 builder.p2ps_out,
             )?),
-            Self::Done(output) => XProtocol::Done(info.share_to_party_faults(output)?),
+            Self::Done(output) => Protocol::Done(info.share_to_party_faults(output)?),
         })
     }
 }

@@ -12,7 +12,7 @@ use crate::{
     },
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnResult},
-        implementer_api::{serialize, Executer, ProtocolInfo, XProtocolBuilder, XRoundBuilder},
+        implementer_api::{serialize, Executer, ProtocolBuilder, ProtocolInfo, RoundBuilder},
     },
 };
 use k256::{ProjectivePoint, Scalar};
@@ -98,7 +98,7 @@ impl Executer for R6 {
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: crate::collections::FillVecMap<Self::Index, Self::Bcast>,
         p2ps_in: crate::collections::XP2ps<Self::Index, Self::P2p>,
-    ) -> TofnResult<crate::sdk::implementer_api::XProtocolBuilder<Self::FinalOutput, Self::Index>>
+    ) -> TofnResult<crate::sdk::implementer_api::ProtocolBuilder<Self::FinalOutput, Self::Index>>
     {
         let my_share_id = info.share_id();
         let mut faulters = FillVecMap::with_size(info.share_count());
@@ -124,7 +124,7 @@ impl Executer for R6 {
             }
         }
         if !faulters.is_empty() {
-            return Ok(XProtocolBuilder::Done(Err(faulters)));
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
         // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
@@ -180,7 +180,7 @@ impl Executer for R6 {
         if !zkp_complaints.is_empty() {
             let bcast_out = Some(serialize(&Bcast::Sad(BcastSad { zkp_complaints }))?);
 
-            return Ok(XProtocolBuilder::NotDone(XRoundBuilder::new(
+            return Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
                 Box::new(r7::R7Sad {
                     secret_key_share: self.secret_key_share,
                     participants: self.participants,
@@ -250,7 +250,7 @@ impl Executer for R6 {
                 mta_plaintexts,
             }))?);
 
-            return Ok(XProtocolBuilder::NotDone(XRoundBuilder::new(
+            return Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
                 Box::new(r7::R7Type5 {
                     secret_key_share: self.secret_key_share,
                     peers: self.peers,
@@ -294,7 +294,7 @@ impl Executer for R6 {
             S_i_proof_wc,
         }))?);
 
-        Ok(XProtocolBuilder::NotDone(XRoundBuilder::new(
+        Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
             Box::new(r7::R7Happy {
                 secret_key_share: self.secret_key_share,
                 msg_to_sign: self.msg_to_sign,

@@ -12,7 +12,7 @@ use crate::{
     sdk::{
         api::{Fault::ProtocolFault, TofnResult},
         implementer_api::{
-            log_accuse_warn, serialize, Executer, ProtocolInfo, XProtocolBuilder, XRoundBuilder,
+            log_accuse_warn, serialize, Executer, ProtocolBuilder, ProtocolInfo, RoundBuilder,
         },
     },
 };
@@ -67,7 +67,7 @@ impl Executer for R3 {
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
         p2ps_in: XP2ps<Self::Index, Self::P2p>,
-    ) -> TofnResult<XProtocolBuilder<Self::FinalOutput, Self::Index>> {
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
         let keygen_id = info.share_id();
         let mut faulters = FillVecMap::with_size(info.share_count());
 
@@ -92,7 +92,7 @@ impl Executer for R3 {
             }
         }
         if !faulters.is_empty() {
-            return Ok(XProtocolBuilder::Done(Err(faulters)));
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
         // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
@@ -120,7 +120,7 @@ impl Executer for R3 {
         }
 
         if !faulters.is_empty() {
-            return Ok(XProtocolBuilder::Done(Err(faulters)));
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
         // decrypt shares
@@ -165,7 +165,7 @@ impl Executer for R3 {
         if !vss_complaints.is_empty() {
             let bcast_out = Some(serialize(&Bcast::Sad(BcastSad { vss_complaints }))?);
 
-            return Ok(XProtocolBuilder::NotDone(XRoundBuilder::new(
+            return Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
                 Box::new(r4::R4Sad {
                     r1bcasts: self.r1bcasts,
                     r2bcasts: bcasts_in,
@@ -214,7 +214,7 @@ impl Executer for R3 {
 
         let bcast_out = Some(serialize(&Bcast::Happy(BcastHappy { x_i_proof }))?);
 
-        Ok(XProtocolBuilder::NotDone(XRoundBuilder::new(
+        Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
             Box::new(r4::R4Happy {
                 threshold: self.threshold,
                 party_share_counts: self.party_share_counts,

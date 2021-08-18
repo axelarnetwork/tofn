@@ -3,7 +3,7 @@ use crate::{
     gg20::{crypto_tools::k256_serde, keygen::SecretKeyShare},
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
-        implementer_api::{Executer, ProtocolInfo, XProtocolBuilder},
+        implementer_api::{Executer, ProtocolBuilder, ProtocolInfo},
     },
 };
 use ecdsa::hazmat::VerifyPrimitive;
@@ -41,7 +41,7 @@ impl Executer for R8Happy {
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
         p2ps_in: XP2ps<Self::Index, Self::P2p>,
-    ) -> TofnResult<XProtocolBuilder<Self::FinalOutput, Self::Index>> {
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
         let my_share_id = info.share_id();
         let mut faulters = FillVecMap::with_size(info.share_count());
 
@@ -66,7 +66,7 @@ impl Executer for R8Happy {
             }
         }
         if !faulters.is_empty() {
-            return Ok(XProtocolBuilder::Done(Err(faulters)));
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
         let participants_count = info.share_count();
@@ -92,7 +92,7 @@ impl Executer for R8Happy {
             }
         }
         if !faulters.is_empty() {
-            return Ok(XProtocolBuilder::Done(Err(faulters)));
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
         let bcasts_in = bcasts.to_vecmap()?;
@@ -122,7 +122,7 @@ impl Executer for R8Happy {
             // convert signature into ASN1/DER (Bitcoin) format
             let sig_bytes = sig.to_der().as_bytes().to_vec();
 
-            return Ok(XProtocolBuilder::Done(Ok(sig_bytes)));
+            return Ok(ProtocolBuilder::Done(Ok(sig_bytes)));
         }
 
         // verify proofs
@@ -142,7 +142,7 @@ impl Executer for R8Happy {
             }
         }
         if !faulters.is_empty() {
-            Ok(XProtocolBuilder::Done(Err(faulters)))
+            Ok(ProtocolBuilder::Done(Err(faulters)))
         } else {
             error!(
                 "peer {} says: invalid signature detected but no faulters identified",

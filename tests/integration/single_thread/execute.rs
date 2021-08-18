@@ -2,13 +2,13 @@
 
 use tofn::{
     collections::{HoleVecMap, VecMap},
-    sdk::api::{BytesVec, TofnResult, XProtocol},
+    sdk::api::{BytesVec, Protocol, TofnResult},
 };
 use tracing::warn;
 
 pub fn execute_protocol<F, K, P>(
-    mut parties: VecMap<K, XProtocol<F, K, P>>,
-) -> TofnResult<VecMap<K, XProtocol<F, K, P>>>
+    mut parties: VecMap<K, Protocol<F, K, P>>,
+) -> TofnResult<VecMap<K, Protocol<F, K, P>>>
 where
     K: Clone,
 {
@@ -18,14 +18,14 @@ where
     Ok(parties)
 }
 
-pub fn nobody_done<F, K, P>(parties: &VecMap<K, XProtocol<F, K, P>>) -> bool {
+pub fn nobody_done<F, K, P>(parties: &VecMap<K, Protocol<F, K, P>>) -> bool {
     // warn if there's disagreement
     let (mut done, mut not_done) = (
         Vec::with_capacity(parties.len()),
         Vec::with_capacity(parties.len()),
     );
     for (i, party) in parties.iter() {
-        if matches!(party, XProtocol::Done(_)) {
+        if matches!(party, Protocol::Done(_)) {
             done.push(i);
         } else {
             not_done.push(i);
@@ -41,8 +41,8 @@ pub fn nobody_done<F, K, P>(parties: &VecMap<K, XProtocol<F, K, P>>) -> bool {
 }
 
 fn next_round<F, K, P>(
-    parties: VecMap<K, XProtocol<F, K, P>>,
-) -> TofnResult<VecMap<K, XProtocol<F, K, P>>>
+    parties: VecMap<K, Protocol<F, K, P>>,
+) -> TofnResult<VecMap<K, Protocol<F, K, P>>>
 where
     K: Clone,
 {
@@ -50,8 +50,8 @@ where
     let mut rounds: VecMap<K, _> = parties
         .into_iter()
         .map(|(i, party)| match party {
-            XProtocol::NotDone(round) => round,
-            XProtocol::Done(_) => panic!("next_round called but party {} is done", i),
+            Protocol::NotDone(round) => round,
+            Protocol::Done(_) => panic!("next_round called but party {} is done", i),
         })
         .collect();
 

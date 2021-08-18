@@ -6,7 +6,7 @@ use std::sync::mpsc::Receiver;
 // https://github.com/rust-lang/rust/issues/83248
 use tofn::{
     collections::TypedUsize,
-    sdk::api::{BytesVec, ProtocolOutput, TofnFatal, TofnResult, XProtocol},
+    sdk::api::{BytesVec, Protocol, ProtocolOutput, TofnFatal, TofnResult},
 };
 use tracing::error;
 
@@ -18,7 +18,7 @@ pub struct Message<P> {
 }
 
 pub fn execute_protocol<F, K, P>(
-    mut party: XProtocol<F, K, P>,
+    mut party: Protocol<F, K, P>,
     input: Receiver<Message<P>>,
     broadcaster: Broadcaster<Message<P>>,
 ) -> TofnResult<ProtocolOutput<F, P>>
@@ -33,7 +33,7 @@ where
     let mut round_num = 0;
     let mut future_messages: Vec<Message<P>> = Vec::new();
 
-    while let XProtocol::NotDone(mut round) = party {
+    while let Protocol::NotDone(mut round) = party {
         let party_id = round.info().party_id();
 
         // send outgoing messages
@@ -84,7 +84,7 @@ where
     }
 
     match party {
-        XProtocol::NotDone(_) => unreachable!(),
-        XProtocol::Done(result) => Ok(result),
+        Protocol::NotDone(_) => unreachable!(),
+        Protocol::Done(result) => Ok(result),
     }
 }

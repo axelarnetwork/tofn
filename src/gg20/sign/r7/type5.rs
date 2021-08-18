@@ -7,7 +7,7 @@ use crate::{
     },
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
-        implementer_api::{Executer, ProtocolInfo, XProtocolBuilder},
+        implementer_api::{Executer, ProtocolBuilder, ProtocolInfo},
     },
 };
 use k256::ProjectivePoint;
@@ -41,7 +41,7 @@ impl Executer for R7Type5 {
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
         p2ps_in: XP2ps<Self::Index, Self::P2p>,
-    ) -> TofnResult<XProtocolBuilder<Self::FinalOutput, Self::Index>> {
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
         let my_share_id = info.share_id();
         let mut faulters = FillVecMap::with_size(info.share_count());
 
@@ -66,7 +66,7 @@ impl Executer for R7Type5 {
             }
         }
         if !faulters.is_empty() {
-            return Ok(XProtocolBuilder::Done(Err(faulters)));
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
         let participants_count = info.share_count();
@@ -120,7 +120,7 @@ impl Executer for R7Type5 {
         }
 
         if !faulters.is_empty() {
-            return Ok(XProtocolBuilder::Done(Err(faulters)));
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
         let bcasts_in = bcasts_sad.to_vecmap()?;
@@ -272,7 +272,7 @@ impl Executer for R7Type5 {
             return Err(TofnFatal);
         }
 
-        Ok(XProtocolBuilder::Done(Err(faulters)))
+        Ok(ProtocolBuilder::Done(Err(faulters)))
     }
 
     #[cfg(test)]
