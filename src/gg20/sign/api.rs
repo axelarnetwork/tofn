@@ -21,8 +21,8 @@ use super::r1;
 #[cfg(feature = "malicious")]
 use super::malicious;
 
-pub type XSignProtocol = Protocol<BytesVec, SignShareId, SignPartyId>;
-pub type XSignProtocolBuilder = ProtocolBuilder<BytesVec, SignShareId>;
+pub type SignProtocol = Protocol<BytesVec, SignShareId, SignPartyId>;
+pub type SignProtocolBuilder = ProtocolBuilder<BytesVec, SignShareId>;
 
 // This includes all shares participating in the current signing protocol
 pub type Participants = VecMap<SignShareId, TypedUsize<KeygenShareId>>;
@@ -63,7 +63,7 @@ pub fn new_sign(
     sign_parties: &SignParties,
     msg_to_sign: &MessageDigest,
     #[cfg(feature = "malicious")] behaviour: malicious::Behaviour,
-) -> TofnResult<XSignProtocol> {
+) -> TofnResult<SignProtocol> {
     let participants = VecMap::from_vec(group.party_share_counts().share_id_subset(sign_parties)?);
 
     // participant share count must be at least threshold + 1

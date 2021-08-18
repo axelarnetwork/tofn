@@ -32,8 +32,8 @@ pub struct KeygenShareId;
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct KeygenPartyId;
 
-pub type XKeygenProtocol = Protocol<SecretKeyShare, KeygenShareId, KeygenPartyId>;
-pub type XKeygenProtocolBuilder = ProtocolBuilder<SecretKeyShare, KeygenShareId>;
+pub type KeygenProtocol = Protocol<SecretKeyShare, KeygenShareId, KeygenPartyId>;
+pub type KeygenProtocolBuilder = ProtocolBuilder<SecretKeyShare, KeygenShareId>;
 pub type KeygenPartyShareCounts = PartyShareCounts<KeygenPartyId>;
 
 #[derive(Debug, Clone, Zeroize)]
@@ -138,7 +138,7 @@ pub fn new_keygen(
     party_keypair: &PartyKeyPair,
     party_zksetup: &PartyZkSetup,
     #[cfg(feature = "malicious")] behaviour: malicious::Behaviour,
-) -> TofnResult<XKeygenProtocol> {
+) -> TofnResult<KeygenProtocol> {
     // validate args
     if party_share_counts
         .iter()

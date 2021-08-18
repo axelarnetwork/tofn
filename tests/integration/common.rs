@@ -6,8 +6,8 @@ pub mod keygen {
     use tofn::{
         collections::VecMap,
         gg20::keygen::{
-            create_party_keypair_and_zksetup_unsafe, new_keygen, KeygenPartyId, KeygenShareId,
-            XKeygenProtocol,
+            create_party_keypair_and_zksetup_unsafe, new_keygen, KeygenPartyId, KeygenProtocol,
+            KeygenShareId,
         },
         sdk::api::PartyShareCounts,
     };
@@ -18,7 +18,7 @@ pub mod keygen {
     pub fn initialize_honest_parties(
         party_share_counts: &PartyShareCounts<KeygenPartyId>,
         threshold: usize,
-    ) -> VecMap<KeygenShareId, XKeygenProtocol> {
+    ) -> VecMap<KeygenShareId, KeygenProtocol> {
         let session_nonce = b"foobar";
 
         party_share_counts

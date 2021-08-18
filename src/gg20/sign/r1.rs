@@ -15,7 +15,7 @@ use ecdsa::elliptic_curve::Field;
 use k256::Scalar;
 use serde::{Deserialize, Serialize};
 
-use super::{r2, Participants, SignShareId, XSignProtocolBuilder};
+use super::{r2, Participants, SignProtocolBuilder, SignShareId};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -39,7 +39,7 @@ pub(super) fn start(
     msg_to_sign: Scalar,
     participants: Participants,
     #[cfg(feature = "malicious")] my_behaviour: Behaviour,
-) -> TofnResult<XSignProtocolBuilder> {
+) -> TofnResult<SignProtocolBuilder> {
     #[cfg(feature = "malicious")]
     use malicious::*;
 
@@ -116,7 +116,7 @@ pub(super) fn start(
         k_i_ciphertext,
     })?);
 
-    Ok(XSignProtocolBuilder::NotDone(RoundBuilder::new(
+    Ok(SignProtocolBuilder::NotDone(RoundBuilder::new(
         Box::new(r2::R2 {
             secret_key_share: my_secret_key_share,
             msg_to_sign,

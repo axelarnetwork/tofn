@@ -13,7 +13,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 
 use super::{
-    r2, KeygenPartyShareCounts, KeygenShareId, PartyKeyPair, PartyZkSetup, XKeygenProtocolBuilder,
+    r2, KeygenPartyShareCounts, KeygenProtocolBuilder, KeygenShareId, PartyKeyPair, PartyZkSetup,
 };
 
 #[cfg(feature = "malicious")]
@@ -35,7 +35,7 @@ pub(super) fn start(
     my_keypair: &PartyKeyPair,
     my_zksetup: &PartyZkSetup,
     #[cfg(feature = "malicious")] my_behaviour: Behaviour,
-) -> TofnResult<XKeygenProtocolBuilder> {
+) -> TofnResult<KeygenProtocolBuilder> {
     #[cfg(feature = "malicious")]
     use malicious::*;
 
