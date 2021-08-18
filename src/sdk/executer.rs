@@ -124,9 +124,9 @@ impl<T: Executer> ExecuterRaw for T {
                 }
             }
         }
-        for (from, to, p2p) in p2ps_deserialized.iter() {
-            if let Some(p2p) = p2p {
-                if p2p.is_err() {
+        for (from, p2ps) in p2ps_deserialized.iter() {
+            for (to, p2p) in p2ps.iter() {
+                if let Some(Err(_)) = p2p {
                     warn!(
                         "peer {} says: detected corrupted p2p from peer {} to peer {}",
                         info.share_id(),

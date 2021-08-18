@@ -1,7 +1,7 @@
 use tracing::{error, warn};
 
 use crate::{
-    collections::{FillP2ps, FillVecMap, HoleVecMap, TypedUsize},
+    collections::{zip3, FillP2ps, FillVecMap, HoleVecMap, TypedUsize},
     sdk::{
         api::{BytesVec, Fault, ProtocolFaulters, TofnFatal, TofnResult},
         wire_bytes::ExpectedMsgTypes::{self, *},
@@ -140,6 +140,15 @@ impl<F, K, P> Round<F, K, P> {
     }
 
     pub fn expecting_more_msgs_this_round(&self) -> TofnResult<bool> {
+        debug_assert_eq!(self.expected_msg_types.size(), self.bcasts_in.size());
+        debug_assert_eq!(self.expected_msg_types.size(), self.p2ps_in.size());
+
+        // for (from, expected_msg_type, bcast, p2ps) in
+        //     zip3(&self.expected_msg_types, &self.bcasts_in, &self.p2ps_in)
+        // {
+        //     match (expected_msg_type, bcast, p2ps) {}
+        // }
+
         if !self.expected_msg_types.is_full() {
             return Ok(true); // at least one party has not sent any messages yet
         }
