@@ -11,7 +11,7 @@ use crate::{
     },
     sdk::{
         api::{Fault::ProtocolFault, TofnFatal, TofnResult},
-        implementer_api::{log_fault_warn, Executer, ProtocolInfo, ProtocolBuilder},
+        implementer_api::{log_fault_warn, Executer, ProtocolBuilder, ProtocolInfo},
     },
 };
 
@@ -69,13 +69,10 @@ impl Executer for R4Happy {
         }
 
         // move to sad path if necessary
-        if bcasts_in.iter().any(|(_, bcast_option)| {
-            if let Some(bcast) = bcast_option {
-                matches!(bcast, r3::Bcast::Sad(_))
-            } else {
-                false
-            }
-        }) {
+        if bcasts_in
+            .iter()
+            .any(|(_, bcast_option)| matches!(bcast_option, Some(r3::Bcast::Sad(_))))
+        {
             warn!(
                 "peer {} says: received R4 complaints from others",
                 keygen_id

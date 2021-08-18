@@ -119,9 +119,9 @@ pub(super) fn start(
     Ok(XSignProtocolBuilder::NotDone(RoundBuilder::new(
         Box::new(r2::R2 {
             secret_key_share: my_secret_key_share,
-            msg_to_sign: msg_to_sign,
-            peers: peers,
-            participants: participants,
+            msg_to_sign,
+            peers,
+            participants,
             keygen_id: my_keygen_share_id,
             gamma_i,
             Gamma_i,

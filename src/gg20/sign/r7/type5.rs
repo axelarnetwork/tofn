@@ -74,13 +74,10 @@ impl Executer for R7Type5 {
         // check for complaints
         // If someone broadcasts a Sad complaint, switch to verifying that accusation.
         // While there might also be a Type 5 fault, we prioritize accusations.
-        if bcasts_in.iter().any(|(_, bcast_option)| {
-            if let Some(bcast) = bcast_option {
-                matches!(bcast, r6::Bcast::Sad(_))
-            } else {
-                false
-            }
-        }) {
+        if bcasts_in
+            .iter()
+            .any(|(_, bcast_option)| matches!(bcast_option, Some(r6::Bcast::Sad(_))))
+        {
             warn!(
                 "peer {} says: received an R6 complaint from others while in Type5 path",
                 my_share_id,

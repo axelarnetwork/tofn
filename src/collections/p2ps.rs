@@ -104,6 +104,7 @@ impl<K, V> XP2ps<K, V> {
     }
 }
 
+#[allow(clippy::type_complexity)]
 impl<K, V> IntoIterator for XP2ps<K, V> {
     type Item = (
         TypedUsize<K>,
@@ -118,6 +119,7 @@ impl<K, V> IntoIterator for XP2ps<K, V> {
 
 /// impl IntoIterator for &P2ps as suggested here: https://doc.rust-lang.org/std/iter/index.html#iterating-by-reference
 /// follow the template of Vec: https://doc.rust-lang.org/src/alloc/vec/mod.rs.html#2451-2458
+#[allow(clippy::type_complexity)]
 impl<'a, K, V> IntoIterator for &'a XP2ps<K, V> {
     type Item = (
         TypedUsize<K>,
@@ -271,7 +273,7 @@ impl<K, V> FillP2ps<K, V> {
                     // if fill_hole_vec.is_empty() && !fill_hole_vec.is_full() {
                     Ok(None)
                 } else {
-                    fill_hole_vec.map_to_holevec(f.clone()).map(|h| Some(h))
+                    fill_hole_vec.map_to_holevec(f.clone()).map(Some)
                 }
             },
         )?))

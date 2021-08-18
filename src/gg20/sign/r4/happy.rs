@@ -92,13 +92,10 @@ impl Executer for R4Happy {
         }
 
         // if anyone complained then move to sad path
-        if bcasts_in.iter().any(|(_, bcast_option)| {
-            if let Some(bcast) = bcast_option {
-                matches!(bcast, r3::Bcast::Sad(_))
-            } else {
-                false
-            }
-        }) {
+        if bcasts_in
+            .iter()
+            .any(|(_, bcast_option)| matches!(bcast_option, Some(r3::Bcast::Sad(_))))
+        {
             warn!(
                 "peer {} says: received an R3 complaint from others",
                 my_share_id,

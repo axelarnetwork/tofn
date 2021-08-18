@@ -90,13 +90,10 @@ impl Executer for R7Happy {
         let participants_count = info.share_count();
 
         // if anyone complained then move to sad path
-        if bcasts_in.iter().any(|(_, bcast_option)| {
-            if let Some(bcast) = bcast_option {
-                matches!(bcast, r6::Bcast::Sad(_))
-            } else {
-                false
-            }
-        }) {
+        if bcasts_in
+            .iter()
+            .any(|(_, bcast_option)| matches!(bcast_option, Some(r6::Bcast::Sad(_))))
+        {
             warn!(
                 "peer {} says: received an R6 complaint from others while in happy path",
                 my_share_id,

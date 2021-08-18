@@ -146,15 +146,13 @@ impl<F, K, P> Round<F, K, P> {
 
         // TODO maybe zip this iterator with bcasts_in, p2ps_in?
         for (from, expected_msg_type) in self.expected_msg_types.iter_some() {
-            if matches!(expected_msg_type, BcastAndP2p | BcastOnly) {
-                if self.bcasts_in.is_none(from)? {
-                    return Ok(true);
-                }
+            if matches!(expected_msg_type, BcastAndP2p | BcastOnly)
+                && self.bcasts_in.is_none(from)?
+            {
+                return Ok(true);
             }
-            if matches!(expected_msg_type, BcastAndP2p | P2pOnly) {
-                if !self.p2ps_in.xis_full(from)? {
-                    return Ok(true);
-                }
+            if matches!(expected_msg_type, BcastAndP2p | P2pOnly) && !self.p2ps_in.xis_full(from)? {
+                return Ok(true);
             }
         }
 
