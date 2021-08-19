@@ -10,6 +10,7 @@ use super::{FullP2ps, P2ps};
 pub struct FillP2ps<K, V>(VecMap<K, FillHoleVecMap<K, V>>);
 
 impl<K, V> FillP2ps<K, V> {
+    // TODO with_size should not need to return TofnResult
     pub fn with_size(len: usize) -> TofnResult<Self> {
         Ok(Self(
             (0..len)

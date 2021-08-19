@@ -61,7 +61,7 @@ impl<T: Executer> ExecuterRaw for T {
         p2ps_in: FillP2ps<Self::Index, BytesVec>,
         expected_msg_types: FillVecMap<Self::Index, ExpectedMsgTypes>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
-        let mut faulters = FillVecMap::with_size(info.total_share_count());
+        let mut faulters = info.new_fillvecmap();
 
         // check for missing messages (timeout fault)
         // each party A has told us what to expect from A (bcast and/or p2p)

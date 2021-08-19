@@ -12,6 +12,8 @@ pub struct FillHoleVecMap<K, V> {
 }
 
 impl<K, V> FillHoleVecMap<K, V> {
+    // TODO private constructor from_holevecmap that does not panic
+
     /// if hole >= len-1 then use hole = len-1
     pub fn with_size(len: usize, hole: TypedUsize<K>) -> TofnResult<Self> {
         if len == 0 {

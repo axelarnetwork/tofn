@@ -48,7 +48,7 @@ impl Executer for R8Type7 {
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
         let my_share_id = info.my_id();
-        let mut faulters = FillVecMap::with_size(info.total_share_count());
+        let mut faulters = info.new_fillvecmap();
 
         // anyone who did not send a bcast is a faulter
         for (share_id, bcast) in bcasts_in.iter() {
@@ -74,14 +74,12 @@ impl Executer for R8Type7 {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
-        let participants_count = info.total_share_count();
-
         // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
         let bcasts_in = bcasts_in.to_vecmap()?;
 
         // execute blame protocol from section 4.3 of https://eprint.iacr.org/2020/540.pdf
-        let mut faulters = FillVecMap::with_size(participants_count);
-        let mut bcasts_sad = FillVecMap::with_size(participants_count);
+        let mut faulters = info.new_fillvecmap();
+        let mut bcasts_sad = info.new_fillvecmap();
 
         // any peer who did not detect 'type 7' is a faulter
         for (sign_peer_id, bcast) in bcasts_in.into_iter() {

@@ -82,7 +82,7 @@ impl Executer for R3Happy {
     ) -> TofnResult<crate::sdk::implementer_api::ProtocolBuilder<Self::FinalOutput, Self::Index>>
     {
         let my_share_id = info.my_id();
-        let mut faulters = FillVecMap::with_size(info.total_share_count());
+        let mut faulters = info.new_fillvecmap();
 
         // anyone who did not send a bcast is a faulter
         for (share_id, bcast) in bcasts_in.iter() {
@@ -130,15 +130,13 @@ impl Executer for R3Happy {
         // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
         let p2ps_in = p2ps_in.to_fullp2ps()?;
 
-        let participants_count = info.total_share_count();
-
         // TODO: This will be changed once we switch to using P2ps for complaints in R3
         let p2ps_in = p2ps_in.map2_result(|(_, p2p)| match p2p {
             r2::P2p::Happy(p) => Ok(p),
             r2::P2p::Sad => Err(TofnFatal),
         })?;
 
-        let mut mta_complaints = FillVecMap::with_size(participants_count);
+        let mut mta_complaints = info.new_fillvecmap();
 
         let zkp = self
             .secret_key_share

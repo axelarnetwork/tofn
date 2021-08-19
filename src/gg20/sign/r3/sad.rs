@@ -34,7 +34,7 @@ impl Executer for R3Sad {
     ) -> TofnResult<crate::sdk::implementer_api::ProtocolBuilder<Self::FinalOutput, Self::Index>>
     {
         let my_share_id = info.my_id();
-        let mut faulters = FillVecMap::with_size(info.total_share_count());
+        let mut faulters = info.new_fillvecmap();
 
         // TODO sad path should not have p2ps
 

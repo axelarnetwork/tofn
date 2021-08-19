@@ -248,14 +248,16 @@ impl<F, K, P> Round<F, K, P> {
         };
 
         let party_count = info.party_share_counts().party_count();
+        let bcasts_in = info.share_info().new_fillvecmap();
+        let expected_msg_types = info.share_info().new_fillvecmap();
         Ok(Self {
             info,
             round,
             bcast_out,
             p2ps_out,
-            bcasts_in: FillVecMap::with_size(total_share_count),
+            bcasts_in,
             p2ps_in: FillP2ps::with_size(total_share_count)?,
-            expected_msg_types: FillVecMap::with_size(total_share_count),
+            expected_msg_types,
             msg_in_faulters: FillVecMap::with_size(party_count),
         })
     }

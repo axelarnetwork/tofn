@@ -32,6 +32,10 @@ impl<K> ProtocolInfo<K> {
     pub fn new_fillholevecmap<V>(&self) -> TofnResult<FillHoleVecMap<K, V>> {
         FillHoleVecMap::with_size(self.share_count, self.share_id)
     }
+
+    pub fn new_fillvecmap<V>(&self) -> FillVecMap<K, V> {
+        FillVecMap::with_size(self.share_count)
+    }
 }
 
 impl<K, P> ProtocolInfoDeluxe<K, P> {

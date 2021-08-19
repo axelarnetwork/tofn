@@ -1,5 +1,5 @@
 use crate::{
-    collections::{FillVecMap, FullP2ps, HoleVecMap, Subset, TypedUsize, VecMap},
+    collections::{FillVecMap, FullP2ps, HoleVecMap, P2ps, Subset, TypedUsize, VecMap},
     corrupt,
     gg20::{
         crypto_tools::{
@@ -96,12 +96,11 @@ impl Executer for R6 {
     fn execute(
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
-        bcasts_in: crate::collections::FillVecMap<Self::Index, Self::Bcast>,
-        p2ps_in: crate::collections::P2ps<Self::Index, Self::P2p>,
-    ) -> TofnResult<crate::sdk::implementer_api::ProtocolBuilder<Self::FinalOutput, Self::Index>>
-    {
+        bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
+        p2ps_in: P2ps<Self::Index, Self::P2p>,
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
         let my_share_id = info.my_id();
-        let mut faulters = FillVecMap::with_size(info.total_share_count());
+        let mut faulters = info.new_fillvecmap();
 
         // anyone who did not send a bcast is a faulter
         for (share_id, bcast) in bcasts_in.iter() {

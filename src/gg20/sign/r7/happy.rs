@@ -61,7 +61,7 @@ impl Executer for R7Happy {
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
         let my_share_id = info.my_id();
-        let mut faulters = FillVecMap::with_size(info.total_share_count());
+        let mut faulters = info.new_fillvecmap();
 
         // anyone who did not send a bcast is a faulter
         for (share_id, bcast) in bcasts_in.iter() {
@@ -87,8 +87,6 @@ impl Executer for R7Happy {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
-        let participants_count = info.total_share_count();
-
         // if anyone complained then move to sad path
         if bcasts_in
             .iter()
@@ -113,7 +111,7 @@ impl Executer for R7Happy {
         // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
         let bcasts_in = bcasts_in.to_vecmap()?;
 
-        let mut bcasts = FillVecMap::with_size(participants_count);
+        let mut bcasts = info.new_fillvecmap();
 
         // our check for 'type 5` error succeeded, so any peer broadcasting a failure is a faulter
         for (sign_peer_id, bcast) in bcasts_in.into_iter() {
