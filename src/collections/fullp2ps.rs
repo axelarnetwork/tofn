@@ -52,16 +52,13 @@ impl<K, V> FullP2ps<K, V> {
     where
         F: FnMut(&V) -> W,
     {
-        HoleVecMap::from_vecmap(
-            VecMap::from_vec(self.to_me(me)?.map(|(_, v)| f(v)).collect()),
-            me,
-        )
+        VecMap::from_vec(self.to_me(me)?.map(|(_, v)| f(v)).collect()).remember_hole(me)
     }
     pub fn map_to_me2<W, F>(&self, me: TypedUsize<K>, f: F) -> TofnResult<HoleVecMap<K, W>>
     where
         F: FnMut((TypedUsize<K>, &V)) -> W,
     {
-        HoleVecMap::from_vecmap(VecMap::from_vec(self.to_me(me)?.map(f).collect()), me)
+        VecMap::from_vec(self.to_me(me)?.map(f).collect()).remember_hole(me)
     }
     pub fn map<W, F>(self, f: F) -> FullP2ps<K, W>
     where

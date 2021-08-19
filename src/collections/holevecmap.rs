@@ -15,12 +15,8 @@ pub struct HoleVecMap<K, V> {
 
 impl<K, V> HoleVecMap<K, V> {
     // private constructor; use VecMap::remember_hole instead
-    pub(super) fn from_vecmap(vec: VecMap<K, V>, hole: TypedUsize<K>) -> TofnResult<Self> {
-        if hole.as_usize() > vec.len() {
-            error!("hole {} out of bounds {}", hole.as_usize(), vec.len());
-            return Err(TofnFatal);
-        }
-        Ok(HoleVecMap { vec, hole })
+    pub(super) fn from_vecmap(vec: VecMap<K, V>, hole: TypedUsize<K>) -> Self {
+        Self { vec, hole }
     }
 
     pub fn get(&self, index: TypedUsize<K>) -> TofnResult<&V> {
@@ -80,10 +76,10 @@ impl<K, V> HoleVecMap<K, V> {
     where
         F: Fn((TypedUsize<K>, &V)) -> TofnResult<W>,
     {
-        HoleVecMap::<K, W>::from_vecmap(
+        Ok(HoleVecMap::<K, W>::from_vecmap(
             self.iter().map(f).collect::<TofnResult<VecMap<K, W>>>()?,
             self.hole,
-        )
+        ))
     }
 
     pub fn map<W, F>(self, f: F) -> HoleVecMap<K, W>
@@ -101,12 +97,12 @@ impl<K, V> HoleVecMap<K, V> {
         F: FnMut((TypedUsize<K>, V)) -> TofnResult<W>,
     {
         let hole = self.hole;
-        HoleVecMap::<K, W>::from_vecmap(
+        Ok(HoleVecMap::<K, W>::from_vecmap(
             self.into_iter()
                 .map(f)
                 .collect::<TofnResult<VecMap<K, W>>>()?,
             hole,
-        )
+        ))
     }
 }
 

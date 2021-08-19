@@ -15,7 +15,7 @@ impl<K, V> P2ps<K, V> {
         Ok(Self(VecMap::from_vec(vec![Some(HoleVecMap::from_vecmap(
             VecMap::from_vec(vec![]),
             TypedUsize::from_usize(0),
-        )?)])))
+        ))])))
     }
     pub fn get(&self, from: TypedUsize<K>) -> TofnResult<&Option<HoleVecMap<K, V>>> {
         self.0.get(from)

@@ -12,8 +12,6 @@ pub struct FillHoleVecMap<K, V> {
 }
 
 impl<K, V> FillHoleVecMap<K, V> {
-    // TODO private constructor from_holevecmap that does not panic
-
     /// if hole >= len-1 then use hole = len-1
     pub fn with_size(len: usize, hole: TypedUsize<K>) -> TofnResult<Self> {
         if len == 0 {
@@ -21,10 +19,7 @@ impl<K, V> FillHoleVecMap<K, V> {
             return Err(TofnFatal);
         }
         Ok(Self {
-            hole_vec: HoleVecMap::from_vecmap(
-                VecMap::from_vec((0..len - 1).map(|_| None).collect()),
-                hole,
-            )?,
+            hole_vec: VecMap::from_vec((0..len - 1).map(|_| None).collect()).remember_hole(hole)?,
             some_count: 0,
         })
     }
@@ -69,6 +64,14 @@ impl<K, V> FillHoleVecMap<K, V> {
         FillHoleVecMap::<K, W> {
             hole_vec: self.hole_vec.map(|val_option| val_option.map(f.clone())),
             some_count: self.some_count,
+        }
+    }
+
+    // private constructor that does not panic
+    pub(super) fn from_holevecmap(hole_vec: HoleVecMap<K, Option<V>>) -> Self {
+        Self {
+            hole_vec,
+            some_count: 0,
         }
     }
 }
