@@ -105,3 +105,43 @@ impl<'a, K, V> IntoIterator for &'a FillP2ps<K, V> {
         self.iter()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::FillP2ps;
+
+    struct TestIndex;
+
+    #[test]
+    fn size_0() {
+        let fillp2ps_size0: FillP2ps<TestIndex, usize> = FillP2ps::with_size(0);
+        assert_eq!(fillp2ps_size0.size(), 0);
+        assert_eq!(fillp2ps_size0.is_full(), true);
+        assert_eq!(fillp2ps_size0.iter().next().is_none(), true);
+
+        let p2ps_size0 = fillp2ps_size0.to_p2ps().unwrap();
+        assert_eq!(p2ps_size0.size(), 0);
+        assert_eq!(p2ps_size0.iter().next().is_none(), true);
+
+        let fillp2ps_size0: FillP2ps<TestIndex, usize> = FillP2ps::with_size(0);
+        let fullp2ps_size0 = fillp2ps_size0.to_fullp2ps().unwrap();
+        assert_eq!(fullp2ps_size0.size(), 0);
+        assert_eq!(fullp2ps_size0.iter().next().is_none(), true);
+    }
+
+    #[test]
+    fn size_1() {
+        let fillp2ps_size1: FillP2ps<TestIndex, usize> = FillP2ps::with_size(1);
+        assert_eq!(fillp2ps_size1.size(), 1);
+        assert_eq!(fillp2ps_size1.is_full(), true);
+
+        // iterator should have exactly 1 item
+        let mut iter = fillp2ps_size1.iter();
+        let (_, fillholevecmap) = iter.next().unwrap();
+        assert_eq!(iter.next().is_none(), true);
+
+        // the contained FillVecHoleMap iterator should be empty
+        assert_eq!(fillholevecmap.size(), 1);
+        assert_eq!(fillholevecmap.iter().next().is_none(), true);
+    }
+}

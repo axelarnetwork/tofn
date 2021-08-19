@@ -22,6 +22,9 @@ impl<K, V> FillHoleVecMap<K, V> {
             some_count: 0,
         })
     }
+    pub fn size(&self) -> usize {
+        self.hole_vec.len()
+    }
     pub fn set(&mut self, index: TypedUsize<K>, value: V) -> TofnResult<()> {
         let stored = self.hole_vec.get_mut(index)?;
         if stored.is_none() {

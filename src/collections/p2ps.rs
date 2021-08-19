@@ -17,6 +17,11 @@ impl<K, V> P2ps<K, V> {
             TypedUsize::from_usize(0),
         ))]))
     }
+
+    pub fn size(&self) -> usize {
+        self.0.len()
+    }
+
     pub fn get(&self, from: TypedUsize<K>) -> TofnResult<&Option<HoleVecMap<K, V>>> {
         self.0.get(from)
     }

@@ -15,6 +15,10 @@ impl<K, V> FullP2ps<K, V> {
         self.0.get(from)?.get(to)
     }
 
+    pub fn size(&self) -> usize {
+        self.0.len()
+    }
+
     pub fn to_me(
         &self,
         me: TypedUsize<K>,
