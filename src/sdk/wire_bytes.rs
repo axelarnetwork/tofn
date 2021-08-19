@@ -1,5 +1,5 @@
 use crate::collections::TypedUsize;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 use super::{
@@ -9,16 +9,24 @@ use super::{
 
 const TOFN_SERIALIZATION_VERSION: u16 = 0;
 
-pub fn encode<T: Serialize>(payload: &T) -> TofnResult<BytesVec> {
+pub fn encode<K>(
+    payload: BytesVec,
+    from: TypedUsize<K>,
+    msg_type: MsgType<K>,
+) -> TofnResult<BytesVec> {
     serialize(&BytesVecVersioned {
         version: TOFN_SERIALIZATION_VERSION,
-        payload: serialize(payload)?,
+        payload: serialize(&WireBytes {
+            msg_type,
+            from,
+            payload,
+        })?,
     })
 }
 
 // TODO: Look into using bincode::config::Bounded to limit the max pre-allocation size
 /// deserialization failures are non-fatal: do not return TofnResult
-pub fn decode<T: DeserializeOwned>(bytes: &[u8]) -> Option<T> {
+pub fn decode<K>(bytes: &[u8]) -> Option<WireBytes<K>> {
     let bytes_versioned: BytesVecVersioned = bincode::deserialize(bytes)
         .map_err(|err| {
             warn!("outer deserialization failure: {}", err.to_string());
@@ -36,18 +44,6 @@ pub fn decode<T: DeserializeOwned>(bytes: &[u8]) -> Option<T> {
             warn!("inner deserialization failure: {}", err.to_string());
         })
         .ok()
-}
-
-pub fn encode_message<K>(
-    payload: BytesVec,
-    from: TypedUsize<K>,
-    msg_type: MsgType<K>,
-) -> TofnResult<BytesVec> {
-    encode(&WireBytes {
-        msg_type,
-        from,
-        payload,
-    })
 }
 
 #[derive(Serialize, Deserialize)]
@@ -79,16 +75,16 @@ pub mod malicious {
 
     use crate::sdk::api::{BytesVec, TofnFatal, TofnResult};
 
-    use super::{decode, encode_message, WireBytes};
+    use super::{decode, encode};
 
     pub fn corrupt_payload<K>(bytes: &[u8]) -> TofnResult<BytesVec> {
         // for simplicity, deserialization error is treated as fatal
         // (we're in a malicious module so who cares?)
-        let wire_bytes: WireBytes<K> = decode(bytes).ok_or_else(|| {
+        let wire_bytes = decode::<K>(bytes).ok_or_else(|| {
             error!("can't corrupt payload: deserialization failure");
             TofnFatal
         })?;
-        encode_message(
+        encode(
             b"these bytes are corrupted 1234".to_vec(),
             wire_bytes.from,
             wire_bytes.msg_type,

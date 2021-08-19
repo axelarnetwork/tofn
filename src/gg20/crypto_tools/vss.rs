@@ -125,12 +125,12 @@ impl Share {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ShareCommit {
-    index: usize,
     point: k256_serde::ProjectivePoint,
+    index: usize,
 }
 
 impl ShareCommit {
-    pub fn from_point(index: usize, point: k256_serde::ProjectivePoint) -> Self {
+    pub fn from_point(point: k256_serde::ProjectivePoint, index: usize) -> Self {
         Self { point, index }
     }
 }
