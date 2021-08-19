@@ -8,7 +8,7 @@ use crate::{
 // TODO is `FullP2ps` too similar to `FillP2ps`?
 // do not derive serde for anything with a `HoleVecMap`
 #[derive(Debug, Clone, PartialEq)]
-pub struct FullP2ps<K, V>(pub(super) VecMap<K, HoleVecMap<K, V>>);
+pub struct FullP2ps<K, V>(VecMap<K, HoleVecMap<K, V>>);
 
 impl<K, V> FullP2ps<K, V> {
     pub fn get(&self, from: TypedUsize<K>, to: TypedUsize<K>) -> TofnResult<&V> {
@@ -74,6 +74,11 @@ impl<K, V> FullP2ps<K, V> {
         Ok(FullP2ps::<K, W>(
             self.0.map2_result(|(_, v)| v.map2_result(f.clone()))?,
         ))
+    }
+
+    // private constructor does no checks, does not return TofnResult, cannot panic
+    pub(super) fn from_vecmap(vec: VecMap<K, HoleVecMap<K, V>>) -> Self {
+        Self(vec)
     }
 }
 

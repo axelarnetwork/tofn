@@ -5,8 +5,6 @@ use crate::{
 
 use super::{FullP2ps, P2ps};
 
-// `FillP2ps` is a `(VecMap<_,_>)` instead of `(P2ps<_,_>)` because `P2ps` has no public constructor.
-// Can't put `FillP2ps` in a separate module because `FillP2ps` has methods that construct a `P2ps`.
 pub struct FillP2ps<K, V>(VecMap<K, FillHoleVecMap<K, V>>);
 
 impl<K, V> FillP2ps<K, V> {
@@ -43,20 +41,22 @@ impl<K, V> FillP2ps<K, V> {
     where
         F: FnMut(V) -> W + Clone,
     {
-        Ok(P2ps::<K, W>(self.0.map2_result(|(_, fill_hole_vec)| {
-            if fill_hole_vec.is_empty() {
-                Ok(None)
-            } else {
-                fill_hole_vec.map_to_holevec(f.clone()).map(Some)
-            }
-        })?))
+        Ok(P2ps::<K, W>::from_vecmap(self.0.map2_result(
+            |(_, fill_hole_vec)| {
+                if fill_hole_vec.is_empty() {
+                    Ok(None)
+                } else {
+                    fill_hole_vec.map_to_holevec(f.clone()).map(Some)
+                }
+            },
+        )?))
     }
 
     pub fn map_to_fullp2ps<W, F>(self, f: F) -> TofnResult<FullP2ps<K, W>>
     where
         F: FnMut(V) -> W + Clone,
     {
-        Ok(FullP2ps::<K, W>(
+        Ok(FullP2ps::<K, W>::from_vecmap(
             self.0
                 .into_iter()
                 .map(|(_, v)| v.map_to_holevec(f.clone()))

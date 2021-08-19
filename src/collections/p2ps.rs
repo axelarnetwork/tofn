@@ -8,14 +8,14 @@ use crate::{
 use super::FullP2ps;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct P2ps<K, V>(pub(super) VecMap<K, Option<HoleVecMap<K, V>>>);
+pub struct P2ps<K, V>(VecMap<K, Option<HoleVecMap<K, V>>>);
 
 impl<K, V> P2ps<K, V> {
-    pub fn new_size_1_some() -> TofnResult<Self> {
-        Ok(Self(VecMap::from_vec(vec![Some(HoleVecMap::from_vecmap(
+    pub fn new_size_1_some() -> Self {
+        Self(VecMap::from_vec(vec![Some(HoleVecMap::from_vecmap(
             VecMap::from_vec(vec![]),
             TypedUsize::from_usize(0),
-        ))])))
+        ))]))
     }
     pub fn get(&self, from: TypedUsize<K>) -> TofnResult<&Option<HoleVecMap<K, V>>> {
         self.0.get(from)
@@ -39,7 +39,7 @@ impl<K, V> P2ps<K, V> {
     where
         F: FnMut(V) -> W + Clone,
     {
-        Ok(FullP2ps::<K, W>(self.0.map2_result(
+        Ok(FullP2ps::<K, W>::from_vecmap(self.0.map2_result(
             |(from, hole_vec_option)| {
                 Ok(hole_vec_option
                     .ok_or_else(|| {
@@ -52,6 +52,11 @@ impl<K, V> P2ps<K, V> {
     }
     pub fn to_fullp2ps(self) -> TofnResult<FullP2ps<K, V>> {
         self.map_to_fullp2ps(std::convert::identity)
+    }
+
+    // private constructor does no checks, does not return TofnResult, cannot panic
+    pub(super) fn from_vecmap(vec: VecMap<K, Option<HoleVecMap<K, V>>>) -> Self {
+        Self(vec)
     }
 }
 

@@ -12,7 +12,6 @@ pub struct FillHoleVecMap<K, V> {
 }
 
 impl<K, V> FillHoleVecMap<K, V> {
-    /// if hole >= len-1 then use hole = len-1
     pub fn with_size(len: usize, hole: TypedUsize<K>) -> TofnResult<Self> {
         if len == 0 {
             error!("FillHoleVecMap must have positive size");
@@ -67,7 +66,7 @@ impl<K, V> FillHoleVecMap<K, V> {
         }
     }
 
-    // private constructor that does not panic
+    // private constructor does no checks, does not return TofnResult, cannot panic
     pub(super) fn from_holevecmap(hole_vec: HoleVecMap<K, Option<V>>) -> Self {
         Self {
             hole_vec,

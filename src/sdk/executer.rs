@@ -153,7 +153,7 @@ impl<T: Executer> ExecuterRaw for T {
         let p2ps_in = if info.total_share_count() == 1
             && matches!(expected_msg_type, BcastAndP2p | P2pOnly)
         {
-            P2ps::new_size_1_some()?
+            P2ps::new_size_1_some()
         } else {
             p2ps_in
         };
