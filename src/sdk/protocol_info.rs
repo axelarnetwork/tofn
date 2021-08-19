@@ -29,8 +29,8 @@ impl<K> ProtocolInfo<K> {
         self.share_id
     }
 
-    pub fn create_fill_hole_map<V>(&self, len: usize) -> TofnResult<FillHoleVecMap<K, V>> {
-        FillHoleVecMap::with_size(len, self.share_id)
+    pub fn new_fillholevecmap<V>(&self) -> TofnResult<FillHoleVecMap<K, V>> {
+        FillHoleVecMap::with_size(self.share_count, self.share_id)
     }
 }
 

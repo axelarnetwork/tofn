@@ -114,8 +114,8 @@ impl Executer for R2 {
         let participants_count = info.total_share_count();
         let mut zkp_complaints = Subset::with_max_size(participants_count);
 
-        let mut beta_secrets = info.create_fill_hole_map(participants_count)?;
-        let mut nu_secrets = info.create_fill_hole_map(participants_count)?;
+        let mut beta_secrets = info.new_fillholevecmap()?;
+        let mut nu_secrets = info.new_fillholevecmap()?;
 
         // step 2 for MtA protocols:
         // 1. k_i (other) * gamma_j (me)
@@ -178,7 +178,7 @@ impl Executer for R2 {
             )));
         }
 
-        let mut p2ps_out = info.create_fill_hole_map(participants_count)?;
+        let mut p2ps_out = info.new_fillholevecmap()?;
 
         for (sign_peer_id, &keygen_peer_id) in &self.peer_keygen_ids {
             // MtA step 2 for k_i * gamma_j
