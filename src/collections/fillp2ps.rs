@@ -1,5 +1,5 @@
 use crate::{
-    collections::{FillHoleVecMap, TypedUsize, VecMap, VecMapIter},
+    collections::{FillHoleVecMap, HoleVecMap, TypedUsize, VecMap, VecMapIter},
     sdk::api::TofnResult,
 };
 
@@ -10,13 +10,17 @@ use super::{FullP2ps, P2ps};
 pub struct FillP2ps<K, V>(VecMap<K, FillHoleVecMap<K, V>>);
 
 impl<K, V> FillP2ps<K, V> {
-    // TODO with_size should not need to return TofnResult
-    pub fn with_size(len: usize) -> TofnResult<Self> {
-        Ok(Self(
+    pub fn with_size(len: usize) -> Self {
+        Self(
             (0..len)
-                .map(|hole| FillHoleVecMap::with_size(len, TypedUsize::from_usize(hole)))
-                .collect::<TofnResult<_>>()?,
-        ))
+                .map(|hole| {
+                    FillHoleVecMap::from_holevecmap(HoleVecMap::from_vecmap(
+                        VecMap::from_vec((0..len - 1).map(|_| None).collect()),
+                        TypedUsize::from_usize(hole),
+                    ))
+                })
+                .collect(),
+        )
     }
     pub fn size(&self) -> usize {
         self.0.len()

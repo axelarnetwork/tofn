@@ -256,7 +256,7 @@ impl<F, K, P> Round<F, K, P> {
             bcast_out,
             p2ps_out,
             bcasts_in,
-            p2ps_in: FillP2ps::with_size(total_share_count)?,
+            p2ps_in: FillP2ps::with_size(total_share_count),
             expected_msg_types,
             msg_in_faulters: FillVecMap::with_size(party_count),
         })

@@ -95,7 +95,7 @@ mod tests {
         let one = TypedUsize::from_usize(1);
         let two = TypedUsize::from_usize(2);
 
-        let mut fill_p2ps: FillP2ps<TestIndex, usize> = FillP2ps::with_size(3).expect("bad hole");
+        let mut fill_p2ps: FillP2ps<TestIndex, usize> = FillP2ps::with_size(3);
         fill_p2ps.set(zero, one, 0).unwrap();
         fill_p2ps.set(zero, two, 1).unwrap();
         fill_p2ps.set(one, zero, 2).unwrap();
