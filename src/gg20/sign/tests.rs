@@ -30,16 +30,16 @@ struct TestCase {
 
 fn test_case_list() -> Vec<TestCase> {
     vec![
-        TestCase {
-            party_share_counts: KeygenPartyShareCounts::from_vec(vec![1]).unwrap(),
-            threshold: 0,
-            sign_share_count: 1,
-        },
-        TestCase {
-            party_share_counts: KeygenPartyShareCounts::from_vec(vec![5]).unwrap(),
-            threshold: 0,
-            sign_share_count: 5,
-        },
+        // TestCase {
+        //     party_share_counts: KeygenPartyShareCounts::from_vec(vec![1]).unwrap(),
+        //     threshold: 0,
+        //     sign_share_count: 1,
+        // },
+        // TestCase {
+        //     party_share_counts: KeygenPartyShareCounts::from_vec(vec![5]).unwrap(),
+        //     threshold: 0,
+        //     sign_share_count: 5,
+        // },
         TestCase {
             party_share_counts: KeygenPartyShareCounts::from_vec(vec![1, 1, 1]).unwrap(),
             threshold: 1,
@@ -173,7 +173,7 @@ fn execute_sign(
 
     let (r2_parties, ..) = execute_round(r1_parties, 2, true, true);
 
-    let (r3_parties, ..) = execute_round(r2_parties, 3, true, true);
+    let (r3_parties, ..) = execute_round(r2_parties, 3, false, true);
 
     // TEST: MtA for delta_i, sigma_i
     let k_gamma = r3_parties
