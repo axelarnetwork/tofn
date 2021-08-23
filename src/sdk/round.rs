@@ -1,4 +1,4 @@
-use tracing::{error, warn};
+use tracing::{error, info, warn};
 
 use crate::{
     collections::{zip3, FillP2ps, FillVecMap, HoleVecMap, TypedUsize},
@@ -134,6 +134,30 @@ impl<F, K, P> Round<F, K, P> {
                     self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
                 }
             }
+            // Special case: total_share_count == 1 and expected_msg_types == P2pOnly
+            // In this case no outgoing messages are ever sent,
+            // so peers won't know what msg types to expect.
+            // Solution: send a dummy bcast indicating P2pOnly
+            TotalShareCount1P2pOnly => {
+                if self.info().share_info().total_share_count() != 1 {
+                    warn!(
+                        "peer {} (party {}) says: received TotalShareCount1P2pOnly message from peer {} (party {}) in round {} but total_share_count is {}",
+                        share_id, party_id, bytes_meta.from, from, self.info.round(), self.info().share_info().total_share_count(),
+                    );
+                    self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
+                }
+                if !matches!(expected_msg_type, P2pOnly) {
+                    warn!(
+                        "peer {} (party {}) says: received TotalShareCount1P2pOnly message from peer {} (party {}) in round {} but expected_msg_type is total_share_count is {:?}",
+                        share_id, party_id, bytes_meta.from, from, self.info.round(), expected_msg_type,
+                    );
+                    self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
+                }
+                info!(
+                    "peer {} (party {}) says: special case: received TotalShareCount1P2pOnly message from peer {} (party {}) in round {}",
+                    share_id, party_id, bytes_meta.from, from, self.info.round(),
+                );
+            }
         }
 
         Ok(())
@@ -247,6 +271,22 @@ impl<F, K, P> Round<F, K, P> {
             None
         };
 
+        let bcast_out = if total_share_count == 1 && matches!(expected_msg_types, P2pOnly) {
+            info!(
+                "peer {} (party {}) says: special case: sending dummy bcast_out of type TotalShareCount1P2pOnly",
+                my_share_id, info.party_id(),
+            );
+            debug_assert!(bcast_out.is_none()); // otherwise expected_msg_types would not be P2pOnly
+            Some(wire_bytes::encode_message(
+                BytesVec::new(), // empty payload
+                my_share_id,
+                TotalShareCount1P2pOnly,
+                P2pOnly,
+            )?)
+        } else {
+            bcast_out
+        };
+
         let party_count = info.party_share_counts().party_count();
         let bcasts_in = info.share_info().new_fillvecmap();
         let expected_msg_types = info.share_info().new_fillvecmap();
@@ -305,6 +345,10 @@ pub mod malicious {
                         error!("no outgoing p2ps from this party during this round; can't corrupt msg bytes",);
                         return Err(TofnFatal);
                     }
+                }
+                TotalShareCount1P2pOnly => {
+                    error!("can't corrupt messages of type TotalShareCount1P2pOnly");
+                    return Err(TofnFatal);
                 }
             }
             Ok(())
