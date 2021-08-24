@@ -71,6 +71,7 @@ impl Executer for R2 {
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
+        let my_sign_id = info.my_id();
         let mut faulters = info.new_fillvecmap();
 
         // anyone who did not send a bcast is a faulter
@@ -78,8 +79,7 @@ impl Executer for R2 {
             if bcast.is_none() {
                 warn!(
                     "peer {} says: missing bcast from peer {}",
-                    info.my_id(),
-                    share_id
+                    my_sign_id, share_id
                 );
                 faulters.set(share_id, ProtocolFault)?;
             }
@@ -89,8 +89,7 @@ impl Executer for R2 {
             if p2ps.is_none() {
                 warn!(
                     "peer {} says: missing p2ps from peer {}",
-                    info.my_id(),
-                    share_id
+                    my_sign_id, share_id
                 );
                 faulters.set(share_id, ProtocolFault)?;
             }
@@ -120,7 +119,7 @@ impl Executer for R2 {
                         ek: peer_ek,
                     };
 
-                    let peer_proof = &p2ps_in.get(peer_sign_id, info.my_id())?.range_proof;
+                    let peer_proof = &p2ps_in.get(peer_sign_id, my_sign_id)?.range_proof;
 
                     let zkp = self
                         .my_secret_key_share
@@ -133,8 +132,7 @@ impl Executer for R2 {
                     if !success {
                         warn!(
                             "peer {} says: range proof from peer {} failed to verify",
-                            info.my_id(),
-                            peer_sign_id,
+                            my_sign_id, peer_sign_id,
                         );
                     }
                     Ok(!success)
@@ -142,7 +140,7 @@ impl Executer for R2 {
 
         corrupt!(
             zkp_complaints,
-            self.corrupt_complaint(info.my_id(), zkp_complaints)?
+            self.corrupt_complaint(my_sign_id, zkp_complaints)?
         );
 
         // move to sad path if we discovered any failures
@@ -188,7 +186,7 @@ impl Executer for R2 {
                 .zkp();
 
             let (alpha_ciphertext, alpha_proof, beta_secret) = mta::mta_response_with_proof(
-                info.my_id(),
+                my_sign_id,
                 sign_peer_id,
                 peer_zkp,
                 peer_ek,
@@ -198,14 +196,14 @@ impl Executer for R2 {
 
             corrupt!(
                 alpha_proof,
-                self.corrupt_alpha_proof(info.my_id(), sign_peer_id, alpha_proof)
+                self.corrupt_alpha_proof(my_sign_id, sign_peer_id, alpha_proof)
             );
 
             beta_secrets.set(sign_peer_id, beta_secret)?;
 
             // MtAwc step 2 for k_i * w_j
             let (mu_ciphertext, mu_proof, nu_secret) = mta::mta_response_with_proof_wc(
-                info.my_id(),
+                my_sign_id,
                 sign_peer_id,
                 peer_zkp,
                 peer_ek,
@@ -215,7 +213,7 @@ impl Executer for R2 {
 
             corrupt!(
                 mu_proof,
-                self.corrupt_mu_proof(info.my_id(), sign_peer_id, mu_proof)
+                self.corrupt_mu_proof(my_sign_id, sign_peer_id, mu_proof)
             );
 
             nu_secrets.set(sign_peer_id, nu_secret)?;

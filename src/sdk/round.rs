@@ -253,22 +253,20 @@ impl<F, K, P> Round<F, K, P> {
             (Some(_), Some(_)) => BcastAndP2p,
         };
         // can't use Option::map because closure returns Result and uses ? operator
-        let bcast_out = if let Some(payload) = bcast_out {
-            Some(wire_bytes::encode_message(
+        let bcast_out = match bcast_out {
+            Some(payload) => Some(wire_bytes::encode_message(
                 payload,
                 my_share_id,
                 Bcast,
                 expected_msg_types,
-            )?)
-        } else {
-            None
+            )?),
+            None => None,
         };
-        let p2ps_out = if let Some(p2ps) = p2ps_out {
-            Some(p2ps.map2_result(|(to, payload)| {
+        let p2ps_out = match p2ps_out {
+            Some(p2ps) => Some(p2ps.map2_result(|(to, payload)| {
                 wire_bytes::encode_message(payload, my_share_id, P2p { to }, expected_msg_types)
-            })?)
-        } else {
-            None
+            })?),
+            None => None,
         };
 
         let bcast_out = if total_share_count == 1 && matches!(expected_msg_types, P2pOnly) {
