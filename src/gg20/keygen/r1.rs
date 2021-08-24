@@ -32,9 +32,9 @@ pub(super) fn start(
     my_keygen_id: TypedUsize<KeygenShareId>,
     threshold: usize,
     party_share_counts: KeygenPartyShareCounts,
-    my_keypair: &PartyKeyPair,
-    my_zksetup: &PartyZkSetup,
-    #[cfg(feature = "malicious")] my_behaviour: Behaviour,
+    keypair: &PartyKeyPair,
+    zksetup: &PartyZkSetup,
+    #[cfg(feature = "malicious")] behaviour: Behaviour,
 ) -> TofnResult<KeygenProtocolBuilder> {
     let u_i_vss = vss::Vss::new(threshold);
 
@@ -45,26 +45,26 @@ pub(super) fn start(
     );
     corrupt!(
         y_i_commit,
-        malicious::corrupt_commit(my_keygen_id, &my_behaviour, y_i_commit)
+        malicious::corrupt_commit(my_keygen_id, &behaviour, y_i_commit)
     );
 
-    let ek_proof = my_keypair.dk.correctness_proof();
+    let ek_proof = keypair.dk.correctness_proof();
     corrupt!(
         ek_proof,
-        malicious::corrupt_ek_proof(my_keygen_id, &my_behaviour, ek_proof)
+        malicious::corrupt_ek_proof(my_keygen_id, &behaviour, ek_proof)
     );
 
-    let zkp_proof = my_zksetup.zkp_proof.clone();
+    let zkp_proof = zksetup.zkp_proof.clone();
     corrupt!(
         zkp_proof,
-        malicious::corrupt_zkp_proof(my_keygen_id, &my_behaviour, zkp_proof)
+        malicious::corrupt_zkp_proof(my_keygen_id, &behaviour, zkp_proof)
     );
 
     let bcast_out = Some(serialize(&Bcast {
         y_i_commit,
-        ek: my_keypair.ek.clone(),
+        ek: keypair.ek.clone(),
         ek_proof,
-        zkp: my_zksetup.zkp.clone(),
+        zkp: zksetup.zkp.clone(),
         zkp_proof,
     })?);
 
@@ -72,11 +72,11 @@ pub(super) fn start(
         Box::new(r2::R2 {
             threshold,
             party_share_counts,
-            dk: my_keypair.dk.clone(),
+            dk: keypair.dk.clone(),
             u_i_vss,
             y_i_reveal,
             #[cfg(feature = "malicious")]
-            behaviour: my_behaviour,
+            behaviour,
         }),
         bcast_out,
         None,
@@ -100,11 +100,11 @@ mod malicious {
 
     pub fn corrupt_commit(
         my_keygen_id: TypedUsize<KeygenShareId>,
-        my_behaviour: &Behaviour,
+        behaviour: &Behaviour,
         commit: Output,
     ) -> Output {
-        if let Behaviour::R1BadCommit = my_behaviour {
-            info!("malicious peer {} does {:?}", my_keygen_id, my_behaviour);
+        if let Behaviour::R1BadCommit = behaviour {
+            info!("malicious peer {} does {:?}", my_keygen_id, behaviour);
             commit.corrupt()
         } else {
             commit
@@ -113,11 +113,11 @@ mod malicious {
 
     pub fn corrupt_ek_proof(
         my_keygen_id: TypedUsize<KeygenShareId>,
-        my_behaviour: &Behaviour,
+        behaviour: &Behaviour,
         ek_proof: EncryptionKeyProof,
     ) -> EncryptionKeyProof {
-        if let Behaviour::R1BadEncryptionKeyProof = my_behaviour {
-            info!("malicious peer {} does {:?}", my_keygen_id, my_behaviour);
+        if let Behaviour::R1BadEncryptionKeyProof = behaviour {
+            info!("malicious peer {} does {:?}", my_keygen_id, behaviour);
             paillier::zk::malicious::corrupt_ek_proof(ek_proof)
         } else {
             ek_proof
@@ -126,11 +126,11 @@ mod malicious {
 
     pub fn corrupt_zkp_proof(
         my_keygen_id: TypedUsize<KeygenShareId>,
-        my_behaviour: &Behaviour,
+        behaviour: &Behaviour,
         zkp_proof: ZkSetupProof,
     ) -> ZkSetupProof {
-        if let Behaviour::R1BadZkSetupProof = my_behaviour {
-            info!("malicious peer {} does {:?}", my_keygen_id, my_behaviour);
+        if let Behaviour::R1BadZkSetupProof = behaviour {
+            info!("malicious peer {} does {:?}", my_keygen_id, behaviour);
             paillier::zk::malicious::corrupt_zksetup_proof(zkp_proof)
         } else {
             zkp_proof

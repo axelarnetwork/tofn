@@ -40,28 +40,28 @@ impl Executer for R4Happy {
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
-        let keygen_id = info.my_id();
+        let my_keygen_id = info.my_id();
         let mut faulters = FillVecMap::with_size(info.total_share_count());
 
         // TODO boilerplate
         // anyone who did not send a bcast is a faulter
-        for (keygen_peer_id, bcast) in bcasts_in.iter() {
+        for (peer_keygen_id, bcast) in bcasts_in.iter() {
             if bcast.is_none() {
                 warn!(
                     "peer {} says: missing bcast from peer {}",
-                    keygen_id, keygen_peer_id
+                    my_keygen_id, peer_keygen_id
                 );
-                faulters.set(keygen_peer_id, ProtocolFault)?;
+                faulters.set(peer_keygen_id, ProtocolFault)?;
             }
         }
         // anyone who sent p2ps is a faulter
-        for (keygen_peer_id, p2ps) in p2ps_in.iter() {
+        for (peer_keygen_id, p2ps) in p2ps_in.iter() {
             if p2ps.is_some() {
                 warn!(
                     "peer {} says: unexpected p2ps from peer {}",
-                    keygen_id, keygen_peer_id
+                    my_keygen_id, peer_keygen_id
                 );
-                faulters.set(keygen_peer_id, ProtocolFault)?;
+                faulters.set(peer_keygen_id, ProtocolFault)?;
             }
         }
         if !faulters.is_empty() {
@@ -75,7 +75,7 @@ impl Executer for R4Happy {
         {
             warn!(
                 "peer {} says: received R4 complaints from others",
-                keygen_id
+                my_keygen_id,
             );
             return Box::new(R4Sad {
                 r1bcasts: self.r1bcasts,
@@ -96,18 +96,18 @@ impl Executer for R4Happy {
         })?;
 
         // verify proofs
-        for (keygen_peer_id, bcast) in bcasts_in.iter() {
+        for (peer_keygen_id, bcast) in bcasts_in.iter() {
             if !schnorr::verify(
                 &schnorr::Statement {
-                    prover_id: keygen_peer_id,
+                    prover_id: peer_keygen_id,
                     base: &k256::ProjectivePoint::generator(),
-                    target: self.all_X_i.get(keygen_peer_id)?,
+                    target: self.all_X_i.get(peer_keygen_id)?,
                 },
                 &bcast.x_i_proof,
             ) {
-                log_fault_warn(keygen_id, keygen_peer_id, "bad DL proof");
+                log_fault_warn(my_keygen_id, peer_keygen_id, "bad DL proof");
 
-                faulters.set(keygen_peer_id, ProtocolFault)?;
+                faulters.set(peer_keygen_id, ProtocolFault)?;
             }
         }
 
@@ -119,9 +119,9 @@ impl Executer for R4Happy {
         let all_shares = self
             .r1bcasts
             .iter()
-            .map(|(keygen_peer_id, r1bcast)| {
+            .map(|(peer_keygen_id, r1bcast)| {
                 Ok(SharePublicInfo::new(
-                    self.all_X_i.get(keygen_peer_id)?.into(),
+                    self.all_X_i.get(peer_keygen_id)?.into(),
                     r1bcast.ek.clone(),
                     r1bcast.zkp.clone(),
                 ))
@@ -135,7 +135,7 @@ impl Executer for R4Happy {
                 self.y.into(),
                 all_shares,
             ),
-            ShareSecretInfo::new(keygen_id, self.dk, self.x_i.into()),
+            ShareSecretInfo::new(my_keygen_id, self.dk, self.x_i.into()),
         ))))
     }
 

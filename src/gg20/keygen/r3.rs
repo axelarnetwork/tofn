@@ -68,7 +68,7 @@ impl Executer for R3 {
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
-        let keygen_id = info.my_id();
+        let my_keygen_id = info.my_id();
         let mut faulters = FillVecMap::with_size(info.total_share_count());
 
         // anyone who did not send a bcast is a faulter
@@ -76,7 +76,7 @@ impl Executer for R3 {
             if bcast.is_none() {
                 warn!(
                     "peer {} says: missing bcast from peer {}",
-                    keygen_id, keygen_peer_id
+                    my_keygen_id, keygen_peer_id
                 );
                 faulters.set(keygen_peer_id, ProtocolFault)?;
             }
@@ -86,7 +86,7 @@ impl Executer for R3 {
             if p2ps.is_none() {
                 warn!(
                     "peer {} says: missing p2ps from peer {}",
-                    keygen_id, keygen_peer_id
+                    my_keygen_id, keygen_peer_id
                 );
                 faulters.set(keygen_peer_id, ProtocolFault)?;
             }
@@ -112,7 +112,7 @@ impl Executer for R3 {
             if peer_y_i_commit != self.r1bcasts.get(keygen_peer_id)?.y_i_commit {
                 warn!(
                     "peer {} says: invalid y_i reveal by peer {}",
-                    keygen_id, keygen_peer_id
+                    my_keygen_id, keygen_peer_id
                 );
 
                 faulters.set(keygen_peer_id, ProtocolFault)?;
@@ -124,12 +124,12 @@ impl Executer for R3 {
         }
 
         // decrypt shares
-        let share_infos = p2ps_in.map_to_me(keygen_id, |p2p| {
+        let share_infos = p2ps_in.map_to_me(my_keygen_id, |p2p| {
             let (u_i_share_plaintext, u_i_share_randomness) =
                 self.dk.decrypt_with_randomness(&p2p.u_i_share_ciphertext);
 
             let u_i_share =
-                vss::Share::from_scalar(u_i_share_plaintext.to_scalar(), keygen_id.as_usize());
+                vss::Share::from_scalar(u_i_share_plaintext.to_scalar(), my_keygen_id.as_usize());
 
             ShareInfo {
                 share: u_i_share,
@@ -145,7 +145,7 @@ impl Executer for R3 {
                 .u_i_vss_commit
                 .validate_share(&share_info.share)
             {
-                log_accuse_warn(keygen_id, keygen_peer_id, "invalid vss share");
+                log_accuse_warn(my_keygen_id, keygen_peer_id, "invalid vss share");
 
                 vss_complaints.set(
                     keygen_peer_id,
@@ -159,7 +159,7 @@ impl Executer for R3 {
 
         corrupt!(
             vss_complaints,
-            self.corrupt_complaint(keygen_id, &share_infos, vss_complaints)?
+            self.corrupt_complaint(my_keygen_id, &share_infos, vss_complaints)?
         );
 
         if !vss_complaints.is_empty() {
@@ -201,13 +201,13 @@ impl Executer for R3 {
             })
             .collect();
 
-        corrupt!(x_i, self.corrupt_scalar(keygen_id, x_i));
+        corrupt!(x_i, self.corrupt_scalar(my_keygen_id, x_i));
 
         let x_i_proof = schnorr::prove(
             &schnorr::Statement {
-                prover_id: keygen_id,
+                prover_id: my_keygen_id,
                 base: &k256::ProjectivePoint::generator(),
-                target: all_X_i.get(keygen_id)?,
+                target: all_X_i.get(my_keygen_id)?,
             },
             &schnorr::Witness { scalar: &x_i },
         );
