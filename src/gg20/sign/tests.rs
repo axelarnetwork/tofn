@@ -187,7 +187,7 @@ fn execute_sign(
             )
             .unwrap();
             match r3_bcast {
-                r3::Bcast::Happy(h) => h.delta_i.as_ref().clone(),
+                r3::Bcast::Happy(h) => *h.delta_i.as_ref(),
                 r3::Bcast::Sad(_) => panic!("unexpected r3 sad path bcast"),
             }
         })
