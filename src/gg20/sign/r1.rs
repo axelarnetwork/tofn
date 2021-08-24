@@ -35,16 +35,13 @@ pub(super) struct P2p {
 #[allow(non_snake_case)]
 pub(super) fn start(
     my_sign_id: TypedUsize<SignShareId>,
-    my_secret_key_share: SecretKeyShare,
+    secret_key_share: SecretKeyShare,
     msg_to_sign: Scalar,
     all_keygen_ids: KeygenShareIds,
-    #[cfg(feature = "malicious")] my_behaviour: Behaviour,
+    #[cfg(feature = "malicious")] behaviour: Behaviour,
 ) -> TofnResult<SignProtocolBuilder> {
-    #[cfg(feature = "malicious")]
-    use malicious::*;
-
     // `HoleVecMap` has limited options for construction,
-    // so we store a separate `peer_keygen_ids` to generate future `HoleVecMap`s.
+    // so we store a separate `keygen_peer_ids` to generate future `HoleVecMap`s.
     let (peer_keygen_ids, my_keygen_id) = all_keygen_ids.clone().puncture_hole(my_sign_id)?;
 
     let lambda_i_S = &vss::lagrange_coefficient(
@@ -55,7 +52,7 @@ pub(super) fn start(
             .collect::<Vec<_>>(),
     )?;
 
-    let w_i = my_secret_key_share.share().x_i().as_ref() * lambda_i_S;
+    let w_i = secret_key_share.share().x_i().as_ref() * lambda_i_S;
 
     let k_i = k256::Scalar::random(rand::thread_rng());
     let gamma_i = k256::Scalar::random(rand::thread_rng());
@@ -66,7 +63,10 @@ pub(super) fn start(
         to_bytes(&Gamma_i),
     );
 
-    corrupt!(gamma_i, corrupt_gamma_i(my_sign_id, &my_behaviour, gamma_i));
+    corrupt!(
+        gamma_i,
+        malicious::corrupt_gamma_i(my_sign_id, &behaviour, gamma_i)
+    );
 
     // initiate MtA protocols for
     // 1. k_i (me) * gamma_j (other)
@@ -75,7 +75,7 @@ pub(super) fn start(
     // range proof must be custom for each other party
     // but k_i_ciphertext can be broadcast to all parties
 
-    let ek = my_secret_key_share
+    let ek = secret_key_share
         .group()
         .all_shares()
         .get(my_keygen_id)?
@@ -84,7 +84,7 @@ pub(super) fn start(
 
     let p2ps_out = Some(peer_keygen_ids.clone_map2_result(
         |(_sign_peer_id, &keygen_peer_id)| {
-            let peer_zkp = my_secret_key_share
+            let peer_zkp = secret_key_share
                 .group()
                 .all_shares()
                 .get(keygen_peer_id)?
@@ -103,7 +103,7 @@ pub(super) fn start(
 
             corrupt!(
                 range_proof,
-                corrupt_range_proof(my_sign_id, &my_behaviour, _sign_peer_id, range_proof)
+                malicious::corrupt_range_proof(my_sign_id, &behaviour, _sign_peer_id, range_proof)
             );
 
             serialize(&P2p { range_proof })
@@ -117,7 +117,7 @@ pub(super) fn start(
 
     Ok(SignProtocolBuilder::NotDone(RoundBuilder::new(
         Box::new(r2::R2 {
-            my_secret_key_share,
+            secret_key_share,
             msg_to_sign,
             peer_keygen_ids,
             all_keygen_ids,
@@ -130,7 +130,7 @@ pub(super) fn start(
             k_i_randomness,
 
             #[cfg(feature = "malicious")]
-            my_behaviour,
+            behaviour,
         }),
         bcast_out,
         p2ps_out,
@@ -152,11 +152,11 @@ mod malicious {
 
     pub fn corrupt_gamma_i(
         my_share_id: TypedUsize<SignShareId>,
-        my_behaviour: &Behaviour,
+        behaviour: &Behaviour,
         mut gamma_i: k256::Scalar,
     ) -> k256::Scalar {
-        if let Behaviour::R1BadGammaI = my_behaviour {
-            log_confess_info(my_share_id, my_behaviour, "");
+        if let Behaviour::R1BadGammaI = behaviour {
+            log_confess_info(my_share_id, behaviour, "");
             gamma_i += k256::Scalar::one();
         }
         gamma_i
@@ -164,13 +164,13 @@ mod malicious {
 
     pub fn corrupt_range_proof(
         my_share_id: TypedUsize<SignShareId>,
-        my_behaviour: &Behaviour,
+        behaviour: &Behaviour,
         peer_share_id: TypedUsize<SignShareId>,
         range_proof: range::Proof,
     ) -> range::Proof {
-        if let Behaviour::R1BadProof { victim } = my_behaviour {
+        if let Behaviour::R1BadProof { victim } = behaviour {
             if *victim == peer_share_id {
-                log_confess_info(my_share_id, my_behaviour, "");
+                log_confess_info(my_share_id, behaviour, "");
                 return paillier::zk::range::malicious::corrupt_proof(&range_proof);
             }
         }

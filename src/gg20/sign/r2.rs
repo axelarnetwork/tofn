@@ -24,7 +24,7 @@ use super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
 pub(super) struct R2 {
-    pub(super) my_secret_key_share: SecretKeyShare,
+    pub(super) secret_key_share: SecretKeyShare,
     pub(super) msg_to_sign: Scalar,
     pub(super) peer_keygen_ids: Peers,
     pub(super) all_keygen_ids: KeygenShareIds,
@@ -37,7 +37,7 @@ pub(super) struct R2 {
     pub(super) k_i_randomness: paillier::Randomness,
 
     #[cfg(feature = "malicious")]
-    pub(super) my_behaviour: Behaviour,
+    pub(super) behaviour: Behaviour,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -107,7 +107,7 @@ impl Executer for R2 {
             self.peer_keygen_ids
                 .clone_map2_result(|(peer_sign_id, peer_keygen_id)| {
                     let peer_ek = &self
-                        .my_secret_key_share
+                        .secret_key_share
                         .group()
                         .all_shares()
                         .get(*peer_keygen_id)?
@@ -122,7 +122,7 @@ impl Executer for R2 {
                     let peer_proof = &p2ps_in.get(peer_sign_id, my_sign_id)?.range_proof;
 
                     let zkp = self
-                        .my_secret_key_share
+                        .secret_key_share
                         .group()
                         .all_shares()
                         .get(self.my_keygen_id)?
@@ -151,7 +151,7 @@ impl Executer for R2 {
 
             return Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
                 Box::new(r3::R3Sad {
-                    my_secret_key_share: self.my_secret_key_share,
+                    my_secret_key_share: self.secret_key_share,
                     all_keygen_ids: self.all_keygen_ids,
                     r1bcasts: bcasts_in,
                     r1p2ps: p2ps_in,
@@ -169,25 +169,25 @@ impl Executer for R2 {
         // step 2 for MtA protocols:
         // 1. k_i (other) * gamma_j (me)
         // 2. k_i (other) * w_j (me)
-        for (sign_peer_id, &keygen_peer_id) in &self.peer_keygen_ids {
+        for (peer_sign_id, &peer_keygen_id) in &self.peer_keygen_ids {
             // MtA step 2 for k_i * gamma_j
             let peer_ek = &self
-                .my_secret_key_share
+                .secret_key_share
                 .group()
                 .all_shares()
-                .get(keygen_peer_id)?
+                .get(peer_keygen_id)?
                 .ek();
-            let peer_k_i_ciphertext = &bcasts_in.get(sign_peer_id)?.k_i_ciphertext;
+            let peer_k_i_ciphertext = &bcasts_in.get(peer_sign_id)?.k_i_ciphertext;
             let peer_zkp = &self
-                .my_secret_key_share
+                .secret_key_share
                 .group()
                 .all_shares()
-                .get(keygen_peer_id)?
+                .get(peer_keygen_id)?
                 .zkp();
 
             let (alpha_ciphertext, alpha_proof, beta_secret) = mta::mta_response_with_proof(
                 my_sign_id,
-                sign_peer_id,
+                peer_sign_id,
                 peer_zkp,
                 peer_ek,
                 peer_k_i_ciphertext,
@@ -196,15 +196,15 @@ impl Executer for R2 {
 
             corrupt!(
                 alpha_proof,
-                self.corrupt_alpha_proof(my_sign_id, sign_peer_id, alpha_proof)
+                self.corrupt_alpha_proof(my_sign_id, peer_sign_id, alpha_proof)
             );
 
-            beta_secrets.set(sign_peer_id, beta_secret)?;
+            beta_secrets.set(peer_sign_id, beta_secret)?;
 
             // MtAwc step 2 for k_i * w_j
             let (mu_ciphertext, mu_proof, nu_secret) = mta::mta_response_with_proof_wc(
                 my_sign_id,
-                sign_peer_id,
+                peer_sign_id,
                 peer_zkp,
                 peer_ek,
                 peer_k_i_ciphertext,
@@ -213,10 +213,10 @@ impl Executer for R2 {
 
             corrupt!(
                 mu_proof,
-                self.corrupt_mu_proof(my_sign_id, sign_peer_id, mu_proof)
+                self.corrupt_mu_proof(my_sign_id, peer_sign_id, mu_proof)
             );
 
-            nu_secrets.set(sign_peer_id, nu_secret)?;
+            nu_secrets.set(peer_sign_id, nu_secret)?;
 
             let p2p = serialize(&P2p::Happy(P2pHappy {
                 alpha_ciphertext,
@@ -225,7 +225,7 @@ impl Executer for R2 {
                 mu_proof,
             }))?;
 
-            p2ps_out.set(sign_peer_id, p2p)?;
+            p2ps_out.set(peer_sign_id, p2p)?;
         }
 
         let beta_secrets = beta_secrets.to_holevec()?;
@@ -234,7 +234,7 @@ impl Executer for R2 {
 
         Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
             Box::new(r3::R3Happy {
-                my_secret_key_share: self.my_secret_key_share,
+                secret_key_share: self.secret_key_share,
                 msg_to_sign: self.msg_to_sign,
                 peer_keygen_ids: self.peer_keygen_ids,
                 all_keygen_ids: self.all_keygen_ids,
@@ -251,7 +251,7 @@ impl Executer for R2 {
                 r1p2ps: p2ps_in,
 
                 #[cfg(feature = "malicious")]
-                my_behaviour: self.my_behaviour,
+                behaviour: self.behaviour,
             }),
             None,
             p2ps_out,
@@ -283,15 +283,15 @@ mod malicious {
     impl R2 {
         pub fn corrupt_complaint(
             &self,
-            sign_id: TypedUsize<SignShareId>,
+            my_sign_id: TypedUsize<SignShareId>,
             mut zkp_complaints: HoleVecMap<SignShareId, bool>,
         ) -> TofnResult<HoleVecMap<SignShareId, bool>> {
-            if let R2FalseAccusation { victim } = self.my_behaviour {
+            if let R2FalseAccusation { victim } = self.behaviour {
                 let complaint = zkp_complaints.get_mut(victim)?;
                 if *complaint {
-                    log_confess_info(sign_id, &self.my_behaviour, "but the accusation is true");
+                    log_confess_info(my_sign_id, &self.behaviour, "but the accusation is true");
                 } else {
-                    log_confess_info(sign_id, &self.my_behaviour, "");
+                    log_confess_info(my_sign_id, &self.behaviour, "");
                     *complaint = true;
                 }
             }
@@ -300,13 +300,13 @@ mod malicious {
 
         pub fn corrupt_alpha_proof(
             &self,
-            sign_id: TypedUsize<SignShareId>,
+            my_sign_id: TypedUsize<SignShareId>,
             recipient: TypedUsize<SignShareId>,
             alpha_proof: mta::Proof,
         ) -> mta::Proof {
-            if let R2BadMta { victim } = self.my_behaviour {
+            if let R2BadMta { victim } = self.behaviour {
                 if victim == recipient {
-                    log_confess_info(sign_id, &self.my_behaviour, "");
+                    log_confess_info(my_sign_id, &self.behaviour, "");
                     return mta::malicious::corrupt_proof(&alpha_proof);
                 }
             }
@@ -315,13 +315,13 @@ mod malicious {
 
         pub fn corrupt_mu_proof(
             &self,
-            sign_id: TypedUsize<SignShareId>,
-            recipient: TypedUsize<SignShareId>,
+            my_sign_id: TypedUsize<SignShareId>,
+            victim_sign_id: TypedUsize<SignShareId>,
             mu_proof: mta::ProofWc,
         ) -> mta::ProofWc {
-            if let R2BadMtaWc { victim } = self.my_behaviour {
-                if victim == recipient {
-                    log_confess_info(sign_id, &self.my_behaviour, "");
+            if let R2BadMtaWc { victim } = self.behaviour {
+                if victim == victim_sign_id {
+                    log_confess_info(my_sign_id, &self.behaviour, "");
                     return mta::malicious::corrupt_proof_wc(&mu_proof);
                 }
             }

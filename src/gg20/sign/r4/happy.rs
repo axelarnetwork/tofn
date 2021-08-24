@@ -34,7 +34,6 @@ pub(in super::super) struct R4Happy {
     pub(in super::super) k_i_randomness: paillier::Randomness,
     pub(in super::super) sigma_i: Scalar,
     pub(in super::super) l_i: Scalar,
-    pub(in super::super) _delta_i: Scalar,
     pub(in super::super) beta_secrets: HoleVecMap<SignShareId, Secret>,
     pub(in super::super) r1bcasts: VecMap<SignShareId, r1::Bcast>,
     pub(in super::super) r2p2ps: FullP2ps<SignShareId, r2::P2pHappy>,
@@ -64,7 +63,7 @@ impl Executer for R4Happy {
         p2ps_in: crate::collections::P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<crate::sdk::implementer_api::ProtocolBuilder<Self::FinalOutput, Self::Index>>
     {
-        let my_share_id = info.my_id();
+        let my_sign_id = info.my_id();
         let mut faulters = info.new_fillvecmap();
 
         // anyone who did not send a bcast is a faulter
@@ -72,7 +71,7 @@ impl Executer for R4Happy {
             if bcast.is_none() {
                 warn!(
                     "peer {} says: missing bcast from peer {}",
-                    my_share_id, share_id
+                    my_sign_id, share_id
                 );
                 faulters.set(share_id, ProtocolFault)?;
             }
@@ -82,7 +81,7 @@ impl Executer for R4Happy {
             if p2ps.is_some() {
                 warn!(
                     "peer {} says: unexpected p2ps from peer {}",
-                    my_share_id, share_id
+                    my_sign_id, share_id
                 );
                 faulters.set(share_id, ProtocolFault)?;
             }
@@ -98,7 +97,7 @@ impl Executer for R4Happy {
         {
             warn!(
                 "peer {} says: received an R3 complaint from others",
-                my_share_id,
+                my_sign_id,
             );
 
             return Box::new(r4::R4Sad {
@@ -118,9 +117,9 @@ impl Executer for R4Happy {
             r3::Bcast::Sad(_) => Err(TofnFatal),
         })?;
 
-        for (sign_peer_id, bcast) in &bcasts_in {
+        for (peer_sign_id, bcast) in &bcasts_in {
             let peer_stmt = pedersen::Statement {
-                prover_id: sign_peer_id,
+                prover_id: peer_sign_id,
                 commit: bcast.T_i.as_ref(),
             };
 
@@ -128,10 +127,10 @@ impl Executer for R4Happy {
             if !pedersen::verify(&peer_stmt, &bcast.T_i_proof) {
                 warn!(
                     "peer {} says: pedersen proof failed to verify for peer {}",
-                    my_share_id, sign_peer_id,
+                    my_sign_id, peer_sign_id,
                 );
 
-                faulters.set(sign_peer_id, ProtocolFault)?;
+                faulters.set(peer_sign_id, ProtocolFault)?;
             }
         }
         if !faulters.is_empty() {
@@ -153,14 +152,14 @@ impl Executer for R4Happy {
         // protocol spec. While the fix to identify the faulter is easy, this will be changed
         // after discussion with the authors.
         if bool::from(delta_inv.is_none()) {
-            warn!("peer {} says: delta inv computation failed", my_share_id);
+            warn!("peer {} says: delta inv computation failed", my_sign_id);
             return Err(TofnFatal);
         }
 
         let Gamma_i_reveal = self.Gamma_i_reveal.clone();
         corrupt!(
             Gamma_i_reveal,
-            self.corrupt_Gamma_i_reveal(my_share_id, Gamma_i_reveal)
+            self.corrupt_Gamma_i_reveal(my_sign_id, Gamma_i_reveal)
         );
 
         let bcast_out = Some(serialize(&Bcast {

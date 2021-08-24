@@ -32,6 +32,7 @@ impl Executer for R3Sad {
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
+        let my_sign_id = info.my_id();
         let mut faulters = info.new_fillvecmap();
 
         // anyone who sent a bcast is a faulter
@@ -39,8 +40,7 @@ impl Executer for R3Sad {
             if bcast.is_some() {
                 warn!(
                     "peer {} says: unexpected bcast from peer {}",
-                    info.my_id(),
-                    share_id
+                    my_sign_id, share_id
                 );
                 faulters.set(share_id, ProtocolFault)?;
             }
@@ -50,8 +50,7 @@ impl Executer for R3Sad {
             if p2ps.is_none() {
                 warn!(
                     "peer {} says: missing p2ps from peer {}",
-                    info.my_id(),
-                    share_id
+                    my_sign_id, share_id
                 );
                 faulters.set(share_id, ProtocolFault)?;
             }
@@ -73,8 +72,7 @@ impl Executer for R3Sad {
             {
                 warn!(
                     "peer {} says: conflicting happy/sad p2ps from peer {}",
-                    info.my_id(),
-                    from
+                    my_sign_id, from
                 );
                 faulters.set(from, ProtocolFault)?;
             }
@@ -107,7 +105,7 @@ impl Executer for R3Sad {
         if all_accusations.is_empty() {
             error!(
                 "peer {} says: R3 sad path but nobody complained",
-                info.my_id(),
+                my_sign_id,
             );
             return Err(TofnFatal);
         }
@@ -121,8 +119,7 @@ impl Executer for R3Sad {
             {
                 warn!(
                     "peer {} says: peer {} did not accuse anyone",
-                    info.my_id(),
-                    accuser
+                    my_sign_id, accuser
                 );
                 faulters.set(accuser, ProtocolFault)?;
             }
@@ -162,11 +159,11 @@ impl Executer for R3Sad {
 
                 match accuser_zkp.verify_range_proof(accused_stmt, accused_proof) {
                     true => {
-                        log_fault_info(info.my_id(), accuser, "false accusation");
+                        log_fault_info(my_sign_id, accuser, "false accusation");
                         faulters.set(accuser, ProtocolFault)?;
                     }
                     false => {
-                        log_fault_info(info.my_id(), accused, "invalid r1 p2p range proof");
+                        log_fault_info(my_sign_id, accused, "invalid r1 p2p range proof");
                         faulters.set(accused, ProtocolFault)?;
                     }
                 };
@@ -174,7 +171,7 @@ impl Executer for R3Sad {
         }
 
         if faulters.is_empty() {
-            error!("peer {} says: R3 sad path found no faulters", info.my_id());
+            error!("peer {} says: R3 sad path found no faulters", my_sign_id);
             return Err(TofnFatal);
         }
 

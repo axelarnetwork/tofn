@@ -8,6 +8,7 @@ use crate::{
         sign::api::{new_sign, SignShareId},
     },
     sdk::api::{BytesVec, Fault, Protocol, Round},
+    sdk::implementer_api::decode_message,
 };
 use ecdsa::{elliptic_curve::sec1::ToEncodedPoint, hazmat::VerifyPrimitive};
 use k256::{ecdsa::Signature, ProjectivePoint};
@@ -147,7 +148,7 @@ fn execute_sign(
     // TEST: secret key shares yield the pubkey
     let x = r1_parties
         .iter()
-        .map(|party| xround_cast::<r2::R2>(party).w_i)
+        .map(|party| round_cast::<r2::R2>(party).w_i)
         .fold(k256::Scalar::zero(), |acc, w_i| acc + w_i);
 
     let y = ProjectivePoint::generator() * x;
@@ -163,12 +164,12 @@ fn execute_sign(
 
     let k = r1_parties
         .iter()
-        .map(|party| xround_cast::<r2::R2>(party).k_i)
+        .map(|party| round_cast::<r2::R2>(party).k_i)
         .fold(k256::Scalar::zero(), |acc, k_i| acc + k_i);
 
     let gamma = r1_parties
         .iter()
-        .map(|party| xround_cast::<r2::R2>(party).gamma_i)
+        .map(|party| round_cast::<r2::R2>(party).gamma_i)
         .fold(k256::Scalar::zero(), |acc, gamma_i| acc + gamma_i);
 
     let (r2_parties, ..) = execute_round(r1_parties, 2, true, true);
@@ -178,14 +179,25 @@ fn execute_sign(
     // TEST: MtA for delta_i, sigma_i
     let k_gamma = r3_parties
         .iter()
-        .map(|party| xround_cast::<r4::R4Happy>(party)._delta_i)
+        .map(|party| {
+            let r3_bcast = bincode::deserialize(
+                &decode_message::<SignShareId>(party.bcast_out().unwrap())
+                    .unwrap()
+                    .payload,
+            )
+            .unwrap();
+            match r3_bcast {
+                r3::Bcast::Happy(h) => h.delta_i.as_ref().clone(),
+                r3::Bcast::Sad(_) => panic!("unexpected r3 sad path bcast"),
+            }
+        })
         .fold(k256::Scalar::zero(), |acc, delta_i| acc + delta_i);
 
     assert_eq!(k_gamma, k * gamma);
 
     let k_x = r3_parties
         .iter()
-        .map(|party| xround_cast::<r4::R4Happy>(party).sigma_i)
+        .map(|party| round_cast::<r4::R4Happy>(party).sigma_i)
         .fold(k256::Scalar::zero(), |acc, sigma_i| acc + sigma_i);
 
     assert_eq!(k_x, k * x);
@@ -194,7 +206,7 @@ fn execute_sign(
 
     // TEST: everyone correctly computed delta = k * gamma
     for party in &r4_parties {
-        let delta_inv = xround_cast::<r5::R5>(party).delta_inv;
+        let delta_inv = round_cast::<r5::R5>(party).delta_inv;
 
         assert_eq!(delta_inv * k_gamma, k256::Scalar::one());
     }
@@ -204,7 +216,7 @@ fn execute_sign(
     // TEST: everyone correctly computed R
     let R = k256::ProjectivePoint::generator() * k.invert().unwrap();
     for party in &r5_parties {
-        let party_R = xround_cast::<r6::R6>(party).R;
+        let party_R = round_cast::<r6::R6>(party).R;
 
         assert_eq!(party_R, R);
     }
@@ -243,7 +255,7 @@ fn execute_sign(
     assert!(pub_key.verify_prehashed(&m, &sig).is_ok());
 }
 
-fn xround_cast<T: 'static>(party: &XParty) -> &T {
+fn round_cast<T: 'static>(party: &XParty) -> &T {
     return party.round_as_any().downcast_ref::<T>().unwrap();
 }
 

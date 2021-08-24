@@ -22,7 +22,7 @@ use super::super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
 pub(in super::super) struct R3Happy {
-    pub(in super::super) my_secret_key_share: SecretKeyShare,
+    pub(in super::super) secret_key_share: SecretKeyShare,
     pub(in super::super) msg_to_sign: Scalar,
     pub(in super::super) peer_keygen_ids: Peers,
     pub(in super::super) all_keygen_ids: KeygenShareIds,
@@ -39,7 +39,7 @@ pub(in super::super) struct R3Happy {
     pub(in super::super) r1p2ps: FullP2ps<SignShareId, r1::P2p>,
 
     #[cfg(feature = "malicious")]
-    pub(in super::super) my_behaviour: Behaviour,
+    pub(in super::super) behaviour: Behaviour,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -80,6 +80,7 @@ impl Executer for R3Happy {
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
+        let my_sign_id = info.my_id();
         let mut faulters = info.new_fillvecmap();
 
         // anyone who sent a bcast is a faulter
@@ -87,8 +88,7 @@ impl Executer for R3Happy {
             if bcast.is_some() {
                 warn!(
                     "peer {} says: unexpected bcast from peer {}",
-                    info.my_id(),
-                    from
+                    my_sign_id, from
                 );
                 faulters.set(from, ProtocolFault)?;
             }
@@ -96,11 +96,7 @@ impl Executer for R3Happy {
         // anyone who did not send p2ps is a faulter
         for (from, p2ps) in p2ps_in.iter() {
             if p2ps.is_none() {
-                warn!(
-                    "peer {} says: missing p2ps from peer {}",
-                    info.my_id(),
-                    from
-                );
+                warn!("peer {} says: missing p2ps from peer {}", my_sign_id, from);
                 faulters.set(from, ProtocolFault)?;
             }
         }
@@ -121,8 +117,7 @@ impl Executer for R3Happy {
             {
                 warn!(
                     "peer {} says: conflicting happy/sad p2ps from peer {}",
-                    info.my_id(),
-                    from
+                    my_sign_id, from
                 );
                 faulters.set(from, ProtocolFault)?;
             }
@@ -138,13 +133,13 @@ impl Executer for R3Happy {
         }) {
             warn!(
                 "peer {} says: received an R2 complaint from others",
-                info.my_id(),
+                my_sign_id,
             );
 
             let p2ps_in = p2ps_in.to_p2ps();
 
             return Box::new(r3::R3Sad {
-                my_secret_key_share: self.my_secret_key_share,
+                my_secret_key_share: self.secret_key_share,
                 all_keygen_ids: self.all_keygen_ids,
                 r1bcasts: self.r1bcasts,
                 r1p2ps: self.r1p2ps,
@@ -163,26 +158,26 @@ impl Executer for R3Happy {
         let mut mta_complaints = info.new_fillvecmap();
 
         let zkp = self
-            .my_secret_key_share
+            .secret_key_share
             .group()
             .all_shares()
             .get(self.my_keygen_id)?
             .zkp();
 
         let ek = self
-            .my_secret_key_share
+            .secret_key_share
             .group()
             .all_shares()
             .get(self.my_keygen_id)?
             .ek();
 
         for (sign_peer_id, &keygen_peer_id) in &self.peer_keygen_ids {
-            let p2p_in = p2ps_in.get(sign_peer_id, info.my_id())?;
+            let p2p_in = p2ps_in.get(sign_peer_id, my_sign_id)?;
 
             let peer_stmt = paillier::zk::mta::Statement {
                 prover_id: sign_peer_id,
-                verifier_id: info.my_id(),
-                ciphertext1: &self.r1bcasts.get(info.my_id())?.k_i_ciphertext,
+                verifier_id: my_sign_id,
+                ciphertext1: &self.r1bcasts.get(my_sign_id)?.k_i_ciphertext,
                 ciphertext2: &p2p_in.alpha_ciphertext,
                 ek,
             };
@@ -192,8 +187,7 @@ impl Executer for R3Happy {
             if !zkp.verify_mta_proof(&peer_stmt, &p2p_in.alpha_proof) {
                 warn!(
                     "peer {} says: mta proof failed to verify for peer {}",
-                    info.my_id(),
-                    sign_peer_id,
+                    my_sign_id, sign_peer_id,
                 );
 
                 mta_complaints.set(sign_peer_id, Accusation::MtA)?;
@@ -212,7 +206,7 @@ impl Executer for R3Happy {
             )?;
 
             let peer_W_i = self
-                .my_secret_key_share
+                .secret_key_share
                 .group()
                 .all_shares()
                 .get(keygen_peer_id)?
@@ -223,8 +217,8 @@ impl Executer for R3Happy {
             let peer_stmt = paillier::zk::mta::StatementWc {
                 stmt: paillier::zk::mta::Statement {
                     prover_id: sign_peer_id,
-                    verifier_id: info.my_id(),
-                    ciphertext1: &self.r1bcasts.get(info.my_id())?.k_i_ciphertext,
+                    verifier_id: my_sign_id,
+                    ciphertext1: &self.r1bcasts.get(my_sign_id)?.k_i_ciphertext,
                     ciphertext2: &p2p_in.mu_ciphertext,
                     ek,
                 },
@@ -235,8 +229,7 @@ impl Executer for R3Happy {
             if !zkp.verify_mta_proof_wc(&peer_stmt, &p2p_in.mu_proof) {
                 warn!(
                     "peer {} says: mta_wc proof failed to verify for peer {}",
-                    info.my_id(),
-                    sign_peer_id,
+                    my_sign_id, sign_peer_id,
                 );
 
                 mta_complaints.set(sign_peer_id, Accusation::MtAwc)?;
@@ -247,7 +240,7 @@ impl Executer for R3Happy {
 
         corrupt!(
             mta_complaints,
-            self.corrupt_complaint(info.my_id(), mta_complaints)?
+            self.corrupt_complaint(my_sign_id, mta_complaints)?
         );
 
         if !mta_complaints.is_empty() {
@@ -255,7 +248,7 @@ impl Executer for R3Happy {
 
             return Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
                 Box::new(r4::R4Sad {
-                    secret_key_share: self.my_secret_key_share,
+                    secret_key_share: self.secret_key_share,
                     participants: self.all_keygen_ids,
                     r1bcasts: self.r1bcasts,
                     r2p2ps: p2ps_in,
@@ -268,10 +261,10 @@ impl Executer for R3Happy {
         let alphas = self
             .peer_keygen_ids
             .clone_map2_result(|(sign_peer_id, _)| {
-                let p2p_in = p2ps_in.get(sign_peer_id, info.my_id())?;
+                let p2p_in = p2ps_in.get(sign_peer_id, my_sign_id)?;
 
                 let alpha = self
-                    .my_secret_key_share
+                    .secret_key_share
                     .share()
                     .dk()
                     .decrypt(&p2p_in.alpha_ciphertext)
@@ -283,10 +276,10 @@ impl Executer for R3Happy {
         let mus = self
             .peer_keygen_ids
             .clone_map2_result(|(sign_peer_id, _)| {
-                let p2p_in = p2ps_in.get(sign_peer_id, info.my_id())?;
+                let p2p_in = p2ps_in.get(sign_peer_id, my_sign_id)?;
 
                 let mu = self
-                    .my_secret_key_share
+                    .secret_key_share
                     .share()
                     .dk()
                     .decrypt(&p2p_in.mu_ciphertext)
@@ -304,13 +297,10 @@ impl Executer for R3Happy {
             });
 
         // many malicious behaviours require corrupt delta_i to prepare
-        corrupt!(delta_i, self.corrupt_delta_i(info.my_id(), delta_i));
-        corrupt!(
-            delta_i,
-            self.corrupt_k_i(info.my_id(), delta_i, self.gamma_i)
-        );
-        corrupt!(delta_i, self.corrupt_alpha(info.my_id(), delta_i));
-        corrupt!(delta_i, self.corrupt_beta(info.my_id(), delta_i));
+        corrupt!(delta_i, self.corrupt_delta_i(my_sign_id, delta_i));
+        corrupt!(delta_i, self.corrupt_k_i(my_sign_id, delta_i, self.gamma_i));
+        corrupt!(delta_i, self.corrupt_alpha(my_sign_id, delta_i));
+        corrupt!(delta_i, self.corrupt_beta(my_sign_id, delta_i));
 
         // compute sigma_i = k_i * w_i + sum_{j != i} mu_ij + nu_ji
         let sigma_i = mus
@@ -320,12 +310,12 @@ impl Executer for R3Happy {
                 acc + mu + nu.beta.as_ref()
             });
 
-        corrupt!(sigma_i, self.corrupt_sigma(info.my_id(), sigma_i));
+        corrupt!(sigma_i, self.corrupt_sigma(my_sign_id, sigma_i));
 
         let (T_i, l_i) = pedersen::commit(&sigma_i);
         let T_i_proof = pedersen::prove(
             &pedersen::Statement {
-                prover_id: info.my_id(),
+                prover_id: my_sign_id,
                 commit: &T_i,
             },
             &pedersen::Witness {
@@ -334,7 +324,7 @@ impl Executer for R3Happy {
             },
         );
 
-        corrupt!(T_i_proof, self.corrupt_T_i_proof(info.my_id(), T_i_proof));
+        corrupt!(T_i_proof, self.corrupt_T_i_proof(my_sign_id, T_i_proof));
 
         let bcast_out = Some(serialize(&Bcast::Happy(BcastHappy {
             delta_i: delta_i.into(),
@@ -344,7 +334,7 @@ impl Executer for R3Happy {
 
         Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
             Box::new(r4::R4Happy {
-                secret_key_share: self.my_secret_key_share,
+                secret_key_share: self.secret_key_share,
                 msg_to_sign: self.msg_to_sign,
                 peers: self.peer_keygen_ids,
                 participants: self.all_keygen_ids,
@@ -358,11 +348,10 @@ impl Executer for R3Happy {
                 l_i,
                 beta_secrets: self.beta_secrets,
                 r1bcasts: self.r1bcasts,
-                _delta_i: delta_i,
                 r2p2ps: p2ps_in,
 
                 #[cfg(feature = "malicious")]
-                behaviour: self.my_behaviour,
+                behaviour: self.behaviour,
             }),
             bcast_out,
             None,
@@ -393,19 +382,19 @@ mod malicious {
             sign_id: TypedUsize<SignShareId>,
             mut mta_complaints: FillVecMap<SignShareId, Accusation>,
         ) -> TofnResult<FillVecMap<SignShareId, Accusation>> {
-            let info = match self.my_behaviour {
+            let info = match self.behaviour {
                 R3FalseAccusationMta { victim } => Some((victim, Accusation::MtA)),
                 R3FalseAccusationMtaWc { victim } => Some((victim, Accusation::MtAwc)),
                 _ => None,
             };
             if let Some((victim, accusation)) = info {
                 if !mta_complaints.is_none(victim)? {
-                    log_confess_info(sign_id, &self.my_behaviour, "but the accusation is true");
+                    log_confess_info(sign_id, &self.behaviour, "but the accusation is true");
                 } else if victim == sign_id {
-                    log_confess_info(sign_id, &self.my_behaviour, "self accusation");
+                    log_confess_info(sign_id, &self.behaviour, "self accusation");
                     mta_complaints.set(sign_id, accusation)?;
                 } else {
-                    log_confess_info(sign_id, &self.my_behaviour, "");
+                    log_confess_info(sign_id, &self.behaviour, "");
                     mta_complaints.set(victim, accusation)?;
                 }
             }
@@ -418,8 +407,8 @@ mod malicious {
             sign_id: TypedUsize<SignShareId>,
             T_i_proof: pedersen::Proof,
         ) -> pedersen::Proof {
-            if let R3BadProof = self.my_behaviour {
-                log_confess_info(sign_id, &self.my_behaviour, "");
+            if let R3BadProof = self.behaviour {
+                log_confess_info(sign_id, &self.behaviour, "");
                 return pedersen::malicious::corrupt_proof(&T_i_proof);
             }
             T_i_proof
@@ -430,8 +419,8 @@ mod malicious {
             sign_id: TypedUsize<SignShareId>,
             mut delta_i: k256::Scalar,
         ) -> k256::Scalar {
-            if let R3BadDeltaI = self.my_behaviour {
-                log_confess_info(sign_id, &self.my_behaviour, "");
+            if let R3BadDeltaI = self.behaviour {
+                log_confess_info(sign_id, &self.behaviour, "");
                 delta_i += k256::Scalar::one();
             }
             delta_i
@@ -445,8 +434,8 @@ mod malicious {
             mut delta_i: k256::Scalar,
             gamma_i: k256::Scalar,
         ) -> k256::Scalar {
-            if let R3BadKI = self.my_behaviour {
-                log_confess_info(sign_id, &self.my_behaviour, "step 1/2: delta_i");
+            if let R3BadKI = self.behaviour {
+                log_confess_info(sign_id, &self.behaviour, "step 1/2: delta_i");
                 delta_i += gamma_i;
             }
             delta_i
@@ -459,8 +448,8 @@ mod malicious {
             sign_id: TypedUsize<SignShareId>,
             mut delta_i: k256::Scalar,
         ) -> k256::Scalar {
-            if let R3BadAlpha { victim: _ } = self.my_behaviour {
-                log_confess_info(sign_id, &self.my_behaviour, "step 1/2: delta_i");
+            if let R3BadAlpha { victim: _ } = self.behaviour {
+                log_confess_info(sign_id, &self.behaviour, "step 1/2: delta_i");
                 delta_i += k256::Scalar::one();
             }
             delta_i
@@ -473,8 +462,8 @@ mod malicious {
             sign_id: TypedUsize<SignShareId>,
             mut delta_i: k256::Scalar,
         ) -> k256::Scalar {
-            if let R3BadBeta { victim: _ } = self.my_behaviour {
-                log_confess_info(sign_id, &self.my_behaviour, "step 1/2: delta_i");
+            if let R3BadBeta { victim: _ } = self.behaviour {
+                log_confess_info(sign_id, &self.behaviour, "step 1/2: delta_i");
                 delta_i += k256::Scalar::one();
             }
             delta_i
@@ -485,8 +474,8 @@ mod malicious {
             sign_id: TypedUsize<SignShareId>,
             mut sigma_i: Scalar,
         ) -> Scalar {
-            if let R3BadSigmaI = self.my_behaviour {
-                log_confess_info(sign_id, &self.my_behaviour, "");
+            if let R3BadSigmaI = self.behaviour {
+                log_confess_info(sign_id, &self.behaviour, "");
                 sigma_i += Scalar::one();
             }
             sigma_i
