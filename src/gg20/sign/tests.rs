@@ -173,7 +173,7 @@ fn execute_sign(
 
     let (r2_parties, ..) = execute_round(r1_parties, 2, true, true);
 
-    let (r3_parties, ..) = execute_round(r2_parties, 3, true, true);
+    let (r3_parties, ..) = execute_round(r2_parties, 3, false, true);
 
     // TEST: MtA for delta_i, sigma_i
     let k_gamma = r3_parties
@@ -250,10 +250,17 @@ fn xround_cast<T: 'static>(party: &XParty) -> &T {
 fn execute_round(
     mut parties: XParties,
     round_num: usize,
-    expect_bcast_in: bool,
+    mut expect_bcast_in: bool,
     expect_p2p_in: bool,
 ) -> (XParties, PartyBcast, PartyP2p) {
     debug!("execute round {}", round_num);
+
+    // Special case: total_share_count == 1 and expected_msg_types == P2pOnly
+    // In this case we should expect a bcast indicating P2pOnly
+    if parties.len() == 1 && !expect_bcast_in && expect_p2p_in {
+        debug!("special case in round {}: total_share_count 1 and P2psOnly: look for bcast TotalShareCount1P2pOnly", round_num);
+        expect_bcast_in = true;
+    }
 
     let bcasts = retrieve_and_set_bcasts(&mut parties, expect_bcast_in, round_num);
     let p2ps = retrieve_and_set_p2ps(&mut parties, expect_p2p_in, round_num);

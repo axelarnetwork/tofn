@@ -72,6 +72,7 @@ pub struct XWireBytes<K> {
 pub enum MsgType<K> {
     Bcast,
     P2p { to: TypedUsize<K> },
+    TotalShareCount1P2pOnly, // special case: used only when total_share_count is 1
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]

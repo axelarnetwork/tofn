@@ -1,7 +1,7 @@
 use tracing::error;
 
 use crate::{
-    collections::{p2ps_iter::P2psIter, HoleVecMap, TypedUsize, VecMap},
+    collections::{HoleVecMap, P2ps, TypedUsize, VecMap, VecMapIter},
     sdk::api::{TofnFatal, TofnResult},
 };
 
@@ -49,9 +49,13 @@ impl<K, V> FullP2ps<K, V> {
         }))
     }
 
-    pub fn iter(&self) -> P2psIter<K, std::slice::Iter<HoleVecMap<K, V>>, std::slice::Iter<V>> {
-        P2psIter::new(self.0.iter())
+    // pub fn iter(&self) -> P2psIter<K, std::slice::Iter<HoleVecMap<K, V>>, std::slice::Iter<V>> {
+    //     P2psIter::new(self.0.iter())
+    // }
+    pub fn iter(&self) -> VecMapIter<K, std::slice::Iter<HoleVecMap<K, V>>> {
+        self.0.iter()
     }
+
     pub fn map_to_me<W, F>(&self, me: TypedUsize<K>, mut f: F) -> TofnResult<HoleVecMap<K, W>>
     where
         F: FnMut(&V) -> W,
@@ -80,6 +84,10 @@ impl<K, V> FullP2ps<K, V> {
         ))
     }
 
+    pub fn to_p2ps(self) -> P2ps<K, V> {
+        P2ps::from_vecmap(self.0.map(Some))
+    }
+
     // private constructor does no checks, does not return TofnResult, cannot panic
     pub(super) fn from_vecmap(vec: VecMap<K, HoleVecMap<K, V>>) -> Self {
         Self(vec)
@@ -89,25 +97,23 @@ impl<K, V> FullP2ps<K, V> {
 impl<K, V> IntoIterator for FullP2ps<K, V> {
     type Item = (
         TypedUsize<K>,
-        TypedUsize<K>,
-        <std::vec::IntoIter<V> as Iterator>::Item,
+        <std::vec::IntoIter<HoleVecMap<K, V>> as Iterator>::Item,
     );
-    type IntoIter = P2psIter<K, std::vec::IntoIter<HoleVecMap<K, V>>, std::vec::IntoIter<V>>;
+    type IntoIter = VecMapIter<K, std::vec::IntoIter<HoleVecMap<K, V>>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        P2psIter::new(self.0.into_iter())
+        self.0.into_iter()
     }
 }
 
-/// impl IntoIterator for &P2ps as suggested here: https://doc.rust-lang.org/std/iter/index.html#iterating-by-reference
+/// impl IntoIterator for &FullP2ps as suggested here: https://doc.rust-lang.org/std/iter/index.html#iterating-by-reference
 /// follow the template of Vec: https://doc.rust-lang.org/src/alloc/vec/mod.rs.html#2451-2458
 impl<'a, K, V> IntoIterator for &'a FullP2ps<K, V> {
     type Item = (
         TypedUsize<K>,
-        TypedUsize<K>,
-        <std::slice::Iter<'a, V> as Iterator>::Item,
+        <std::slice::Iter<'a, HoleVecMap<K, V>> as Iterator>::Item,
     );
-    type IntoIter = P2psIter<K, std::slice::Iter<'a, HoleVecMap<K, V>>, std::slice::Iter<'a, V>>;
+    type IntoIter = VecMapIter<K, std::slice::Iter<'a, HoleVecMap<K, V>>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()

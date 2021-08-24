@@ -113,25 +113,28 @@ mod tests {
         fill_p2ps.set(two, zero, 4).unwrap();
         fill_p2ps.set(two, one, 5).unwrap();
         assert!(fill_p2ps.is_full());
-        let p2ps = fill_p2ps.to_fullp2ps().unwrap();
+        let all_p2ps = fill_p2ps.to_fullp2ps().unwrap();
 
-        let expects: Vec<(_, _, &usize)> = vec![
-            (zero, one, &0),
-            (zero, two, &1),
-            (one, zero, &2),
-            (one, two, &3),
-            (two, zero, &4),
-            (two, one, &5),
+        let all_expects: Vec<(_, Vec<(_, &usize)>)> = vec![
+            (zero, vec![(one, &0), (two, &1)]),
+            (one, vec![(zero, &2), (two, &3)]),
+            (two, vec![(zero, &4), (one, &5)]),
         ];
 
         // test P2ps::iter()
-        for (p2ps, &expect) in p2ps.iter().zip(expects.iter()) {
-            assert_eq!(p2ps, expect);
+        assert_eq!(all_p2ps.iter().count(), 3);
+        for ((_, p2ps), (_, expects)) in all_p2ps.iter().zip(all_expects.iter()) {
+            assert_eq!(p2ps.iter().count(), 2);
+            for (p2p, expect) in p2ps.iter().zip(expects.iter()) {
+                assert_eq!(p2p, *expect);
+            }
         }
 
         // test P2ps::into_iter()
-        for (p2ps, expect) in p2ps.into_iter().zip(expects.into_iter()) {
-            assert_eq!(p2ps, (expect.0, expect.1, *expect.2));
+        for ((_, p2ps), (_, expects)) in all_p2ps.into_iter().zip(all_expects.into_iter()) {
+            for (p2p, expect) in p2ps.iter().zip(expects.iter()) {
+                assert_eq!(p2p, *expect);
+            }
         }
     }
 }
