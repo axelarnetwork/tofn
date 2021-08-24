@@ -28,9 +28,9 @@ use super::malicious::Behaviour;
 pub(super) struct R6 {
     pub(super) secret_key_share: SecretKeyShare,
     pub(super) msg_to_sign: Scalar,
-    pub(super) peers: Peers,
-    pub(super) participants: KeygenShareIds,
-    pub(super) keygen_id: TypedUsize<KeygenShareId>,
+    pub(super) peer_keygen_ids: Peers,
+    pub(super) all_keygen_ids: KeygenShareIds,
+    pub(super) my_keygen_id: TypedUsize<KeygenShareId>,
     pub(super) gamma_i: Scalar,
     pub(super) k_i: Scalar,
     pub(super) k_i_randomness: paillier::Randomness,
@@ -99,27 +99,27 @@ impl Executer for R6 {
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
-        let my_share_id = info.my_id();
+        let my_sign_id = info.my_id();
         let mut faulters = info.new_fillvecmap();
 
         // anyone who did not send a bcast is a faulter
-        for (share_id, bcast) in bcasts_in.iter() {
+        for (peer_sign_id, bcast) in bcasts_in.iter() {
             if bcast.is_none() {
                 warn!(
                     "peer {} says: missing bcast from peer {}",
-                    my_share_id, share_id
+                    my_sign_id, peer_sign_id
                 );
-                faulters.set(share_id, ProtocolFault)?;
+                faulters.set(peer_sign_id, ProtocolFault)?;
             }
         }
         // anyone who did not send p2ps is a faulter
-        for (share_id, p2ps) in p2ps_in.iter() {
+        for (peer_sign_id, p2ps) in p2ps_in.iter() {
             if p2ps.is_none() {
                 warn!(
                     "peer {} says: missing p2ps from peer {}",
-                    my_share_id, share_id
+                    my_sign_id, peer_sign_id
                 );
-                faulters.set(share_id, ProtocolFault)?;
+                faulters.set(peer_sign_id, ProtocolFault)?;
             }
         }
         if !faulters.is_empty() {
@@ -135,22 +135,22 @@ impl Executer for R6 {
         let mut zkp_complaints = Subset::with_max_size(participants_count);
 
         // verify proofs
-        for (sign_peer_id, &keygen_peer_id) in &self.peers {
-            let bcast = bcasts_in.get(sign_peer_id)?;
+        for (peer_sign_id, &peer_keygen_id) in &self.peer_keygen_ids {
+            let bcast = bcasts_in.get(peer_sign_id)?;
             let zkp = &self
                 .secret_key_share
                 .group()
                 .all_shares()
-                .get(self.keygen_id)?
+                .get(self.my_keygen_id)?
                 .zkp();
-            let peer_k_i_ciphertext = &self.r1bcasts.get(sign_peer_id)?.k_i_ciphertext;
+            let peer_k_i_ciphertext = &self.r1bcasts.get(peer_sign_id)?.k_i_ciphertext;
             let peer_ek = &self
                 .secret_key_share
                 .group()
                 .all_shares()
-                .get(keygen_peer_id)?
+                .get(peer_keygen_id)?
                 .ek();
-            let p2p_in = p2ps_in.get(sign_peer_id, my_share_id)?;
+            let p2p_in = p2ps_in.get(peer_sign_id, my_sign_id)?;
 
             let peer_stmt = &zk::range::StatementWc {
                 stmt: zk::range::Statement {
@@ -164,16 +164,16 @@ impl Executer for R6 {
             if !zkp.verify_range_proof_wc(peer_stmt, &p2p_in.k_i_range_proof_wc) {
                 warn!(
                     "peer {} says: range proof wc failed to verify for peer {}",
-                    my_share_id, sign_peer_id,
+                    my_sign_id, peer_sign_id,
                 );
 
-                zkp_complaints.add(sign_peer_id)?;
+                zkp_complaints.add(peer_sign_id)?;
             }
         }
 
         corrupt!(
             zkp_complaints,
-            self.corrupt_zkp_complaints(my_share_id, zkp_complaints)?
+            self.corrupt_zkp_complaints(my_sign_id, zkp_complaints)?
         );
 
         if !zkp_complaints.is_empty() {
@@ -182,7 +182,7 @@ impl Executer for R6 {
             return Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
                 Box::new(r7::R7Sad {
                     secret_key_share: self.secret_key_share,
-                    participants: self.participants,
+                    all_keygen_ids: self.all_keygen_ids,
                     r1bcasts: self.r1bcasts,
                     R: self.R,
                     r5bcasts: bcasts_in,
@@ -206,12 +206,12 @@ impl Executer for R6 {
 
         // check for type 5 fault
         if R_i_sum != _curve_generator {
-            warn!("peer {} says: 'type 5' fault detected", my_share_id);
+            warn!("peer {} says: 'type 5' fault detected", my_sign_id);
 
             let mta_plaintexts =
                 self.beta_secrets
-                    .clone_map2_result(|(sign_peer_id, beta_secret)| {
-                        let r2p2p = self.r2p2ps.get(sign_peer_id, my_share_id)?;
+                    .clone_map2_result(|(peer_sign_id, beta_secret)| {
+                        let r2p2p = self.r2p2ps.get(peer_sign_id, my_sign_id)?;
 
                         let (alpha_plaintext, alpha_randomness) = self
                             .secret_key_share
@@ -221,18 +221,14 @@ impl Executer for R6 {
 
                         corrupt!(
                             alpha_plaintext,
-                            self.corrupt_alpha_plaintext(
-                                my_share_id,
-                                sign_peer_id,
-                                alpha_plaintext
-                            )
+                            self.corrupt_alpha_plaintext(my_sign_id, peer_sign_id, alpha_plaintext)
                         );
 
                         let beta_secret = beta_secret.clone();
 
                         corrupt!(
                             beta_secret,
-                            self.corrupt_beta_secret(my_share_id, sign_peer_id, beta_secret)
+                            self.corrupt_beta_secret(my_sign_id, peer_sign_id, beta_secret)
                         );
 
                         Ok(MtaPlaintext {
@@ -243,7 +239,7 @@ impl Executer for R6 {
                     })?;
 
             let k_i = self.k_i;
-            corrupt!(k_i, self.corrupt_k_i(my_share_id, k_i));
+            corrupt!(k_i, self.corrupt_k_i(my_sign_id, k_i));
 
             let bcast_out = Some(serialize(&Bcast::SadType5(BcastSadType5 {
                 k_i: k_i.into(),
@@ -255,8 +251,8 @@ impl Executer for R6 {
             return Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
                 Box::new(r7::R7Type5 {
                     secret_key_share: self.secret_key_share,
-                    peers: self.peers,
-                    participants: self.participants,
+                    peer_keygen_ids: self.peer_keygen_ids,
+                    all_keygen_ids: self.all_keygen_ids,
                     r1bcasts: self.r1bcasts,
                     r2p2ps: self.r2p2ps,
                     r3bcasts: self.r3bcasts,
@@ -274,8 +270,8 @@ impl Executer for R6 {
         let S_i_proof_wc = pedersen::prove_wc(
             &pedersen::StatementWc {
                 stmt: pedersen::Statement {
-                    prover_id: my_share_id,
-                    commit: self.r3bcasts.get(my_share_id)?.T_i.as_ref(),
+                    prover_id: my_sign_id,
+                    commit: self.r3bcasts.get(my_sign_id)?.T_i.as_ref(),
                 },
                 msg_g: &S_i,
                 g: &self.R,
@@ -288,7 +284,7 @@ impl Executer for R6 {
 
         corrupt!(
             S_i_proof_wc,
-            self.corrupt_S_i_proof_wc(my_share_id, S_i_proof_wc)
+            self.corrupt_S_i_proof_wc(my_sign_id, S_i_proof_wc)
         );
 
         let bcast_out = Some(serialize(&Bcast::Happy(BcastHappy {
@@ -300,9 +296,9 @@ impl Executer for R6 {
             Box::new(r7::R7Happy {
                 secret_key_share: self.secret_key_share,
                 msg_to_sign: self.msg_to_sign,
-                peers: self.peers,
-                participants: self.participants,
-                keygen_id: self.keygen_id,
+                peer_keygen_ids: self.peer_keygen_ids,
+                all_keygen_ids: self.all_keygen_ids,
+                my_keygen_id: self.my_keygen_id,
                 k_i: self.k_i,
                 k_i_randomness: self.k_i_randomness,
                 sigma_i: self.sigma_i,

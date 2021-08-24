@@ -30,9 +30,9 @@ use super::super::malicious::Behaviour;
 pub(in super::super) struct R7Happy {
     pub(in super::super) secret_key_share: SecretKeyShare,
     pub(in super::super) msg_to_sign: Scalar,
-    pub(in super::super) peers: Peers,
-    pub(in super::super) participants: KeygenShareIds,
-    pub(in super::super) keygen_id: TypedUsize<KeygenShareId>,
+    pub(in super::super) peer_keygen_ids: Peers,
+    pub(in super::super) all_keygen_ids: KeygenShareIds,
+    pub(in super::super) my_keygen_id: TypedUsize<KeygenShareId>,
     pub(in super::super) k_i: Scalar,
     pub(in super::super) k_i_randomness: paillier::Randomness,
     pub(in super::super) sigma_i: Scalar,
@@ -60,27 +60,27 @@ impl Executer for R7Happy {
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
-        let my_share_id = info.my_id();
+        let my_sign_id = info.my_id();
         let mut faulters = info.new_fillvecmap();
 
         // anyone who did not send a bcast is a faulter
-        for (share_id, bcast) in bcasts_in.iter() {
+        for (peer_sign_id, bcast) in bcasts_in.iter() {
             if bcast.is_none() {
                 warn!(
                     "peer {} says: missing bcast from peer {}",
-                    my_share_id, share_id
+                    my_sign_id, peer_sign_id
                 );
-                faulters.set(share_id, ProtocolFault)?;
+                faulters.set(peer_sign_id, ProtocolFault)?;
             }
         }
         // anyone who sent p2ps is a faulter
-        for (share_id, p2ps) in p2ps_in.iter() {
+        for (peer_sign_id, p2ps) in p2ps_in.iter() {
             if p2ps.is_some() {
                 warn!(
                     "peer {} says: unexpected p2ps from peer {}",
-                    my_share_id, share_id
+                    my_sign_id, peer_sign_id
                 );
-                faulters.set(share_id, ProtocolFault)?;
+                faulters.set(peer_sign_id, ProtocolFault)?;
             }
         }
         if !faulters.is_empty() {
@@ -94,12 +94,12 @@ impl Executer for R7Happy {
         {
             warn!(
                 "peer {} says: received an R6 complaint from others while in happy path",
-                my_share_id,
+                my_sign_id,
             );
 
             return Box::new(r7::sad::R7Sad {
                 secret_key_share: self.secret_key_share,
-                participants: self.participants,
+                all_keygen_ids: self.all_keygen_ids,
                 r1bcasts: self.r1bcasts,
                 R: self.R,
                 r5bcasts: self.r5bcasts,
@@ -114,17 +114,17 @@ impl Executer for R7Happy {
         let mut bcasts = info.new_fillvecmap();
 
         // our check for 'type 5` error succeeded, so any peer broadcasting a failure is a faulter
-        for (sign_peer_id, bcast) in bcasts_in.into_iter() {
+        for (peer_sign_id, bcast) in bcasts_in.into_iter() {
             match bcast {
                 r6::Bcast::Happy(bcast) => {
-                    bcasts.set(sign_peer_id, bcast)?;
+                    bcasts.set(peer_sign_id, bcast)?;
                 }
                 r6::Bcast::SadType5(_) => {
                     warn!(
                         "peer {} says: peer {} broadcasted a 'type 5' failure",
-                        my_share_id, sign_peer_id
+                        my_sign_id, peer_sign_id
                     );
-                    faulters.set(sign_peer_id, ProtocolFault)?;
+                    faulters.set(peer_sign_id, ProtocolFault)?;
                 }
                 r6::Bcast::Sad(_) => return Err(TofnFatal), // This should never occur at this stage
             }
@@ -136,11 +136,11 @@ impl Executer for R7Happy {
         let bcasts_in = bcasts.to_vecmap()?;
 
         // verify proofs
-        for (sign_peer_id, bcast) in &bcasts_in {
+        for (peer_sign_id, bcast) in &bcasts_in {
             let peer_stmt = &pedersen::StatementWc {
                 stmt: pedersen::Statement {
-                    prover_id: sign_peer_id,
-                    commit: self.r3bcasts.get(sign_peer_id)?.T_i.as_ref(),
+                    prover_id: peer_sign_id,
+                    commit: self.r3bcasts.get(peer_sign_id)?.T_i.as_ref(),
                 },
                 msg_g: bcast.S_i.as_ref(),
                 g: &self.R,
@@ -149,10 +149,10 @@ impl Executer for R7Happy {
             if !pedersen::verify_wc(peer_stmt, &bcast.S_i_proof_wc) {
                 warn!(
                     "peer {} says: pedersen proof wc failed to verify for peer {}",
-                    my_share_id, sign_peer_id,
+                    my_sign_id, peer_sign_id,
                 );
 
-                faulters.set(sign_peer_id, ProtocolFault)?;
+                faulters.set(peer_sign_id, ProtocolFault)?;
             }
         }
         if !faulters.is_empty() {
@@ -167,10 +167,10 @@ impl Executer for R7Happy {
             });
 
         if &S_i_sum != self.secret_key_share.group().y().as_ref() {
-            warn!("peer {} says: 'type 7' fault detected", my_share_id);
+            warn!("peer {} says: 'type 7' fault detected", my_sign_id);
 
             // recover encryption randomness for mu; need to decrypt again to do so
-            let mta_wc_plaintexts = self.r2p2ps.map_to_me(my_share_id, |p2p| {
+            let mta_wc_plaintexts = self.r2p2ps.map_to_me(my_sign_id, |p2p| {
                 let (mu_plaintext, mu_randomness) = self
                     .secret_key_share
                     .share()
@@ -185,11 +185,11 @@ impl Executer for R7Happy {
 
             let proof = chaum_pedersen::prove(
                 &chaum_pedersen::Statement {
-                    prover_id: my_share_id,
+                    prover_id: my_sign_id,
                     base1: &k256::ProjectivePoint::generator(),
                     base2: &self.R,
                     target1: &(k256::ProjectivePoint::generator() * self.sigma_i),
-                    target2: bcasts_in.get(my_share_id)?.S_i.as_ref(),
+                    target2: bcasts_in.get(my_sign_id)?.S_i.as_ref(),
                 },
                 &chaum_pedersen::Witness {
                     scalar: &self.sigma_i,
@@ -206,9 +206,9 @@ impl Executer for R7Happy {
             return Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
                 Box::new(r8::R8Type7 {
                     secret_key_share: self.secret_key_share,
-                    peers: self.peers,
-                    participants: self.participants,
-                    keygen_id: self.keygen_id,
+                    peers: self.peer_keygen_ids,
+                    participants: self.all_keygen_ids,
+                    keygen_id: self.my_keygen_id,
                     r1bcasts: self.r1bcasts,
                     r2p2ps: self.r2p2ps,
                     R: self.R,
@@ -234,7 +234,7 @@ impl Executer for R7Happy {
 
         let s_i = self.msg_to_sign * self.k_i + r * self.sigma_i;
 
-        corrupt!(s_i, self.corrupt_s_i(my_share_id, s_i));
+        corrupt!(s_i, self.corrupt_s_i(my_sign_id, s_i));
 
         let bcast_out = Some(serialize(&Bcast::Happy(BcastHappy { s_i: s_i.into() }))?);
 

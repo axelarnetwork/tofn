@@ -151,7 +151,7 @@ pub fn new_keygen(
         return Err(TofnFatal);
     }
     let total_share_count: usize = party_share_counts.total_share_count();
-    let my_share_id = party_share_counts.party_to_share_id(my_party_id, my_subshare_id)?;
+    let my_keygen_id = party_share_counts.party_to_share_id(my_party_id, my_subshare_id)?;
 
     #[allow(clippy::suspicious_operation_groupings)]
     if total_share_count <= threshold
@@ -166,7 +166,7 @@ pub fn new_keygen(
     }
 
     let round2 = r1::start(
-        my_share_id,
+        my_keygen_id,
         threshold,
         party_share_counts.clone(),
         party_keypair,
@@ -175,5 +175,5 @@ pub fn new_keygen(
         behaviour,
     )?;
 
-    new_protocol(party_share_counts, my_share_id, round2)
+    new_protocol(party_share_counts, my_keygen_id, round2)
 }

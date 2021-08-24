@@ -18,7 +18,7 @@ use super::super::{r1, r2, r3, SignShareId};
 #[allow(non_snake_case)]
 pub(in super::super) struct R4Sad {
     pub(in super::super) secret_key_share: SecretKeyShare,
-    pub(in super::super) participants: KeygenShareIds,
+    pub(in super::super) all_keygen_ids: KeygenShareIds,
     pub(in super::super) r1bcasts: VecMap<SignShareId, r1::Bcast>,
     pub(in super::super) r2p2ps: FullP2ps<SignShareId, r2::P2pHappy>,
 }
@@ -36,27 +36,27 @@ impl Executer for R4Sad {
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
-        let my_share_id = info.my_id();
+        let my_sign_id = info.my_id();
         let mut faulters = info.new_fillvecmap();
 
         // anyone who did not send a bcast is a faulter
-        for (share_id, bcast) in bcasts_in.iter() {
+        for (peer_sign_id, bcast) in bcasts_in.iter() {
             if bcast.is_none() {
                 warn!(
                     "peer {} says: missing bcast from peer {}",
-                    my_share_id, share_id
+                    my_sign_id, peer_sign_id
                 );
-                faulters.set(share_id, ProtocolFault)?;
+                faulters.set(peer_sign_id, ProtocolFault)?;
             }
         }
         // anyone who sent p2ps is a faulter
-        for (share_id, p2ps) in p2ps_in.iter() {
+        for (peer_sign_id, p2ps) in p2ps_in.iter() {
             if p2ps.is_some() {
                 warn!(
                     "peer {} says: unexpected p2ps from peer {}",
-                    my_share_id, share_id
+                    my_sign_id, peer_sign_id
                 );
-                faulters.set(share_id, ProtocolFault)?;
+                faulters.set(peer_sign_id, ProtocolFault)?;
             }
         }
         if !faulters.is_empty() {
@@ -75,7 +75,7 @@ impl Executer for R4Sad {
         {
             error!(
                 "peer {} says: received no R3 complaints from others in R4 failure protocol",
-                my_share_id,
+                my_sign_id,
             );
 
             return Err(TofnFatal);
@@ -84,16 +84,16 @@ impl Executer for R4Sad {
         let accusations_iter =
             bcasts_in
                 .into_iter()
-                .filter_map(|(sign_peer_id, bcast)| match bcast {
+                .filter_map(|(peer_sign_id, bcast)| match bcast {
                     r3::Bcast::Happy(_) => None,
-                    r3::Bcast::Sad(accusations) => Some((sign_peer_id, accusations)),
+                    r3::Bcast::Sad(accusations) => Some((peer_sign_id, accusations)),
                 });
 
         // verify complaints
         for (accuser_sign_id, accusations) in accusations_iter {
             if accusations.mta_complaints.size() != participants_count {
                 log_fault_info(
-                    my_share_id,
+                    my_sign_id,
                     accuser_sign_id,
                     "incorrect size of complaints vector",
                 );
@@ -103,7 +103,7 @@ impl Executer for R4Sad {
             }
 
             if accusations.mta_complaints.is_empty() {
-                log_fault_info(my_share_id, accuser_sign_id, "no accusation found");
+                log_fault_info(my_sign_id, accuser_sign_id, "no accusation found");
 
                 faulters.set(accuser_sign_id, ProtocolFault)?;
                 continue;
@@ -111,13 +111,13 @@ impl Executer for R4Sad {
 
             for (accused_sign_id, accusation) in accusations.mta_complaints.iter_some() {
                 if accuser_sign_id == accused_sign_id {
-                    log_fault_info(my_share_id, accuser_sign_id, "self accusation");
+                    log_fault_info(my_sign_id, accuser_sign_id, "self accusation");
                     faulters.set(accuser_sign_id, ProtocolFault)?;
                     continue;
                 }
 
-                let accused_keygen_id = *self.participants.get(accused_sign_id)?;
-                let accuser_keygen_id = *self.participants.get(accuser_sign_id)?;
+                let accused_keygen_id = *self.all_keygen_ids.get(accused_sign_id)?;
+                let accuser_keygen_id = *self.all_keygen_ids.get(accuser_sign_id)?;
 
                 let accuser_zkp = self
                     .secret_key_share
@@ -155,7 +155,7 @@ impl Executer for R4Sad {
                         let accused_lambda_i_S = &vss::lagrange_coefficient(
                             accused_sign_id.as_usize(),
                             &self
-                                .participants
+                                .all_keygen_ids
                                 .iter()
                                 .map(|(_, keygen_accused_id)| keygen_accused_id.as_usize())
                                 .collect::<Vec<_>>(),
@@ -190,12 +190,12 @@ impl Executer for R4Sad {
 
                 match result {
                     true => {
-                        log_fault_info(my_share_id, accuser_sign_id, "false r2 p2p accusation");
+                        log_fault_info(my_sign_id, accuser_sign_id, "false r2 p2p accusation");
                         faulters.set(accuser_sign_id, ProtocolFault)?;
                     }
                     false => {
                         log_fault_info(
-                            my_share_id,
+                            my_sign_id,
                             accused_sign_id,
                             &format!("invalid r2 p2p {} proof", accusation_type),
                         );
@@ -208,7 +208,7 @@ impl Executer for R4Sad {
         if faulters.is_empty() {
             error!(
                 "peer {} says: R3 failure protocol found no faulters",
-                my_share_id
+                my_sign_id
             );
             return Err(TofnFatal);
         }

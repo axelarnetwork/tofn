@@ -42,27 +42,27 @@ impl Executer for R8Happy {
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
-        let my_share_id = info.my_id();
+        let my_sign_id = info.my_id();
         let mut faulters = info.new_fillvecmap();
 
         // anyone who did not send a bcast is a faulter
-        for (share_id, bcast) in bcasts_in.iter() {
+        for (peer_sign_id, bcast) in bcasts_in.iter() {
             if bcast.is_none() {
                 warn!(
                     "peer {} says: missing bcast from peer {}",
-                    my_share_id, share_id
+                    my_sign_id, peer_sign_id
                 );
-                faulters.set(share_id, ProtocolFault)?;
+                faulters.set(peer_sign_id, ProtocolFault)?;
             }
         }
         // anyone who sent p2ps is a faulter
-        for (share_id, p2ps) in p2ps_in.iter() {
+        for (peer_sign_id, p2ps) in p2ps_in.iter() {
             if p2ps.is_some() {
                 warn!(
                     "peer {} says: unexpected p2ps from peer {}",
-                    my_share_id, share_id
+                    my_sign_id, peer_sign_id
                 );
-                faulters.set(share_id, ProtocolFault)?;
+                faulters.set(peer_sign_id, ProtocolFault)?;
             }
         }
         if !faulters.is_empty() {
@@ -75,17 +75,17 @@ impl Executer for R8Happy {
         let mut bcasts = info.new_fillvecmap();
 
         // our check for 'type 7' error passed, so anyone who complained is a faulter
-        for (sign_peer_id, bcast) in bcasts_in.into_iter() {
+        for (peer_sign_id, bcast) in bcasts_in.into_iter() {
             match bcast {
                 r7::Bcast::Happy(bcast) => {
-                    bcasts.set(sign_peer_id, bcast)?;
+                    bcasts.set(peer_sign_id, bcast)?;
                 }
                 r7::Bcast::SadType7(_) => {
                     warn!(
                         "peer {} says: peer {} broadcasted a 'type 7' failure",
-                        my_share_id, sign_peer_id
+                        my_sign_id, peer_sign_id
                     );
-                    faulters.set(sign_peer_id, ProtocolFault)?;
+                    faulters.set(peer_sign_id, ProtocolFault)?;
                 }
             }
         }
@@ -124,9 +124,9 @@ impl Executer for R8Happy {
         }
 
         // verify proofs
-        for (sign_peer_id, bcast) in &bcasts_in {
-            let R_i = self.r5bcasts.get(sign_peer_id)?.R_i.as_ref();
-            let S_i = self.r6bcasts.get(sign_peer_id)?.S_i.as_ref();
+        for (peer_sign_id, bcast) in &bcasts_in {
+            let R_i = self.r5bcasts.get(peer_sign_id)?.R_i.as_ref();
+            let S_i = self.r6bcasts.get(peer_sign_id)?.S_i.as_ref();
 
             let R_s = self.R * bcast.s_i.as_ref();
             let R_s_prime = R_i * &self.msg_to_sign + S_i * &self.r;
@@ -134,9 +134,9 @@ impl Executer for R8Happy {
             if R_s != R_s_prime {
                 warn!(
                     "peer {} says: 'type 8' fault detected for peer {}",
-                    my_share_id, sign_peer_id
+                    my_sign_id, peer_sign_id
                 );
-                faulters.set(sign_peer_id, ProtocolFault)?;
+                faulters.set(peer_sign_id, ProtocolFault)?;
             }
         }
         if !faulters.is_empty() {
@@ -144,7 +144,7 @@ impl Executer for R8Happy {
         } else {
             error!(
                 "peer {} says: invalid signature detected but no faulters identified",
-                my_share_id
+                my_sign_id
             );
             Err(TofnFatal)
         }

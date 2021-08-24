@@ -72,23 +72,23 @@ impl Executer for R3 {
         let mut faulters = FillVecMap::with_size(info.total_share_count());
 
         // anyone who did not send a bcast is a faulter
-        for (keygen_peer_id, bcast) in bcasts_in.iter() {
+        for (peer_keygen_id, bcast) in bcasts_in.iter() {
             if bcast.is_none() {
                 warn!(
                     "peer {} says: missing bcast from peer {}",
-                    my_keygen_id, keygen_peer_id
+                    my_keygen_id, peer_keygen_id
                 );
-                faulters.set(keygen_peer_id, ProtocolFault)?;
+                faulters.set(peer_keygen_id, ProtocolFault)?;
             }
         }
         // anyone who did not send p2ps is a faulter
-        for (keygen_peer_id, p2ps) in p2ps_in.iter() {
+        for (peer_keygen_id, p2ps) in p2ps_in.iter() {
             if p2ps.is_none() {
                 warn!(
                     "peer {} says: missing p2ps from peer {}",
-                    my_keygen_id, keygen_peer_id
+                    my_keygen_id, peer_keygen_id
                 );
-                faulters.set(keygen_peer_id, ProtocolFault)?;
+                faulters.set(peer_keygen_id, ProtocolFault)?;
             }
         }
         if !faulters.is_empty() {
@@ -100,22 +100,22 @@ impl Executer for R3 {
         let p2ps_in = p2ps_in.to_fullp2ps()?;
 
         // check y_i commits
-        for (keygen_peer_id, bcast) in bcasts_in.iter() {
+        for (peer_keygen_id, bcast) in bcasts_in.iter() {
             let peer_y_i = bcast.u_i_vss_commit.secret_commit();
             let peer_y_i_commit = hash::commit_with_randomness(
                 constants::Y_I_COMMIT_TAG,
-                keygen_peer_id,
+                peer_keygen_id,
                 to_bytes(peer_y_i),
                 &bcast.y_i_reveal,
             );
 
-            if peer_y_i_commit != self.r1bcasts.get(keygen_peer_id)?.y_i_commit {
+            if peer_y_i_commit != self.r1bcasts.get(peer_keygen_id)?.y_i_commit {
                 warn!(
                     "peer {} says: invalid y_i reveal by peer {}",
-                    my_keygen_id, keygen_peer_id
+                    my_keygen_id, peer_keygen_id
                 );
 
-                faulters.set(keygen_peer_id, ProtocolFault)?;
+                faulters.set(peer_keygen_id, ProtocolFault)?;
             }
         }
 
@@ -139,16 +139,16 @@ impl Executer for R3 {
 
         // validate shares
         let mut vss_complaints = FillVecMap::with_size(info.total_share_count());
-        for (keygen_peer_id, share_info) in share_infos.iter() {
+        for (peer_keygen_id, share_info) in share_infos.iter() {
             if !bcasts_in
-                .get(keygen_peer_id)?
+                .get(peer_keygen_id)?
                 .u_i_vss_commit
                 .validate_share(&share_info.share)
             {
-                log_accuse_warn(my_keygen_id, keygen_peer_id, "invalid vss share");
+                log_accuse_warn(my_keygen_id, peer_keygen_id, "invalid vss share");
 
                 vss_complaints.set(
-                    keygen_peer_id,
+                    peer_keygen_id,
                     ShareInfo {
                         share: share_info.share.clone(),
                         randomness: share_info.randomness.clone(),

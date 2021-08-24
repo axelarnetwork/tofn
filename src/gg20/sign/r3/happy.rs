@@ -171,11 +171,11 @@ impl Executer for R3Happy {
             .get(self.my_keygen_id)?
             .ek();
 
-        for (sign_peer_id, &keygen_peer_id) in &self.peer_keygen_ids {
-            let p2p_in = p2ps_in.get(sign_peer_id, my_sign_id)?;
+        for (peer_sign_id, &peer_keygen_id) in &self.peer_keygen_ids {
+            let p2p_in = p2ps_in.get(peer_sign_id, my_sign_id)?;
 
             let peer_stmt = paillier::zk::mta::Statement {
-                prover_id: sign_peer_id,
+                prover_id: peer_sign_id,
                 verifier_id: my_sign_id,
                 ciphertext1: &self.r1bcasts.get(my_sign_id)?.k_i_ciphertext,
                 ciphertext2: &p2p_in.alpha_ciphertext,
@@ -187,21 +187,21 @@ impl Executer for R3Happy {
             if !zkp.verify_mta_proof(&peer_stmt, &p2p_in.alpha_proof) {
                 warn!(
                     "peer {} says: mta proof failed to verify for peer {}",
-                    my_sign_id, sign_peer_id,
+                    my_sign_id, peer_sign_id,
                 );
 
-                mta_complaints.set(sign_peer_id, Accusation::MtA)?;
+                mta_complaints.set(peer_sign_id, Accusation::MtA)?;
 
                 continue;
             }
 
             // verify zk proof for step 2 of MtAwc k_i * w_j
             let peer_lambda_i_S = &vss::lagrange_coefficient(
-                sign_peer_id.as_usize(),
+                peer_sign_id.as_usize(),
                 &self
                     .all_keygen_ids
                     .iter()
-                    .map(|(_, keygen_peer_id)| keygen_peer_id.as_usize())
+                    .map(|(_, peer_keygen_id)| peer_keygen_id.as_usize())
                     .collect::<Vec<_>>(),
             )?;
 
@@ -209,14 +209,14 @@ impl Executer for R3Happy {
                 .secret_key_share
                 .group()
                 .all_shares()
-                .get(keygen_peer_id)?
+                .get(peer_keygen_id)?
                 .X_i()
                 .as_ref()
                 * peer_lambda_i_S;
 
             let peer_stmt = paillier::zk::mta::StatementWc {
                 stmt: paillier::zk::mta::Statement {
-                    prover_id: sign_peer_id,
+                    prover_id: peer_sign_id,
                     verifier_id: my_sign_id,
                     ciphertext1: &self.r1bcasts.get(my_sign_id)?.k_i_ciphertext,
                     ciphertext2: &p2p_in.mu_ciphertext,
@@ -229,10 +229,10 @@ impl Executer for R3Happy {
             if !zkp.verify_mta_proof_wc(&peer_stmt, &p2p_in.mu_proof) {
                 warn!(
                     "peer {} says: mta_wc proof failed to verify for peer {}",
-                    my_sign_id, sign_peer_id,
+                    my_sign_id, peer_sign_id,
                 );
 
-                mta_complaints.set(sign_peer_id, Accusation::MtAwc)?;
+                mta_complaints.set(peer_sign_id, Accusation::MtAwc)?;
 
                 continue;
             }
@@ -249,7 +249,7 @@ impl Executer for R3Happy {
             return Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
                 Box::new(r4::R4Sad {
                     secret_key_share: self.secret_key_share,
-                    participants: self.all_keygen_ids,
+                    all_keygen_ids: self.all_keygen_ids,
                     r1bcasts: self.r1bcasts,
                     r2p2ps: p2ps_in,
                 }),
@@ -260,8 +260,8 @@ impl Executer for R3Happy {
 
         let alphas = self
             .peer_keygen_ids
-            .clone_map2_result(|(sign_peer_id, _)| {
-                let p2p_in = p2ps_in.get(sign_peer_id, my_sign_id)?;
+            .clone_map2_result(|(peer_sign_id, _)| {
+                let p2p_in = p2ps_in.get(peer_sign_id, my_sign_id)?;
 
                 let alpha = self
                     .secret_key_share
@@ -275,8 +275,8 @@ impl Executer for R3Happy {
 
         let mus = self
             .peer_keygen_ids
-            .clone_map2_result(|(sign_peer_id, _)| {
-                let p2p_in = p2ps_in.get(sign_peer_id, my_sign_id)?;
+            .clone_map2_result(|(peer_sign_id, _)| {
+                let p2p_in = p2ps_in.get(peer_sign_id, my_sign_id)?;
 
                 let mu = self
                     .secret_key_share
@@ -336,9 +336,9 @@ impl Executer for R3Happy {
             Box::new(r4::R4Happy {
                 secret_key_share: self.secret_key_share,
                 msg_to_sign: self.msg_to_sign,
-                peers: self.peer_keygen_ids,
-                participants: self.all_keygen_ids,
-                keygen_id: self.my_keygen_id,
+                peer_keygen_ids: self.peer_keygen_ids,
+                all_keygen_ids: self.all_keygen_ids,
+                my_keygen_id: self.my_keygen_id,
                 gamma_i: self.gamma_i,
                 Gamma_i: self.Gamma_i,
                 Gamma_i_reveal: self.Gamma_i_reveal,

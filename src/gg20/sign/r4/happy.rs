@@ -24,9 +24,9 @@ use super::super::malicious::Behaviour;
 pub(in super::super) struct R4Happy {
     pub(in super::super) secret_key_share: SecretKeyShare,
     pub(in super::super) msg_to_sign: Scalar,
-    pub(in super::super) peers: Peers,
-    pub(in super::super) participants: KeygenShareIds,
-    pub(in super::super) keygen_id: TypedUsize<KeygenShareId>,
+    pub(in super::super) peer_keygen_ids: Peers,
+    pub(in super::super) all_keygen_ids: KeygenShareIds,
+    pub(in super::super) my_keygen_id: TypedUsize<KeygenShareId>,
     pub(in super::super) gamma_i: Scalar,
     pub(in super::super) Gamma_i: ProjectivePoint,
     pub(in super::super) Gamma_i_reveal: Randomness,
@@ -67,23 +67,23 @@ impl Executer for R4Happy {
         let mut faulters = info.new_fillvecmap();
 
         // anyone who did not send a bcast is a faulter
-        for (share_id, bcast) in bcasts_in.iter() {
+        for (peer_sign_id, bcast) in bcasts_in.iter() {
             if bcast.is_none() {
                 warn!(
                     "peer {} says: missing bcast from peer {}",
-                    my_sign_id, share_id
+                    my_sign_id, peer_sign_id
                 );
-                faulters.set(share_id, ProtocolFault)?;
+                faulters.set(peer_sign_id, ProtocolFault)?;
             }
         }
         // anyone who sent p2ps is a faulter
-        for (share_id, p2ps) in p2ps_in.iter() {
+        for (peer_sign_id, p2ps) in p2ps_in.iter() {
             if p2ps.is_some() {
                 warn!(
                     "peer {} says: unexpected p2ps from peer {}",
-                    my_sign_id, share_id
+                    my_sign_id, peer_sign_id
                 );
-                faulters.set(share_id, ProtocolFault)?;
+                faulters.set(peer_sign_id, ProtocolFault)?;
             }
         }
         if !faulters.is_empty() {
@@ -102,7 +102,7 @@ impl Executer for R4Happy {
 
             return Box::new(r4::R4Sad {
                 secret_key_share: self.secret_key_share,
-                participants: self.participants,
+                all_keygen_ids: self.all_keygen_ids,
                 r1bcasts: self.r1bcasts,
                 r2p2ps: self.r2p2ps,
             })
@@ -171,9 +171,9 @@ impl Executer for R4Happy {
             Box::new(r5::R5 {
                 secret_key_share: self.secret_key_share,
                 msg_to_sign: self.msg_to_sign,
-                peers: self.peers,
-                participants: self.participants,
-                keygen_id: self.keygen_id,
+                peer_keygen_ids: self.peer_keygen_ids,
+                all_keygen_ids: self.all_keygen_ids,
+                my_keygen_id: self.my_keygen_id,
                 gamma_i: self.gamma_i,
                 k_i: self.k_i,
                 k_i_randomness: self.k_i_randomness,

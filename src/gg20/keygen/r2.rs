@@ -57,6 +57,7 @@ impl Executer for R2 {
         let mut faulters = FillVecMap::with_size(info.total_share_count());
 
         // anyone who did not send a bcast is a faulter
+        // TODO strictly speaking peer_keygen_id might be me so we should not use peer_?
         for (peer_keygen_id, bcast) in bcasts_in.iter() {
             if bcast.is_none() {
                 warn!(

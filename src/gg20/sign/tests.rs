@@ -18,8 +18,8 @@ use tracing_test::traced_test;
 #[cfg(feature = "malicious")]
 use crate::gg20::sign::malicious::Behaviour::Honest;
 
-type XParty = Round<BytesVec, SignShareId, SignPartyId>;
-type XParties = Vec<XParty>;
+type Party = Round<BytesVec, SignShareId, SignPartyId>;
+type Parties = Vec<Party>;
 type PartyBcast = Result<VecMap<SignShareId, BytesVec>, ()>;
 type PartyP2p = Result<VecMap<SignShareId, HoleVecMap<SignShareId, BytesVec>>, ()>;
 type PartyResult = Result<BytesVec, FillVecMap<SignPartyId, Fault>>;
@@ -255,16 +255,16 @@ fn execute_sign(
     assert!(pub_key.verify_prehashed(&m, &sig).is_ok());
 }
 
-fn round_cast<T: 'static>(party: &XParty) -> &T {
+fn round_cast<T: 'static>(party: &Party) -> &T {
     return party.round_as_any().downcast_ref::<T>().unwrap();
 }
 
 fn execute_round(
-    mut parties: XParties,
+    mut parties: Parties,
     round_num: usize,
     mut expect_bcast_in: bool,
     expect_p2p_in: bool,
-) -> (XParties, PartyBcast, PartyP2p) {
+) -> (Parties, PartyBcast, PartyP2p) {
     debug!("execute round {}", round_num);
 
     // Special case: total_share_count == 1 and expected_msg_types == P2pOnly
@@ -277,7 +277,7 @@ fn execute_round(
     let bcasts = retrieve_and_set_bcasts(&mut parties, expect_bcast_in, round_num);
     let p2ps = retrieve_and_set_p2ps(&mut parties, expect_p2p_in, round_num);
 
-    let next_round_parties: XParties = parties
+    let next_round_parties: Parties = parties
         .into_iter()
         .enumerate()
         .map(|(i, party)| {
@@ -303,7 +303,7 @@ fn execute_round(
 }
 
 fn execute_final_round(
-    mut parties: XParties,
+    mut parties: Parties,
     round_num: usize,
     expect_bcast_in: bool,
     expect_p2p_in: bool,
@@ -332,7 +332,7 @@ fn execute_final_round(
 }
 
 fn retrieve_and_set_bcasts(
-    parties: &mut XParties,
+    parties: &mut Parties,
     expect_bcast: bool,
     round_num: usize,
 ) -> PartyBcast {
@@ -356,7 +356,7 @@ fn retrieve_and_set_bcasts(
     Ok(bcasts.into_iter().map(|(_, (_, bcast))| bcast).collect())
 }
 
-fn retrieve_and_set_p2ps(parties: &mut XParties, expect_p2p: bool, round_num: usize) -> PartyP2p {
+fn retrieve_and_set_p2ps(parties: &mut Parties, expect_p2p: bool, round_num: usize) -> PartyP2p {
     if !expect_p2p {
         return Err(());
     }

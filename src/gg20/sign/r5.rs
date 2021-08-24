@@ -29,9 +29,9 @@ use super::malicious::Behaviour;
 pub(super) struct R5 {
     pub(super) secret_key_share: SecretKeyShare,
     pub(super) msg_to_sign: Scalar,
-    pub(super) peers: Peers,
-    pub(super) participants: KeygenShareIds,
-    pub(super) keygen_id: TypedUsize<KeygenShareId>,
+    pub(super) peer_keygen_ids: Peers,
+    pub(super) all_keygen_ids: KeygenShareIds,
+    pub(super) my_keygen_id: TypedUsize<KeygenShareId>,
     pub(super) gamma_i: Scalar,
     pub(super) k_i: Scalar,
     pub(super) k_i_randomness: paillier::Randomness,
@@ -71,27 +71,27 @@ impl Executer for R5 {
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
-        let my_share_id = info.my_id();
+        let my_sign_id = info.my_id();
         let mut faulters = info.new_fillvecmap();
 
         // anyone who did not send a bcast is a faulter
-        for (share_id, bcast) in bcasts_in.iter() {
+        for (peer_sign_id, bcast) in bcasts_in.iter() {
             if bcast.is_none() {
                 warn!(
                     "peer {} says: missing bcast from peer {}",
-                    my_share_id, share_id
+                    my_sign_id, peer_sign_id
                 );
-                faulters.set(share_id, ProtocolFault)?;
+                faulters.set(peer_sign_id, ProtocolFault)?;
             }
         }
         // anyone who sent p2ps is a faulter
-        for (share_id, p2ps) in p2ps_in.iter() {
+        for (peer_sign_id, p2ps) in p2ps_in.iter() {
             if p2ps.is_some() {
                 warn!(
                     "peer {} says: unexpected p2ps from peer {}",
-                    my_share_id, share_id
+                    my_sign_id, peer_sign_id
                 );
-                faulters.set(share_id, ProtocolFault)?;
+                faulters.set(peer_sign_id, ProtocolFault)?;
             }
         }
         if !faulters.is_empty() {
@@ -102,21 +102,21 @@ impl Executer for R5 {
         let bcasts_in = bcasts_in.to_vecmap()?;
 
         // verify commits
-        for (sign_peer_id, bcast) in &bcasts_in {
+        for (peer_sign_id, bcast) in &bcasts_in {
             let peer_Gamma_i_commit = hash::commit_with_randomness(
                 constants::GAMMA_I_COMMIT_TAG,
-                sign_peer_id,
+                peer_sign_id,
                 bcast.Gamma_i.bytes(),
                 &bcast.Gamma_i_reveal,
             );
 
-            if peer_Gamma_i_commit != self.r1bcasts.get(sign_peer_id)?.Gamma_i_commit {
+            if peer_Gamma_i_commit != self.r1bcasts.get(peer_sign_id)?.Gamma_i_commit {
                 warn!(
                     "peer {} says: Gamma_i_commit failed to verify for peer {}",
-                    my_share_id, sign_peer_id
+                    my_sign_id, peer_sign_id
                 );
 
-                faulters.set(sign_peer_id, ProtocolFault)?;
+                faulters.set(peer_sign_id, ProtocolFault)?;
             }
         }
         if !faulters.is_empty() {
@@ -133,12 +133,12 @@ impl Executer for R5 {
         let R_i = R * self.k_i;
 
         // statement and witness
-        let k_i_ciphertext = &self.r1bcasts.get(my_share_id)?.k_i_ciphertext;
+        let k_i_ciphertext = &self.r1bcasts.get(my_sign_id)?.k_i_ciphertext;
         let ek = &self
             .secret_key_share
             .group()
             .all_shares()
-            .get(self.keygen_id)?
+            .get(self.my_keygen_id)?
             .ek();
 
         let stmt_wc = &zk::range::StatementWc {
@@ -154,30 +154,25 @@ impl Executer for R5 {
             randomness: &self.k_i_randomness,
         };
 
-        let p2ps_out = Some(
-            self.peers
-                .clone_map2_result(|(_sign_peer_id, &keygen_peer_id)| {
-                    let peer_zkp = &self
-                        .secret_key_share
-                        .group()
-                        .all_shares()
-                        .get(keygen_peer_id)?
-                        .zkp();
+        let p2ps_out = Some(self.peer_keygen_ids.clone_map2_result(
+            |(_peer_sign_id, &peer_keygen_id)| {
+                let peer_zkp = &self
+                    .secret_key_share
+                    .group()
+                    .all_shares()
+                    .get(peer_keygen_id)?
+                    .zkp();
 
-                    let k_i_range_proof_wc = peer_zkp.range_proof_wc(stmt_wc, wit)?;
+                let k_i_range_proof_wc = peer_zkp.range_proof_wc(stmt_wc, wit)?;
 
-                    corrupt!(
-                        k_i_range_proof_wc,
-                        self.corrupt_k_i_range_proof_wc(
-                            my_share_id,
-                            _sign_peer_id,
-                            k_i_range_proof_wc
-                        )
-                    );
+                corrupt!(
+                    k_i_range_proof_wc,
+                    self.corrupt_k_i_range_proof_wc(my_sign_id, _peer_sign_id, k_i_range_proof_wc)
+                );
 
-                    serialize(&P2p { k_i_range_proof_wc })
-                })?,
-        );
+                serialize(&P2p { k_i_range_proof_wc })
+            },
+        )?);
 
         let bcast_out = Some(serialize(&Bcast { R_i: R_i.into() })?);
 
@@ -185,9 +180,9 @@ impl Executer for R5 {
             Box::new(r6::R6 {
                 secret_key_share: self.secret_key_share,
                 msg_to_sign: self.msg_to_sign,
-                peers: self.peers,
-                participants: self.participants,
-                keygen_id: self.keygen_id,
+                peer_keygen_ids: self.peer_keygen_ids,
+                all_keygen_ids: self.all_keygen_ids,
+                my_keygen_id: self.my_keygen_id,
                 gamma_i: self.gamma_i,
                 k_i: self.k_i,
                 k_i_randomness: self.k_i_randomness,

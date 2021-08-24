@@ -64,20 +64,21 @@ pub fn new_sign(
     msg_to_sign: &MessageDigest,
     #[cfg(feature = "malicious")] behaviour: malicious::Behaviour,
 ) -> TofnResult<SignProtocol> {
-    let participants = VecMap::from_vec(group.party_share_counts().share_id_subset(sign_parties)?);
+    let all_keygen_ids =
+        VecMap::from_vec(group.party_share_counts().share_id_subset(sign_parties)?);
 
     // participant share count must be at least threshold + 1
-    if participants.len() <= group.threshold() {
+    if all_keygen_ids.len() <= group.threshold() {
         error!(
             "not enough participant shares: threshold [{}], participants [{}]",
             group.threshold(),
-            participants.len(),
+            all_keygen_ids.len(),
         );
         return Err(TofnFatal);
     }
 
     // find my keygen share_id
-    let my_share_id = participants
+    let my_sign_id = all_keygen_ids
         .iter()
         .find(|(_, &k)| k == share.index())
         .map(|(s, _)| s)
@@ -90,13 +91,13 @@ pub fn new_sign(
         PartyShareCounts::from_vec(group.party_share_counts().subset(sign_parties)?)?;
 
     let round2 = r1::start(
-        my_share_id,
+        my_sign_id,
         SecretKeyShare::new(group.clone(), share.clone()),
         msg_to_sign.into(),
-        participants,
+        all_keygen_ids,
         #[cfg(feature = "malicious")]
         behaviour,
     )?;
 
-    new_protocol(sign_party_share_counts, my_share_id, round2)
+    new_protocol(sign_party_share_counts, my_sign_id, round2)
 }
