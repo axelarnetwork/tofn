@@ -11,20 +11,12 @@ use super::{holevecmap_iter::HoleVecMapIter, TypedUsize, VecMap};
 pub struct HoleVecMap<K, V> {
     vec: VecMap<K, V>,
     hole: TypedUsize<K>,
-    phantom: std::marker::PhantomData<TypedUsize<K>>,
 }
 
 impl<K, V> HoleVecMap<K, V> {
-    pub fn from_vecmap(vec: VecMap<K, V>, hole: TypedUsize<K>) -> TofnResult<Self> {
-        if hole.as_usize() > vec.len() {
-            error!("hole {} out of bounds {}", hole.as_usize(), vec.len());
-            return Err(TofnFatal);
-        }
-        Ok(HoleVecMap {
-            vec,
-            hole,
-            phantom: std::marker::PhantomData,
-        })
+    // private constructor; use VecMap::remember_hole instead
+    pub(super) fn from_vecmap(vec: VecMap<K, V>, hole: TypedUsize<K>) -> Self {
+        Self { vec, hole }
     }
 
     pub fn get(&self, index: TypedUsize<K>) -> TofnResult<&V> {
@@ -80,22 +72,24 @@ impl<K, V> HoleVecMap<K, V> {
         }
     }
 
-    pub fn map_ref<W, F>(&self, f: F) -> TofnResult<HoleVecMap<K, W>>
+    pub fn clone_map2_result<W, F>(&self, f: F) -> TofnResult<HoleVecMap<K, W>>
     where
         F: Fn((TypedUsize<K>, &V)) -> TofnResult<W>,
     {
-        HoleVecMap::<K, W>::from_vecmap(
+        Ok(HoleVecMap::<K, W>::from_vecmap(
             self.iter().map(f).collect::<TofnResult<VecMap<K, W>>>()?,
             self.hole,
-        )
+        ))
     }
 
     pub fn map<W, F>(self, f: F) -> HoleVecMap<K, W>
     where
         F: FnMut(V) -> W,
     {
-        // TODO: Return a Result instead
-        HoleVecMap::<K, W>::from_vecmap(self.vec.map(f), self.hole).expect("hole out of bounds")
+        HoleVecMap::<K, W> {
+            vec: self.vec.map(f),
+            hole: self.hole,
+        }
     }
 
     pub fn map2_result<W, F>(self, f: F) -> TofnResult<HoleVecMap<K, W>>
@@ -103,12 +97,12 @@ impl<K, V> HoleVecMap<K, V> {
         F: FnMut((TypedUsize<K>, V)) -> TofnResult<W>,
     {
         let hole = self.hole;
-        HoleVecMap::<K, W>::from_vecmap(
+        Ok(HoleVecMap::<K, W>::from_vecmap(
             self.into_iter()
                 .map(f)
                 .collect::<TofnResult<VecMap<K, W>>>()?,
             hole,
-        )
+        ))
     }
 }
 

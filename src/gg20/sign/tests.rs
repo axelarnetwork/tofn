@@ -8,6 +8,7 @@ use crate::{
         sign::api::{new_sign, SignShareId},
     },
     sdk::api::{BytesVec, Fault, Protocol, Round},
+    sdk::implementer_api::decode_message,
 };
 use ecdsa::{elliptic_curve::sec1::ToEncodedPoint, hazmat::VerifyPrimitive};
 use k256::{ecdsa::Signature, ProjectivePoint};
@@ -91,6 +92,13 @@ fn execute_sign(
     test_case: &TestCase,
     msg_to_sign: &MessageDigest,
 ) {
+    debug!(
+        "execute sign: total_share_count {}, threshold {}, sign_share_count {}",
+        test_case.party_share_counts.total_share_count(),
+        test_case.threshold,
+        test_case.sign_share_count
+    );
+
     let mut share_count = 0;
     let mut sign_parties = Subset::with_max_size(test_case.party_share_counts.party_count());
     for (i, _) in test_case.party_share_counts.iter() {
@@ -113,7 +121,7 @@ fn execute_sign(
                 .unwrap(),
         );
 
-    let r0_parties: Vec<_> = sign_parties_share_ids
+    let r1_parties: Vec<_> = sign_parties_share_ids
         .iter()
         .map(|(_, &keygen_id)| {
             let key_share = key_shares.get(keygen_id).unwrap();
@@ -133,9 +141,6 @@ fn execute_sign(
             }
         })
         .collect();
-
-    // execute round 1 all parties
-    let (r1_parties, ..) = execute_round(r0_parties, 1, true, true);
 
     // TEST: secret key shares yield the pubkey
     let x = r1_parties
@@ -166,12 +171,23 @@ fn execute_sign(
 
     let (r2_parties, ..) = execute_round(r1_parties, 2, true, true);
 
-    let (r3_parties, ..) = execute_round(r2_parties, 3, true, false);
+    let (r3_parties, ..) = execute_round(r2_parties, 3, false, true);
 
     // TEST: MtA for delta_i, sigma_i
     let k_gamma = r3_parties
         .iter()
-        .map(|party| round_cast::<r4::R4Happy>(party)._delta_i)
+        .map(|party| {
+            let r3_bcast = bincode::deserialize(
+                &decode_message::<SignShareId>(party.bcast_out().unwrap())
+                    .unwrap()
+                    .payload,
+            )
+            .unwrap();
+            match r3_bcast {
+                r3::Bcast::Happy(h) => *h.delta_i.as_ref(),
+                r3::Bcast::Sad(_) => panic!("unexpected r3 sad path bcast"),
+            }
+        })
         .fold(k256::Scalar::zero(), |acc, delta_i| acc + delta_i);
 
     assert_eq!(k_gamma, k * gamma);
@@ -192,7 +208,7 @@ fn execute_sign(
         assert_eq!(delta_inv * k_gamma, k256::Scalar::one());
     }
 
-    let (r5_parties, ..) = execute_round(r4_parties, 5, true, true);
+    let (r5_parties, ..) = execute_round(r4_parties, 5, true, false);
 
     // TEST: everyone correctly computed R
     let R = k256::ProjectivePoint::generator() * k.invert().unwrap();
@@ -202,11 +218,11 @@ fn execute_sign(
         assert_eq!(party_R, R);
     }
 
-    let (r6_parties, ..) = execute_round(r5_parties, 6, true, false);
+    let (r6_parties, ..) = execute_round(r5_parties, 6, true, true);
 
     let (r7_parties, ..) = execute_round(r6_parties, 7, true, false);
 
-    let results = execute_final_round(r7_parties, 8);
+    let results = execute_final_round(r7_parties, 8, true, false);
 
     // TEST: everyone correctly computed the signature using non-threshold ECDSA sign
     let m: k256::Scalar = msg_to_sign.into();
@@ -241,16 +257,31 @@ fn round_cast<T: 'static>(party: &Party) -> &T {
 }
 
 fn execute_round(
-    parties: Parties,
+    mut parties: Parties,
     round_num: usize,
-    expect_bcast_out: bool,
-    expect_p2p_out: bool,
+    mut expect_bcast_in: bool,
+    expect_p2p_in: bool,
 ) -> (Parties, PartyBcast, PartyP2p) {
-    let mut next_round_parties: Parties = parties
+    debug!("execute round {}", round_num);
+
+    // Special case: total_share_count == 1 and expected_msg_types == P2pOnly
+    // In this case we should expect a bcast indicating P2pOnly
+    if parties.len() == 1 && !expect_bcast_in && expect_p2p_in {
+        debug!("special case in round {}: total_share_count 1 and P2psOnly: look for bcast TotalShareCount1P2pOnly", round_num);
+        expect_bcast_in = true;
+    }
+
+    let bcasts = retrieve_and_set_bcasts(&mut parties, expect_bcast_in, round_num);
+    let p2ps = retrieve_and_set_p2ps(&mut parties, expect_p2p_in, round_num);
+
+    let next_round_parties: Parties = parties
         .into_iter()
         .enumerate()
         .map(|(i, party)| {
             assert!(!party.expecting_more_msgs_this_round());
+            assert_eq!(party.bcast_out().is_some(), expect_bcast_in);
+            assert_eq!(party.p2ps_out().is_some(), expect_p2p_in);
+
             let round = match party
                 .execute_next_round()
                 .expect("Encountered protocol fault")
@@ -261,21 +292,22 @@ fn execute_round(
                     i, round_num
                 ),
             };
-
-            assert_eq!(round.bcast_out().is_some(), expect_bcast_out);
-            assert_eq!(round.p2ps_out().is_some(), expect_p2p_out);
-
             round
         })
         .collect();
 
-    let bcasts = retrieve_and_set_bcasts(&mut next_round_parties, expect_bcast_out, round_num);
-    let p2ps = retrieve_and_set_p2ps(&mut next_round_parties, expect_p2p_out, round_num);
-
     (next_round_parties, bcasts, p2ps)
 }
 
-fn execute_final_round(parties: Parties, round_num: usize) -> Vec<PartyResult> {
+fn execute_final_round(
+    mut parties: Parties,
+    round_num: usize,
+    expect_bcast_in: bool,
+    expect_p2p_in: bool,
+) -> Vec<PartyResult> {
+    let _bcasts = retrieve_and_set_bcasts(&mut parties, expect_bcast_in, round_num);
+    let _p2ps = retrieve_and_set_p2ps(&mut parties, expect_p2p_in, round_num);
+
     let mut results = Vec::new();
 
     debug!("Executing the final round");

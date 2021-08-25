@@ -12,50 +12,50 @@ use crate::{
     sdk::{
         api::{Fault::ProtocolFault, TofnResult},
         implementer_api::{
-            bcast_and_p2p, log_accuse_warn, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder,
+            log_accuse_warn, serialize, Executer, ProtocolBuilder, ProtocolInfo, RoundBuilder,
         },
     },
 };
 
-use super::{r1, r2, KeygenPartyShareCounts, KeygenProtocolBuilder, KeygenShareId};
+use super::{r1, r2, KeygenPartyShareCounts, KeygenShareId};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum Bcast {
+pub(super) enum Bcast {
     Happy(BcastHappy),
     Sad(BcastSad),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BcastHappy {
-    pub x_i_proof: schnorr::Proof,
+pub(super) struct BcastHappy {
+    pub(super) x_i_proof: schnorr::Proof,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BcastSad {
-    pub vss_complaints: FillVecMap<KeygenShareId, ShareInfo>,
+pub(super) struct BcastSad {
+    pub(super) vss_complaints: FillVecMap<KeygenShareId, ShareInfo>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ShareInfo {
-    pub share: vss::Share,
-    pub randomness: paillier::Randomness,
+pub(super) struct ShareInfo {
+    pub(super) share: vss::Share,
+    pub(super) randomness: paillier::Randomness,
 }
 
-pub struct R3 {
-    pub(crate) threshold: usize,
-    pub(crate) party_share_counts: KeygenPartyShareCounts,
-    pub(crate) dk: paillier::DecryptionKey,
-    pub(crate) u_i_share: vss::Share,
-    pub(crate) r1bcasts: VecMap<KeygenShareId, r1::Bcast>,
+pub(super) struct R3 {
+    pub(super) threshold: usize,
+    pub(super) party_share_counts: KeygenPartyShareCounts,
+    pub(super) dk: paillier::DecryptionKey,
+    pub(super) u_i_share: vss::Share,
+    pub(super) r1bcasts: VecMap<KeygenShareId, r1::Bcast>,
 
     #[cfg(feature = "malicious")]
     pub behaviour: Behaviour,
 }
 
-impl bcast_and_p2p::Executer for R3 {
+impl Executer for R3 {
     type FinalOutput = SecretKeyShare;
     type Index = KeygenShareId;
     type Bcast = r2::Bcast;
@@ -65,29 +65,57 @@ impl bcast_and_p2p::Executer for R3 {
     fn execute(
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
-        bcasts_in: VecMap<Self::Index, Self::Bcast>,
+        bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
-    ) -> TofnResult<KeygenProtocolBuilder> {
-        let keygen_id = info.share_id();
-        let mut faulters = FillVecMap::with_size(info.share_count());
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
+        let my_keygen_id = info.my_id();
+        let mut faulters = FillVecMap::with_size(info.total_share_count());
+
+        // anyone who did not send a bcast is a faulter
+        for (peer_keygen_id, bcast) in bcasts_in.iter() {
+            if bcast.is_none() {
+                warn!(
+                    "peer {} says: missing bcast from peer {}",
+                    my_keygen_id, peer_keygen_id
+                );
+                faulters.set(peer_keygen_id, ProtocolFault)?;
+            }
+        }
+        // anyone who did not send p2ps is a faulter
+        for (peer_keygen_id, p2ps) in p2ps_in.iter() {
+            if p2ps.is_none() {
+                warn!(
+                    "peer {} says: missing p2ps from peer {}",
+                    my_keygen_id, peer_keygen_id
+                );
+                faulters.set(peer_keygen_id, ProtocolFault)?;
+            }
+        }
+        if !faulters.is_empty() {
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
+        }
+
+        // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
+        let bcasts_in = bcasts_in.to_vecmap()?;
+        let p2ps_in = p2ps_in.to_fullp2ps()?;
 
         // check y_i commits
-        for (keygen_peer_id, bcast) in bcasts_in.iter() {
+        for (peer_keygen_id, bcast) in bcasts_in.iter() {
             let peer_y_i = bcast.u_i_vss_commit.secret_commit();
             let peer_y_i_commit = hash::commit_with_randomness(
                 constants::Y_I_COMMIT_TAG,
-                keygen_peer_id,
+                peer_keygen_id,
                 to_bytes(peer_y_i),
                 &bcast.y_i_reveal,
             );
 
-            if peer_y_i_commit != self.r1bcasts.get(keygen_peer_id)?.y_i_commit {
+            if peer_y_i_commit != self.r1bcasts.get(peer_keygen_id)?.y_i_commit {
                 warn!(
                     "peer {} says: invalid y_i reveal by peer {}",
-                    keygen_id, keygen_peer_id
+                    my_keygen_id, peer_keygen_id
                 );
 
-                faulters.set(keygen_peer_id, ProtocolFault)?;
+                faulters.set(peer_keygen_id, ProtocolFault)?;
             }
         }
 
@@ -96,12 +124,12 @@ impl bcast_and_p2p::Executer for R3 {
         }
 
         // decrypt shares
-        let share_infos = p2ps_in.map_to_me(keygen_id, |p2p| {
+        let share_infos = p2ps_in.map_to_me(my_keygen_id, |p2p| {
             let (u_i_share_plaintext, u_i_share_randomness) =
                 self.dk.decrypt_with_randomness(&p2p.u_i_share_ciphertext);
 
             let u_i_share =
-                vss::Share::from_scalar(u_i_share_plaintext.to_scalar(), keygen_id.as_usize());
+                vss::Share::from_scalar(u_i_share_plaintext.to_scalar(), my_keygen_id.as_usize());
 
             ShareInfo {
                 share: u_i_share,
@@ -110,17 +138,17 @@ impl bcast_and_p2p::Executer for R3 {
         })?;
 
         // validate shares
-        let mut vss_complaints = FillVecMap::with_size(info.share_count());
-        for (keygen_peer_id, share_info) in share_infos.iter() {
+        let mut vss_complaints = FillVecMap::with_size(info.total_share_count());
+        for (peer_keygen_id, share_info) in share_infos.iter() {
             if !bcasts_in
-                .get(keygen_peer_id)?
+                .get(peer_keygen_id)?
                 .u_i_vss_commit
                 .validate_share(&share_info.share)
             {
-                log_accuse_warn(keygen_id, keygen_peer_id, "invalid vss share");
+                log_accuse_warn(my_keygen_id, peer_keygen_id, "invalid vss share");
 
                 vss_complaints.set(
-                    keygen_peer_id,
+                    peer_keygen_id,
                     ShareInfo {
                         share: share_info.share.clone(),
                         randomness: share_info.randomness.clone(),
@@ -131,20 +159,21 @@ impl bcast_and_p2p::Executer for R3 {
 
         corrupt!(
             vss_complaints,
-            self.corrupt_complaint(keygen_id, &share_infos, vss_complaints)?
+            self.corrupt_complaint(my_keygen_id, &share_infos, vss_complaints)?
         );
 
         if !vss_complaints.is_empty() {
-            let bcast_out = serialize(&Bcast::Sad(BcastSad { vss_complaints }))?;
+            let bcast_out = Some(serialize(&Bcast::Sad(BcastSad { vss_complaints }))?);
 
-            return Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
-                round: Box::new(r4::R4Sad {
+            return Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
+                Box::new(r4::R4Sad {
                     r1bcasts: self.r1bcasts,
                     r2bcasts: bcasts_in,
                     r2p2ps: p2ps_in,
                 }),
                 bcast_out,
-            }));
+                None,
+            )));
         }
 
         // compute x_i
@@ -162,7 +191,7 @@ impl bcast_and_p2p::Executer for R3 {
             });
 
         // compute all_X_i
-        let all_X_i: VecMap<KeygenShareId, k256::ProjectivePoint> = (0..info.share_count())
+        let all_X_i: VecMap<KeygenShareId, k256::ProjectivePoint> = (0..info.total_share_count())
             .map(|i| {
                 bcasts_in
                     .iter()
@@ -172,21 +201,21 @@ impl bcast_and_p2p::Executer for R3 {
             })
             .collect();
 
-        corrupt!(x_i, self.corrupt_scalar(keygen_id, x_i));
+        corrupt!(x_i, self.corrupt_scalar(my_keygen_id, x_i));
 
         let x_i_proof = schnorr::prove(
             &schnorr::Statement {
-                prover_id: keygen_id,
+                prover_id: my_keygen_id,
                 base: &k256::ProjectivePoint::generator(),
-                target: all_X_i.get(keygen_id)?,
+                target: all_X_i.get(my_keygen_id)?,
             },
             &schnorr::Witness { scalar: &x_i },
         );
 
-        let bcast_out = serialize(&Bcast::Happy(BcastHappy { x_i_proof }))?;
+        let bcast_out = Some(serialize(&Bcast::Happy(BcastHappy { x_i_proof }))?);
 
-        Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
-            round: Box::new(r4::R4Happy {
+        Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
+            Box::new(r4::R4Happy {
                 threshold: self.threshold,
                 party_share_counts: self.party_share_counts,
                 dk: self.dk,
@@ -196,11 +225,10 @@ impl bcast_and_p2p::Executer for R3 {
                 y,
                 x_i,
                 all_X_i,
-                #[cfg(feature = "malicious")]
-                behaviour: self.behaviour,
             }),
             bcast_out,
-        }))
+            None,
+        )))
     }
 
     #[cfg(test)]

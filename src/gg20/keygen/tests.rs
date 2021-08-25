@@ -80,7 +80,7 @@ fn execute_keygen_from_recovery(
     assert_eq!(secret_recovery_keys.len(), party_share_counts.party_count());
     let share_count = party_share_counts.total_share_count();
 
-    let r0_parties = party_share_counts
+    let mut r1_parties: Vec<_> = party_share_counts
         .iter()
         .map(|(party_id, &party_share_count)| {
             let (party_keypair, party_zksetup) = create_party_keypair_and_zksetup_unsafe(
@@ -109,21 +109,7 @@ fn execute_keygen_from_recovery(
                 }
             })
         })
-        .flatten();
-
-    // execute round 1 all parties
-    let mut r1_parties: Vec<_> = r0_parties
-        .into_iter()
-        .enumerate()
-        .map(|(i, party)| {
-            assert!(party.bcast_out().is_none());
-            assert!(party.p2ps_out().is_none());
-            assert!(!party.expecting_more_msgs_this_round());
-            match party.execute_next_round().unwrap() {
-                Protocol::NotDone(next_round) => next_round,
-                Protocol::Done(_) => panic!("party {} done, expect not done", i),
-            }
-        })
+        .flatten()
         .collect();
 
     // deliver r1 messages

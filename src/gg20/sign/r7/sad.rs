@@ -1,60 +1,81 @@
 use crate::{
-    collections::{FillVecMap, P2ps, VecMap},
+    collections::{FillVecMap, FullP2ps, P2ps, VecMap},
     gg20::{
         crypto_tools::paillier,
         keygen::SecretKeyShare,
-        sign::{Participants, SignShareId},
+        sign::{KeygenShareIds, SignShareId},
     },
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
-        implementer_api::{bcast_only, log_fault_info, ProtocolBuilder, ProtocolInfo},
+        implementer_api::{log_fault_info, Executer, ProtocolBuilder, ProtocolInfo},
     },
 };
 use k256::ProjectivePoint;
-use tracing::error;
+use tracing::{error, warn};
 
-use super::super::{r1, r5, r6, SignProtocolBuilder};
-
-#[cfg(feature = "malicious")]
-use super::super::malicious::Behaviour;
+use super::super::{r1, r5, r6};
 
 #[allow(non_snake_case)]
-pub struct R7Sad {
-    pub(crate) secret_key_share: SecretKeyShare,
-    pub(crate) participants: Participants,
-    pub(crate) r1bcasts: VecMap<SignShareId, r1::Bcast>,
-    pub(crate) R: ProjectivePoint,
-    pub(crate) r5bcasts: VecMap<SignShareId, r5::Bcast>,
-    pub(crate) r5p2ps: P2ps<SignShareId, r5::P2p>,
-
-    #[cfg(feature = "malicious")]
-    pub behaviour: Behaviour,
+pub(in super::super) struct R7Sad {
+    pub(in super::super) secret_key_share: SecretKeyShare,
+    pub(in super::super) all_keygen_ids: KeygenShareIds,
+    pub(in super::super) r1bcasts: VecMap<SignShareId, r1::Bcast>,
+    pub(in super::super) R: ProjectivePoint,
+    pub(in super::super) r5bcasts: VecMap<SignShareId, r5::Bcast>,
+    pub(in super::super) r5p2ps: FullP2ps<SignShareId, r5::P2p>,
 }
 
-impl bcast_only::Executer for R7Sad {
+impl Executer for R7Sad {
     type FinalOutput = BytesVec;
     type Index = SignShareId;
     type Bcast = r6::Bcast;
+    type P2p = ();
 
     #[allow(non_snake_case)]
     fn execute(
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
-        bcasts_in: VecMap<Self::Index, Self::Bcast>,
-    ) -> TofnResult<SignProtocolBuilder> {
-        let sign_id = info.share_id();
-        let participants_count = info.share_count();
+        bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
+        p2ps_in: P2ps<Self::Index, Self::P2p>,
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
+        let my_sign_id = info.my_id();
+        let mut faulters = info.new_fillvecmap();
 
-        let mut faulters = FillVecMap::with_size(participants_count);
+        // anyone who did not send a bcast is a faulter
+        for (peer_sign_id, bcast) in bcasts_in.iter() {
+            if bcast.is_none() {
+                warn!(
+                    "peer {} says: missing bcast from peer {}",
+                    my_sign_id, peer_sign_id
+                );
+                faulters.set(peer_sign_id, ProtocolFault)?;
+            }
+        }
+        // anyone who sent p2ps is a faulter
+        for (peer_sign_id, p2ps) in p2ps_in.iter() {
+            if p2ps.is_some() {
+                warn!(
+                    "peer {} says: unexpected p2ps from peer {}",
+                    my_sign_id, peer_sign_id
+                );
+                faulters.set(peer_sign_id, ProtocolFault)?;
+            }
+        }
+        if !faulters.is_empty() {
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
+        }
 
-        // check if there are no complaints
-        if bcasts_in
+        // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
+        let bcasts_in = bcasts_in.to_vecmap()?;
+
+        // we should have received at least one complaint
+        if !bcasts_in
             .iter()
-            .all(|(_, bcast)| !matches!(bcast, r6::Bcast::Sad(_)))
+            .any(|(_, bcast)| matches!(bcast, r6::Bcast::Sad(_)))
         {
             error!(
                 "peer {} says: received no R6 complaints from others while in sad path",
-                sign_id,
+                my_sign_id,
             );
 
             return Err(TofnFatal);
@@ -64,16 +85,16 @@ impl bcast_only::Executer for R7Sad {
         let accusations_iter =
             bcasts_in
                 .into_iter()
-                .filter_map(|(sign_peer_id, bcast)| match bcast {
-                    r6::Bcast::Sad(accusations) => Some((sign_peer_id, accusations)),
+                .filter_map(|(peer_sign_id, bcast)| match bcast {
+                    r6::Bcast::Sad(accusations) => Some((peer_sign_id, accusations)),
                     _ => None,
                 });
 
         // verify complaints
         for (accuser_sign_id, accusations) in accusations_iter {
-            if accusations.zkp_complaints.max_size() != participants_count {
+            if accusations.zkp_complaints.max_size() != info.total_share_count() {
                 log_fault_info(
-                    sign_id,
+                    my_sign_id,
                     accuser_sign_id,
                     "incorrect size of complaints vector",
                 );
@@ -83,7 +104,7 @@ impl bcast_only::Executer for R7Sad {
             }
 
             if accusations.zkp_complaints.is_empty() {
-                log_fault_info(sign_id, accuser_sign_id, "no accusation found");
+                log_fault_info(my_sign_id, accuser_sign_id, "no accusation found");
 
                 faulters.set(accuser_sign_id, ProtocolFault)?;
                 continue;
@@ -91,14 +112,14 @@ impl bcast_only::Executer for R7Sad {
 
             for accused_sign_id in accusations.zkp_complaints.iter() {
                 if accuser_sign_id == accused_sign_id {
-                    log_fault_info(sign_id, accuser_sign_id, "self accusation");
+                    log_fault_info(my_sign_id, accuser_sign_id, "self accusation");
 
                     faulters.set(accuser_sign_id, ProtocolFault)?;
                     continue;
                 }
 
-                let accused_keygen_id = *self.participants.get(accused_sign_id)?;
-                let accuser_keygen_id = *self.participants.get(accuser_sign_id)?;
+                let accused_keygen_id = *self.all_keygen_ids.get(accused_sign_id)?;
+                let accuser_keygen_id = *self.all_keygen_ids.get(accuser_sign_id)?;
 
                 // check r5 range proof wc
                 let accused_ek = &self
@@ -133,11 +154,15 @@ impl bcast_only::Executer for R7Sad {
 
                 match accuser_zkp.verify_range_proof_wc(accused_stmt, accused_proof) {
                     true => {
-                        log_fault_info(sign_id, accuser_sign_id, "false R5 p2p accusation");
+                        log_fault_info(my_sign_id, accuser_sign_id, "false R5 p2p accusation");
                         faulters.set(accuser_sign_id, ProtocolFault)?;
                     }
                     false => {
-                        log_fault_info(sign_id, accused_sign_id, "invalid r5 p2p range proof wc");
+                        log_fault_info(
+                            my_sign_id,
+                            accused_sign_id,
+                            "invalid r5 p2p range proof wc",
+                        );
                         faulters.set(accused_sign_id, ProtocolFault)?;
                     }
                 };
@@ -147,7 +172,7 @@ impl bcast_only::Executer for R7Sad {
         if faulters.is_empty() {
             error!(
                 "peer {} says: R7 failure protocol found no faulters",
-                sign_id
+                my_sign_id
             );
             return Err(TofnFatal);
         }

@@ -1,76 +1,99 @@
 use crate::{
-    collections::{FillVecMap, P2ps, TypedUsize, VecMap},
+    collections::{FillVecMap, FullP2ps, P2ps, TypedUsize, VecMap},
     gg20::{
         crypto_tools::{k256_serde, vss, zkp::chaum_pedersen},
         keygen::{KeygenShareId, SecretKeyShare},
-        sign::{r2, Participants},
+        sign::{r2, KeygenShareIds},
     },
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
-        implementer_api::{bcast_only, ProtocolBuilder, ProtocolInfo},
+        implementer_api::{Executer, ProtocolBuilder, ProtocolInfo},
     },
 };
 use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
 
-use super::super::{r1, r6, r7, Peers, SignProtocolBuilder, SignShareId};
-
-#[cfg(feature = "malicious")]
-use super::super::malicious::Behaviour;
+use super::super::{r1, r6, r7, Peers, SignShareId};
 
 #[allow(non_snake_case)]
-pub struct R8Type7 {
-    pub(crate) secret_key_share: SecretKeyShare,
-    pub(crate) peers: Peers,
-    pub(crate) participants: Participants,
-    pub(crate) keygen_id: TypedUsize<KeygenShareId>,
-    pub(crate) r1bcasts: VecMap<SignShareId, r1::Bcast>,
-    pub(crate) r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
-    pub(crate) R: ProjectivePoint,
-    pub(crate) r6bcasts: VecMap<SignShareId, r6::BcastHappy>,
-
-    #[cfg(feature = "malicious")]
-    pub behaviour: Behaviour,
+pub(in super::super) struct R8Type7 {
+    pub(in super::super) secret_key_share: SecretKeyShare,
+    pub(in super::super) peers: Peers,
+    pub(in super::super) participants: KeygenShareIds,
+    pub(in super::super) keygen_id: TypedUsize<KeygenShareId>,
+    pub(in super::super) r1bcasts: VecMap<SignShareId, r1::Bcast>,
+    pub(in super::super) r2p2ps: FullP2ps<SignShareId, r2::P2pHappy>,
+    pub(in super::super) R: ProjectivePoint,
+    pub(in super::super) r6bcasts: VecMap<SignShareId, r6::BcastHappy>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(non_snake_case)]
-pub struct Bcast {
-    pub s_i: k256_serde::Scalar,
+pub(in super::super) struct Bcast {
+    pub(in super::super) s_i: k256_serde::Scalar,
 }
 
-impl bcast_only::Executer for R8Type7 {
+impl Executer for R8Type7 {
     type FinalOutput = BytesVec;
     type Index = SignShareId;
     type Bcast = r7::Bcast;
+    type P2p = ();
 
     #[allow(non_snake_case)]
     fn execute(
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
-        bcasts_in: VecMap<Self::Index, Self::Bcast>,
-    ) -> TofnResult<SignProtocolBuilder> {
-        let sign_id = info.share_id();
-        let participants_count = info.share_count();
+        bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
+        p2ps_in: P2ps<Self::Index, Self::P2p>,
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
+        let my_sign_id = info.my_id();
+        let mut faulters = info.new_fillvecmap();
+
+        // anyone who did not send a bcast is a faulter
+        for (share_id, bcast) in bcasts_in.iter() {
+            if bcast.is_none() {
+                warn!(
+                    "peer {} says: missing bcast from peer {}",
+                    my_sign_id, share_id
+                );
+                faulters.set(share_id, ProtocolFault)?;
+            }
+        }
+        // anyone who sent p2ps is a faulter
+        for (share_id, p2ps) in p2ps_in.iter() {
+            if p2ps.is_some() {
+                warn!(
+                    "peer {} says: unexpected p2ps from peer {}",
+                    my_sign_id, share_id
+                );
+                faulters.set(share_id, ProtocolFault)?;
+            }
+        }
+        if !faulters.is_empty() {
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
+        }
+
+        // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
+        let bcasts_in = bcasts_in.to_vecmap()?;
 
         // execute blame protocol from section 4.3 of https://eprint.iacr.org/2020/540.pdf
-        let mut faulters = FillVecMap::with_size(participants_count);
-        let mut bcasts_sad = FillVecMap::with_size(participants_count);
+        let mut faulters = info.new_fillvecmap();
+        let mut bcasts_sad = info.new_fillvecmap();
 
         // any peer who did not detect 'type 7' is a faulter
-        for (sign_peer_id, bcast) in bcasts_in.into_iter() {
+        for (peer_sign_id, bcast) in bcasts_in.into_iter() {
             match bcast {
                 r7::Bcast::SadType7(bcast_sad) => {
-                    bcasts_sad.set(sign_peer_id, bcast_sad)?;
+                    bcasts_sad.set(peer_sign_id, bcast_sad)?;
                 }
                 r7::Bcast::Happy(_) => {
                     warn!(
                         "peer {} detect failure to detect 'type 7' fault by peer {}",
-                        sign_id, sign_peer_id
+                        my_sign_id, peer_sign_id
                     );
 
-                    faulters.set(sign_peer_id, ProtocolFault)?;
+                    faulters.set(peer_sign_id, ProtocolFault)?;
                 }
             }
         }
@@ -87,55 +110,55 @@ impl bcast_only::Executer for R8Type7 {
         //
         // TODO this code for k_i faults is identical to that of r7_fail_type5
         // TODO maybe you can test this path by choosing fake k_i', w_i' such that k_i'*w_i' == k_i*w_i
-        for (sign_peer_id, bcast) in bcasts_in.iter() {
+        for (peer_sign_id, bcast) in bcasts_in.iter() {
             let peer_mta_wc_plaintexts = &bcast.mta_wc_plaintexts;
 
             if peer_mta_wc_plaintexts.len() != self.peers.len() {
                 warn!(
                     "peer {} says: peer {} sent {} MtAwc plaintexts, expected {}",
-                    sign_id,
-                    sign_peer_id,
+                    my_sign_id,
+                    peer_sign_id,
                     peer_mta_wc_plaintexts.len(),
                     self.peers.len()
                 );
 
-                faulters.set(sign_peer_id, ProtocolFault)?;
+                faulters.set(peer_sign_id, ProtocolFault)?;
                 continue;
             }
 
-            if peer_mta_wc_plaintexts.get_hole() != sign_peer_id {
+            if peer_mta_wc_plaintexts.get_hole() != peer_sign_id {
                 warn!(
                     "peer {} says: peer {} sent MtAwc plaintexts with an unexpected hole {}",
-                    sign_id,
-                    sign_peer_id,
+                    my_sign_id,
+                    peer_sign_id,
                     peer_mta_wc_plaintexts.get_hole()
                 );
 
-                faulters.set(sign_peer_id, ProtocolFault)?;
+                faulters.set(peer_sign_id, ProtocolFault)?;
                 continue;
             }
 
             // verify R8 peer data is consistent with earlier messages:
             // 1. k_i
-            let keygen_peer_id = *self.participants.get(sign_peer_id)?;
+            let peer_keygen_id = *self.participants.get(peer_sign_id)?;
 
             let peer_ek = &self
                 .secret_key_share
                 .group()
                 .all_shares()
-                .get(keygen_peer_id)?
+                .get(peer_keygen_id)?
                 .ek();
 
             // k_i
             let k_i_ciphertext = peer_ek
                 .encrypt_with_randomness(&(bcast.k_i.as_ref()).into(), &bcast.k_i_randomness);
-            if k_i_ciphertext != self.r1bcasts.get(sign_peer_id)?.k_i_ciphertext {
+            if k_i_ciphertext != self.r1bcasts.get(peer_sign_id)?.k_i_ciphertext {
                 warn!(
                     "peer {} says: invalid k_i detected from peer {}",
-                    sign_id, sign_peer_id
+                    my_sign_id, peer_sign_id
                 );
 
-                faulters.set(sign_peer_id, ProtocolFault)?;
+                faulters.set(peer_sign_id, ProtocolFault)?;
                 continue;
             }
 
@@ -145,14 +168,14 @@ impl bcast_only::Executer for R8Type7 {
                     &peer_mta_wc_plaintext.mu_plaintext,
                     &peer_mta_wc_plaintext.mu_randomness,
                 );
-                if peer_mu_ciphertext != self.r2p2ps.get(sign_peer2_id, sign_peer_id)?.mu_ciphertext
+                if peer_mu_ciphertext != self.r2p2ps.get(sign_peer2_id, peer_sign_id)?.mu_ciphertext
                 {
                     warn!(
                         "peer {} says: invalid mu from peer {} to victim peer {}",
-                        sign_id, sign_peer_id, sign_peer2_id
+                        my_sign_id, peer_sign_id, sign_peer2_id
                     );
 
-                    faulters.set(sign_peer_id, ProtocolFault)?;
+                    faulters.set(peer_sign_id, ProtocolFault)?;
                     continue;
                 }
             }
@@ -164,7 +187,7 @@ impl bcast_only::Executer for R8Type7 {
             .fold(Scalar::zero(), |acc, (_, bcast)| acc + bcast.k_i.as_ref());
 
         // verify zkps as per page 19 of https://eprint.iacr.org/2020/540.pdf doc version 20200511:155431
-        for (sign_peer_id, bcast) in &bcasts_in {
+        for (peer_sign_id, bcast) in &bcasts_in {
             // compute sigma_i * G as per the equation at the bottom of page 18 of
             // https://eprint.iacr.org/2020/540.pdf doc version 20200511:155431
 
@@ -185,7 +208,7 @@ impl bcast_only::Executer for R8Type7 {
                     let mu_ji = bcasts_in
                         .get(j)?
                         .mta_wc_plaintexts
-                        .get(sign_peer_id)?
+                        .get(peer_sign_id)?
                         .mu_plaintext
                         .to_scalar();
 
@@ -195,23 +218,23 @@ impl bcast_only::Executer for R8Type7 {
 
             // compute W_i
             let peer_lambda_i_S = &vss::lagrange_coefficient(
-                sign_peer_id.as_usize(),
+                peer_sign_id.as_usize(),
                 &self
                     .peers
                     .clone()
                     .plug_hole(self.keygen_id)
                     .iter()
-                    .map(|(_, keygen_peer_id)| keygen_peer_id.as_usize())
+                    .map(|(_, peer_keygen_id)| peer_keygen_id.as_usize())
                     .collect::<Vec<_>>(),
             )?;
 
-            let keygen_peer_id = *self.participants.get(sign_peer_id)?;
+            let peer_keygen_id = *self.participants.get(peer_sign_id)?;
 
             let peer_W_i = self
                 .secret_key_share
                 .group()
                 .all_shares()
-                .get(keygen_peer_id)?
+                .get(peer_keygen_id)?
                 .X_i()
                 .as_ref()
                 * peer_lambda_i_S;
@@ -221,19 +244,19 @@ impl bcast_only::Executer for R8Type7 {
 
             // verify zkp
             let peer_stmt = &chaum_pedersen::Statement {
-                prover_id: sign_peer_id,
+                prover_id: peer_sign_id,
                 base1: &k256::ProjectivePoint::generator(),
                 base2: &self.R,
                 target1: &peer_g_sigma_i, // sigma_i * G
-                target2: self.r6bcasts.get(sign_peer_id)?.S_i.as_ref(), // sigma_i * R == S_i
+                target2: self.r6bcasts.get(peer_sign_id)?.S_i.as_ref(), // sigma_i * R == S_i
             };
 
             if !chaum_pedersen::verify(peer_stmt, &bcast.proof) {
                 warn!(
                     "peer {} says: chaum_pedersen proof from peer {} failed to verify",
-                    sign_id, sign_peer_id,
+                    my_sign_id, peer_sign_id,
                 );
-                faulters.set(sign_peer_id, ProtocolFault)?;
+                faulters.set(peer_sign_id, ProtocolFault)?;
                 continue;
             }
         }
@@ -241,7 +264,7 @@ impl bcast_only::Executer for R8Type7 {
         if faulters.is_empty() {
             error!(
                 "peer {} says: No faulters found in 'type 7' failure protocol",
-                sign_id
+                my_sign_id
             );
             return Err(TofnFatal);
         }

@@ -1,5 +1,5 @@
 use super::{
-    api::TofnResult, implementer_api::no_messages, party_share_counts::PartyShareCounts,
+    api::TofnResult, party_share_counts::PartyShareCounts, protocol_builder::ProtocolBuilder,
     protocol_info::ProtocolInfoDeluxe, round::Round,
 };
 use crate::collections::{FillVecMap, TypedUsize};
@@ -25,10 +25,7 @@ pub enum Fault {
 pub fn new_protocol<F, K, P>(
     party_share_counts: PartyShareCounts<P>,
     share_id: TypedUsize<K>,
-    first_round: Box<dyn no_messages::Executer<FinalOutput = F, Index = K>>,
+    first_round: ProtocolBuilder<F, K>,
 ) -> TofnResult<Protocol<F, K, P>> {
-    Ok(Protocol::NotDone(Round::new_no_messages(
-        first_round,
-        ProtocolInfoDeluxe::new(party_share_counts, share_id)?,
-    )?))
+    first_round.build(ProtocolInfoDeluxe::new(party_share_counts, share_id)?)
 }

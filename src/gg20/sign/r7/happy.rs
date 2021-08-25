@@ -1,5 +1,5 @@
 use crate::{
-    collections::{FillVecMap, P2ps, TypedUsize, VecMap},
+    collections::{FillVecMap, FullP2ps, P2ps, TypedUsize, VecMap},
     corrupt,
     gg20::{
         crypto_tools::{
@@ -9,103 +9,126 @@ use crate::{
         keygen::{KeygenShareId, SecretKeyShare},
         sign::{
             r7::{self, Bcast, BcastHappy, BcastSadType7, MtaWcPlaintext},
-            Participants, SignShareId,
+            KeygenShareIds, SignShareId,
         },
     },
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
-        implementer_api::{bcast_only, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder},
+        implementer_api::{serialize, Executer, ProtocolBuilder, ProtocolInfo, RoundBuilder},
     },
 };
 use ecdsa::elliptic_curve::sec1::ToEncodedPoint;
 use k256::{ProjectivePoint, Scalar};
 use tracing::{error, warn};
 
-use super::super::{r1, r2, r3, r5, r6, r8, Peers, SignProtocolBuilder};
+use super::super::{r1, r2, r3, r5, r6, r8, Peers};
 
 #[cfg(feature = "malicious")]
 use super::super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
-pub struct R7Happy {
-    pub(crate) secret_key_share: SecretKeyShare,
-    pub(crate) msg_to_sign: Scalar,
-    pub(crate) peers: Peers,
-    pub(crate) participants: Participants,
-    pub(crate) keygen_id: TypedUsize<KeygenShareId>,
-    pub(crate) k_i: Scalar,
-    pub(crate) k_i_randomness: paillier::Randomness,
-    pub(crate) sigma_i: Scalar,
-    pub(crate) r1bcasts: VecMap<SignShareId, r1::Bcast>,
-    pub(crate) r2p2ps: P2ps<SignShareId, r2::P2pHappy>,
-    pub(crate) r3bcasts: VecMap<SignShareId, r3::BcastHappy>,
-    pub(crate) R: ProjectivePoint,
-    pub(crate) r5bcasts: VecMap<SignShareId, r5::Bcast>,
-    pub(crate) r5p2ps: P2ps<SignShareId, r5::P2p>,
+pub(in super::super) struct R7Happy {
+    pub(in super::super) secret_key_share: SecretKeyShare,
+    pub(in super::super) msg_to_sign: Scalar,
+    pub(in super::super) peer_keygen_ids: Peers,
+    pub(in super::super) all_keygen_ids: KeygenShareIds,
+    pub(in super::super) my_keygen_id: TypedUsize<KeygenShareId>,
+    pub(in super::super) k_i: Scalar,
+    pub(in super::super) k_i_randomness: paillier::Randomness,
+    pub(in super::super) sigma_i: Scalar,
+    pub(in super::super) r1bcasts: VecMap<SignShareId, r1::Bcast>,
+    pub(in super::super) r2p2ps: FullP2ps<SignShareId, r2::P2pHappy>,
+    pub(in super::super) r3bcasts: VecMap<SignShareId, r3::BcastHappy>,
+    pub(in super::super) R: ProjectivePoint,
+    pub(in super::super) r5bcasts: VecMap<SignShareId, r5::Bcast>,
+    pub(in super::super) r5p2ps: FullP2ps<SignShareId, r5::P2p>,
 
     #[cfg(feature = "malicious")]
-    pub behaviour: Behaviour,
+    pub(in super::super) behaviour: Behaviour,
 }
 
-impl bcast_only::Executer for R7Happy {
+impl Executer for R7Happy {
     type FinalOutput = BytesVec;
     type Index = SignShareId;
     type Bcast = r6::Bcast;
+    type P2p = ();
 
     #[allow(non_snake_case)]
     fn execute(
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
-        bcasts_in: VecMap<Self::Index, Self::Bcast>,
-    ) -> TofnResult<SignProtocolBuilder> {
-        let sign_id = info.share_id();
-        let participants_count = info.share_count();
+        bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
+        p2ps_in: P2ps<Self::Index, Self::P2p>,
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
+        let my_sign_id = info.my_id();
+        let mut faulters = info.new_fillvecmap();
 
-        // check for complaints
+        // anyone who did not send a bcast is a faulter
+        for (peer_sign_id, bcast) in bcasts_in.iter() {
+            if bcast.is_none() {
+                warn!(
+                    "peer {} says: missing bcast from peer {}",
+                    my_sign_id, peer_sign_id
+                );
+                faulters.set(peer_sign_id, ProtocolFault)?;
+            }
+        }
+        // anyone who sent p2ps is a faulter
+        for (peer_sign_id, p2ps) in p2ps_in.iter() {
+            if p2ps.is_some() {
+                warn!(
+                    "peer {} says: unexpected p2ps from peer {}",
+                    my_sign_id, peer_sign_id
+                );
+                faulters.set(peer_sign_id, ProtocolFault)?;
+            }
+        }
+        if !faulters.is_empty() {
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
+        }
+
+        // if anyone complained then move to sad path
         if bcasts_in
             .iter()
-            .any(|(_, bcast)| matches!(bcast, r6::Bcast::Sad(_)))
+            .any(|(_, bcast_option)| matches!(bcast_option, Some(r6::Bcast::Sad(_))))
         {
             warn!(
                 "peer {} says: received an R6 complaint from others while in happy path",
-                sign_id,
+                my_sign_id,
             );
 
             return Box::new(r7::sad::R7Sad {
                 secret_key_share: self.secret_key_share,
-                participants: self.participants,
+                all_keygen_ids: self.all_keygen_ids,
                 r1bcasts: self.r1bcasts,
                 R: self.R,
                 r5bcasts: self.r5bcasts,
                 r5p2ps: self.r5p2ps,
-
-                #[cfg(feature = "malicious")]
-                behaviour: self.behaviour,
             })
-            .execute(info, bcasts_in);
+            .execute(info, bcasts_in, p2ps_in);
         }
 
-        let mut faulters = FillVecMap::with_size(participants_count);
+        // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
+        let bcasts_in = bcasts_in.to_vecmap()?;
 
-        let mut bcasts = FillVecMap::with_size(participants_count);
+        let mut bcasts = info.new_fillvecmap();
 
         // our check for 'type 5` error succeeded, so any peer broadcasting a failure is a faulter
-        for (sign_peer_id, bcast) in bcasts_in.into_iter() {
+        for (peer_sign_id, bcast) in bcasts_in.into_iter() {
             match bcast {
                 r6::Bcast::Happy(bcast) => {
-                    bcasts.set(sign_peer_id, bcast)?;
+                    bcasts.set(peer_sign_id, bcast)?;
                 }
                 r6::Bcast::SadType5(_) => {
                     warn!(
                         "peer {} says: peer {} broadcasted a 'type 5' failure",
-                        sign_id, sign_peer_id
+                        my_sign_id, peer_sign_id
                     );
-                    faulters.set(sign_peer_id, ProtocolFault)?;
+                    faulters.set(peer_sign_id, ProtocolFault)?;
                 }
                 r6::Bcast::Sad(_) => return Err(TofnFatal), // This should never occur at this stage
             }
         }
-
         if !faulters.is_empty() {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
@@ -113,11 +136,11 @@ impl bcast_only::Executer for R7Happy {
         let bcasts_in = bcasts.to_vecmap()?;
 
         // verify proofs
-        for (sign_peer_id, bcast) in &bcasts_in {
+        for (peer_sign_id, bcast) in &bcasts_in {
             let peer_stmt = &pedersen::StatementWc {
                 stmt: pedersen::Statement {
-                    prover_id: sign_peer_id,
-                    commit: self.r3bcasts.get(sign_peer_id)?.T_i.as_ref(),
+                    prover_id: peer_sign_id,
+                    commit: self.r3bcasts.get(peer_sign_id)?.T_i.as_ref(),
                 },
                 msg_g: bcast.S_i.as_ref(),
                 g: &self.R,
@@ -126,13 +149,12 @@ impl bcast_only::Executer for R7Happy {
             if !pedersen::verify_wc(peer_stmt, &bcast.S_i_proof_wc) {
                 warn!(
                     "peer {} says: pedersen proof wc failed to verify for peer {}",
-                    sign_id, sign_peer_id,
+                    my_sign_id, peer_sign_id,
                 );
 
-                faulters.set(sign_peer_id, ProtocolFault)?;
+                faulters.set(peer_sign_id, ProtocolFault)?;
             }
         }
-
         if !faulters.is_empty() {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
@@ -145,10 +167,10 @@ impl bcast_only::Executer for R7Happy {
             });
 
         if &S_i_sum != self.secret_key_share.group().y().as_ref() {
-            warn!("peer {} says: 'type 7' fault detected", sign_id);
+            warn!("peer {} says: 'type 7' fault detected", my_sign_id);
 
             // recover encryption randomness for mu; need to decrypt again to do so
-            let mta_wc_plaintexts = self.r2p2ps.map_to_me(sign_id, |p2p| {
+            let mta_wc_plaintexts = self.r2p2ps.map_to_me(my_sign_id, |p2p| {
                 let (mu_plaintext, mu_randomness) = self
                     .secret_key_share
                     .share()
@@ -163,40 +185,38 @@ impl bcast_only::Executer for R7Happy {
 
             let proof = chaum_pedersen::prove(
                 &chaum_pedersen::Statement {
-                    prover_id: sign_id,
+                    prover_id: my_sign_id,
                     base1: &k256::ProjectivePoint::generator(),
                     base2: &self.R,
                     target1: &(k256::ProjectivePoint::generator() * self.sigma_i),
-                    target2: bcasts_in.get(sign_id)?.S_i.as_ref(),
+                    target2: bcasts_in.get(my_sign_id)?.S_i.as_ref(),
                 },
                 &chaum_pedersen::Witness {
                     scalar: &self.sigma_i,
                 },
             );
 
-            let bcast_out = serialize(&Bcast::SadType7(BcastSadType7 {
+            let bcast_out = Some(serialize(&Bcast::SadType7(BcastSadType7 {
                 k_i: self.k_i.into(),
                 k_i_randomness: self.k_i_randomness.clone(),
                 proof,
                 mta_wc_plaintexts,
-            }))?;
+            }))?);
 
-            return Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
-                round: Box::new(r8::R8Type7 {
+            return Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
+                Box::new(r8::R8Type7 {
                     secret_key_share: self.secret_key_share,
-                    peers: self.peers,
-                    participants: self.participants,
-                    keygen_id: self.keygen_id,
+                    peers: self.peer_keygen_ids,
+                    participants: self.all_keygen_ids,
+                    keygen_id: self.my_keygen_id,
                     r1bcasts: self.r1bcasts,
                     r2p2ps: self.r2p2ps,
                     R: self.R,
                     r6bcasts: bcasts_in,
-
-                    #[cfg(feature = "malicious")]
-                    behaviour: self.behaviour,
                 }),
                 bcast_out,
-            }));
+                None,
+            )));
         }
 
         // compute r, s_i
@@ -214,24 +234,22 @@ impl bcast_only::Executer for R7Happy {
 
         let s_i = self.msg_to_sign * self.k_i + r * self.sigma_i;
 
-        corrupt!(s_i, self.corrupt_s_i(sign_id, s_i));
+        corrupt!(s_i, self.corrupt_s_i(my_sign_id, s_i));
 
-        let bcast_out = serialize(&Bcast::Happy(BcastHappy { s_i: s_i.into() }))?;
+        let bcast_out = Some(serialize(&Bcast::Happy(BcastHappy { s_i: s_i.into() }))?);
 
-        Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
-            round: Box::new(r8::R8Happy {
+        Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
+            Box::new(r8::R8Happy {
                 secret_key_share: self.secret_key_share,
                 msg_to_sign: self.msg_to_sign,
                 R: self.R,
                 r,
                 r5bcasts: self.r5bcasts,
                 r6bcasts: bcasts_in,
-
-                #[cfg(feature = "malicious")]
-                behaviour: self.behaviour,
             }),
             bcast_out,
-        }))
+            None,
+        )))
     }
 
     #[cfg(test)]

@@ -1,139 +1,182 @@
 use crate::{
-    collections::{FillVecMap, HoleVecMap, P2ps, TypedUsize, VecMap},
+    collections::{FillVecMap, FullP2ps, HoleVecMap, P2ps, TypedUsize, VecMap},
     corrupt,
     gg20::{
         crypto_tools::{hash::Randomness, k256_serde, mta::Secret, paillier, vss, zkp::pedersen},
         keygen::{KeygenShareId, SecretKeyShare},
-        sign::{r3, r4, Participants},
+        sign::{r3, r4, KeygenShareIds},
     },
     sdk::{
-        api::{BytesVec, TofnFatal, TofnResult},
-        implementer_api::{bcast_and_p2p, serialize, ProtocolBuilder, ProtocolInfo, RoundBuilder},
+        api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
+        implementer_api::{serialize, Executer, ProtocolBuilder, ProtocolInfo, RoundBuilder},
     },
 };
 use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::super::{r1, r2, Peers, SignProtocolBuilder, SignShareId};
+use super::super::{r1, r2, Peers, SignShareId};
 
 #[cfg(feature = "malicious")]
 use super::super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
-pub struct R3Happy {
-    pub(crate) secret_key_share: SecretKeyShare,
-    pub(crate) msg_to_sign: Scalar,
-    pub(crate) peers: Peers,
-    pub(crate) participants: Participants,
-    pub(crate) keygen_id: TypedUsize<KeygenShareId>,
-    pub(crate) gamma_i: Scalar,
-    pub(crate) Gamma_i: ProjectivePoint,
-    pub(crate) Gamma_i_reveal: Randomness,
-    pub(crate) w_i: Scalar,
-    pub(crate) k_i: Scalar,
-    pub(crate) k_i_randomness: paillier::Randomness,
-    pub(crate) beta_secrets: HoleVecMap<SignShareId, Secret>,
-    pub(crate) nu_secrets: HoleVecMap<SignShareId, Secret>,
-    pub(crate) r1bcasts: VecMap<SignShareId, r1::Bcast>,
-    pub(crate) r1p2ps: P2ps<SignShareId, r1::P2p>,
+pub(in super::super) struct R3Happy {
+    pub(in super::super) secret_key_share: SecretKeyShare,
+    pub(in super::super) msg_to_sign: Scalar,
+    pub(in super::super) peer_keygen_ids: Peers,
+    pub(in super::super) all_keygen_ids: KeygenShareIds,
+    pub(in super::super) my_keygen_id: TypedUsize<KeygenShareId>,
+    pub(in super::super) gamma_i: Scalar,
+    pub(in super::super) Gamma_i: ProjectivePoint,
+    pub(in super::super) Gamma_i_reveal: Randomness,
+    pub(in super::super) w_i: Scalar,
+    pub(in super::super) k_i: Scalar,
+    pub(in super::super) k_i_randomness: paillier::Randomness,
+    pub(in super::super) beta_secrets: HoleVecMap<SignShareId, Secret>,
+    pub(in super::super) nu_secrets: HoleVecMap<SignShareId, Secret>,
+    pub(in super::super) r1bcasts: VecMap<SignShareId, r1::Bcast>,
+    pub(in super::super) r1p2ps: FullP2ps<SignShareId, r1::P2p>,
 
     #[cfg(feature = "malicious")]
-    pub behaviour: Behaviour,
+    pub(in super::super) behaviour: Behaviour,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum Bcast {
+pub(in super::super) enum Bcast {
     Happy(BcastHappy),
-    Sad(BcastSad),
+    Sad(BcastSad), // TODO switch to P2p for sad path
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(non_snake_case)]
-pub struct BcastHappy {
+pub(in super::super) struct BcastHappy {
     pub delta_i: k256_serde::Scalar,
     pub T_i: k256_serde::ProjectivePoint,
     pub T_i_proof: pedersen::Proof,
 }
 
+// TODO switch to P2p for sad path
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BcastSad {
+pub(in super::super) struct BcastSad {
     pub mta_complaints: FillVecMap<SignShareId, Accusation>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum Accusation {
+pub(in super::super) enum Accusation {
     MtA,
     MtAwc,
 }
 
-impl bcast_and_p2p::Executer for R3Happy {
+impl Executer for R3Happy {
     type FinalOutput = BytesVec;
     type Index = SignShareId;
-    type Bcast = r2::Bcast;
+    type Bcast = ();
     type P2p = r2::P2p;
 
     #[allow(non_snake_case)]
     fn execute(
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
-        bcasts_in: VecMap<Self::Index, Self::Bcast>,
+        bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
         p2ps_in: P2ps<Self::Index, Self::P2p>,
-    ) -> TofnResult<SignProtocolBuilder> {
-        let sign_id = info.share_id();
-        let participants_count = info.share_count();
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
+        let my_sign_id = info.my_id();
+        let mut faulters = info.new_fillvecmap();
 
-        // check for complaints
-        if bcasts_in
-            .iter()
-            .any(|(_, bcast)| matches!(bcast, r2::Bcast::Sad(_)))
-        {
+        // anyone who sent a bcast is a faulter
+        for (from, bcast) in bcasts_in.iter() {
+            if bcast.is_some() {
+                warn!(
+                    "peer {} says: unexpected bcast from peer {}",
+                    my_sign_id, from
+                );
+                faulters.set(from, ProtocolFault)?;
+            }
+        }
+        // anyone who did not send p2ps is a faulter
+        for (from, p2ps) in p2ps_in.iter() {
+            if p2ps.is_none() {
+                warn!("peer {} says: missing p2ps from peer {}", my_sign_id, from);
+                faulters.set(from, ProtocolFault)?;
+            }
+        }
+        if !faulters.is_empty() {
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
+        }
+
+        // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
+        let p2ps_in = p2ps_in.to_fullp2ps()?;
+
+        // anyone who sent conflicting p2ps is a faulter
+        // quadratic work: https://github.com/axelarnetwork/tofn/issues/134
+        for (from, p2ps) in p2ps_in.iter() {
+            if !p2ps
+                .iter()
+                .all(|(_, p2p)| matches!(p2p, Self::P2p::Happy(_)))
+                && !p2ps.iter().all(|(_, p2p)| matches!(p2p, Self::P2p::Sad(_)))
+            {
+                warn!(
+                    "peer {} says: conflicting happy/sad p2ps from peer {}",
+                    my_sign_id, from
+                );
+                faulters.set(from, ProtocolFault)?;
+            }
+        }
+        if !faulters.is_empty() {
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
+        }
+
+        // if anyone complained then move to sad path
+        if p2ps_in.iter().any(|(_from, p2ps)| {
+            p2ps.iter()
+                .any(|(_to, p2p)| matches!(p2p, Self::P2p::Sad(_)))
+        }) {
             warn!(
                 "peer {} says: received an R2 complaint from others",
-                sign_id,
+                my_sign_id,
             );
+
+            let p2ps_in = p2ps_in.to_p2ps();
 
             return Box::new(r3::R3Sad {
                 secret_key_share: self.secret_key_share,
-                participants: self.participants,
+                all_keygen_ids: self.all_keygen_ids,
                 r1bcasts: self.r1bcasts,
                 r1p2ps: self.r1p2ps,
-
-                #[cfg(feature = "malicious")]
-                behaviour: self.behaviour,
             })
             .execute(info, bcasts_in, p2ps_in);
         }
 
-        // TODO: This will be changed once we switch to using P2ps for complaints in R3
+        // everyone sent happy-path p2ps---unwrap into happy path
         let p2ps_in = p2ps_in.map2_result(|(_, p2p)| match p2p {
-            r2::P2p::Happy(p) => Ok(p),
-            r2::P2p::Sad => Err(TofnFatal),
+            Self::P2p::Happy(p) => Ok(p),
+            Self::P2p::Sad(_) => Err(TofnFatal),
         })?;
 
-        let mut mta_complaints = FillVecMap::with_size(participants_count);
+        let mut mta_complaints = info.new_fillvecmap();
 
         let zkp = self
             .secret_key_share
             .group()
             .all_shares()
-            .get(self.keygen_id)?
+            .get(self.my_keygen_id)?
             .zkp();
 
         let ek = self
             .secret_key_share
             .group()
             .all_shares()
-            .get(self.keygen_id)?
+            .get(self.my_keygen_id)?
             .ek();
 
-        for (sign_peer_id, &keygen_peer_id) in &self.peers {
-            let p2p_in = p2ps_in.get(sign_peer_id, sign_id)?;
+        for (peer_sign_id, &peer_keygen_id) in &self.peer_keygen_ids {
+            let p2p_in = p2ps_in.get(peer_sign_id, my_sign_id)?;
 
             let peer_stmt = paillier::zk::mta::Statement {
-                prover_id: sign_peer_id,
-                verifier_id: sign_id,
-                ciphertext1: &self.r1bcasts.get(sign_id)?.k_i_ciphertext,
+                prover_id: peer_sign_id,
+                verifier_id: my_sign_id,
+                ciphertext1: &self.r1bcasts.get(my_sign_id)?.k_i_ciphertext,
                 ciphertext2: &p2p_in.alpha_ciphertext,
                 ek,
             };
@@ -143,21 +186,21 @@ impl bcast_and_p2p::Executer for R3Happy {
             if !zkp.verify_mta_proof(&peer_stmt, &p2p_in.alpha_proof) {
                 warn!(
                     "peer {} says: mta proof failed to verify for peer {}",
-                    sign_id, sign_peer_id,
+                    my_sign_id, peer_sign_id,
                 );
 
-                mta_complaints.set(sign_peer_id, Accusation::MtA)?;
+                mta_complaints.set(peer_sign_id, Accusation::MtA)?;
 
                 continue;
             }
 
             // verify zk proof for step 2 of MtAwc k_i * w_j
             let peer_lambda_i_S = &vss::lagrange_coefficient(
-                sign_peer_id.as_usize(),
+                peer_sign_id.as_usize(),
                 &self
-                    .participants
+                    .all_keygen_ids
                     .iter()
-                    .map(|(_, keygen_peer_id)| keygen_peer_id.as_usize())
+                    .map(|(_, peer_keygen_id)| peer_keygen_id.as_usize())
                     .collect::<Vec<_>>(),
             )?;
 
@@ -165,16 +208,16 @@ impl bcast_and_p2p::Executer for R3Happy {
                 .secret_key_share
                 .group()
                 .all_shares()
-                .get(keygen_peer_id)?
+                .get(peer_keygen_id)?
                 .X_i()
                 .as_ref()
                 * peer_lambda_i_S;
 
             let peer_stmt = paillier::zk::mta::StatementWc {
                 stmt: paillier::zk::mta::Statement {
-                    prover_id: sign_peer_id,
-                    verifier_id: sign_id,
-                    ciphertext1: &self.r1bcasts.get(sign_id)?.k_i_ciphertext,
+                    prover_id: peer_sign_id,
+                    verifier_id: my_sign_id,
+                    ciphertext1: &self.r1bcasts.get(my_sign_id)?.k_i_ciphertext,
                     ciphertext2: &p2p_in.mu_ciphertext,
                     ek,
                 },
@@ -185,10 +228,10 @@ impl bcast_and_p2p::Executer for R3Happy {
             if !zkp.verify_mta_proof_wc(&peer_stmt, &p2p_in.mu_proof) {
                 warn!(
                     "peer {} says: mta_wc proof failed to verify for peer {}",
-                    sign_id, sign_peer_id,
+                    my_sign_id, peer_sign_id,
                 );
 
-                mta_complaints.set(sign_peer_id, Accusation::MtAwc)?;
+                mta_complaints.set(peer_sign_id, Accusation::MtAwc)?;
 
                 continue;
             }
@@ -196,51 +239,53 @@ impl bcast_and_p2p::Executer for R3Happy {
 
         corrupt!(
             mta_complaints,
-            self.corrupt_complaint(sign_id, mta_complaints)?
+            self.corrupt_complaint(my_sign_id, mta_complaints)?
         );
 
         if !mta_complaints.is_empty() {
-            let bcast_out = serialize(&Bcast::Sad(BcastSad { mta_complaints }))?;
+            let bcast_out = Some(serialize(&Bcast::Sad(BcastSad { mta_complaints }))?);
 
-            return Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
-                round: Box::new(r4::R4Sad {
+            return Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
+                Box::new(r4::R4Sad {
                     secret_key_share: self.secret_key_share,
-                    participants: self.participants,
+                    all_keygen_ids: self.all_keygen_ids,
                     r1bcasts: self.r1bcasts,
                     r2p2ps: p2ps_in,
-
-                    #[cfg(feature = "malicious")]
-                    behaviour: self.behaviour,
                 }),
                 bcast_out,
-            }));
+                None,
+            )));
         }
 
-        let alphas = self.peers.map_ref(|(sign_peer_id, _)| {
-            let p2p_in = p2ps_in.get(sign_peer_id, sign_id)?;
+        let alphas = self
+            .peer_keygen_ids
+            .clone_map2_result(|(peer_sign_id, _)| {
+                let p2p_in = p2ps_in.get(peer_sign_id, my_sign_id)?;
 
-            let alpha = self
-                .secret_key_share
-                .share()
-                .dk()
-                .decrypt(&p2p_in.alpha_ciphertext)
-                .to_scalar();
+                let alpha = self
+                    .secret_key_share
+                    .share()
+                    .dk()
+                    .decrypt(&p2p_in.alpha_ciphertext)
+                    .to_scalar();
 
-            Ok(alpha)
-        })?;
+                Ok(alpha)
+            })?;
 
-        let mus = self.peers.map_ref(|(sign_peer_id, _)| {
-            let p2p_in = p2ps_in.get(sign_peer_id, sign_id)?;
+        let mus = self
+            .peer_keygen_ids
+            .clone_map2_result(|(peer_sign_id, _)| {
+                let p2p_in = p2ps_in.get(peer_sign_id, my_sign_id)?;
 
-            let mu = self
-                .secret_key_share
-                .share()
-                .dk()
-                .decrypt(&p2p_in.mu_ciphertext)
-                .to_scalar();
+                let mu = self
+                    .secret_key_share
+                    .share()
+                    .dk()
+                    .decrypt(&p2p_in.mu_ciphertext)
+                    .to_scalar();
 
-            Ok(mu)
-        })?;
+                Ok(mu)
+            })?;
 
         // compute delta_i = k_i * gamma_i + sum_{j != i} alpha_ij + beta_ji
         let delta_i = alphas
@@ -251,10 +296,10 @@ impl bcast_and_p2p::Executer for R3Happy {
             });
 
         // many malicious behaviours require corrupt delta_i to prepare
-        corrupt!(delta_i, self.corrupt_delta_i(sign_id, delta_i));
-        corrupt!(delta_i, self.corrupt_k_i(sign_id, delta_i, self.gamma_i));
-        corrupt!(delta_i, self.corrupt_alpha(sign_id, delta_i));
-        corrupt!(delta_i, self.corrupt_beta(sign_id, delta_i));
+        corrupt!(delta_i, self.corrupt_delta_i(my_sign_id, delta_i));
+        corrupt!(delta_i, self.corrupt_k_i(my_sign_id, delta_i, self.gamma_i));
+        corrupt!(delta_i, self.corrupt_alpha(my_sign_id, delta_i));
+        corrupt!(delta_i, self.corrupt_beta(my_sign_id, delta_i));
 
         // compute sigma_i = k_i * w_i + sum_{j != i} mu_ij + nu_ji
         let sigma_i = mus
@@ -264,12 +309,12 @@ impl bcast_and_p2p::Executer for R3Happy {
                 acc + mu + nu.beta.as_ref()
             });
 
-        corrupt!(sigma_i, self.corrupt_sigma(sign_id, sigma_i));
+        corrupt!(sigma_i, self.corrupt_sigma(my_sign_id, sigma_i));
 
         let (T_i, l_i) = pedersen::commit(&sigma_i);
         let T_i_proof = pedersen::prove(
             &pedersen::Statement {
-                prover_id: sign_id,
+                prover_id: my_sign_id,
                 commit: &T_i,
             },
             &pedersen::Witness {
@@ -278,21 +323,21 @@ impl bcast_and_p2p::Executer for R3Happy {
             },
         );
 
-        corrupt!(T_i_proof, self.corrupt_T_i_proof(sign_id, T_i_proof));
+        corrupt!(T_i_proof, self.corrupt_T_i_proof(my_sign_id, T_i_proof));
 
-        let bcast_out = serialize(&Bcast::Happy(BcastHappy {
+        let bcast_out = Some(serialize(&Bcast::Happy(BcastHappy {
             delta_i: delta_i.into(),
             T_i: T_i.into(),
             T_i_proof,
-        }))?;
+        }))?);
 
-        Ok(ProtocolBuilder::NotDone(RoundBuilder::BcastOnly {
-            round: Box::new(r4::R4Happy {
+        Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
+            Box::new(r4::R4Happy {
                 secret_key_share: self.secret_key_share,
                 msg_to_sign: self.msg_to_sign,
-                peers: self.peers,
-                participants: self.participants,
-                keygen_id: self.keygen_id,
+                peer_keygen_ids: self.peer_keygen_ids,
+                all_keygen_ids: self.all_keygen_ids,
+                my_keygen_id: self.my_keygen_id,
                 gamma_i: self.gamma_i,
                 Gamma_i: self.Gamma_i,
                 Gamma_i_reveal: self.Gamma_i_reveal,
@@ -302,14 +347,14 @@ impl bcast_and_p2p::Executer for R3Happy {
                 l_i,
                 beta_secrets: self.beta_secrets,
                 r1bcasts: self.r1bcasts,
-                _delta_i: delta_i,
                 r2p2ps: p2ps_in,
 
                 #[cfg(feature = "malicious")]
                 behaviour: self.behaviour,
             }),
             bcast_out,
-        }))
+            None,
+        )))
     }
 
     #[cfg(test)]

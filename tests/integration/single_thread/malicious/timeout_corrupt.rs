@@ -128,8 +128,8 @@ where
 {
     let mut current_round = 0;
     while nobody_done(&parties) {
-        parties = next_round(parties, test_case, current_round)?;
         current_round += 1;
+        parties = next_round(parties, test_case, current_round)?;
     }
     Ok(parties)
 }

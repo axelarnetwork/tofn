@@ -1,10 +1,18 @@
-use super::{vecmap_iter::VecMapIter, TypedUsize, VecMap};
+use super::{vecmap_iter::VecMapIter, TypedUsize};
 
 pub fn zip2<'a, K, V0, V1>(
-    v0: &'a VecMap<K, V0>,
-    v1: &'a VecMap<K, V1>,
+    v0: impl IntoIterator<IntoIter = VecMapIter<K, std::slice::Iter<'a, V0>>>,
+    v1: impl IntoIterator<IntoIter = VecMapIter<K, std::slice::Iter<'a, V1>>>,
 ) -> Zip2<K, std::slice::Iter<'a, V0>, std::slice::Iter<'a, V1>> {
-    Zip2::new(v0.iter(), v1.iter())
+    Zip2::new(v0.into_iter(), v1.into_iter())
+}
+
+pub fn zip3<'a, K, V0, V1, V2>(
+    v0: impl IntoIterator<IntoIter = VecMapIter<K, std::slice::Iter<'a, V0>>>,
+    v1: impl IntoIterator<IntoIter = VecMapIter<K, std::slice::Iter<'a, V1>>>,
+    v2: impl IntoIterator<IntoIter = VecMapIter<K, std::slice::Iter<'a, V2>>>,
+) -> Zip3<K, std::slice::Iter<'a, V0>, std::slice::Iter<'a, V1>, std::slice::Iter<'a, V2>> {
+    Zip3::new(v0.into_iter(), v1.into_iter(), v2.into_iter())
 }
 
 pub struct Zip2<K, I0, I1> {
@@ -38,6 +46,49 @@ where
         let (i, a0) = self.iter0.next()?;
         let (_, a1) = self.iter1.next()?;
         Some((i, a0, a1))
+    }
+}
+
+pub struct Zip3<K, I0, I1, I2> {
+    iter0: VecMapIter<K, I0>,
+    iter1: VecMapIter<K, I1>,
+    iter2: VecMapIter<K, I2>,
+    phantom: std::marker::PhantomData<K>,
+}
+
+impl<K, I0, I1, I2> Zip3<K, I0, I1, I2> {
+    pub fn new(
+        iter0: VecMapIter<K, I0>,
+        iter1: VecMapIter<K, I1>,
+        iter2: VecMapIter<K, I2>,
+    ) -> Self {
+        Self {
+            iter0,
+            iter1,
+            iter2,
+            phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<K, I0, I1, I2> Iterator for Zip3<K, I0, I1, I2>
+where
+    I0: Iterator,
+    I1: Iterator,
+    I2: Iterator,
+{
+    type Item = (
+        TypedUsize<K>,
+        <I0 as Iterator>::Item,
+        <I1 as Iterator>::Item,
+        <I2 as Iterator>::Item,
+    );
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let (i, a0) = self.iter0.next()?;
+        let (_, a1) = self.iter1.next()?;
+        let (_, a2) = self.iter2.next()?;
+        Some((i, a0, a1, a2))
     }
 }
 

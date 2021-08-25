@@ -1,47 +1,76 @@
-use tracing::error;
+use tracing::{error, warn};
 
 use crate::{
-    collections::{FillVecMap, P2ps, VecMap},
-    gg20::keygen::{r1, r2, r3, KeygenProtocolBuilder, KeygenShareId, SecretKeyShare},
+    collections::{FillVecMap, FullP2ps, P2ps, VecMap},
+    gg20::keygen::{r1, r2, r3, KeygenShareId, SecretKeyShare},
     sdk::{
         api::{Fault::ProtocolFault, TofnFatal, TofnResult},
-        implementer_api::{bcast_only, log_fault_info, ProtocolBuilder, ProtocolInfo},
+        implementer_api::{log_fault_info, Executer, ProtocolBuilder, ProtocolInfo},
     },
 };
 
 #[allow(non_snake_case)]
-pub struct R4Sad {
-    pub(crate) r1bcasts: VecMap<KeygenShareId, r1::Bcast>,
-    pub(crate) r2bcasts: VecMap<KeygenShareId, r2::Bcast>,
-    pub(crate) r2p2ps: P2ps<KeygenShareId, r2::P2p>,
+pub(in super::super) struct R4Sad {
+    pub(in super::super) r1bcasts: VecMap<KeygenShareId, r1::Bcast>,
+    pub(in super::super) r2bcasts: VecMap<KeygenShareId, r2::Bcast>,
+    pub(in super::super) r2p2ps: FullP2ps<KeygenShareId, r2::P2p>,
 }
 
-impl bcast_only::Executer for R4Sad {
+impl Executer for R4Sad {
     type FinalOutput = SecretKeyShare;
     type Index = KeygenShareId;
     type Bcast = r3::Bcast;
+    type P2p = ();
 
     #[allow(non_snake_case)]
     fn execute(
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
-        bcasts_in: VecMap<Self::Index, Self::Bcast>,
-    ) -> TofnResult<KeygenProtocolBuilder> {
-        let keygen_id = info.share_id();
+        bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
+        p2ps_in: P2ps<Self::Index, Self::P2p>,
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
+        let my_keygen_id = info.my_id();
+        let mut faulters = FillVecMap::with_size(info.total_share_count());
 
-        // check for no complaints
-        if bcasts_in
+        // anyone who did not send a bcast is a faulter
+        for (peer_keygen_id, bcast) in bcasts_in.iter() {
+            if bcast.is_none() {
+                warn!(
+                    "peer {} says: missing bcast from peer {}",
+                    my_keygen_id, peer_keygen_id
+                );
+                faulters.set(peer_keygen_id, ProtocolFault)?;
+            }
+        }
+        // anyone who sent p2ps is a faulter
+        for (peer_keygen_id, p2ps) in p2ps_in.iter() {
+            if p2ps.is_some() {
+                warn!(
+                    "peer {} says: unexpected p2ps from peer {}",
+                    my_keygen_id, peer_keygen_id
+                );
+                faulters.set(peer_keygen_id, ProtocolFault)?;
+            }
+        }
+        if !faulters.is_empty() {
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
+        }
+
+        // everyone sent a bcast---unwrap all bcasts
+        let bcasts_in = bcasts_in.to_vecmap()?;
+
+        // we should have received at least one complaint
+        if !bcasts_in
             .iter()
-            .all(|(_, bcast)| matches!(bcast, r3::Bcast::Happy(_)))
+            .any(|(_, bcast)| matches!(bcast, r3::Bcast::Sad(_)))
         {
             error!(
                 "peer {} says: entered R4 sad path with no complaints",
-                keygen_id
+                my_keygen_id
             );
             return Err(TofnFatal);
         }
 
-        let mut faulters = FillVecMap::with_size(info.share_count());
         let accusations_iter = bcasts_in
             .into_iter()
             .filter_map(|(from, bcast)| match bcast {
@@ -51,9 +80,9 @@ impl bcast_only::Executer for R4Sad {
 
         // verify complaints
         for (accuser_keygen_id, accusations) in accusations_iter {
-            if accusations.vss_complaints.size() != info.share_count() {
+            if accusations.vss_complaints.size() != info.total_share_count() {
                 log_fault_info(
-                    keygen_id,
+                    my_keygen_id,
                     accuser_keygen_id,
                     "incorrect size of complaints vector",
                 );
@@ -63,7 +92,7 @@ impl bcast_only::Executer for R4Sad {
             }
 
             if accusations.vss_complaints.is_empty() {
-                log_fault_info(keygen_id, accuser_keygen_id, "no accusation found");
+                log_fault_info(my_keygen_id, accuser_keygen_id, "no accusation found");
 
                 faulters.set(accuser_keygen_id, ProtocolFault)?;
                 continue;
@@ -71,7 +100,7 @@ impl bcast_only::Executer for R4Sad {
 
             for (accused_keygen_id, accusation) in accusations.vss_complaints.into_iter_some() {
                 if accuser_keygen_id == accused_keygen_id {
-                    log_fault_info(keygen_id, accuser_keygen_id, "self accusation");
+                    log_fault_info(my_keygen_id, accuser_keygen_id, "self accusation");
 
                     faulters.set(accuser_keygen_id, ProtocolFault)?;
                     continue;
@@ -90,7 +119,7 @@ impl bcast_only::Executer for R4Sad {
                         .get(accused_keygen_id, accuser_keygen_id)?
                         .u_i_share_ciphertext
                 {
-                    log_fault_info(keygen_id, accused_keygen_id, "bad encryption");
+                    log_fault_info(my_keygen_id, accused_keygen_id, "bad encryption");
 
                     faulters.set(accused_keygen_id, ProtocolFault)?;
                     continue;
@@ -98,14 +127,11 @@ impl bcast_only::Executer for R4Sad {
 
                 // verify share commitment
                 let accused_vss_commit = &self.r2bcasts.get(accused_keygen_id)?.u_i_vss_commit;
-
                 if accused_vss_commit.validate_share(&accusation.share) {
-                    log_fault_info(keygen_id, accuser_keygen_id, "false accusation");
-
+                    log_fault_info(my_keygen_id, accuser_keygen_id, "false accusation");
                     faulters.set(accuser_keygen_id, ProtocolFault)?;
                 } else {
-                    log_fault_info(keygen_id, accused_keygen_id, "invalid vss share");
-
+                    log_fault_info(my_keygen_id, accused_keygen_id, "invalid vss share");
                     faulters.set(accused_keygen_id, ProtocolFault)?;
                 }
             }
@@ -114,7 +140,7 @@ impl bcast_only::Executer for R4Sad {
         if faulters.is_empty() {
             error!(
                 "peer {} says: R4 failure protocol found no faulters",
-                keygen_id
+                my_keygen_id
             );
             return Err(TofnFatal);
         }

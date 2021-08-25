@@ -21,16 +21,20 @@ pub struct ProtocolInfo<K> {
 }
 
 impl<K> ProtocolInfo<K> {
-    pub fn share_count(&self) -> usize {
+    pub fn total_share_count(&self) -> usize {
         self.share_count
     }
 
-    pub fn share_id(&self) -> TypedUsize<K> {
+    pub fn my_id(&self) -> TypedUsize<K> {
         self.share_id
     }
 
-    pub fn create_fill_hole_map<V>(&self, len: usize) -> TofnResult<FillHoleVecMap<K, V>> {
-        FillHoleVecMap::with_size(len, self.share_id)
+    pub fn new_fillholevecmap<V>(&self) -> TofnResult<FillHoleVecMap<K, V>> {
+        FillHoleVecMap::with_size(self.share_count, self.share_id)
+    }
+
+    pub fn new_fillvecmap<V>(&self) -> FillVecMap<K, V> {
+        FillVecMap::with_size(self.share_count)
     }
 }
 

@@ -99,7 +99,6 @@ fn single_fault_test_cases() -> SingleFaultTestCaseList {
         R1BadProof { victim: zero },
         R1BadGammaI,
         R2FalseAccusation { victim: zero },
-        R2FalseAccusation { victim: three }, // self accusation
         R2BadMta { victim: zero },
         R2BadMtaWc { victim: zero },
         R3BadSigmaI,

@@ -1,9 +1,9 @@
 use crate::{
-    collections::{FillVecMap, VecMap},
+    collections::{FillVecMap, P2ps, VecMap},
     gg20::{crypto_tools::k256_serde, keygen::SecretKeyShare},
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
-        implementer_api::{bcast_only, ProtocolBuilder, ProtocolInfo},
+        implementer_api::{Executer, ProtocolBuilder, ProtocolInfo},
     },
 };
 use ecdsa::hazmat::VerifyPrimitive;
@@ -11,63 +11,84 @@ use k256::{ecdsa::Signature, ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
 
-use super::super::{r5, r6, r7, SignProtocolBuilder, SignShareId};
-
-#[cfg(feature = "malicious")]
-use super::super::malicious::Behaviour;
+use super::super::{r5, r6, r7, SignShareId};
 
 #[allow(non_snake_case)]
-pub struct R8Happy {
-    pub(crate) secret_key_share: SecretKeyShare,
-    pub(crate) msg_to_sign: Scalar,
-    pub(crate) R: ProjectivePoint,
-    pub(crate) r: Scalar,
-    pub(crate) r5bcasts: VecMap<SignShareId, r5::Bcast>,
-    pub(crate) r6bcasts: VecMap<SignShareId, r6::BcastHappy>,
-
-    #[cfg(feature = "malicious")]
-    pub behaviour: Behaviour,
+pub(in super::super) struct R8Happy {
+    pub(in super::super) secret_key_share: SecretKeyShare,
+    pub(in super::super) msg_to_sign: Scalar,
+    pub(in super::super) R: ProjectivePoint,
+    pub(in super::super) r: Scalar,
+    pub(in super::super) r5bcasts: VecMap<SignShareId, r5::Bcast>,
+    pub(in super::super) r6bcasts: VecMap<SignShareId, r6::BcastHappy>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(non_snake_case)]
-pub struct Bcast {
-    pub s_i: k256_serde::Scalar,
+pub(in super::super) struct Bcast {
+    pub(in super::super) s_i: k256_serde::Scalar,
 }
 
-impl bcast_only::Executer for R8Happy {
+impl Executer for R8Happy {
     type FinalOutput = BytesVec;
     type Index = SignShareId;
     type Bcast = r7::Bcast;
+    type P2p = ();
 
     #[allow(non_snake_case)]
     fn execute(
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
-        bcasts_in: VecMap<Self::Index, Self::Bcast>,
-    ) -> TofnResult<SignProtocolBuilder> {
-        let sign_id = info.share_id();
-        let participants_count = info.share_count();
-        let mut faulters = FillVecMap::with_size(participants_count);
+        bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
+        p2ps_in: P2ps<Self::Index, Self::P2p>,
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
+        let my_sign_id = info.my_id();
+        let mut faulters = info.new_fillvecmap();
 
-        let mut bcasts = FillVecMap::with_size(participants_count);
+        // anyone who did not send a bcast is a faulter
+        for (peer_sign_id, bcast) in bcasts_in.iter() {
+            if bcast.is_none() {
+                warn!(
+                    "peer {} says: missing bcast from peer {}",
+                    my_sign_id, peer_sign_id
+                );
+                faulters.set(peer_sign_id, ProtocolFault)?;
+            }
+        }
+        // anyone who sent p2ps is a faulter
+        for (peer_sign_id, p2ps) in p2ps_in.iter() {
+            if p2ps.is_some() {
+                warn!(
+                    "peer {} says: unexpected p2ps from peer {}",
+                    my_sign_id, peer_sign_id
+                );
+                faulters.set(peer_sign_id, ProtocolFault)?;
+            }
+        }
+        if !faulters.is_empty() {
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
+        }
 
-        // our check for 'type 7` error failed, so any peer broadcasting a success is a faulter
-        for (sign_peer_id, bcast) in bcasts_in.into_iter() {
+        // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
+        let bcasts_in = bcasts_in.to_vecmap()?;
+
+        let mut bcasts = info.new_fillvecmap();
+
+        // our check for 'type 7' error passed, so anyone who complained is a faulter
+        for (peer_sign_id, bcast) in bcasts_in.into_iter() {
             match bcast {
                 r7::Bcast::Happy(bcast) => {
-                    bcasts.set(sign_peer_id, bcast)?;
+                    bcasts.set(peer_sign_id, bcast)?;
                 }
                 r7::Bcast::SadType7(_) => {
                     warn!(
                         "peer {} says: peer {} broadcasted a 'type 7' failure",
-                        sign_id, sign_peer_id
+                        my_sign_id, peer_sign_id
                     );
-                    faulters.set(sign_peer_id, ProtocolFault)?;
+                    faulters.set(peer_sign_id, ProtocolFault)?;
                 }
             }
         }
-
         if !faulters.is_empty() {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
@@ -103,9 +124,9 @@ impl bcast_only::Executer for R8Happy {
         }
 
         // verify proofs
-        for (sign_peer_id, bcast) in &bcasts_in {
-            let R_i = self.r5bcasts.get(sign_peer_id)?.R_i.as_ref();
-            let S_i = self.r6bcasts.get(sign_peer_id)?.S_i.as_ref();
+        for (peer_sign_id, bcast) in &bcasts_in {
+            let R_i = self.r5bcasts.get(peer_sign_id)?.R_i.as_ref();
+            let S_i = self.r6bcasts.get(peer_sign_id)?.S_i.as_ref();
 
             let R_s = self.R * bcast.s_i.as_ref();
             let R_s_prime = R_i * &self.msg_to_sign + S_i * &self.r;
@@ -113,19 +134,17 @@ impl bcast_only::Executer for R8Happy {
             if R_s != R_s_prime {
                 warn!(
                     "peer {} says: 'type 8' fault detected for peer {}",
-                    sign_id, sign_peer_id
+                    my_sign_id, peer_sign_id
                 );
-
-                faulters.set(sign_peer_id, ProtocolFault)?;
+                faulters.set(peer_sign_id, ProtocolFault)?;
             }
         }
-
         if !faulters.is_empty() {
             Ok(ProtocolBuilder::Done(Err(faulters)))
         } else {
             error!(
                 "peer {} says: invalid signature detected but no faulters identified",
-                sign_id
+                my_sign_id
             );
             Err(TofnFatal)
         }

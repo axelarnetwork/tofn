@@ -1,5 +1,5 @@
 //! A fillable Vec
-use tracing::{error, warn};
+use tracing::error;
 
 use crate::sdk::api::{TofnFatal, TofnResult};
 
@@ -12,30 +12,24 @@ pub struct FillHoleVecMap<K, V> {
 }
 
 impl<K, V> FillHoleVecMap<K, V> {
-    /// if hole >= len-1 then use hole = len-1
     pub fn with_size(len: usize, hole: TypedUsize<K>) -> TofnResult<Self> {
+        if len == 0 {
+            error!("FillHoleVecMap must have positive size");
+            return Err(TofnFatal);
+        }
         Ok(Self {
-            hole_vec: HoleVecMap::from_vecmap(
-                VecMap::from_vec((0..len - 1).map(|_| None).collect()),
-                hole,
-            )?,
+            hole_vec: VecMap::from_vec((0..len - 1).map(|_| None).collect()).remember_hole(hole)?,
             some_count: 0,
         })
     }
+    pub fn size(&self) -> usize {
+        self.hole_vec.len()
+    }
     pub fn set(&mut self, index: TypedUsize<K>, value: V) -> TofnResult<()> {
-        self.set_impl(index, value, false)
-    }
-    pub fn set_warn(&mut self, index: TypedUsize<K>, value: V) -> TofnResult<()> {
-        self.set_impl(index, value, true)
-    }
-    fn set_impl(&mut self, index: TypedUsize<K>, value: V, warn: bool) -> TofnResult<()> {
         let stored = self.hole_vec.get_mut(index)?;
         if stored.is_none() {
             self.some_count += 1;
-        } else if warn {
-            warn!("overwrite existing value at index {}", index);
         }
-
         *stored = Some(value);
         Ok(())
     }
@@ -44,6 +38,9 @@ impl<K, V> FillHoleVecMap<K, V> {
     }
     pub fn is_full(&self) -> bool {
         self.some_count == self.hole_vec.len() - 1
+    }
+    pub fn is_empty(&self) -> bool {
+        self.some_count == 0
     }
     pub fn iter(&self) -> HoleVecMapIter<K, std::slice::Iter<Option<V>>> {
         self.hole_vec.iter()
@@ -61,6 +58,23 @@ impl<K, V> FillHoleVecMap<K, V> {
     }
     pub fn to_holevec(self) -> TofnResult<HoleVecMap<K, V>> {
         self.map_to_holevec(std::convert::identity)
+    }
+    pub fn map<W, F>(self, f: F) -> FillHoleVecMap<K, W>
+    where
+        F: FnMut(V) -> W + Clone,
+    {
+        FillHoleVecMap::<K, W> {
+            hole_vec: self.hole_vec.map(|val_option| val_option.map(f.clone())),
+            some_count: self.some_count,
+        }
+    }
+
+    // private constructor does no checks, does not return TofnResult, cannot panic
+    pub(super) fn from_holevecmap(hole_vec: HoleVecMap<K, Option<V>>) -> Self {
+        Self {
+            hole_vec,
+            some_count: 0,
+        }
     }
 }
 
