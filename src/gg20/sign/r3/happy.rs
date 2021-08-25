@@ -163,7 +163,6 @@ impl Executer for R3Happy {
             .get(self.my_keygen_id)?
             .ek();
 
-        // let mut mta_complaints = VecMap::from_vec(vec![Accusation::None; info.total_share_count()]);
         let mta_complaints =
             self.peer_keygen_ids
                 .clone_map2_result(|(peer_sign_id, &peer_keygen_id)| {

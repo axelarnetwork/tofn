@@ -84,10 +84,6 @@ impl Executer for R4Sad {
             for (accused_sign_id, accusation) in accusations {
                 debug_assert_ne!(accused_sign_id, accuser_sign_id); // self accusation is impossible
 
-                // if accusation.mta_complaint == r3::Accusation::None {
-                //     continue;
-                // }
-
                 let accused_keygen_id = *self.all_keygen_ids.get(accused_sign_id)?;
                 let accuser_keygen_id = *self.all_keygen_ids.get(accuser_sign_id)?;
 
