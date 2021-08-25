@@ -151,7 +151,7 @@ impl Executer for R2 {
 
             return Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
                 Box::new(r3::R3Sad {
-                    my_secret_key_share: self.secret_key_share,
+                    secret_key_share: self.secret_key_share,
                     all_keygen_ids: self.all_keygen_ids,
                     r1bcasts: bcasts_in,
                     r1p2ps: p2ps_in,

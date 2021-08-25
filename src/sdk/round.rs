@@ -12,7 +12,7 @@ use super::{
     api::Protocol,
     executer::ExecuterRaw,
     protocol_info::ProtocolInfoDeluxe,
-    wire_bytes::{self, MsgType::*, XWireBytes},
+    wire_bytes::{self, MsgType::*, WireBytes},
 };
 
 pub struct Round<F, K, P> {
@@ -44,7 +44,7 @@ impl<F, K, P> Round<F, K, P> {
 
         // deserialize metadata
         // TODO bounds check everything in bytes_meta
-        let bytes_meta: XWireBytes<K> = match wire_bytes::decode_message(bytes) {
+        let bytes_meta: WireBytes<K> = match wire_bytes::decode_message(bytes) {
             Some(w) => w,
             None => {
                 warn!(

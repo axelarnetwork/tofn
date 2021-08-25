@@ -1,11 +1,8 @@
-use crate::collections::TypedUsize;
+use crate::{collections::TypedUsize, sdk::api::TofnFatal};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use tracing::warn;
+use tracing::{error, warn};
 
-use super::{
-    api::{BytesVec, TofnResult},
-    implementer_api::serialize,
-};
+use super::api::{BytesVec, TofnResult};
 
 const TOFN_SERIALIZATION_VERSION: u16 = 0;
 
@@ -15,7 +12,7 @@ pub fn encode_message<K>(
     msg_type: MsgType<K>,
     expected_msg_types: ExpectedMsgTypes,
 ) -> TofnResult<BytesVec> {
-    encode(&XWireBytes {
+    encode(&WireBytes {
         msg_type,
         from,
         payload,
@@ -28,6 +25,19 @@ pub fn encode<T: Serialize>(payload: &T) -> TofnResult<BytesVec> {
         version: TOFN_SERIALIZATION_VERSION,
         payload: serialize(payload)?,
     })
+}
+
+pub fn serialize<T: ?Sized>(value: &T) -> TofnResult<BytesVec>
+where
+    T: serde::Serialize,
+{
+    match bincode::serialize(value) {
+        Ok(bytes) => Ok(bytes),
+        Err(err) => {
+            error!("serialization failure: {}", err.to_string());
+            Err(TofnFatal)
+        }
+    }
 }
 
 // TODO: Look into using bincode::config::Bounded to limit the max pre-allocation size
@@ -52,13 +62,13 @@ pub fn decode<T: DeserializeOwned>(bytes: &[u8]) -> Option<T> {
         .ok()
 }
 
-pub fn decode_message<K>(bytes: &[u8]) -> Option<XWireBytes<K>> {
+pub fn decode_message<K>(bytes: &[u8]) -> Option<WireBytes<K>> {
     decode(bytes)
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(bound(serialize = "", deserialize = ""))] // disable serde trait bounds on `K`: https://serde.rs/attr-bound.html
-pub struct XWireBytes<K> {
+pub struct WireBytes<K> {
     pub msg_type: MsgType<K>,
     pub from: TypedUsize<K>,
     pub payload: BytesVec,
@@ -94,12 +104,12 @@ pub mod malicious {
 
     use crate::sdk::api::{BytesVec, TofnFatal, TofnResult};
 
-    use super::{decode_message, encode_message, XWireBytes};
+    use super::{decode_message, encode_message, WireBytes};
 
     pub fn corrupt_payload<K>(bytes: &[u8]) -> TofnResult<BytesVec> {
         // for simplicity, deserialization error is treated as fatal
         // (we're in a malicious module so who cares?)
-        let wire_bytes: XWireBytes<K> = decode_message(bytes).ok_or_else(|| {
+        let wire_bytes: WireBytes<K> = decode_message(bytes).ok_or_else(|| {
             error!("can't corrupt payload: deserialization failure");
             TofnFatal
         })?;

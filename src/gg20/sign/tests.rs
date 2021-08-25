@@ -142,9 +142,6 @@ fn execute_sign(
         })
         .collect();
 
-    // execute round 1 all parties
-    // let (r1_parties, ..) = execute_round(r0_parties, 1, true, true);
-
     // TEST: secret key shares yield the pubkey
     let x = r1_parties
         .iter()

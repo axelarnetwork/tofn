@@ -13,7 +13,7 @@ use super::super::{r1, r2, SignShareId};
 
 #[allow(non_snake_case)]
 pub(in super::super) struct R3Sad {
-    pub(in super::super) my_secret_key_share: SecretKeyShare,
+    pub(in super::super) secret_key_share: SecretKeyShare,
     pub(in super::super) all_keygen_ids: KeygenShareIds,
     pub(in super::super) r1bcasts: VecMap<SignShareId, r1::Bcast>,
     pub(in super::super) r1p2ps: FullP2ps<SignShareId, r1::P2p>,
@@ -111,7 +111,7 @@ impl Executer for R3Sad {
         }
 
         // verify complaints
-        for (accuser, accusations) in all_accusations {
+        for (accuser_sign_id, accusations) in all_accusations {
             // anyone who sent zero complaints is a faulter
             if accusations
                 .iter()
@@ -119,39 +119,42 @@ impl Executer for R3Sad {
             {
                 warn!(
                     "peer {} says: peer {} did not accuse anyone",
-                    my_sign_id, accuser
+                    my_sign_id, accuser_sign_id
                 );
-                faulters.set(accuser, ProtocolFault)?;
+                faulters.set(accuser_sign_id, ProtocolFault)?;
             }
 
-            for (accused, accusation) in accusations {
-                debug_assert_ne!(accused, accuser); // self accusation is impossible
+            for (accused_sign_id, accusation) in accusations {
+                debug_assert_ne!(accused_sign_id, accuser_sign_id); // self accusation is impossible
 
                 if !accusation.zkp_complaint {
                     continue;
                 }
 
-                let accused_keygen_id = *self.all_keygen_ids.get(accused)?;
-                let accuser_keygen_id = *self.all_keygen_ids.get(accuser)?;
+                let accused_keygen_id = *self.all_keygen_ids.get(accused_sign_id)?;
+                let accuser_keygen_id = *self.all_keygen_ids.get(accuser_sign_id)?;
 
                 // check r1 range proof
                 let accused_ek = &self
-                    .my_secret_key_share
+                    .secret_key_share
                     .group()
                     .all_shares()
                     .get(accused_keygen_id)?
                     .ek();
-                let accused_k_i_ciphertext = &self.r1bcasts.get(accused)?.k_i_ciphertext;
+                let accused_k_i_ciphertext = &self.r1bcasts.get(accused_sign_id)?.k_i_ciphertext;
 
                 let accused_stmt = &paillier::zk::range::Statement {
                     ciphertext: accused_k_i_ciphertext,
                     ek: accused_ek,
                 };
 
-                let accused_proof = &self.r1p2ps.get(accused, accuser)?.range_proof;
+                let accused_proof = &self
+                    .r1p2ps
+                    .get(accused_sign_id, accuser_sign_id)?
+                    .range_proof;
 
                 let accuser_zkp = self
-                    .my_secret_key_share
+                    .secret_key_share
                     .group()
                     .all_shares()
                     .get(accuser_keygen_id)?
@@ -159,12 +162,12 @@ impl Executer for R3Sad {
 
                 match accuser_zkp.verify_range_proof(accused_stmt, accused_proof) {
                     true => {
-                        log_fault_info(my_sign_id, accuser, "false accusation");
-                        faulters.set(accuser, ProtocolFault)?;
+                        log_fault_info(my_sign_id, accuser_sign_id, "false accusation");
+                        faulters.set(accuser_sign_id, ProtocolFault)?;
                     }
                     false => {
-                        log_fault_info(my_sign_id, accused, "invalid r1 p2p range proof");
-                        faulters.set(accused, ProtocolFault)?;
+                        log_fault_info(my_sign_id, accused_sign_id, "invalid r1 p2p range proof");
+                        faulters.set(accused_sign_id, ProtocolFault)?;
                     }
                 };
             }

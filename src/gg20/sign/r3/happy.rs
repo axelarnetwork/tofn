@@ -45,7 +45,7 @@ pub(in super::super) struct R3Happy {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(in super::super) enum Bcast {
     Happy(BcastHappy),
-    Sad(BcastSad),
+    Sad(BcastSad), // TODO switch to P2p for sad path
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -56,6 +56,7 @@ pub(in super::super) struct BcastHappy {
     pub T_i_proof: pedersen::Proof,
 }
 
+// TODO switch to P2p for sad path
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(in super::super) struct BcastSad {
     pub mta_complaints: FillVecMap<SignShareId, Accusation>,
@@ -139,7 +140,7 @@ impl Executer for R3Happy {
             let p2ps_in = p2ps_in.to_p2ps();
 
             return Box::new(r3::R3Sad {
-                my_secret_key_share: self.secret_key_share,
+                secret_key_share: self.secret_key_share,
                 all_keygen_ids: self.all_keygen_ids,
                 r1bcasts: self.r1bcasts,
                 r1p2ps: self.r1p2ps,
@@ -152,8 +153,6 @@ impl Executer for R3Happy {
             Self::P2p::Happy(p) => Ok(p),
             Self::P2p::Sad(_) => Err(TofnFatal),
         })?;
-
-        // DONE TO HERE
 
         let mut mta_complaints = info.new_fillvecmap();
 

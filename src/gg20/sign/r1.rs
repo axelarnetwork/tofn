@@ -165,11 +165,11 @@ mod malicious {
     pub fn corrupt_range_proof(
         my_sign_id: TypedUsize<SignShareId>,
         behaviour: &Behaviour,
-        peer_share_id: TypedUsize<SignShareId>,
+        peer_sign_id: TypedUsize<SignShareId>,
         range_proof: range::Proof,
     ) -> range::Proof {
         if let Behaviour::R1BadProof { victim } = behaviour {
-            if *victim == peer_share_id {
+            if *victim == peer_sign_id {
                 log_confess_info(my_sign_id, behaviour, "");
                 return paillier::zk::range::malicious::corrupt_proof(&range_proof);
             }

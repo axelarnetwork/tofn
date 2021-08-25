@@ -201,6 +201,7 @@ impl Executer for R6 {
             });
 
         // malicious actor falsely claim type 5 fault by comparing against a corrupted curve generator
+        // TODO how best to squelch build warnings without _ prefix?
         let _curve_generator = ProjectivePoint::generator();
         corrupt!(_curve_generator, self.corrupt_curve_generator(info.my_id()));
 
