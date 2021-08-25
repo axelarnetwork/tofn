@@ -1,5 +1,5 @@
 use crate::{
-    collections::{FillVecMap, FullP2ps, HoleVecMap, TypedUsize, VecMap},
+    collections::{zip2, FillVecMap, FullP2ps, HoleVecMap, P2ps, TypedUsize, VecMap},
     corrupt,
     gg20::{
         crypto_tools::{hash::Randomness, k256_serde, mta::Secret, paillier, zkp::pedersen},
@@ -52,35 +52,24 @@ pub(in super::super) struct Bcast {
 impl Executer for R4Happy {
     type FinalOutput = BytesVec;
     type Index = SignShareId;
-    type Bcast = r3::Bcast;
-    type P2p = ();
+    type Bcast = r3::BcastHappy;
+    type P2p = r3::P2pSad;
 
     #[allow(non_snake_case)]
     fn execute(
         self: Box<Self>,
         info: &ProtocolInfo<Self::Index>,
         bcasts_in: FillVecMap<Self::Index, Self::Bcast>,
-        p2ps_in: crate::collections::P2ps<Self::Index, Self::P2p>,
-    ) -> TofnResult<crate::sdk::implementer_api::ProtocolBuilder<Self::FinalOutput, Self::Index>>
-    {
+        p2ps_in: P2ps<Self::Index, Self::P2p>,
+    ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
         let my_sign_id = info.my_id();
         let mut faulters = info.new_fillvecmap();
 
-        // anyone who did not send a bcast is a faulter
-        for (peer_sign_id, bcast) in bcasts_in.iter() {
-            if bcast.is_none() {
+        // anyone who sent both bcast and p2p is a faulter
+        for (peer_sign_id, bcast_option, p2ps_option) in zip2(&bcasts_in, &p2ps_in) {
+            if bcast_option.is_some() && p2ps_option.is_some() {
                 warn!(
-                    "peer {} says: missing bcast from peer {}",
-                    my_sign_id, peer_sign_id
-                );
-                faulters.set(peer_sign_id, ProtocolFault)?;
-            }
-        }
-        // anyone who sent p2ps is a faulter
-        for (peer_sign_id, p2ps) in p2ps_in.iter() {
-            if p2ps.is_some() {
-                warn!(
-                    "peer {} says: unexpected p2ps from peer {}",
+                    "peer {} says: unexpected p2ps and bcast from peer {}",
                     my_sign_id, peer_sign_id
                 );
                 faulters.set(peer_sign_id, ProtocolFault)?;
@@ -91,12 +80,9 @@ impl Executer for R4Happy {
         }
 
         // if anyone complained then move to sad path
-        if bcasts_in
-            .iter()
-            .any(|(_, bcast_option)| matches!(bcast_option, Some(r3::Bcast::Sad(_))))
-        {
+        if p2ps_in.iter().any(|(_, p2ps_option)| p2ps_option.is_some()) {
             warn!(
-                "peer {} says: received an R3 complaint from others",
+                "peer {} says: received an R3 complaint from others--move to sad path",
                 my_sign_id,
             );
 
@@ -109,13 +95,8 @@ impl Executer for R4Happy {
             .execute(info, bcasts_in, p2ps_in);
         }
 
-        // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
+        // happy path: everyone sent bcast---unwrap all bcasts
         let bcasts_in = bcasts_in.to_vecmap()?;
-
-        let bcasts_in = bcasts_in.map2_result(|(_, bcast)| match bcast {
-            r3::Bcast::Happy(b) => Ok(b),
-            r3::Bcast::Sad(_) => Err(TofnFatal),
-        })?;
 
         for (peer_sign_id, bcast) in &bcasts_in {
             let peer_stmt = pedersen::Statement {
@@ -145,12 +126,7 @@ impl Executer for R4Happy {
             })
             .invert();
 
-        // TODO: A malicious attacker can make it so that the delta_i sum is equal to 0,
-        // so that delta_inv is not defined. While the protocol accounts for maliciously
-        // chosen delta_i values, it only does this verification later, and we need to
-        // compute delta_inv to reach that stage. So, this seems to be an oversight in the
-        // protocol spec. While the fix to identify the faulter is easy, this will be changed
-        // after discussion with the authors.
+        // TODO defend against undefined delta_inv attack https://github.com/axelarnetwork/tofn/issues/110
         if bool::from(delta_inv.is_none()) {
             warn!("peer {} says: delta inv computation failed", my_sign_id);
             return Err(TofnFatal);

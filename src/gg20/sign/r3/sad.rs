@@ -122,6 +122,7 @@ impl Executer for R3Sad {
                     my_sign_id, accuser_sign_id
                 );
                 faulters.set(accuser_sign_id, ProtocolFault)?;
+                continue;
             }
 
             for (accused_sign_id, accusation) in accusations {

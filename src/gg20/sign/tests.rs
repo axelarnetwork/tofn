@@ -177,16 +177,13 @@ fn execute_sign(
     let k_gamma = r3_parties
         .iter()
         .map(|party| {
-            let r3_bcast = bincode::deserialize(
+            let r3_bcast: r3::BcastHappy = bincode::deserialize(
                 &decode_message::<SignShareId>(party.bcast_out().unwrap())
                     .unwrap()
                     .payload,
             )
             .unwrap();
-            match r3_bcast {
-                r3::Bcast::Happy(h) => *h.delta_i.as_ref(),
-                r3::Bcast::Sad(_) => panic!("unexpected r3 sad path bcast"),
-            }
+            *r3_bcast.delta_i.as_ref()
         })
         .fold(k256::Scalar::zero(), |acc, delta_i| acc + delta_i);
 
