@@ -1,5 +1,5 @@
 use crate::{
-    collections::{FillVecMap, FullP2ps, P2ps, VecMap},
+    collections::{zip2, FillVecMap, FullP2ps, P2ps, VecMap},
     gg20::{
         crypto_tools::{paillier, vss},
         keygen::SecretKeyShare,
@@ -26,8 +26,8 @@ pub(in super::super) struct R4Sad {
 impl Executer for R4Sad {
     type FinalOutput = BytesVec;
     type Index = SignShareId;
-    type Bcast = r3::Bcast;
-    type P2p = ();
+    type Bcast = r3::BcastHappy;
+    type P2p = r3::P2pSad;
 
     #[allow(non_snake_case)]
     fn execute(
@@ -39,21 +39,11 @@ impl Executer for R4Sad {
         let my_sign_id = info.my_id();
         let mut faulters = info.new_fillvecmap();
 
-        // anyone who did not send a bcast is a faulter
-        for (peer_sign_id, bcast) in bcasts_in.iter() {
-            if bcast.is_none() {
+        // anyone who sent both bcast and p2p is a faulter
+        for (peer_sign_id, bcast_option, p2ps_option) in zip2(&bcasts_in, &p2ps_in) {
+            if bcast_option.is_some() && p2ps_option.is_some() {
                 warn!(
-                    "peer {} says: missing bcast from peer {}",
-                    my_sign_id, peer_sign_id
-                );
-                faulters.set(peer_sign_id, ProtocolFault)?;
-            }
-        }
-        // anyone who sent p2ps is a faulter
-        for (peer_sign_id, p2ps) in p2ps_in.iter() {
-            if p2ps.is_some() {
-                warn!(
-                    "peer {} says: unexpected p2ps from peer {}",
+                    "peer {} says: unexpected p2ps and bcast from peer {}",
                     my_sign_id, peer_sign_id
                 );
                 faulters.set(peer_sign_id, ProtocolFault)?;
@@ -63,58 +53,40 @@ impl Executer for R4Sad {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
-        // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
-        let bcasts_in = bcasts_in.to_vecmap()?;
-
-        let participants_count = info.total_share_count();
-
         // we should have received at least one complaint
-        if !bcasts_in
-            .iter()
-            .any(|(_, bcast)| matches!(bcast, r3::Bcast::Sad(_)))
-        {
+        if !p2ps_in.iter().any(|(_, p2ps_option)| p2ps_option.is_some()) {
             error!(
-                "peer {} says: received no R3 complaints from others in R4 failure protocol",
+                "peer {} says: received no R3 complaints from others in R4 sad path",
                 my_sign_id,
             );
-
             return Err(TofnFatal);
         }
 
-        let accusations_iter =
-            bcasts_in
-                .into_iter()
-                .filter_map(|(peer_sign_id, bcast)| match bcast {
-                    r3::Bcast::Happy(_) => None,
-                    r3::Bcast::Sad(accusations) => Some((peer_sign_id, accusations)),
-                });
+        let accusations_iter = p2ps_in
+            .into_iter()
+            .filter_map(|(peer_sign_id, p2ps_option)| p2ps_option.map(|p2ps| (peer_sign_id, p2ps)));
 
         // verify complaints
         for (accuser_sign_id, accusations) in accusations_iter {
-            if accusations.mta_complaints.size() != participants_count {
-                log_fault_info(
-                    my_sign_id,
-                    accuser_sign_id,
-                    "incorrect size of complaints vector",
+            // anyone who sent zero complaints is a faulter
+            if accusations
+                .iter()
+                .all(|(_, accusation)| accusation.mta_complaint == r3::Accusation::None)
+            {
+                warn!(
+                    "peer {} says: peer {} did not accuse anyone",
+                    my_sign_id, accuser_sign_id
                 );
-
                 faulters.set(accuser_sign_id, ProtocolFault)?;
                 continue;
             }
 
-            if accusations.mta_complaints.is_empty() {
-                log_fault_info(my_sign_id, accuser_sign_id, "no accusation found");
+            for (accused_sign_id, accusation) in accusations {
+                debug_assert_ne!(accused_sign_id, accuser_sign_id); // self accusation is impossible
 
-                faulters.set(accuser_sign_id, ProtocolFault)?;
-                continue;
-            }
-
-            for (accused_sign_id, accusation) in accusations.mta_complaints.iter_some() {
-                if accuser_sign_id == accused_sign_id {
-                    log_fault_info(my_sign_id, accuser_sign_id, "self accusation");
-                    faulters.set(accuser_sign_id, ProtocolFault)?;
-                    continue;
-                }
+                // if accusation.mta_complaint == r3::Accusation::None {
+                //     continue;
+                // }
 
                 let accused_keygen_id = *self.all_keygen_ids.get(accused_sign_id)?;
                 let accuser_keygen_id = *self.all_keygen_ids.get(accuser_sign_id)?;
@@ -136,7 +108,7 @@ impl Executer for R4Sad {
                 let p2p = self.r2p2ps.get(accused_sign_id, accuser_sign_id)?;
 
                 // check mta proofs
-                let (accusation_type, result) = match *accusation {
+                let (log_msg, correct_proof) = match accusation.mta_complaint {
                     r3::Accusation::MtA => {
                         let accused_stmt = paillier::zk::mta::Statement {
                             prover_id: accused_sign_id,
@@ -186,9 +158,10 @@ impl Executer for R4Sad {
                             accuser_zkp.verify_mta_proof_wc(&accused_stmt, &p2p.mu_proof),
                         )
                     }
+                    r3::Accusation::None => continue,
                 };
 
-                match result {
+                match correct_proof {
                     true => {
                         log_fault_info(my_sign_id, accuser_sign_id, "false r2 p2p accusation");
                         faulters.set(accuser_sign_id, ProtocolFault)?;
@@ -197,7 +170,7 @@ impl Executer for R4Sad {
                         log_fault_info(
                             my_sign_id,
                             accused_sign_id,
-                            &format!("invalid r2 p2p {} proof", accusation_type),
+                            &format!("invalid r2 p2p {} proof", log_msg),
                         );
                         faulters.set(accused_sign_id, ProtocolFault)?;
                     }
