@@ -98,19 +98,18 @@ impl Executer for R4Happy {
         // happy path: everyone sent bcast---unwrap all bcasts
         let bcasts_in = bcasts_in.to_vecmap()?;
 
+        // verify zk proof for step 2 of MtA k_i * gamma_j
         for (peer_sign_id, bcast) in &bcasts_in {
             let peer_stmt = pedersen::Statement {
                 prover_id: peer_sign_id,
                 commit: bcast.T_i.as_ref(),
             };
 
-            // verify zk proof for step 2 of MtA k_i * gamma_j
             if !pedersen::verify(&peer_stmt, &bcast.T_i_proof) {
                 warn!(
                     "peer {} says: pedersen proof failed to verify for peer {}",
                     my_sign_id, peer_sign_id,
                 );
-
                 faulters.set(peer_sign_id, ProtocolFault)?;
             }
         }

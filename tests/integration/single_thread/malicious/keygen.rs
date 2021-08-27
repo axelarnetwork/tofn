@@ -22,7 +22,6 @@ fn single_faults() {
 
 pub fn single_fault_test_case_list() -> Vec<TestCase> {
     let zero = TypedUsize::from_usize(0);
-    let one = TypedUsize::from_usize(1);
     vec![
         single_fault_test_case(R1BadCommit),
         single_fault_test_case(R1BadEncryptionKeyProof),
@@ -30,7 +29,6 @@ pub fn single_fault_test_case_list() -> Vec<TestCase> {
         single_fault_test_case(R2BadShare { victim: zero }),
         single_fault_test_case(R2BadEncryption { victim: zero }),
         single_fault_test_case(R3FalseAccusation { victim: zero }),
-        single_fault_test_case(R3FalseAccusation { victim: one }), // self accusation
         single_fault_test_case(R3BadXIWitness),
     ]
 }

@@ -1,7 +1,7 @@
 use tracing::{error, warn};
 
 use crate::{
-    collections::{FillVecMap, FullP2ps, P2ps, VecMap},
+    collections::{zip2, FillVecMap, FullP2ps, P2ps, VecMap},
     gg20::keygen::{r1, r2, r3, KeygenShareId, SecretKeyShare},
     sdk::{
         api::{Fault::ProtocolFault, TofnFatal, TofnResult},
@@ -19,8 +19,8 @@ pub(in super::super) struct R4Sad {
 impl Executer for R4Sad {
     type FinalOutput = SecretKeyShare;
     type Index = KeygenShareId;
-    type Bcast = r3::Bcast;
-    type P2p = ();
+    type Bcast = r3::BcastHappy;
+    type P2p = r3::P2pSad;
 
     #[allow(non_snake_case)]
     fn execute(
@@ -32,21 +32,11 @@ impl Executer for R4Sad {
         let my_keygen_id = info.my_id();
         let mut faulters = FillVecMap::with_size(info.total_share_count());
 
-        // anyone who did not send a bcast is a faulter
-        for (peer_keygen_id, bcast) in bcasts_in.iter() {
-            if bcast.is_none() {
+        // anyone who sent both bcast and p2p is a faulter
+        for (peer_keygen_id, bcast_option, p2ps_option) in zip2(&bcasts_in, &p2ps_in) {
+            if bcast_option.is_some() && p2ps_option.is_some() {
                 warn!(
-                    "peer {} says: missing bcast from peer {}",
-                    my_keygen_id, peer_keygen_id
-                );
-                faulters.set(peer_keygen_id, ProtocolFault)?;
-            }
-        }
-        // anyone who sent p2ps is a faulter
-        for (peer_keygen_id, p2ps) in p2ps_in.iter() {
-            if p2ps.is_some() {
-                warn!(
-                    "peer {} says: unexpected p2ps from peer {}",
+                    "peer {} says: unexpected p2ps and bcast from peer {}",
                     my_keygen_id, peer_keygen_id
                 );
                 faulters.set(peer_keygen_id, ProtocolFault)?;
@@ -56,55 +46,44 @@ impl Executer for R4Sad {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
-        // everyone sent a bcast---unwrap all bcasts
-        let bcasts_in = bcasts_in.to_vecmap()?;
-
         // we should have received at least one complaint
-        if !bcasts_in
-            .iter()
-            .any(|(_, bcast)| matches!(bcast, r3::Bcast::Sad(_)))
-        {
+        if !p2ps_in.iter().any(|(_, p2ps_option)| p2ps_option.is_some()) {
             error!(
-                "peer {} says: entered R4 sad path with no complaints",
-                my_keygen_id
+                "peer {} says: received no R4 complaints in R4 sad path",
+                my_keygen_id,
             );
             return Err(TofnFatal);
         }
 
-        let accusations_iter = bcasts_in
+        let accusations_iter = p2ps_in
             .into_iter()
-            .filter_map(|(from, bcast)| match bcast {
-                r3::Bcast::Happy(_) => None,
-                r3::Bcast::Sad(accusations) => Some((from, accusations)),
+            .filter_map(|(peer_keygen_id, p2ps_option)| {
+                p2ps_option.map(|p2ps| (peer_keygen_id, p2ps))
             });
 
         // verify complaints
         for (accuser_keygen_id, accusations) in accusations_iter {
-            if accusations.vss_complaints.size() != info.total_share_count() {
-                log_fault_info(
-                    my_keygen_id,
-                    accuser_keygen_id,
-                    "incorrect size of complaints vector",
+            // anyone who sent zero complaints is a faulter
+            if accusations
+                .iter()
+                .all(|(_, accusation)| accusation.vss_complaint.is_none())
+            {
+                warn!(
+                    "peer {} says: peer {} did not accuse anyone",
+                    my_keygen_id, accuser_keygen_id
                 );
-
                 faulters.set(accuser_keygen_id, ProtocolFault)?;
                 continue;
             }
 
-            if accusations.vss_complaints.is_empty() {
-                log_fault_info(my_keygen_id, accuser_keygen_id, "no accusation found");
+            let accusation_iter = accusations
+                .into_iter()
+                .filter_map(|(accused_keygen_id, p2p)| {
+                    p2p.vss_complaint.map(|c| (accused_keygen_id, c))
+                });
 
-                faulters.set(accuser_keygen_id, ProtocolFault)?;
-                continue;
-            }
-
-            for (accused_keygen_id, accusation) in accusations.vss_complaints.into_iter_some() {
-                if accuser_keygen_id == accused_keygen_id {
-                    log_fault_info(my_keygen_id, accuser_keygen_id, "self accusation");
-
-                    faulters.set(accuser_keygen_id, ProtocolFault)?;
-                    continue;
-                }
+            for (accused_keygen_id, accusation) in accusation_iter {
+                debug_assert_ne!(accused_keygen_id, accuser_keygen_id); // self accusation is impossible
 
                 // verify encryption
                 let accuser_ek = &self.r1bcasts.get(accuser_keygen_id)?.ek;

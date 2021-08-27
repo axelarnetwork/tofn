@@ -22,20 +22,14 @@ use super::{r1, r2, KeygenPartyShareCounts, KeygenShareId};
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub(super) enum Bcast {
-    Happy(BcastHappy),
-    Sad(BcastSad),
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) struct BcastHappy {
     pub(super) x_i_proof: schnorr::Proof,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct BcastSad {
-    pub(super) vss_complaints: FillVecMap<KeygenShareId, ShareInfo>,
+pub(super) struct P2pSad {
+    pub(super) vss_complaint: Option<ShareInfo>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,7 +63,7 @@ impl Executer for R3 {
         p2ps_in: P2ps<Self::Index, Self::P2p>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
         let my_keygen_id = info.my_id();
-        let mut faulters = FillVecMap::with_size(info.total_share_count());
+        let mut faulters = info.new_fillvecmap();
 
         // anyone who did not send a bcast is a faulter
         for (peer_keygen_id, bcast) in bcasts_in.iter() {
@@ -138,32 +132,38 @@ impl Executer for R3 {
         })?;
 
         // validate shares
-        let mut vss_complaints = FillVecMap::with_size(info.total_share_count());
-        for (peer_keygen_id, share_info) in share_infos.iter() {
-            if !bcasts_in
-                .get(peer_keygen_id)?
-                .u_i_vss_commit
-                .validate_share(&share_info.share)
-            {
-                log_accuse_warn(my_keygen_id, peer_keygen_id, "invalid vss share");
-
-                vss_complaints.set(
-                    peer_keygen_id,
-                    ShareInfo {
+        let vss_complaints = share_infos.clone_map2_result(|(peer_keygen_id, share_info)| {
+            Ok(
+                if !bcasts_in
+                    .get(peer_keygen_id)?
+                    .u_i_vss_commit
+                    .validate_share(&share_info.share)
+                {
+                    log_accuse_warn(my_keygen_id, peer_keygen_id, "invalid vss share");
+                    Some(ShareInfo {
                         share: share_info.share.clone(),
                         randomness: share_info.randomness.clone(),
-                    },
-                )?;
-            }
-        }
+                    })
+                } else {
+                    None
+                },
+            )
+        })?;
 
         corrupt!(
             vss_complaints,
             self.corrupt_complaint(my_keygen_id, &share_infos, vss_complaints)?
         );
 
-        if !vss_complaints.is_empty() {
-            let bcast_out = Some(serialize(&Bcast::Sad(BcastSad { vss_complaints }))?);
+        // move to sad path if we discovered any failures
+        if vss_complaints
+            .iter()
+            .any(|(_, complaint)| complaint.is_some())
+        {
+            let p2ps_out = Some(
+                vss_complaints
+                    .map2_result(|(_, vss_complaint)| serialize(&P2pSad { vss_complaint }))?,
+            );
 
             return Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
                 Box::new(r4::R4Sad {
@@ -171,8 +171,8 @@ impl Executer for R3 {
                     r2bcasts: bcasts_in,
                     r2p2ps: p2ps_in,
                 }),
-                bcast_out,
                 None,
+                p2ps_out,
             )));
         }
 
@@ -212,7 +212,7 @@ impl Executer for R3 {
             &schnorr::Witness { scalar: &x_i },
         );
 
-        let bcast_out = Some(serialize(&Bcast::Happy(BcastHappy { x_i_proof }))?);
+        let bcast_out = Some(serialize(&BcastHappy { x_i_proof })?);
 
         Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
             Box::new(r4::R4Happy {
@@ -241,8 +241,8 @@ impl Executer for R3 {
 mod malicious {
     use super::{ShareInfo, R3};
     use crate::{
-        collections::{FillVecMap, HoleVecMap, TypedUsize},
-        gg20::{crypto_tools::vss, keygen::KeygenShareId},
+        collections::{HoleVecMap, TypedUsize},
+        gg20::keygen::KeygenShareId,
         sdk::api::TofnResult,
     };
 
@@ -265,25 +265,15 @@ mod malicious {
             &self,
             keygen_id: TypedUsize<KeygenShareId>,
             share_infos: &HoleVecMap<KeygenShareId, ShareInfo>,
-            mut vss_complaints: FillVecMap<KeygenShareId, ShareInfo>,
-        ) -> TofnResult<FillVecMap<KeygenShareId, ShareInfo>> {
+            mut vss_complaints: HoleVecMap<KeygenShareId, Option<ShareInfo>>,
+        ) -> TofnResult<HoleVecMap<KeygenShareId, Option<ShareInfo>>> {
             if let Behaviour::R3FalseAccusation { victim } = self.behaviour {
-                if !vss_complaints.is_none(victim)? {
+                let complaint = vss_complaints.get_mut(victim)?;
+                if complaint.is_some() {
                     log_confess_info(keygen_id, &self.behaviour, "but the accusation is true");
-                } else if victim == keygen_id {
-                    log_confess_info(keygen_id, &self.behaviour, "self accusation");
-
-                    vss_complaints.set(
-                        victim,
-                        ShareInfo {
-                            share: vss::Share::from_scalar(k256::Scalar::one(), 1), // junk data
-                            randomness: self.r1bcasts.get(keygen_id)?.ek.sample_randomness(), // junk data
-                        },
-                    )?;
                 } else {
                     log_confess_info(keygen_id, &self.behaviour, "");
-
-                    vss_complaints.set(victim, share_infos.get(victim)?.clone())?;
+                    *complaint = Some(share_infos.get(victim)?.clone());
                 }
             }
 
