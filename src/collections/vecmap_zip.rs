@@ -1,28 +1,13 @@
 use super::{vecmap_iter::VecMapIter, TypedUsize};
 
-pub fn zip2<'a, K, V0, V1>(
-    v0: impl IntoIterator<IntoIter = VecMapIter<K, std::slice::Iter<'a, V0>>>,
-    v1: impl IntoIterator<IntoIter = VecMapIter<K, std::slice::Iter<'a, V1>>>,
-) -> Zip2<K, std::slice::Iter<'a, V0>, std::slice::Iter<'a, V1>> {
-    Zip2::new(v0.into_iter(), v1.into_iter())
-}
-
-pub fn zip3<'a, K, V0, V1, V2>(
-    v0: impl IntoIterator<IntoIter = VecMapIter<K, std::slice::Iter<'a, V0>>>,
-    v1: impl IntoIterator<IntoIter = VecMapIter<K, std::slice::Iter<'a, V1>>>,
-    v2: impl IntoIterator<IntoIter = VecMapIter<K, std::slice::Iter<'a, V2>>>,
-) -> Zip3<K, std::slice::Iter<'a, V0>, std::slice::Iter<'a, V1>, std::slice::Iter<'a, V2>> {
-    Zip3::new(v0.into_iter(), v1.into_iter(), v2.into_iter())
-}
-
-pub fn xzip2<K, I0, I1>(
+pub fn zip2<K, I0, I1>(
     v0: impl IntoIterator<IntoIter = VecMapIter<K, I0>>,
     v1: impl IntoIterator<IntoIter = VecMapIter<K, I1>>,
 ) -> Zip2<K, I0, I1> {
     Zip2::new(v0.into_iter(), v1.into_iter())
 }
 
-pub fn xzip3<K, I0, I1, I2>(
+pub fn zip3<K, I0, I1, I2>(
     v0: impl IntoIterator<IntoIter = VecMapIter<K, I0>>,
     v1: impl IntoIterator<IntoIter = VecMapIter<K, I1>>,
     v2: impl IntoIterator<IntoIter = VecMapIter<K, I2>>,

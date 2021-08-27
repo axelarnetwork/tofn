@@ -1,5 +1,5 @@
 use crate::{
-    collections::{xzip2, FillVecMap, FullP2ps, P2ps, VecMap},
+    collections::{zip2, FillVecMap, FullP2ps, P2ps, VecMap},
     gg20::{
         crypto_tools::paillier,
         keygen::SecretKeyShare,
@@ -47,7 +47,7 @@ impl Executer for R7Sad {
         }
 
         // verify complaints
-        for (accuser_sign_id, p2ps_option, path) in xzip2(p2ps_in, paths) {
+        for (accuser_sign_id, p2ps_option, path) in zip2(p2ps_in, paths) {
             if !matches!(path, R7Path::Sad) {
                 continue;
             }

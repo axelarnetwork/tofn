@@ -1,5 +1,5 @@
 use crate::{
-    collections::{xzip3, FillVecMap, FullP2ps, P2ps, VecMap},
+    collections::{zip3, FillVecMap, FullP2ps, P2ps, VecMap},
     gg20::{
         crypto_tools::mta,
         keygen::SecretKeyShare,
@@ -84,7 +84,7 @@ impl Executer for R7Type5 {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
-        for (peer_sign_id, bcast_option, p2ps_option, path) in xzip3(bcasts_in, p2ps_in, paths) {
+        for (peer_sign_id, bcast_option, p2ps_option, path) in zip3(bcasts_in, p2ps_in, paths) {
             if !matches!(path, R7Path::SadType5) {
                 continue;
             }
