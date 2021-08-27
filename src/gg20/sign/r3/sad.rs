@@ -81,6 +81,7 @@ impl Executer for R3Sad {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
+        // TODO sloppy, do like r7 sad path instead, there's already a sanity check at the end
         let all_accusations: Vec<(_, HoleVecMap<_, r2::P2pSad>)> = p2ps_in
             .into_iter()
             .filter_map(|(from, p2ps)| {

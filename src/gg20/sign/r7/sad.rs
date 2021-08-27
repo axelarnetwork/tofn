@@ -1,9 +1,9 @@
 use crate::{
-    collections::{FillVecMap, FullP2ps, P2ps, VecMap},
+    collections::{xzip2, FillVecMap, FullP2ps, P2ps, VecMap},
     gg20::{
         crypto_tools::paillier,
         keygen::SecretKeyShare,
-        sign::{KeygenShareIds, SignShareId},
+        sign::{r7::R7Path, KeygenShareIds, SignShareId},
     },
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
@@ -11,7 +11,7 @@ use crate::{
     },
 };
 use k256::ProjectivePoint;
-use tracing::{error, warn};
+use tracing::error;
 
 use super::super::{r1, r5, r6};
 
@@ -29,7 +29,7 @@ impl Executer for R7Sad {
     type FinalOutput = BytesVec;
     type Index = SignShareId;
     type Bcast = r6::Bcast;
-    type P2p = ();
+    type P2p = r6::P2p;
 
     #[allow(non_snake_case)]
     fn execute(
@@ -41,80 +41,35 @@ impl Executer for R7Sad {
         let my_sign_id = info.my_id();
         let mut faulters = info.new_fillvecmap();
 
-        // anyone who did not send a bcast is a faulter
-        for (peer_sign_id, bcast) in bcasts_in.iter() {
-            if bcast.is_none() {
-                warn!(
-                    "peer {} says: missing bcast from peer {}",
-                    my_sign_id, peer_sign_id
-                );
-                faulters.set(peer_sign_id, ProtocolFault)?;
-            }
-        }
-        // anyone who sent p2ps is a faulter
-        for (peer_sign_id, p2ps) in p2ps_in.iter() {
-            if p2ps.is_some() {
-                warn!(
-                    "peer {} says: unexpected p2ps from peer {}",
-                    my_sign_id, peer_sign_id
-                );
-                faulters.set(peer_sign_id, ProtocolFault)?;
-            }
-        }
+        let paths = super::check_message_types(info, &bcasts_in, &p2ps_in, &mut faulters)?;
         if !faulters.is_empty() {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
-        // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
-        let bcasts_in = bcasts_in.to_vecmap()?;
-
-        // we should have received at least one complaint
-        if !bcasts_in
-            .iter()
-            .any(|(_, bcast)| matches!(bcast, r6::Bcast::Sad(_)))
-        {
+        // sanity check
+        if !paths.iter().any(|(_, path)| matches!(path, R7Path::Sad)) {
             error!(
-                "peer {} says: received no R6 complaints from others while in sad path",
+                "peer {} says: unreachable: I'm in sad path but no one complained",
                 my_sign_id,
             );
-
             return Err(TofnFatal);
         }
 
-        // We prioritize complaints over type 5 faults and happy bcasts, so ignore those
-        let accusations_iter =
-            bcasts_in
-                .into_iter()
-                .filter_map(|(peer_sign_id, bcast)| match bcast {
-                    r6::Bcast::Sad(accusations) => Some((peer_sign_id, accusations)),
-                    _ => None,
-                });
-
         // verify complaints
-        for (accuser_sign_id, accusations) in accusations_iter {
-            if accusations.zkp_complaints.max_size() != info.total_share_count() {
-                log_fault_info(
-                    my_sign_id,
-                    accuser_sign_id,
-                    "incorrect size of complaints vector",
-                );
-
-                faulters.set(accuser_sign_id, ProtocolFault)?;
+        for (accuser_sign_id, p2ps_option, path) in xzip2(p2ps_in, paths) {
+            if !matches!(path, R7Path::Sad) {
                 continue;
             }
+            let p2ps = p2ps_option.ok_or(TofnFatal)?;
 
-            if accusations.zkp_complaints.is_empty() {
-                log_fault_info(my_sign_id, accuser_sign_id, "no accusation found");
+            for (accused_sign_id, p2p) in p2ps.iter() {
+                debug_assert_ne!(accused_sign_id, accuser_sign_id); // self accusation is impossible
 
-                faulters.set(accuser_sign_id, ProtocolFault)?;
-                continue;
-            }
-
-            for accused_sign_id in accusations.zkp_complaints.iter() {
-                if accuser_sign_id == accused_sign_id {
-                    log_fault_info(my_sign_id, accuser_sign_id, "self accusation");
-
-                    faulters.set(accuser_sign_id, ProtocolFault)?;
+                let zkp_complaint = match p2p {
+                    r6::P2p::Sad(p2p_sad) => p2p_sad.zkp_complaint,
+                    r6::P2p::SadType5(_) => return Err(TofnFatal),
+                };
+                if !zkp_complaint {
                     continue;
                 }
 
@@ -169,6 +124,7 @@ impl Executer for R7Sad {
             }
         }
 
+        // sanity check
         if faulters.is_empty() {
             error!(
                 "peer {} says: R7 failure protocol found no faulters",

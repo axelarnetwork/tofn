@@ -15,6 +15,21 @@ pub fn zip3<'a, K, V0, V1, V2>(
     Zip3::new(v0.into_iter(), v1.into_iter(), v2.into_iter())
 }
 
+pub fn xzip2<K, I0, I1>(
+    v0: impl IntoIterator<IntoIter = VecMapIter<K, I0>>,
+    v1: impl IntoIterator<IntoIter = VecMapIter<K, I1>>,
+) -> Zip2<K, I0, I1> {
+    Zip2::new(v0.into_iter(), v1.into_iter())
+}
+
+pub fn xzip3<K, I0, I1, I2>(
+    v0: impl IntoIterator<IntoIter = VecMapIter<K, I0>>,
+    v1: impl IntoIterator<IntoIter = VecMapIter<K, I1>>,
+    v2: impl IntoIterator<IntoIter = VecMapIter<K, I2>>,
+) -> Zip3<K, I0, I1, I2> {
+    Zip3::new(v0.into_iter(), v1.into_iter(), v2.into_iter())
+}
+
 pub struct Zip2<K, I0, I1> {
     iter0: VecMapIter<K, I0>,
     iter1: VecMapIter<K, I1>,
