@@ -1,7 +1,7 @@
 use tracing::warn;
 
 use crate::{
-    collections::{FillVecMap, FullP2ps, P2ps, VecMap},
+    collections::{zip2, FillVecMap, FullP2ps, P2ps, VecMap},
     gg20::{
         crypto_tools::{paillier, zkp::schnorr},
         keygen::{
@@ -10,7 +10,7 @@ use crate::{
         },
     },
     sdk::{
-        api::{Fault::ProtocolFault, TofnFatal, TofnResult},
+        api::{Fault::ProtocolFault, TofnResult},
         implementer_api::{log_fault_warn, Executer, ProtocolBuilder, ProtocolInfo},
     },
 };
@@ -31,8 +31,8 @@ pub(in super::super) struct R4Happy {
 impl Executer for R4Happy {
     type FinalOutput = SecretKeyShare;
     type Index = KeygenShareId;
-    type Bcast = r3::Bcast;
-    type P2p = ();
+    type Bcast = r3::BcastHappy;
+    type P2p = r3::P2pSad;
 
     fn execute(
         self: Box<Self>,
@@ -44,21 +44,11 @@ impl Executer for R4Happy {
         let mut faulters = FillVecMap::with_size(info.total_share_count());
 
         // TODO boilerplate
-        // anyone who did not send a bcast is a faulter
-        for (peer_keygen_id, bcast) in bcasts_in.iter() {
-            if bcast.is_none() {
+        // anyone who sent both bcast and p2p is a faulter
+        for (peer_keygen_id, bcast_option, p2ps_option) in zip2(&bcasts_in, &p2ps_in) {
+            if bcast_option.is_some() && p2ps_option.is_some() {
                 warn!(
-                    "peer {} says: missing bcast from peer {}",
-                    my_keygen_id, peer_keygen_id
-                );
-                faulters.set(peer_keygen_id, ProtocolFault)?;
-            }
-        }
-        // anyone who sent p2ps is a faulter
-        for (peer_keygen_id, p2ps) in p2ps_in.iter() {
-            if p2ps.is_some() {
-                warn!(
-                    "peer {} says: unexpected p2ps from peer {}",
+                    "peer {} says: unexpected p2ps and bcast from peer {}",
                     my_keygen_id, peer_keygen_id
                 );
                 faulters.set(peer_keygen_id, ProtocolFault)?;
@@ -68,13 +58,10 @@ impl Executer for R4Happy {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
-        // move to sad path if necessary
-        if bcasts_in
-            .iter()
-            .any(|(_, bcast_option)| matches!(bcast_option, Some(r3::Bcast::Sad(_))))
-        {
+        // if anyone complained then move to sad path
+        if p2ps_in.iter().any(|(_, p2ps_option)| p2ps_option.is_some()) {
             warn!(
-                "peer {} says: received R4 complaints from others",
+                "peer {} says: received R4 complaints from others--move to sad path",
                 my_keygen_id,
             );
             return Box::new(R4Sad {
@@ -85,15 +72,8 @@ impl Executer for R4Happy {
             .execute(info, bcasts_in, p2ps_in);
         }
 
-        // TODO combine the next two lines in a new FillVecMap::map2_result method?
-        // everyone sent a bcast---unwrap all bcasts
+        // happy path: everyone sent bcast---unwrap all bcasts
         let bcasts_in = bcasts_in.to_vecmap()?;
-
-        // we are now in happy path, so there should only be BcastHappy msgs
-        let bcasts_in = bcasts_in.map2_result(|(_, bcast)| match bcast {
-            r3::Bcast::Happy(h) => Ok(h),
-            r3::Bcast::Sad(_) => Err(TofnFatal),
-        })?;
 
         // verify proofs
         for (peer_keygen_id, bcast) in bcasts_in.iter() {
@@ -106,11 +86,9 @@ impl Executer for R4Happy {
                 &bcast.x_i_proof,
             ) {
                 log_fault_warn(my_keygen_id, peer_keygen_id, "bad DL proof");
-
                 faulters.set(peer_keygen_id, ProtocolFault)?;
             }
         }
-
         if !faulters.is_empty() {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
