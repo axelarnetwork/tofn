@@ -85,6 +85,16 @@ fn check_message_types(
                     );
                     faulters.set(peer_sign_id, ProtocolFault)?;
                 }
+                if p2ps.iter().all(|(_, p2p)| match p2p {
+                    r6::P2p::Sad(p2p_sad) => !p2p_sad.zkp_complaint,
+                    r6::P2p::SadType5(_) => true,
+                }) {
+                    warn!(
+                        "peer {} says: peer {} sent zero complaints in sad path",
+                        my_sign_id, peer_sign_id,
+                    );
+                    faulters.set(peer_sign_id, ProtocolFault)?;
+                }
                 paths.push(R7Path::Sad);
             }
             (Some(bcast), None) => {

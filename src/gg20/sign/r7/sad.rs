@@ -46,15 +46,6 @@ impl Executer for R7Sad {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
-        // sanity check
-        if !paths.iter().any(|(_, path)| matches!(path, R7Path::Sad)) {
-            error!(
-                "peer {} says: unreachable: I'm in sad path but no one complained",
-                my_sign_id,
-            );
-            return Err(TofnFatal);
-        }
-
         // verify complaints
         for (accuser_sign_id, p2ps_option, path) in xzip2(p2ps_in, paths) {
             if !matches!(path, R7Path::Sad) {
@@ -62,7 +53,7 @@ impl Executer for R7Sad {
             }
             let p2ps = p2ps_option.ok_or(TofnFatal)?;
 
-            for (accused_sign_id, p2p) in p2ps.iter() {
+            for (accused_sign_id, p2p) in p2ps {
                 debug_assert_ne!(accused_sign_id, accuser_sign_id); // self accusation is impossible
 
                 let zkp_complaint = match p2p {
