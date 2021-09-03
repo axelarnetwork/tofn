@@ -54,7 +54,7 @@ impl Executer for R8Type7 {
         for (share_id, bcast) in bcasts_in.iter() {
             if bcast.is_none() {
                 warn!(
-                    "peer {} says: missing bcast from peer {}",
+                    "peer {} says: missing bcast from peer {} in round 8 type-7 sad path",
                     my_sign_id, share_id
                 );
                 faulters.set(share_id, ProtocolFault)?;

@@ -61,7 +61,7 @@ impl Executer for R2 {
         for (peer_keygen_id, bcast) in bcasts_in.iter() {
             if bcast.is_none() {
                 warn!(
-                    "peer {} says: missing bcast from peer {}",
+                    "peer {} says: missing bcast from peer {} in round 2",
                     my_keygen_id, peer_keygen_id
                 );
                 faulters.set(peer_keygen_id, ProtocolFault)?;

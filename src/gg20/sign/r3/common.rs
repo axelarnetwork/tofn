@@ -50,7 +50,7 @@ pub fn check_message_types(
                     r2::P2p::Sad(p2p_sad) => !p2p_sad.zkp_complaint,
                 }) {
                     warn!(
-                        "peer {} says: peer {} sent zero complaints in sad path",
+                        "peer {} says: peer {} sent zero complaints in round 3 sad path",
                         my_sign_id, peer_sign_id,
                     );
                     faulters.set(peer_sign_id, ProtocolFault)?;
@@ -58,24 +58,20 @@ pub fn check_message_types(
                 paths.push(R3Path::Sad);
             } else {
                 warn!(
-                    "peer {} says: conflicting happy/sad p2ps from peer {}",
+                    "peer {} says: conflicting happy/sad p2ps from peer {} in round 3",
                     my_sign_id, peer_sign_id
                 );
                 faulters.set(peer_sign_id, ProtocolFault)?;
             }
         } else {
             warn!(
-                "peer {} says: missing p2ps from peer {}",
+                "peer {} says: missing p2ps from peer {} in round 3",
                 my_sign_id, peer_sign_id
             );
             faulters.set(peer_sign_id, ProtocolFault)?;
         }
     }
-    debug_assert!(if faulters.is_empty() {
-        paths.len() == info.total_share_count()
-    } else {
-        true
-    }); // sanity check
+    debug_assert!(!faulters.is_empty() || paths.len() == info.total_share_count()); // sanity check
     Ok(VecMap::from_vec(paths))
 }
 
