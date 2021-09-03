@@ -8,7 +8,11 @@ use crate::{
         },
         keygen::{KeygenShareId, SecretKeyShare},
         sign::{
-            r7::{self, Bcast, BcastHappy, BcastSadType7, MtaWcPlaintext, R7Path},
+            r7::{
+                self,
+                common::{check_message_types, R7Path},
+                Bcast, BcastHappy, BcastSadType7, MtaWcPlaintext,
+            },
             KeygenShareIds, SignShareId,
         },
     },
@@ -63,7 +67,7 @@ impl Executer for R7Happy {
         let my_sign_id = info.my_id();
         let mut faulters = info.new_fillvecmap();
 
-        let paths = super::check_message_types(info, &bcasts_in, &p2ps_in, &mut faulters)?;
+        let paths = check_message_types(info, &bcasts_in, &p2ps_in, &mut faulters)?;
         if !faulters.is_empty() {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }

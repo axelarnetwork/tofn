@@ -5,7 +5,10 @@ use crate::{
         keygen::SecretKeyShare,
         sign::{
             r2, r4,
-            r7::{self, R7Path},
+            r7::{
+                self,
+                common::{check_message_types, R7Path},
+            },
             KeygenShareIds,
         },
     },
@@ -48,7 +51,7 @@ impl Executer for R7Type5 {
         let my_sign_id = info.my_id();
         let mut faulters = info.new_fillvecmap();
 
-        let paths = super::check_message_types(info, &bcasts_in, &p2ps_in, &mut faulters)?;
+        let paths = check_message_types(info, &bcasts_in, &p2ps_in, &mut faulters)?;
         if !faulters.is_empty() {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }

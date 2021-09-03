@@ -48,38 +48,38 @@ pub(super) struct R6 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) enum Bcast {
+pub enum Bcast {
     Happy(BcastHappy),
     SadType5(BcastSadType5),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) enum P2p {
+pub enum P2p {
     Sad(P2pSad),
     SadType5(P2pSadType5),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(non_snake_case)]
-pub(super) struct BcastHappy {
+pub struct BcastHappy {
     pub(super) S_i: k256_serde::ProjectivePoint,
     pub(super) S_i_proof_wc: pedersen::ProofWc,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct BcastSadType5 {
+pub struct BcastSadType5 {
     pub(super) k_i: k256_serde::Scalar,
     pub(super) k_i_randomness: paillier::Randomness,
     pub(super) gamma_i: k256_serde::Scalar,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct P2pSad {
+pub struct P2pSad {
     pub(super) zkp_complaint: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct P2pSadType5 {
+pub struct P2pSadType5 {
     pub(super) mta_palintext: MtaPlaintext,
 }
 
