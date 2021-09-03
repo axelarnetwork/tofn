@@ -3,7 +3,7 @@ use crate::{
     gg20::{
         crypto_tools::paillier,
         keygen::SecretKeyShare,
-        sign::{r3::R3Path, KeygenShareIds},
+        sign::{r3::common::R3Path, KeygenShareIds},
     },
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
@@ -13,7 +13,10 @@ use crate::{
 
 use tracing::error;
 
-use super::super::{r1, r2, SignShareId};
+use super::{
+    super::{r1, r2, SignShareId},
+    common::check_message_types,
+};
 
 #[allow(non_snake_case)]
 pub(in super::super) struct R3Sad {
@@ -39,7 +42,7 @@ impl Executer for R3Sad {
         let my_sign_id = info.my_id();
         let mut faulters = info.new_fillvecmap();
 
-        let paths = super::check_message_types(info, &bcasts_in, &p2ps_in, &mut faulters)?;
+        let paths = check_message_types(info, &bcasts_in, &p2ps_in, &mut faulters)?;
         if !faulters.is_empty() {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }

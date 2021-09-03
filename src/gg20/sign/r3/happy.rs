@@ -5,7 +5,10 @@ use crate::{
         crypto_tools::{hash::Randomness, k256_serde, mta::Secret, paillier, vss, zkp::pedersen},
         keygen::{KeygenShareId, SecretKeyShare},
         sign::{
-            r3::{self, R3Path},
+            r3::{
+                self,
+                common::{check_message_types, R3Path},
+            },
             r4, KeygenShareIds,
         },
     },
@@ -81,7 +84,7 @@ impl Executer for R3Happy {
         let my_sign_id = info.my_id();
         let mut faulters = info.new_fillvecmap();
 
-        let paths = super::check_message_types(info, &bcasts_in, &p2ps_in, &mut faulters)?;
+        let paths = check_message_types(info, &bcasts_in, &p2ps_in, &mut faulters)?;
         if !faulters.is_empty() {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }

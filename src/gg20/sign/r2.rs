@@ -41,13 +41,13 @@ pub(super) struct R2 {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(super) enum P2p {
+pub enum P2p {
     Happy(P2pHappy),
     Sad(P2pSad),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(super) struct P2pHappy {
+pub struct P2pHappy {
     pub(super) alpha_ciphertext: Ciphertext,
     pub(super) alpha_proof: paillier::zk::mta::Proof,
     pub(super) mu_ciphertext: Ciphertext,
@@ -55,7 +55,7 @@ pub(super) struct P2pHappy {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(super) struct P2pSad {
+pub struct P2pSad {
     pub(super) zkp_complaint: bool,
 }
 

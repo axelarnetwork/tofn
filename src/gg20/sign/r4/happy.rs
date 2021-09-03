@@ -65,6 +65,8 @@ impl Executer for R4Happy {
         let my_sign_id = info.my_id();
         let mut faulters = info.new_fillvecmap();
 
+        // TODO make this round look like r3, r7
+
         // anyone who sent both bcast and p2p is a faulter
         for (peer_sign_id, bcast_option, p2ps_option) in zip2(&bcasts_in, &p2ps_in) {
             if bcast_option.is_some() && p2ps_option.is_some() {
