@@ -161,32 +161,32 @@ impl Executer for R7Type5 {
             }
 
             // beta_ij, alpha_ij
-            for (to_peer_sign_id, peer_mta_plaintext) in peer_mta_plaintexts {
-                let keygen_peer2_id = *self.all_keygen_ids.get(to_peer_sign_id)?;
+            for (receiver_sign_id, peer_mta_plaintext) in peer_mta_plaintexts {
+                let receiver_keygen_id = *self.all_keygen_ids.get(receiver_sign_id)?;
 
                 // beta_ij
-                let peer2_ek = &self
+                let receiver_ek = &self
                     .secret_key_share
                     .group()
                     .all_shares()
-                    .get(keygen_peer2_id)?
+                    .get(receiver_keygen_id)?
                     .ek();
-                let peer2_k_i_ciphertext = &self.r1bcasts.get(to_peer_sign_id)?.k_i_ciphertext;
-                let peer2_alpha_ciphertext = &self
+                let receiver_k_i_ciphertext = &self.r1bcasts.get(receiver_sign_id)?.k_i_ciphertext;
+                let receiver_alpha_ciphertext = &self
                     .r2p2ps
-                    .get(peer_sign_id, to_peer_sign_id)?
+                    .get(peer_sign_id, receiver_sign_id)?
                     .alpha_ciphertext;
 
                 if !mta::verify_mta_response(
-                    peer2_ek,
-                    peer2_k_i_ciphertext,
+                    receiver_ek,
+                    receiver_k_i_ciphertext,
                     bcast_type5.gamma_i.as_ref(),
-                    peer2_alpha_ciphertext,
+                    receiver_alpha_ciphertext,
                     &peer_mta_plaintext.beta_secret,
                 ) {
                     warn!(
                         "peer {} says: invalid beta from peer {} to victim peer {}",
-                        my_sign_id, peer_sign_id, to_peer_sign_id
+                        my_sign_id, peer_sign_id, receiver_sign_id
                     );
 
                     faulters.set(peer_sign_id, ProtocolFault)?;
@@ -201,12 +201,12 @@ impl Executer for R7Type5 {
                 if peer_alpha_ciphertext
                     != self
                         .r2p2ps
-                        .get(to_peer_sign_id, peer_sign_id)?
+                        .get(receiver_sign_id, peer_sign_id)?
                         .alpha_ciphertext
                 {
                     warn!(
                         "peer {} says: invalid alpha from peer {} to victim peer {}",
-                        my_sign_id, peer_sign_id, to_peer_sign_id
+                        my_sign_id, peer_sign_id, receiver_sign_id
                     );
 
                     faulters.set(peer_sign_id, ProtocolFault)?;
