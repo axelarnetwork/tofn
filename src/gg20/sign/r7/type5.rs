@@ -1,5 +1,5 @@
 use crate::{
-    collections::{zip3, FillVecMap, FullP2ps, P2ps, VecMap},
+    collections::{zip2, FillVecMap, FullP2ps, P2ps, VecMap},
     gg20::{
         crypto_tools::mta,
         keygen::SecretKeyShare,
@@ -59,7 +59,7 @@ impl Executer for R7Type5 {
         // if anyone complained then move to sad path
         if paths.iter().any(|(_, path)| matches!(path, R7Path::Sad)) {
             warn!(
-                "peer {} says: received an R6 complaint from others---switch path type 5 -> sad",
+                "peer {} says: received an R6 complaint from others---switch path type-5 -> sad",
                 my_sign_id,
             );
             return Box::new(r7::sad::R7Sad {
@@ -87,22 +87,26 @@ impl Executer for R7Type5 {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
-        for (peer_sign_id, bcast_option, p2ps_option, path) in zip3(bcasts_in, p2ps_in, paths) {
-            if !matches!(path, R7Path::SadType5) {
-                continue;
+        // type-5 sad path: everyone is in R7Path::SadType5--unwrap bcast and p2p into expected types
+        // TODO combine to_vecmap() and to_fullp2ps() into new map2_result methods?
+        let bcasts_in = bcasts_in.to_vecmap()?;
+        let bcasts_in = bcasts_in.map2_result(|(_, bcast)| {
+            if let r6::Bcast::SadType5(t) = bcast {
+                Ok(t)
+            } else {
+                Err(TofnFatal)
             }
-            let bcast_type5 = match bcast_option {
-                Some(r6::Bcast::SadType5(h)) => h,
-                _ => return Err(TofnFatal),
-            };
-            let peer_mta_plaintexts = p2ps_option.ok_or(TofnFatal)?.map2_result(|(_, p2p)| {
-                if let r6::P2p::SadType5(t) = p2p {
-                    Ok(t.mta_palintext)
-                } else {
-                    Err(TofnFatal)
-                }
-            })?;
+        })?;
+        let p2ps_in = p2ps_in.to_fullp2ps()?;
+        let p2ps_in = p2ps_in.map2_result(|(_, p2p)| {
+            if let r6::P2p::SadType5(t) = p2p {
+                Ok(t.mta_palintext)
+            } else {
+                Err(TofnFatal)
+            }
+        })?;
 
+        for (peer_sign_id, bcast_type5, peer_mta_plaintexts) in zip2(bcasts_in, p2ps_in) {
             // verify correct computation of delta_i
             let delta_i = peer_mta_plaintexts.iter().fold(
                 bcast_type5.k_i.as_ref() * bcast_type5.gamma_i.as_ref(),
