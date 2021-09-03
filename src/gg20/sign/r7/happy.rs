@@ -11,7 +11,7 @@ use crate::{
             r7::{
                 self,
                 common::{check_message_types, R7Path},
-                Bcast, BcastHappy, BcastSadType7, MtaWcPlaintext,
+                Bcast, BcastHappy, BcastSadType7, P2p,
             },
             KeygenShareIds, SignShareId,
         },
@@ -149,18 +149,18 @@ impl Executer for R7Happy {
             warn!("peer {} says: 'type 7' fault detected", my_sign_id);
 
             // recover encryption randomness for mu; need to decrypt again to do so
-            let mta_wc_plaintexts = self.r2p2ps.map_to_me(my_sign_id, |p2p| {
+            let p2ps_out = Some(self.r2p2ps.map_to_me2_result(my_sign_id, |(_, p2p)| {
                 let (mu_plaintext, mu_randomness) = self
                     .secret_key_share
                     .share()
                     .dk()
                     .decrypt_with_randomness(&p2p.mu_ciphertext);
 
-                MtaWcPlaintext {
+                serialize(&P2p {
                     mu_plaintext,
                     mu_randomness,
-                }
-            })?;
+                })
+            })?);
 
             let proof = chaum_pedersen::prove(
                 &chaum_pedersen::Statement {
@@ -179,7 +179,6 @@ impl Executer for R7Happy {
                 k_i: self.k_i.into(),
                 k_i_randomness: self.k_i_randomness.clone(),
                 proof,
-                mta_wc_plaintexts,
             }))?);
 
             return Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
@@ -194,7 +193,7 @@ impl Executer for R7Happy {
                     r6bcasts: bcasts_in,
                 }),
                 bcast_out,
-                None,
+                p2ps_out,
             )));
         }
 
