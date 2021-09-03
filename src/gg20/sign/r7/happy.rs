@@ -145,6 +145,9 @@ impl Executer for R7Happy {
                 acc + bcast.S_i.as_ref()
             });
 
+        // malicious actor falsely claim type 7 fault by comparing against a corrupted S_i_sum
+        corrupt!(S_i_sum, self.corrupt_S_i_sum(info.my_id(), S_i_sum));
+
         if &S_i_sum != self.secret_key_share.group().y().as_ref() {
             warn!("peer {} says: 'type 7' fault detected", my_sign_id);
 
@@ -258,6 +261,19 @@ mod malicious {
                 s_i += k256::Scalar::one();
             }
             s_i
+        }
+
+        #[allow(non_snake_case)]
+        pub fn corrupt_S_i_sum(
+            &self,
+            sign_id: TypedUsize<SignShareId>,
+            mut S_i: k256::ProjectivePoint,
+        ) -> k256::ProjectivePoint {
+            if let R7FalseType7Claim = self.behaviour {
+                log_confess_info(sign_id, &self.behaviour, "");
+                S_i += k256::ProjectivePoint::generator();
+            }
+            S_i
         }
     }
 }
