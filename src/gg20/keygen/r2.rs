@@ -71,7 +71,7 @@ impl Executer for R2 {
         for (peer_keygen_id, p2ps) in p2ps_in.iter() {
             if p2ps.is_some() {
                 warn!(
-                    "peer {} says: unexpected p2ps from peer {}",
+                    "peer {} says: unexpected p2ps from peer {} in round 2",
                     my_keygen_id, peer_keygen_id
                 );
                 faulters.set(peer_keygen_id, ProtocolFault)?;

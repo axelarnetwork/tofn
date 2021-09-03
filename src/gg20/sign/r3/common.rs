@@ -31,7 +31,7 @@ pub fn check_message_types(
     for (peer_sign_id, bcast) in bcasts_in.iter() {
         if bcast.is_some() {
             warn!(
-                "peer {} says: unexpected bcast from peer {}",
+                "peer {} says: unexpected bcast from peer {} in round 3",
                 my_sign_id, peer_sign_id
             );
             faulters.set(peer_sign_id, ProtocolFault)?;

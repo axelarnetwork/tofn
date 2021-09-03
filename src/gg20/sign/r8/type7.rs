@@ -64,7 +64,7 @@ impl Executer for R8Type7 {
         for (share_id, p2ps) in p2ps_in.iter() {
             if p2ps.is_some() {
                 warn!(
-                    "peer {} says: unexpected p2ps from peer {}",
+                    "peer {} says: unexpected p2ps from peer {} in round 8 type-7 sad path",
                     my_sign_id, share_id
                 );
                 faulters.set(share_id, ProtocolFault)?;
