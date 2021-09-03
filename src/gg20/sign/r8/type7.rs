@@ -54,7 +54,7 @@ impl Executer for R8Type7 {
         for (share_id, bcast) in bcasts_in.iter() {
             if bcast.is_none() {
                 warn!(
-                    "peer {} says: missing bcast from peer {}",
+                    "peer {} says: missing bcast from peer {} in round 8 type-7 sad path",
                     my_sign_id, share_id
                 );
                 faulters.set(share_id, ProtocolFault)?;
@@ -64,7 +64,7 @@ impl Executer for R8Type7 {
         for (share_id, p2ps) in p2ps_in.iter() {
             if p2ps.is_some() {
                 warn!(
-                    "peer {} says: unexpected p2ps from peer {}",
+                    "peer {} says: unexpected p2ps from peer {} in round 8 type-7 sad path",
                     my_sign_id, share_id
                 );
                 faulters.set(share_id, ProtocolFault)?;
@@ -163,16 +163,20 @@ impl Executer for R8Type7 {
             }
 
             // mu_ij
-            for (sign_peer2_id, peer_mta_wc_plaintext) in peer_mta_wc_plaintexts {
+            for (receiver_sign_id, peer_mta_wc_plaintext) in peer_mta_wc_plaintexts {
                 let peer_mu_ciphertext = peer_ek.encrypt_with_randomness(
                     &peer_mta_wc_plaintext.mu_plaintext,
                     &peer_mta_wc_plaintext.mu_randomness,
                 );
-                if peer_mu_ciphertext != self.r2p2ps.get(sign_peer2_id, peer_sign_id)?.mu_ciphertext
+                if peer_mu_ciphertext
+                    != self
+                        .r2p2ps
+                        .get(receiver_sign_id, peer_sign_id)?
+                        .mu_ciphertext
                 {
                     warn!(
                         "peer {} says: invalid mu from peer {} to victim peer {}",
-                        my_sign_id, peer_sign_id, sign_peer2_id
+                        my_sign_id, peer_sign_id, receiver_sign_id
                     );
 
                     faulters.set(peer_sign_id, ProtocolFault)?;

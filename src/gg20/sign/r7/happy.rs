@@ -8,7 +8,11 @@ use crate::{
         },
         keygen::{KeygenShareId, SecretKeyShare},
         sign::{
-            r7::{self, Bcast, BcastHappy, BcastSadType7, MtaWcPlaintext},
+            r7::{
+                self,
+                common::{check_message_types, R7Path},
+                Bcast, BcastHappy, BcastSadType7, MtaWcPlaintext,
+            },
             KeygenShareIds, SignShareId,
         },
     },
@@ -51,7 +55,7 @@ impl Executer for R7Happy {
     type FinalOutput = BytesVec;
     type Index = SignShareId;
     type Bcast = r6::Bcast;
-    type P2p = ();
+    type P2p = r6::P2p;
 
     #[allow(non_snake_case)]
     fn execute(
@@ -63,40 +67,17 @@ impl Executer for R7Happy {
         let my_sign_id = info.my_id();
         let mut faulters = info.new_fillvecmap();
 
-        // anyone who did not send a bcast is a faulter
-        for (peer_sign_id, bcast) in bcasts_in.iter() {
-            if bcast.is_none() {
-                warn!(
-                    "peer {} says: missing bcast from peer {}",
-                    my_sign_id, peer_sign_id
-                );
-                faulters.set(peer_sign_id, ProtocolFault)?;
-            }
-        }
-        // anyone who sent p2ps is a faulter
-        for (peer_sign_id, p2ps) in p2ps_in.iter() {
-            if p2ps.is_some() {
-                warn!(
-                    "peer {} says: unexpected p2ps from peer {}",
-                    my_sign_id, peer_sign_id
-                );
-                faulters.set(peer_sign_id, ProtocolFault)?;
-            }
-        }
+        let paths = check_message_types(info, &bcasts_in, &p2ps_in, &mut faulters)?;
         if !faulters.is_empty() {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
         // if anyone complained then move to sad path
-        if bcasts_in
-            .iter()
-            .any(|(_, bcast_option)| matches!(bcast_option, Some(r6::Bcast::Sad(_))))
-        {
+        if paths.iter().any(|(_, path)| matches!(path, R7Path::Sad)) {
             warn!(
-                "peer {} says: received an R6 complaint from others while in happy path",
+                "peer {} says: received an R6 complaint from others---switch path happy -> sad",
                 my_sign_id,
             );
-
             return Box::new(r7::sad::R7Sad {
                 secret_key_share: self.secret_key_share,
                 all_keygen_ids: self.all_keygen_ids,
@@ -108,32 +89,30 @@ impl Executer for R7Happy {
             .execute(info, bcasts_in, p2ps_in);
         }
 
-        // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
-        let bcasts_in = bcasts_in.to_vecmap()?;
-
-        let mut bcasts = info.new_fillvecmap();
-
-        // our check for 'type 5` error succeeded, so any peer broadcasting a failure is a faulter
-        for (peer_sign_id, bcast) in bcasts_in.into_iter() {
-            match bcast {
-                r6::Bcast::Happy(bcast) => {
-                    bcasts.set(peer_sign_id, bcast)?;
-                }
-                r6::Bcast::SadType5(_) => {
-                    warn!(
-                        "peer {} says: peer {} broadcasted a 'type 5' failure",
-                        my_sign_id, peer_sign_id
-                    );
-                    faulters.set(peer_sign_id, ProtocolFault)?;
-                }
-                r6::Bcast::Sad(_) => return Err(TofnFatal), // This should never occur at this stage
+        // our check for type 5 succeeded, so anyone who claimed failure is a faulter
+        for (peer_sign_id, path) in paths.iter() {
+            if matches!(path, R7Path::SadType5) {
+                warn!(
+                    "peer {} says: peer {} falsely claimed type 5 failure",
+                    my_sign_id, peer_sign_id
+                );
+                faulters.set(peer_sign_id, ProtocolFault)?;
             }
         }
         if !faulters.is_empty() {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
-        let bcasts_in = bcasts.to_vecmap()?;
+        // happy path: everyone sent BcastHappy--unwrap into BcastHappy
+        // TODO combine the next 2 lines into a new FillVecMap::map2_result method?
+        let bcasts_in = bcasts_in.to_vecmap()?;
+        let bcasts_in = bcasts_in.map2_result(|(_, bcast)| {
+            if let r6::Bcast::Happy(h) = bcast {
+                Ok(h)
+            } else {
+                Err(TofnFatal)
+            }
+        })?;
 
         // verify proofs
         for (peer_sign_id, bcast) in &bcasts_in {

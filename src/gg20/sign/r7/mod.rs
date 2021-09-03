@@ -13,6 +13,7 @@ mod sad;
 pub(super) use sad::R7Sad;
 mod type5;
 pub(super) use type5::R7Type5;
+mod common;
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -49,7 +49,7 @@ impl Executer for R8Happy {
         for (peer_sign_id, bcast) in bcasts_in.iter() {
             if bcast.is_none() {
                 warn!(
-                    "peer {} says: missing bcast from peer {}",
+                    "peer {} says: missing bcast from peer {} in round 8 happy path",
                     my_sign_id, peer_sign_id
                 );
                 faulters.set(peer_sign_id, ProtocolFault)?;
@@ -59,7 +59,7 @@ impl Executer for R8Happy {
         for (peer_sign_id, p2ps) in p2ps_in.iter() {
             if p2ps.is_some() {
                 warn!(
-                    "peer {} says: unexpected p2ps from peer {}",
+                    "peer {} says: unexpected p2ps from peer {} in round 8 happy path",
                     my_sign_id, peer_sign_id
                 );
                 faulters.set(peer_sign_id, ProtocolFault)?;

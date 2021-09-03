@@ -48,7 +48,7 @@ impl Executer for R4Happy {
         for (peer_keygen_id, bcast_option, p2ps_option) in zip2(&bcasts_in, &p2ps_in) {
             if bcast_option.is_some() && p2ps_option.is_some() {
                 warn!(
-                    "peer {} says: unexpected p2ps and bcast from peer {}",
+                    "peer {} says: unexpected p2ps and bcast from peer {} in round 4 happy path",
                     my_keygen_id, peer_keygen_id
                 );
                 faulters.set(peer_keygen_id, ProtocolFault)?;

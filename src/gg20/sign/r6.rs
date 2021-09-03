@@ -1,5 +1,5 @@
 use crate::{
-    collections::{FillVecMap, FullP2ps, HoleVecMap, P2ps, Subset, TypedUsize, VecMap},
+    collections::{FillVecMap, FullP2ps, HoleVecMap, P2ps, TypedUsize, VecMap},
     corrupt,
     gg20::{
         crypto_tools::{
@@ -48,32 +48,39 @@ pub(super) struct R6 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) enum Bcast {
+pub enum Bcast {
     Happy(BcastHappy),
-    Sad(BcastSad),
     SadType5(BcastSadType5),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum P2p {
+    Sad(P2pSad),
+    SadType5(P2pSadType5),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(non_snake_case)]
-pub(super) struct BcastHappy {
+pub struct BcastHappy {
     pub(super) S_i: k256_serde::ProjectivePoint,
     pub(super) S_i_proof_wc: pedersen::ProofWc,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct BcastSad {
-    pub(super) zkp_complaints: Subset<SignShareId>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct BcastSadType5 {
+pub struct BcastSadType5 {
     pub(super) k_i: k256_serde::Scalar,
     pub(super) k_i_randomness: paillier::Randomness,
     pub(super) gamma_i: k256_serde::Scalar,
-    // TODO: Switch away from serializing a HoleVecMap since it's an attack vector due to it's
-    // internal hole being serialized: https://github.com/axelarnetwork/tofn/issues/105
-    pub(super) mta_plaintexts: HoleVecMap<SignShareId, MtaPlaintext>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct P2pSad {
+    pub(super) zkp_complaint: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct P2pSadType5 {
+    pub(super) mta_palintext: MtaPlaintext,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -106,7 +113,7 @@ impl Executer for R6 {
         for (peer_sign_id, bcast) in bcasts_in.iter() {
             if bcast.is_none() {
                 warn!(
-                    "peer {} says: missing bcast from peer {}",
+                    "peer {} says: missing bcast from peer {} in round 6",
                     my_sign_id, peer_sign_id
                 );
                 faulters.set(peer_sign_id, ProtocolFault)?;
@@ -116,7 +123,7 @@ impl Executer for R6 {
         for (peer_sign_id, p2ps) in p2ps_in.iter() {
             if p2ps.is_none() {
                 warn!(
-                    "peer {} says: missing p2ps from peer {}",
+                    "peer {} says: missing p2ps from peer {} in round 6",
                     my_sign_id, peer_sign_id
                 );
                 faulters.set(peer_sign_id, ProtocolFault)?;
@@ -130,54 +137,55 @@ impl Executer for R6 {
         let bcasts_in = bcasts_in.to_vecmap()?;
         let p2ps_in = p2ps_in.to_fullp2ps()?;
 
-        let participants_count = info.total_share_count();
-
-        let mut zkp_complaints = Subset::with_max_size(participants_count);
-
         // verify proofs
-        for (peer_sign_id, &peer_keygen_id) in &self.peer_keygen_ids {
-            let bcast = bcasts_in.get(peer_sign_id)?;
-            let zkp = &self
-                .secret_key_share
-                .group()
-                .all_shares()
-                .get(self.my_keygen_id)?
-                .zkp();
-            let peer_k_i_ciphertext = &self.r1bcasts.get(peer_sign_id)?.k_i_ciphertext;
-            let peer_ek = &self
-                .secret_key_share
-                .group()
-                .all_shares()
-                .get(peer_keygen_id)?
-                .ek();
-            let p2p_in = p2ps_in.get(peer_sign_id, my_sign_id)?;
+        let zkp_complaints =
+            self.peer_keygen_ids
+                .clone_map2_result(|(peer_sign_id, &peer_keygen_id)| {
+                    let bcast = bcasts_in.get(peer_sign_id)?;
+                    let zkp = &self
+                        .secret_key_share
+                        .group()
+                        .all_shares()
+                        .get(self.my_keygen_id)?
+                        .zkp();
+                    let peer_k_i_ciphertext = &self.r1bcasts.get(peer_sign_id)?.k_i_ciphertext;
+                    let peer_ek = &self
+                        .secret_key_share
+                        .group()
+                        .all_shares()
+                        .get(peer_keygen_id)?
+                        .ek();
+                    let p2p_in = p2ps_in.get(peer_sign_id, my_sign_id)?;
 
-            let peer_stmt = &zk::range::StatementWc {
-                stmt: zk::range::Statement {
-                    ciphertext: peer_k_i_ciphertext,
-                    ek: peer_ek,
-                },
-                msg_g: bcast.R_i.as_ref(),
-                g: &self.R,
-            };
+                    let peer_stmt = &zk::range::StatementWc {
+                        stmt: zk::range::Statement {
+                            ciphertext: peer_k_i_ciphertext,
+                            ek: peer_ek,
+                        },
+                        msg_g: bcast.R_i.as_ref(),
+                        g: &self.R,
+                    };
 
-            if !zkp.verify_range_proof_wc(peer_stmt, &p2p_in.k_i_range_proof_wc) {
-                warn!(
-                    "peer {} says: range proof wc failed to verify for peer {}",
-                    my_sign_id, peer_sign_id,
-                );
-
-                zkp_complaints.add(peer_sign_id)?;
-            }
-        }
+                    let success = zkp.verify_range_proof_wc(peer_stmt, &p2p_in.k_i_range_proof_wc);
+                    if !success {
+                        warn!(
+                            "peer {} says: range proof wc from peer {} failed to verify",
+                            my_sign_id, peer_sign_id,
+                        );
+                    }
+                    Ok(!success)
+                })?;
 
         corrupt!(
             zkp_complaints,
             self.corrupt_zkp_complaints(my_sign_id, zkp_complaints)?
         );
 
-        if !zkp_complaints.is_empty() {
-            let bcast_out = Some(serialize(&Bcast::Sad(BcastSad { zkp_complaints }))?);
+        // move to sad path if we discovered any failures
+        if zkp_complaints.iter().any(|(_, complaint)| *complaint) {
+            let p2ps_out = Some(zkp_complaints.map2_result(|(_, zkp_complaint)| {
+                serialize(&P2p::Sad(P2pSad { zkp_complaint }))
+            })?);
 
             return Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
                 Box::new(r7::R7Sad {
@@ -188,8 +196,8 @@ impl Executer for R6 {
                     r5bcasts: bcasts_in,
                     r5p2ps: p2ps_in,
                 }),
-                bcast_out,
                 None,
+                p2ps_out,
             )));
         }
 
@@ -201,7 +209,7 @@ impl Executer for R6 {
             });
 
         // malicious actor falsely claim type 5 fault by comparing against a corrupted curve generator
-        // TODO how best to squelch build warnings without _ prefix?
+        // TODO how best to squelch build warnings without _ prefix? https://github.com/axelarnetwork/tofn/issues/137
         let _curve_generator = ProjectivePoint::generator();
         corrupt!(_curve_generator, self.corrupt_curve_generator(info.my_id()));
 
@@ -246,13 +254,15 @@ impl Executer for R6 {
                 k_i: k_i.into(),
                 k_i_randomness: self.k_i_randomness.clone(),
                 gamma_i: self.gamma_i.into(),
-                mta_plaintexts,
             }))?);
+
+            let p2ps_out = Some(mta_plaintexts.map2_result(|(_, mta_palintext)| {
+                serialize(&P2p::SadType5(P2pSadType5 { mta_palintext }))
+            })?);
 
             return Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
                 Box::new(r7::R7Type5 {
                     secret_key_share: self.secret_key_share,
-                    peer_keygen_ids: self.peer_keygen_ids,
                     all_keygen_ids: self.all_keygen_ids,
                     r1bcasts: self.r1bcasts,
                     r2p2ps: self.r2p2ps,
@@ -263,10 +273,11 @@ impl Executer for R6 {
                     r5p2ps: p2ps_in,
                 }),
                 bcast_out,
-                None,
+                p2ps_out,
             )));
         }
 
+        // happy path: compute S_i and proof
         let S_i = self.R * self.sigma_i;
         let S_i_proof_wc = pedersen::prove_wc(
             &pedersen::StatementWc {
@@ -328,7 +339,7 @@ impl Executer for R6 {
 mod malicious {
     use super::R6;
     use crate::{
-        collections::{Subset, TypedUsize},
+        collections::{HoleVecMap, TypedUsize},
         gg20::{
             crypto_tools::{mta::Secret, paillier::Plaintext, zkp::pedersen},
             sign::{
@@ -370,13 +381,13 @@ mod malicious {
         /// earlier we prepared to corrupt beta_secret by corrupting delta_i
         pub fn corrupt_beta_secret(
             &self,
-            sign_id: TypedUsize<SignShareId>,
+            my_sign_id: TypedUsize<SignShareId>,
             recipient: TypedUsize<SignShareId>,
             mut beta_secret: Secret,
         ) -> Secret {
             if let R3BadBeta { victim } = self.behaviour {
                 if victim == recipient {
-                    log_confess_info(sign_id, &self.behaviour, "step 2/2: beta_secret");
+                    log_confess_info(my_sign_id, &self.behaviour, "step 2/2: beta_secret");
                     *beta_secret.beta.as_mut() += k256::Scalar::one();
                 }
             }
@@ -384,18 +395,16 @@ mod malicious {
         }
         pub fn corrupt_zkp_complaints(
             &self,
-            sign_id: TypedUsize<SignShareId>,
-            mut zkp_complaints: Subset<SignShareId>,
-        ) -> TofnResult<Subset<SignShareId>> {
+            my_sign_id: TypedUsize<SignShareId>,
+            mut zkp_complaints: HoleVecMap<SignShareId, bool>,
+        ) -> TofnResult<HoleVecMap<SignShareId, bool>> {
             if let R6FalseAccusation { victim } = self.behaviour {
-                if zkp_complaints.is_member(victim)? {
-                    log_confess_info(sign_id, &self.behaviour, "but the accusation is true");
-                } else if victim == sign_id {
-                    log_confess_info(sign_id, &self.behaviour, "self accusation");
-                    zkp_complaints.add(sign_id)?;
+                let complaint = zkp_complaints.get_mut(victim)?;
+                if *complaint {
+                    log_confess_info(my_sign_id, &self.behaviour, "but the accusation is true");
                 } else {
-                    log_confess_info(sign_id, &self.behaviour, "");
-                    zkp_complaints.add(victim)?;
+                    log_confess_info(my_sign_id, &self.behaviour, "");
+                    *complaint = true;
                 }
             }
             Ok(zkp_complaints)
@@ -404,11 +413,11 @@ mod malicious {
         #[allow(non_snake_case)]
         pub fn corrupt_S_i_proof_wc(
             &self,
-            sign_id: TypedUsize<SignShareId>,
+            my_sign_id: TypedUsize<SignShareId>,
             range_proof: pedersen::ProofWc,
         ) -> pedersen::ProofWc {
             if let R6BadProof = self.behaviour {
-                log_confess_info(sign_id, &self.behaviour, "");
+                log_confess_info(my_sign_id, &self.behaviour, "");
                 return pedersen::malicious::corrupt_proof_wc(&range_proof);
             }
             range_proof
@@ -416,10 +425,10 @@ mod malicious {
 
         pub fn corrupt_curve_generator(
             &self,
-            sign_id: TypedUsize<SignShareId>,
+            my_sign_id: TypedUsize<SignShareId>,
         ) -> k256::ProjectivePoint {
             if let R6FalseFailRandomizer = self.behaviour {
-                log_confess_info(sign_id, &self.behaviour, "");
+                log_confess_info(my_sign_id, &self.behaviour, "");
                 return k256::ProjectivePoint::identity();
             }
             k256::ProjectivePoint::generator()

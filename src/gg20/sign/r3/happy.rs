@@ -4,10 +4,16 @@ use crate::{
     gg20::{
         crypto_tools::{hash::Randomness, k256_serde, mta::Secret, paillier, vss, zkp::pedersen},
         keygen::{KeygenShareId, SecretKeyShare},
-        sign::{r3, r4, KeygenShareIds},
+        sign::{
+            r3::{
+                self,
+                common::{check_message_types, R3Path},
+            },
+            r4, KeygenShareIds,
+        },
     },
     sdk::{
-        api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
+        api::{BytesVec, TofnFatal, TofnResult},
         implementer_api::{serialize, Executer, ProtocolBuilder, ProtocolInfo, RoundBuilder},
     },
 };
@@ -78,61 +84,17 @@ impl Executer for R3Happy {
         let my_sign_id = info.my_id();
         let mut faulters = info.new_fillvecmap();
 
-        // anyone who sent a bcast is a faulter
-        for (from, bcast) in bcasts_in.iter() {
-            if bcast.is_some() {
-                warn!(
-                    "peer {} says: unexpected bcast from peer {}",
-                    my_sign_id, from
-                );
-                faulters.set(from, ProtocolFault)?;
-            }
-        }
-        // anyone who did not send p2ps is a faulter
-        for (from, p2ps) in p2ps_in.iter() {
-            if p2ps.is_none() {
-                warn!("peer {} says: missing p2ps from peer {}", my_sign_id, from);
-                faulters.set(from, ProtocolFault)?;
-            }
-        }
-        if !faulters.is_empty() {
-            return Ok(ProtocolBuilder::Done(Err(faulters)));
-        }
-
-        // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
-        let p2ps_in = p2ps_in.to_fullp2ps()?;
-
-        // anyone who sent conflicting p2ps is a faulter
-        // quadratic work: https://github.com/axelarnetwork/tofn/issues/134
-        for (from, p2ps) in p2ps_in.iter() {
-            if !p2ps
-                .iter()
-                .all(|(_, p2p)| matches!(p2p, Self::P2p::Happy(_)))
-                && !p2ps.iter().all(|(_, p2p)| matches!(p2p, Self::P2p::Sad(_)))
-            {
-                warn!(
-                    "peer {} says: conflicting happy/sad p2ps from peer {}",
-                    my_sign_id, from
-                );
-                faulters.set(from, ProtocolFault)?;
-            }
-        }
+        let paths = check_message_types(info, &bcasts_in, &p2ps_in, &mut faulters)?;
         if !faulters.is_empty() {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
         // if anyone complained then move to sad path
-        if p2ps_in.iter().any(|(_from, p2ps)| {
-            p2ps.iter()
-                .any(|(_to, p2p)| matches!(p2p, Self::P2p::Sad(_)))
-        }) {
+        if paths.iter().any(|(_, path)| matches!(path, R3Path::Sad)) {
             warn!(
-                "peer {} says: received an R2 complaint from others",
+                "peer {} says: received an R2 complaint from others--move to sad path",
                 my_sign_id,
             );
-
-            let p2ps_in = p2ps_in.to_p2ps();
-
             return Box::new(r3::R3Sad {
                 secret_key_share: self.secret_key_share,
                 all_keygen_ids: self.all_keygen_ids,
@@ -142,7 +104,9 @@ impl Executer for R3Happy {
             .execute(info, bcasts_in, p2ps_in);
         }
 
-        // everyone sent happy-path p2ps---unwrap into happy path
+        // happy path: everyone sent happy p2ps--unwrap into happy p2ps
+        // TODO combine the next 2 lines into a new P2ps::map2_result method?
+        let p2ps_in = p2ps_in.to_fullp2ps()?;
         let p2ps_in = p2ps_in.map2_result(|(_, p2p)| match p2p {
             Self::P2p::Happy(p) => Ok(p),
             Self::P2p::Sad(_) => Err(TofnFatal),
