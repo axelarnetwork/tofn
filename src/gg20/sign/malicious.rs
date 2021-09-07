@@ -29,8 +29,9 @@ pub enum Behaviour {
     R5BadProof { victim: TypedUsize<SignShareId> },
     R6FalseAccusation { victim: TypedUsize<SignShareId> },
     R6BadProof,
-    R6FalseFailRandomizer,
+    R6FalseType5Claim,
     R7BadSI,
+    R7FalseType7Claim,
 }
 
 impl Behaviour {

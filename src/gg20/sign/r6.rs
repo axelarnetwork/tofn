@@ -427,7 +427,7 @@ mod malicious {
             &self,
             my_sign_id: TypedUsize<SignShareId>,
         ) -> k256::ProjectivePoint {
-            if let R6FalseFailRandomizer = self.behaviour {
+            if let R6FalseType5Claim = self.behaviour {
                 log_confess_info(my_sign_id, &self.behaviour, "");
                 return k256::ProjectivePoint::identity();
             }

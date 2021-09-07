@@ -11,7 +11,7 @@ use crate::{
             r7::{
                 self,
                 common::{check_message_types, R7Path},
-                Bcast, BcastHappy, BcastSadType7, MtaWcPlaintext,
+                Bcast, BcastHappy, BcastSadType7, P2p,
             },
             KeygenShareIds, SignShareId,
         },
@@ -145,22 +145,25 @@ impl Executer for R7Happy {
                 acc + bcast.S_i.as_ref()
             });
 
+        // malicious actor falsely claim type 7 fault by comparing against a corrupted S_i_sum
+        corrupt!(S_i_sum, self.corrupt_S_i_sum(info.my_id(), S_i_sum));
+
         if &S_i_sum != self.secret_key_share.group().y().as_ref() {
             warn!("peer {} says: 'type 7' fault detected", my_sign_id);
 
             // recover encryption randomness for mu; need to decrypt again to do so
-            let mta_wc_plaintexts = self.r2p2ps.map_to_me(my_sign_id, |p2p| {
+            let p2ps_out = Some(self.r2p2ps.map_to_me2_result(my_sign_id, |(_, p2p)| {
                 let (mu_plaintext, mu_randomness) = self
                     .secret_key_share
                     .share()
                     .dk()
                     .decrypt_with_randomness(&p2p.mu_ciphertext);
 
-                MtaWcPlaintext {
+                serialize(&P2p {
                     mu_plaintext,
                     mu_randomness,
-                }
-            })?;
+                })
+            })?);
 
             let proof = chaum_pedersen::prove(
                 &chaum_pedersen::Statement {
@@ -179,7 +182,6 @@ impl Executer for R7Happy {
                 k_i: self.k_i.into(),
                 k_i_randomness: self.k_i_randomness.clone(),
                 proof,
-                mta_wc_plaintexts,
             }))?);
 
             return Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
@@ -194,7 +196,7 @@ impl Executer for R7Happy {
                     r6bcasts: bcasts_in,
                 }),
                 bcast_out,
-                None,
+                p2ps_out,
             )));
         }
 
@@ -259,6 +261,19 @@ mod malicious {
                 s_i += k256::Scalar::one();
             }
             s_i
+        }
+
+        #[allow(non_snake_case)]
+        pub fn corrupt_S_i_sum(
+            &self,
+            sign_id: TypedUsize<SignShareId>,
+            mut S_i: k256::ProjectivePoint,
+        ) -> k256::ProjectivePoint {
+            if let R7FalseType7Claim = self.behaviour {
+                log_confess_info(sign_id, &self.behaviour, "");
+                S_i += k256::ProjectivePoint::generator();
+            }
+            S_i
         }
     }
 }

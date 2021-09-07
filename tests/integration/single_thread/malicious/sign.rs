@@ -112,8 +112,9 @@ fn single_fault_test_cases() -> SingleFaultTestCaseList {
         R5BadProof { victim: zero },
         R6FalseAccusation { victim: zero },
         R6BadProof,
-        R6FalseFailRandomizer,
+        R6FalseType5Claim,
         R7BadSI,
+        R7FalseType7Claim,
     ];
 
     SingleFaultTestCaseList {
