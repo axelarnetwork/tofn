@@ -1,13 +1,12 @@
-use serde::{Deserialize, Serialize};
 use tracing::error;
 
 use crate::sdk::api::{TofnFatal, TofnResult};
 
 use super::{holevecmap_iter::HoleVecMapIter, TypedUsize, VecMap};
 
-// TODO do not derive serde: `hole` might be an attack vector
+// do not derive `Serialize`, `Deserialize`: `hole` might be an attack vector
 // see https://github.com/axelarnetwork/tofn/issues/105
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct HoleVecMap<K, V> {
     vec: VecMap<K, V>,
     hole: TypedUsize<K>,
