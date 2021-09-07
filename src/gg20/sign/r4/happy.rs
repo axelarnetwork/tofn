@@ -129,7 +129,54 @@ impl Executer for R4Happy {
 
         // TODO defend against undefined delta_inv attack https://github.com/axelarnetwork/tofn/issues/110
         if bool::from(delta_inv.is_none()) {
-            warn!("peer {} says: delta inv computation failed", my_sign_id);
+            warn!(
+                "peer {} says: delta inversion failure: switch to 'type 5' sad path",
+                my_sign_id
+            );
+
+            // let mta_plaintexts =
+            //     self.beta_secrets
+            //         .clone_map2_result(|(peer_sign_id, beta_secret)| {
+            //             let r2p2p = self.r2p2ps.get(peer_sign_id, my_sign_id)?;
+
+            //             let (alpha_plaintext, alpha_randomness) = self
+            //                 .secret_key_share
+            //                 .share()
+            //                 .dk()
+            //                 .decrypt_with_randomness(&r2p2p.alpha_ciphertext);
+
+            //             corrupt!(
+            //                 alpha_plaintext,
+            //                 self.corrupt_alpha_plaintext(my_sign_id, peer_sign_id, alpha_plaintext)
+            //             );
+
+            //             let beta_secret = beta_secret.clone();
+
+            //             corrupt!(
+            //                 beta_secret,
+            //                 self.corrupt_beta_secret(my_sign_id, peer_sign_id, beta_secret)
+            //             );
+
+            //             Ok(MtaPlaintext {
+            //                 alpha_plaintext,
+            //                 alpha_randomness,
+            //                 beta_secret,
+            //             })
+            //         })?;
+
+            // let k_i = self.k_i;
+            // corrupt!(k_i, self.corrupt_k_i(my_sign_id, k_i));
+
+            // let bcast_out = Some(serialize(&Bcast::SadType5(BcastSadType5 {
+            //     k_i: k_i.into(),
+            //     k_i_randomness: self.k_i_randomness.clone(),
+            //     gamma_i: self.gamma_i.into(),
+            // }))?);
+
+            // let p2ps_out = Some(mta_plaintexts.map2_result(|(_, mta_palintext)| {
+            //     serialize(&P2p::SadType5(P2pSadType5 { mta_palintext }))
+            // })?);
+
             return Err(TofnFatal);
         }
 

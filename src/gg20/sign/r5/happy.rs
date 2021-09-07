@@ -20,42 +20,42 @@ use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::{r1, r2, r3, r4, r6, KeygenShareIds, Peers, SignShareId};
+use super::super::{r1, r2, r3, r4, r6, KeygenShareIds, Peers, SignShareId};
 
 #[cfg(feature = "malicious")]
-use super::malicious::Behaviour;
+use super::super::malicious::Behaviour;
 
 #[allow(non_snake_case)]
-pub(super) struct R5 {
-    pub(super) secret_key_share: SecretKeyShare,
-    pub(super) msg_to_sign: Scalar,
-    pub(super) peer_keygen_ids: Peers,
-    pub(super) all_keygen_ids: KeygenShareIds,
-    pub(super) my_keygen_id: TypedUsize<KeygenShareId>,
-    pub(super) gamma_i: Scalar,
-    pub(super) k_i: Scalar,
-    pub(super) k_i_randomness: paillier::Randomness,
-    pub(super) sigma_i: Scalar,
-    pub(super) l_i: Scalar,
-    pub(super) beta_secrets: HoleVecMap<SignShareId, Secret>,
-    pub(super) r1bcasts: VecMap<SignShareId, r1::Bcast>,
-    pub(super) r2p2ps: FullP2ps<SignShareId, r2::P2pHappy>,
-    pub(super) r3bcasts: VecMap<SignShareId, r3::BcastHappy>,
-    pub(super) delta_inv: Scalar,
+pub(in super::super) struct R5 {
+    pub(in super::super) secret_key_share: SecretKeyShare,
+    pub(in super::super) msg_to_sign: Scalar,
+    pub(in super::super) peer_keygen_ids: Peers,
+    pub(in super::super) all_keygen_ids: KeygenShareIds,
+    pub(in super::super) my_keygen_id: TypedUsize<KeygenShareId>,
+    pub(in super::super) gamma_i: Scalar,
+    pub(in super::super) k_i: Scalar,
+    pub(in super::super) k_i_randomness: paillier::Randomness,
+    pub(in super::super) sigma_i: Scalar,
+    pub(in super::super) l_i: Scalar,
+    pub(in super::super) beta_secrets: HoleVecMap<SignShareId, Secret>,
+    pub(in super::super) r1bcasts: VecMap<SignShareId, r1::Bcast>,
+    pub(in super::super) r2p2ps: FullP2ps<SignShareId, r2::P2pHappy>,
+    pub(in super::super) r3bcasts: VecMap<SignShareId, r3::BcastHappy>,
+    pub(in super::super) delta_inv: Scalar,
 
     #[cfg(feature = "malicious")]
-    pub(super) behaviour: Behaviour,
+    pub(in super::super) behaviour: Behaviour,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(non_snake_case)]
-pub(super) struct Bcast {
-    pub(super) R_i: k256_serde::ProjectivePoint,
+pub(in super::super) struct Bcast {
+    pub(in super::super) R_i: k256_serde::ProjectivePoint,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct P2p {
-    pub(super) k_i_range_proof_wc: zk::range::ProofWc,
+pub(in super::super) struct P2p {
+    pub(in super::super) k_i_range_proof_wc: zk::range::ProofWc,
 }
 
 impl Executer for R5 {
