@@ -9,8 +9,8 @@ use crate::{
     },
     sdk::implementer_api::{decode_message, encode_message},
     sdk::{
-        api::{BytesVec, Fault, MsgType, Protocol, Round},
-        implementer_api::{serialize, ExpectedMsgTypes},
+        api::{BytesVec, Fault, Protocol, Round},
+        implementer_api::{serialize, ExpectedMsgTypes, MsgType},
     },
 };
 use ecdsa::{elliptic_curve::sec1::ToEncodedPoint, hazmat::VerifyPrimitive};
