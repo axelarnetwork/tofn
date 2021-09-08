@@ -10,7 +10,6 @@ use crate::{
         implementer_api::{Executer, ProtocolBuilder, ProtocolInfo},
     },
 };
-use k256::ProjectivePoint;
 use tracing::{error, warn};
 
 use super::{
@@ -25,7 +24,6 @@ pub(in super::super) struct R5Type5 {
     pub(in super::super) r1bcasts: VecMap<SignShareId, r1::Bcast>,
     pub(in super::super) r2p2ps: FullP2ps<SignShareId, r2::P2pHappy>,
     pub(in super::super) r3bcasts: VecMap<SignShareId, r3::BcastHappy>,
-    pub(in super::super) r4bcasts: VecMap<SignShareId, r4::BcastHappy>,
 }
 
 impl Executer for R5Type5 {
@@ -118,17 +116,6 @@ impl Executer for R5Type5 {
             if k_i_ciphertext != self.r1bcasts.get(peer_sign_id)?.k_i_ciphertext {
                 warn!(
                     "peer {} says: invalid k_i detected from peer {}",
-                    my_sign_id, peer_sign_id
-                );
-                faulters.set(peer_sign_id, ProtocolFault)?;
-                continue;
-            }
-
-            // gamma_i
-            let Gamma_i = ProjectivePoint::generator() * bcast_type5.gamma_i.as_ref();
-            if &Gamma_i != self.r4bcasts.get(peer_sign_id)?.Gamma_i.as_ref() {
-                warn!(
-                    "peer {} says: invalid Gamma_i detected from peer {}",
                     my_sign_id, peer_sign_id
                 );
                 faulters.set(peer_sign_id, ProtocolFault)?;

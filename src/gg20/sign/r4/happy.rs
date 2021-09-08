@@ -6,11 +6,12 @@ use crate::{
         keygen::{KeygenShareId, SecretKeyShare},
         sign::{
             r4::{self, Bcast},
+            r6::{self, BcastSadType5, MtaPlaintext},
             KeygenShareIds,
         },
     },
     sdk::{
-        api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
+        api::{BytesVec, Fault::ProtocolFault, TofnResult},
         implementer_api::{serialize, Executer, ProtocolBuilder, ProtocolInfo, RoundBuilder},
     },
 };
@@ -137,50 +138,61 @@ impl Executer for R4Happy {
                 my_sign_id
             );
 
-            // let mta_plaintexts =
-            //     self.beta_secrets
-            //         .clone_map2_result(|(peer_sign_id, beta_secret)| {
-            //             let r2p2p = self.r2p2ps.get(peer_sign_id, my_sign_id)?;
+            let mta_plaintexts =
+                self.beta_secrets
+                    .clone_map2_result(|(peer_sign_id, beta_secret)| {
+                        let r2p2p = self.r2p2ps.get(peer_sign_id, my_sign_id)?;
 
-            //             let (alpha_plaintext, alpha_randomness) = self
-            //                 .secret_key_share
-            //                 .share()
-            //                 .dk()
-            //                 .decrypt_with_randomness(&r2p2p.alpha_ciphertext);
+                        let (alpha_plaintext, alpha_randomness) = self
+                            .secret_key_share
+                            .share()
+                            .dk()
+                            .decrypt_with_randomness(&r2p2p.alpha_ciphertext);
 
-            //             corrupt!(
-            //                 alpha_plaintext,
-            //                 self.corrupt_alpha_plaintext(my_sign_id, peer_sign_id, alpha_plaintext)
-            //             );
+                        // corrupt!(
+                        //     alpha_plaintext,
+                        //     self.corrupt_alpha_plaintext(my_sign_id, peer_sign_id, alpha_plaintext)
+                        // );
 
-            //             let beta_secret = beta_secret.clone();
+                        let beta_secret = beta_secret.clone();
 
-            //             corrupt!(
-            //                 beta_secret,
-            //                 self.corrupt_beta_secret(my_sign_id, peer_sign_id, beta_secret)
-            //             );
+                        // corrupt!(
+                        //     beta_secret,
+                        //     self.corrupt_beta_secret(my_sign_id, peer_sign_id, beta_secret)
+                        // );
 
-            //             Ok(MtaPlaintext {
-            //                 alpha_plaintext,
-            //                 alpha_randomness,
-            //                 beta_secret,
-            //             })
-            //         })?;
+                        Ok(MtaPlaintext {
+                            alpha_plaintext,
+                            alpha_randomness,
+                            beta_secret,
+                        })
+                    })?;
 
-            // let k_i = self.k_i;
+            let k_i = self.k_i;
             // corrupt!(k_i, self.corrupt_k_i(my_sign_id, k_i));
 
-            // let bcast_out = Some(serialize(&Bcast::SadType5(BcastSadType5 {
-            //     k_i: k_i.into(),
-            //     k_i_randomness: self.k_i_randomness.clone(),
-            //     gamma_i: self.gamma_i.into(),
-            // }))?);
+            let bcast_out = Some(serialize(&Bcast::SadType5(BcastSadType5 {
+                k_i: k_i.into(),
+                k_i_randomness: self.k_i_randomness.clone(),
+                gamma_i: self.gamma_i.into(),
+            }))?);
 
-            // let p2ps_out = Some(mta_plaintexts.map2_result(|(_, mta_palintext)| {
-            //     serialize(&P2p::SadType5(P2pSadType5 { mta_palintext }))
-            // })?);
+            let p2ps_out =
+                Some(mta_plaintexts.map2_result(|(_, mta_plaintext)| {
+                    serialize(&r6::P2pSadType5 { mta_plaintext })
+                })?);
 
-            return Err(TofnFatal);
+            return Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
+                Box::new(r5::R5Type5 {
+                    secret_key_share: self.secret_key_share,
+                    all_keygen_ids: self.all_keygen_ids,
+                    r1bcasts: self.r1bcasts,
+                    r2p2ps: self.r2p2ps,
+                    r3bcasts: bcasts_in,
+                }),
+                bcast_out,
+                p2ps_out,
+            )));
         }
 
         let Gamma_i_reveal = self.Gamma_i_reveal.clone();
