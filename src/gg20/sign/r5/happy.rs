@@ -10,9 +10,10 @@ use crate::{
             paillier::{self, zk},
         },
         keygen::{KeygenShareId, SecretKeyShare},
+        sign::r5::common::R5Path,
     },
     sdk::{
-        api::{BytesVec, Fault::ProtocolFault, TofnResult},
+        api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
         implementer_api::{serialize, Executer, ProtocolBuilder, ProtocolInfo, RoundBuilder},
     },
 };
@@ -20,7 +21,10 @@ use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::super::{r1, r2, r3, r4, r6, KeygenShareIds, Peers, SignShareId};
+use super::{
+    super::{r1, r2, r3, r4, r6, KeygenShareIds, Peers, SignShareId},
+    common::check_message_types,
+};
 
 #[cfg(feature = "malicious")]
 use super::super::malicious::Behaviour;
@@ -62,7 +66,7 @@ impl Executer for R5 {
     type FinalOutput = BytesVec;
     type Index = SignShareId;
     type Bcast = r4::Bcast;
-    type P2p = ();
+    type P2p = r6::P2pSadType5;
 
     #[allow(non_snake_case)]
     fn execute(
@@ -74,21 +78,16 @@ impl Executer for R5 {
         let my_sign_id = info.my_id();
         let mut faulters = info.new_fillvecmap();
 
-        // anyone who did not send a bcast is a faulter
-        for (peer_sign_id, bcast) in bcasts_in.iter() {
-            if bcast.is_none() {
-                warn!(
-                    "peer {} says: missing bcast from peer {} in round 5",
-                    my_sign_id, peer_sign_id
-                );
-                faulters.set(peer_sign_id, ProtocolFault)?;
-            }
+        let paths = check_message_types(info, &bcasts_in, &p2ps_in, &mut faulters)?;
+        if !faulters.is_empty() {
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
-        // anyone who sent p2ps is a faulter
-        for (peer_sign_id, p2ps) in p2ps_in.iter() {
-            if p2ps.is_some() {
+
+        // our check for type 5 succeeded, so anyone who claimed failure is a faulter
+        for (peer_sign_id, path) in paths.iter() {
+            if matches!(path, R5Path::SadType5) {
                 warn!(
-                    "peer {} says: unexpected p2ps from peer {} in round 5",
+                    "peer {} says: peer {} falsely claimed type 5 failure",
                     my_sign_id, peer_sign_id
                 );
                 faulters.set(peer_sign_id, ProtocolFault)?;
@@ -98,8 +97,16 @@ impl Executer for R5 {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
-        // everyone sent their bcast/p2ps---unwrap all bcasts/p2ps
+        // happy path: unwrap bcasts into Happy
+        // TODO combine the next 2 lines into a new FillVecMap::map2_result method?
         let bcasts_in = bcasts_in.to_vecmap()?;
+        let bcasts_in = bcasts_in.map2_result(|(_, bcast)| {
+            if let r4::Bcast::Happy(h) = bcast {
+                Ok(h)
+            } else {
+                Err(TofnFatal)
+            }
+        })?;
 
         // verify commits
         for (peer_sign_id, bcast) in &bcasts_in {

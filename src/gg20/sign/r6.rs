@@ -40,7 +40,7 @@ pub(super) struct R6 {
     pub(super) r1bcasts: VecMap<SignShareId, r1::Bcast>,
     pub(super) r2p2ps: FullP2ps<SignShareId, r2::P2pHappy>,
     pub(super) r3bcasts: VecMap<SignShareId, r3::BcastHappy>,
-    pub(super) r4bcasts: VecMap<SignShareId, r4::Bcast>,
+    pub(super) r4bcasts: VecMap<SignShareId, r4::BcastHappy>,
     pub(super) R: ProjectivePoint,
 
     #[cfg(feature = "malicious")]
@@ -80,7 +80,7 @@ pub struct P2pSad {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct P2pSadType5 {
-    pub(super) mta_palintext: MtaPlaintext,
+    pub(super) mta_plaintext: MtaPlaintext,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -256,8 +256,8 @@ impl Executer for R6 {
                 gamma_i: self.gamma_i.into(),
             }))?);
 
-            let p2ps_out = Some(mta_plaintexts.map2_result(|(_, mta_palintext)| {
-                serialize(&P2p::SadType5(P2pSadType5 { mta_palintext }))
+            let p2ps_out = Some(mta_plaintexts.map2_result(|(_, mta_plaintext)| {
+                serialize(&P2p::SadType5(P2pSadType5 { mta_plaintext }))
             })?);
 
             return Ok(ProtocolBuilder::NotDone(RoundBuilder::new(

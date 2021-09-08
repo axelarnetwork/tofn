@@ -3,14 +3,7 @@ use crate::{
     gg20::{
         crypto_tools::mta,
         keygen::SecretKeyShare,
-        sign::{
-            r2, r4,
-            r7::{
-                self,
-                common::{check_message_types, R7Path},
-            },
-            KeygenShareIds,
-        },
+        sign::{r2, r4, r5::common::R5Path, KeygenShareIds},
     },
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
@@ -20,26 +13,26 @@ use crate::{
 use k256::ProjectivePoint;
 use tracing::{error, warn};
 
-use super::super::{r1, r3, r5, r6, SignShareId};
+use super::{
+    super::{r1, r3, r6, SignShareId},
+    common::check_message_types,
+};
 
 #[allow(non_snake_case)]
-pub(in super::super) struct R7Type5 {
+pub(in super::super) struct R5Type5 {
     pub(in super::super) secret_key_share: SecretKeyShare,
     pub(in super::super) all_keygen_ids: KeygenShareIds,
     pub(in super::super) r1bcasts: VecMap<SignShareId, r1::Bcast>,
     pub(in super::super) r2p2ps: FullP2ps<SignShareId, r2::P2pHappy>,
     pub(in super::super) r3bcasts: VecMap<SignShareId, r3::BcastHappy>,
     pub(in super::super) r4bcasts: VecMap<SignShareId, r4::BcastHappy>,
-    pub(in super::super) R: ProjectivePoint,
-    pub(in super::super) r5bcasts: VecMap<SignShareId, r5::Bcast>,
-    pub(in super::super) r5p2ps: FullP2ps<SignShareId, r5::P2p>,
 }
 
-impl Executer for R7Type5 {
+impl Executer for R5Type5 {
     type FinalOutput = BytesVec;
     type Index = SignShareId;
-    type Bcast = r6::Bcast;
-    type P2p = r6::P2p;
+    type Bcast = r4::Bcast;
+    type P2p = r6::P2pSadType5;
 
     #[allow(non_snake_case)]
     fn execute(
@@ -56,26 +49,9 @@ impl Executer for R7Type5 {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
-        // if anyone complained then move to sad path
-        if paths.iter().any(|(_, path)| matches!(path, R7Path::Sad)) {
-            warn!(
-                "peer {} says: received an R6 complaint from others---switch path type-5 -> sad",
-                my_sign_id,
-            );
-            return Box::new(r7::sad::R7Sad {
-                secret_key_share: self.secret_key_share,
-                all_keygen_ids: self.all_keygen_ids,
-                r1bcasts: self.r1bcasts,
-                R: self.R,
-                r5bcasts: self.r5bcasts,
-                r5p2ps: self.r5p2ps,
-            })
-            .execute(info, bcasts_in, p2ps_in);
-        }
-
         // our check for type 5 failed, so anyone who claimed success is a faulter
         for (peer_sign_id, path) in paths.iter() {
-            if matches!(path, R7Path::Happy) {
+            if matches!(path, R5Path::Happy) {
                 warn!(
                     "peer {} says: peer {} falsely claimed type 5 success",
                     my_sign_id, peer_sign_id
@@ -87,32 +63,27 @@ impl Executer for R7Type5 {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
-        // type-5 sad path: everyone is in R7Path::SadType5--unwrap bcast and p2p into expected types
+        // type-5 sad path: everyone is in R5Path::SadType5--unwrap bcast and p2p into expected types
         // TODO combine to_vecmap() and to_fullp2ps() into new map2_result methods?
         let bcasts_in = bcasts_in.to_vecmap()?;
         let bcasts_in = bcasts_in.map2_result(|(_, bcast)| {
-            if let r6::Bcast::SadType5(t) = bcast {
+            if let r4::Bcast::SadType5(t) = bcast {
                 Ok(t)
             } else {
                 Err(TofnFatal)
             }
         })?;
         let p2ps_in = p2ps_in.to_fullp2ps()?;
-        let p2ps_in = p2ps_in.map2_result(|(_, p2p)| {
-            if let r6::P2p::SadType5(t) = p2p {
-                Ok(t.mta_plaintext)
-            } else {
-                Err(TofnFatal)
-            }
-        })?;
 
-        for (peer_sign_id, bcast_type5, peer_mta_plaintexts) in zip2(bcasts_in, p2ps_in) {
+        // TODO copied code from r7/type5.rs
+
+        for (peer_sign_id, bcast_type5, p2ps) in zip2(bcasts_in, p2ps_in) {
             // verify correct computation of delta_i
-            let delta_i = peer_mta_plaintexts.iter().fold(
+            let delta_i = p2ps.iter().fold(
                 bcast_type5.k_i.as_ref() * bcast_type5.gamma_i.as_ref(),
-                |acc, (_, mta_plaintext)| {
-                    acc + mta_plaintext.alpha_plaintext.to_scalar()
-                        + mta_plaintext.beta_secret.beta.as_ref()
+                |acc, (_, p2p)| {
+                    acc + p2p.mta_plaintext.alpha_plaintext.to_scalar()
+                        + p2p.mta_plaintext.beta_secret.beta.as_ref()
                 },
             );
 
@@ -165,7 +136,7 @@ impl Executer for R7Type5 {
             }
 
             // beta_ij, alpha_ij
-            for (receiver_sign_id, peer_mta_plaintext) in peer_mta_plaintexts {
+            for (receiver_sign_id, p2p) in p2ps {
                 let receiver_keygen_id = *self.all_keygen_ids.get(receiver_sign_id)?;
 
                 // beta_ij
@@ -186,7 +157,7 @@ impl Executer for R7Type5 {
                     receiver_k_i_ciphertext,
                     bcast_type5.gamma_i.as_ref(),
                     receiver_alpha_ciphertext,
-                    &peer_mta_plaintext.beta_secret,
+                    &p2p.mta_plaintext.beta_secret,
                 ) {
                     warn!(
                         "peer {} says: invalid beta from peer {} to victim peer {}",
@@ -199,8 +170,8 @@ impl Executer for R7Type5 {
 
                 // alpha_ij
                 let peer_alpha_ciphertext = peer_ek.encrypt_with_randomness(
-                    &peer_mta_plaintext.alpha_plaintext,
-                    &peer_mta_plaintext.alpha_randomness,
+                    &p2p.mta_plaintext.alpha_plaintext,
+                    &p2p.mta_plaintext.alpha_randomness,
                 );
                 if peer_alpha_ciphertext
                     != self

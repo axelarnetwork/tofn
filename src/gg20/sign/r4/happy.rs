@@ -4,7 +4,10 @@ use crate::{
     gg20::{
         crypto_tools::{hash::Randomness, k256_serde, mta::Secret, paillier, zkp::pedersen},
         keygen::{KeygenShareId, SecretKeyShare},
-        sign::{r4, KeygenShareIds},
+        sign::{
+            r4::{self, Bcast},
+            KeygenShareIds,
+        },
     },
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
@@ -44,7 +47,7 @@ pub(in super::super) struct R4Happy {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(non_snake_case)]
-pub(in super::super) struct Bcast {
+pub struct BcastHappy {
     pub(in super::super) Gamma_i: k256_serde::ProjectivePoint,
     pub(in super::super) Gamma_i_reveal: Randomness,
 }
@@ -186,10 +189,10 @@ impl Executer for R4Happy {
             self.corrupt_Gamma_i_reveal(my_sign_id, Gamma_i_reveal)
         );
 
-        let bcast_out = Some(serialize(&Bcast {
+        let bcast_out = Some(serialize(&Bcast::Happy(BcastHappy {
             Gamma_i: self.Gamma_i.into(),
             Gamma_i_reveal,
-        })?);
+        }))?);
 
         Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
             Box::new(r5::R5 {
