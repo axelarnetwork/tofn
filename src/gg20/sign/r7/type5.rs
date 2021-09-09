@@ -1,7 +1,6 @@
 use crate::{
-    collections::{zip2, FillVecMap, FullP2ps, P2ps, VecMap},
+    collections::{FillVecMap, FullP2ps, P2ps, VecMap},
     gg20::{
-        crypto_tools::mta,
         keygen::SecretKeyShare,
         sign::{
             r2, r4,
@@ -9,6 +8,7 @@ use crate::{
                 self,
                 common::{check_message_types, R7Path},
             },
+            type5_common::type5_checks,
             KeygenShareIds,
         },
     },
@@ -106,118 +106,18 @@ impl Executer for R7Type5 {
             }
         })?;
 
-        for (peer_sign_id, bcast_type5, peer_mta_plaintexts) in zip2(bcasts_in, p2ps_in) {
-            // verify correct computation of delta_i
-            let delta_i = peer_mta_plaintexts.iter().fold(
-                bcast_type5.k_i.as_ref() * bcast_type5.gamma_i.as_ref(),
-                |acc, (_, mta_plaintext)| {
-                    acc + mta_plaintext.alpha_plaintext.to_scalar()
-                        + mta_plaintext.beta_secret.beta.as_ref()
-                },
-            );
-
-            if &delta_i != self.r3bcasts.get(peer_sign_id)?.delta_i.as_ref() {
-                warn!(
-                    "peer {} says: delta_i for peer {} does not match",
-                    my_sign_id, peer_sign_id
-                );
-                faulters.set(peer_sign_id, ProtocolFault)?;
-                continue;
-            }
-
-            // verify R7 peer data is consistent with earlier messages:
-            // 1. k_i
-            // 2. gamma_i
-            // 3. beta_ij
-            // 4. alpha_ij
-            let peer_keygen_id = *self.all_keygen_ids.get(peer_sign_id)?;
-
-            let peer_ek = &self
-                .secret_key_share
-                .group()
-                .all_shares()
-                .get(peer_keygen_id)?
-                .ek();
-
-            // k_i
-            let k_i_ciphertext = peer_ek.encrypt_with_randomness(
-                &(bcast_type5.k_i.as_ref()).into(),
-                &bcast_type5.k_i_randomness,
-            );
-            if k_i_ciphertext != self.r1bcasts.get(peer_sign_id)?.k_i_ciphertext {
-                warn!(
-                    "peer {} says: invalid k_i detected from peer {}",
-                    my_sign_id, peer_sign_id
-                );
-                faulters.set(peer_sign_id, ProtocolFault)?;
-                continue;
-            }
-
-            // gamma_i
-            let Gamma_i = ProjectivePoint::generator() * bcast_type5.gamma_i.as_ref();
-            if &Gamma_i != self.r4bcasts.get(peer_sign_id)?.Gamma_i.as_ref() {
-                warn!(
-                    "peer {} says: invalid Gamma_i detected from peer {}",
-                    my_sign_id, peer_sign_id
-                );
-                faulters.set(peer_sign_id, ProtocolFault)?;
-                continue;
-            }
-
-            // beta_ij, alpha_ij
-            for (receiver_sign_id, peer_mta_plaintext) in peer_mta_plaintexts {
-                let receiver_keygen_id = *self.all_keygen_ids.get(receiver_sign_id)?;
-
-                // beta_ij
-                let receiver_ek = self
-                    .secret_key_share
-                    .group()
-                    .all_shares()
-                    .get(receiver_keygen_id)?
-                    .ek();
-                let receiver_k_i_ciphertext = &self.r1bcasts.get(receiver_sign_id)?.k_i_ciphertext;
-                let receiver_alpha_ciphertext = &self
-                    .r2p2ps
-                    .get(peer_sign_id, receiver_sign_id)?
-                    .alpha_ciphertext;
-
-                if !mta::verify_mta_response(
-                    receiver_ek,
-                    receiver_k_i_ciphertext,
-                    bcast_type5.gamma_i.as_ref(),
-                    receiver_alpha_ciphertext,
-                    &peer_mta_plaintext.beta_secret,
-                ) {
-                    warn!(
-                        "peer {} says: invalid beta from peer {} to victim peer {}",
-                        my_sign_id, peer_sign_id, receiver_sign_id
-                    );
-
-                    faulters.set(peer_sign_id, ProtocolFault)?;
-                    continue;
-                }
-
-                // alpha_ij
-                let peer_alpha_ciphertext = peer_ek.encrypt_with_randomness(
-                    &peer_mta_plaintext.alpha_plaintext,
-                    &peer_mta_plaintext.alpha_randomness,
-                );
-                if peer_alpha_ciphertext
-                    != self
-                        .r2p2ps
-                        .get(receiver_sign_id, peer_sign_id)?
-                        .alpha_ciphertext
-                {
-                    warn!(
-                        "peer {} says: invalid alpha from peer {} to victim peer {}",
-                        my_sign_id, peer_sign_id, receiver_sign_id
-                    );
-
-                    faulters.set(peer_sign_id, ProtocolFault)?;
-                    continue;
-                }
-            }
-        }
+        type5_checks(
+            &mut faulters,
+            my_sign_id,
+            bcasts_in,
+            p2ps_in,
+            self.r1bcasts,
+            self.r2p2ps,
+            self.r3bcasts,
+            Some(self.r4bcasts),
+            self.all_keygen_ids,
+            self.secret_key_share.group().all_shares(),
+        )?;
 
         // sanity check
         if faulters.is_empty() {

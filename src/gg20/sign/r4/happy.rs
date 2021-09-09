@@ -6,7 +6,8 @@ use crate::{
         keygen::{KeygenShareId, SecretKeyShare},
         sign::{
             r4::{self, Bcast},
-            r6::{self, BcastSadType5, MtaPlaintext},
+            r6,
+            type5_common::{BcastSadType5, MtaPlaintext},
             KeygenShareIds,
         },
     },

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::r6::BcastSadType5; // TODO reuse BcastSadType5 from r6??
+use super::type5_common::BcastSadType5;
 
 mod happy;
 pub(super) use happy::{BcastHappy, R4Happy};
