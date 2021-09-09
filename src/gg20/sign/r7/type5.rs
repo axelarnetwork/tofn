@@ -169,7 +169,7 @@ impl Executer for R7Type5 {
                 let receiver_keygen_id = *self.all_keygen_ids.get(receiver_sign_id)?;
 
                 // beta_ij
-                let receiver_ek = &self
+                let receiver_ek = self
                     .secret_key_share
                     .group()
                     .all_shares()

@@ -22,7 +22,7 @@ use super::malicious::Behaviour;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(non_snake_case)]
-pub(super) struct Bcast {
+pub struct Bcast {
     pub(super) Gamma_i_commit: hash::Output,
     pub(super) k_i_ciphertext: paillier::Ciphertext,
 }

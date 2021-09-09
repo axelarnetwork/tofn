@@ -66,6 +66,7 @@ pub struct BcastHappy {
     pub(super) S_i_proof_wc: pedersen::ProofWc,
 }
 
+// TODO delete me
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BcastSadType5 {
     pub(super) k_i: k256_serde::Scalar,
@@ -83,6 +84,7 @@ pub struct P2pSadType5 {
     pub(super) mta_plaintext: MtaPlaintext,
 }
 
+// TODO delete me
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) struct MtaPlaintext {
     // need alpha_plaintext instead of alpha
