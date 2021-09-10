@@ -43,6 +43,7 @@ pub struct MtaPlaintext {
 /// Used in rounds 5 and 7
 /// Anyone who fails these checks is set in `faulters`
 #[allow(non_snake_case)]
+#[allow(clippy::too_many_arguments)]
 pub fn type5_checks(
     faulters: &mut FillVecMap<SignShareId, Fault>,
     my_sign_id: TypedUsize<SignShareId>,

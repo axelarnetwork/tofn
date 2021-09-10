@@ -168,6 +168,8 @@ fn next_sign_round(
         all_bcasts
     };
 
+    // TODO hit other code paths in type-5 sad path by corrupting alpha_ij, beta_ij, k_i, gamma_i
+
     // deliver bcasts
     for (from, bcast) in all_bcasts.into_iter() {
         if let Some(bytes) = bcast {
