@@ -5,7 +5,8 @@ use tracing::warn;
 use crate::{
     collections::{zip2, FillVecMap, FullP2ps, TypedUsize, VecMap},
     gg20::{
-        crypto_tools::{k256_serde, mta, paillier},
+        constants,
+        crypto_tools::{hash, k256_serde, mta, paillier},
         keygen::{KeygenShareId, SharePublicInfo},
     },
     sdk::api::{
@@ -36,7 +37,7 @@ pub struct MtaPlaintext {
 /// 'Type 5' sad path checks as described in section 4.2 of https://eprint.iacr.org/2020/540.pdf
 /// Verify peer data is consistent with earlier messages:
 /// * k_i
-/// * gamma_i
+/// * gamma_i, Gamma_i
 /// * beta_ij
 /// * alpha_ij
 /// Used in rounds 5 and 7
@@ -90,11 +91,29 @@ pub fn type5_checks(
         }
 
         // gamma_i
-        // TODO why aren't we checking Gamma_i against its commitment from round 1???  (By r7 I think Gamma_i commitment was already checked, but by r5 it has not yet been checked.)
         let Gamma_i = ProjectivePoint::generator() * bcast_type5.1.gamma_i.as_ref();
         if &Gamma_i != bcast_type5.0.Gamma_i.as_ref() {
             warn!(
-                "peer {} says: invalid Gamma_i detected from peer {}",
+                "peer {} says: inconsistent (gamma_i, Gamma_i) from peer {}",
+                my_sign_id, peer_sign_id
+            );
+            faulters.set(peer_sign_id, ProtocolFault)?;
+            continue;
+        }
+
+        // Gamma_i
+        // This check is also done round 5 happy path.
+        // If we're in round 5 sad type-5 path then we need to do it here, too.
+        // If we're in round 7 sad type-5 path then this check is redundant, but do it anyway.
+        let Gamma_i_commit = hash::commit_with_randomness(
+            constants::GAMMA_I_COMMIT_TAG,
+            peer_sign_id,
+            bcast_type5.0.Gamma_i.bytes(),
+            &bcast_type5.0.Gamma_i_reveal,
+        );
+        if Gamma_i_commit != all_r1_bcasts.get(peer_sign_id)?.Gamma_i_commit {
+            warn!(
+                "peer {} says: inconsistent (Gamma_i, Gamma_i_commit) from peer {}",
                 my_sign_id, peer_sign_id
             );
             faulters.set(peer_sign_id, ProtocolFault)?;
