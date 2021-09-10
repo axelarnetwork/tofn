@@ -30,7 +30,7 @@ pub fn check_message_types(
     // anyone who did not send bcast is a faulter
     // deduce path from bcast
     // anyone who sent p2ps in happy path is a faulter
-    // anyone who did not send p2ps in type 7 path is a faulter
+    // anyone who did not send p2ps in type 5 path is a faulter
     for (peer_sign_id, bcast_option, p2ps_option) in zip2(bcasts_in, p2ps_in) {
         if let Some(bcast) = bcast_option {
             match bcast {
@@ -44,10 +44,10 @@ pub fn check_message_types(
                     }
                     paths.push(R5Path::Happy);
                 }
-                r4::Bcast::SadType5(_) => {
+                r4::Bcast::SadType5 { .. } => {
                     if p2ps_option.is_none() {
                         warn!(
-                            "peer {} says: mising p2ps from peer {} in round 5 type-5 sad path",
+                            "peer {} says: missing p2ps from peer {} in round 5 type-5 sad path",
                             my_sign_id, peer_sign_id,
                         );
                         faulters.set(peer_sign_id, ProtocolFault)?;

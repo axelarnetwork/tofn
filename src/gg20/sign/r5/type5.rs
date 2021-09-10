@@ -64,8 +64,8 @@ impl Executer for R5Type5 {
         // TODO combine to_vecmap() and map2_result() into a new map2_to_vecmap_result method for FillVecMap?
         let bcasts_in = bcasts_in.to_vecmap()?;
         let bcasts_in = bcasts_in.map2_result(|(_, bcast)| {
-            if let r4::Bcast::SadType5(t) = bcast {
-                Ok(t)
+            if let r4::Bcast::SadType5(h, s) = bcast {
+                Ok((h, s))
             } else {
                 Err(TofnFatal)
             }
@@ -80,7 +80,6 @@ impl Executer for R5Type5 {
             self.r1bcasts,
             self.r2p2ps,
             self.r3bcasts,
-            None, // r4 bcasts unavailable at this point in the protocol
             self.all_keygen_ids,
             self.secret_key_share.group().all_shares(),
         )?;

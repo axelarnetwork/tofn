@@ -124,6 +124,18 @@ impl Executer for R4Happy {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
+        // prepare BcastHappy
+        let Gamma_i_reveal = self.Gamma_i_reveal.clone();
+        corrupt!(
+            Gamma_i_reveal,
+            self.corrupt_Gamma_i_reveal(my_sign_id, Gamma_i_reveal)
+        );
+
+        let bcast_out_happy = BcastHappy {
+            Gamma_i: self.Gamma_i.into(),
+            Gamma_i_reveal,
+        };
+
         // compute delta_inv
         let delta_inv = bcasts_in
             .iter()
@@ -155,12 +167,18 @@ impl Executer for R4Happy {
                             beta_secret,
                         })
                     })?;
+
             let k_i = self.k_i;
-            let bcast_out = Some(serialize(&Bcast::SadType5(BcastSadType5 {
-                k_i: k_i.into(),
-                k_i_randomness: self.k_i_randomness.clone(),
-                gamma_i: self.gamma_i.into(),
-            }))?);
+
+            let bcast_out = Some(serialize(&Bcast::SadType5(
+                bcast_out_happy,
+                BcastSadType5 {
+                    k_i: k_i.into(),
+                    k_i_randomness: self.k_i_randomness.clone(),
+                    gamma_i: self.gamma_i.into(),
+                },
+            ))?);
+
             let p2ps_out =
                 Some(mta_plaintexts.map2_result(|(_, mta_plaintext)| {
                     serialize(&r6::P2pSadType5 { mta_plaintext })
@@ -179,16 +197,7 @@ impl Executer for R4Happy {
             )));
         }
 
-        let Gamma_i_reveal = self.Gamma_i_reveal.clone();
-        corrupt!(
-            Gamma_i_reveal,
-            self.corrupt_Gamma_i_reveal(my_sign_id, Gamma_i_reveal)
-        );
-
-        let bcast_out = Some(serialize(&Bcast::Happy(BcastHappy {
-            Gamma_i: self.Gamma_i.into(),
-            Gamma_i_reveal,
-        }))?);
+        let bcast_out = Some(serialize(&Bcast::Happy(bcast_out_happy))?);
 
         Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
             Box::new(r5::R5 {

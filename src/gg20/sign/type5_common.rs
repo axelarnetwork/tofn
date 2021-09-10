@@ -36,30 +36,27 @@ pub struct MtaPlaintext {
 /// 'Type 5' sad path checks as described in section 4.2 of https://eprint.iacr.org/2020/540.pdf
 /// Verify peer data is consistent with earlier messages:
 /// * k_i
-/// * gamma_i (if present)
+/// * gamma_i
 /// * beta_ij
 /// * alpha_ij
 /// Used in rounds 5 and 7
 /// Anyone who fails these checks is set in `faulters`
-/// If called from round 5 then peer data for gamma_i is not yet available,
-/// so `all_r4_bcasts_option` is of type `Option<_>`.
 #[allow(non_snake_case)]
 pub fn type5_checks(
     faulters: &mut FillVecMap<SignShareId, Fault>,
     my_sign_id: TypedUsize<SignShareId>,
-    bcasts_in: VecMap<SignShareId, BcastSadType5>,
+    bcasts_in: VecMap<SignShareId, (r4::BcastHappy, BcastSadType5)>,
     p2ps_in: FullP2ps<SignShareId, MtaPlaintext>,
     all_r1_bcasts: VecMap<SignShareId, r1::Bcast>,
     all_r2_p2ps: FullP2ps<SignShareId, r2::P2pHappy>,
     all_r3_bcasts: VecMap<SignShareId, r3::BcastHappy>,
-    all_r4_bcasts_option: Option<VecMap<SignShareId, r4::BcastHappy>>,
     all_keygen_ids: VecMap<SignShareId, TypedUsize<KeygenShareId>>,
     all_share_public_infos: &VecMap<KeygenShareId, SharePublicInfo>,
 ) -> TofnResult<()> {
     for (peer_sign_id, bcast_type5, peer_mta_plaintexts) in zip2(bcasts_in, p2ps_in) {
         // verify correct computation of delta_i
         let delta_i = peer_mta_plaintexts.iter().fold(
-            bcast_type5.k_i.as_ref() * bcast_type5.gamma_i.as_ref(),
+            bcast_type5.1.k_i.as_ref() * bcast_type5.1.gamma_i.as_ref(),
             |acc, (_, mta_plaintext)| {
                 acc + mta_plaintext.alpha_plaintext.to_scalar()
                     + mta_plaintext.beta_secret.beta.as_ref()
@@ -80,8 +77,8 @@ pub fn type5_checks(
 
         // k_i
         let k_i_ciphertext = peer_ek.encrypt_with_randomness(
-            &(bcast_type5.k_i.as_ref()).into(),
-            &bcast_type5.k_i_randomness,
+            &(bcast_type5.1.k_i.as_ref()).into(),
+            &bcast_type5.1.k_i_randomness,
         );
         if k_i_ciphertext != all_r1_bcasts.get(peer_sign_id)?.k_i_ciphertext {
             warn!(
@@ -92,17 +89,16 @@ pub fn type5_checks(
             continue;
         }
 
-        // gamma_i (if present)
-        if let Some(ref all_r4_bcasts) = all_r4_bcasts_option {
-            let Gamma_i = ProjectivePoint::generator() * bcast_type5.gamma_i.as_ref();
-            if &Gamma_i != all_r4_bcasts.get(peer_sign_id)?.Gamma_i.as_ref() {
-                warn!(
-                    "peer {} says: invalid Gamma_i detected from peer {}",
-                    my_sign_id, peer_sign_id
-                );
-                faulters.set(peer_sign_id, ProtocolFault)?;
-                continue;
-            }
+        // gamma_i
+        // TODO why aren't we checking Gamma_i against its commitment from round 1???  (By r7 I think Gamma_i commitment was already checked, but by r5 it has not yet been checked.)
+        let Gamma_i = ProjectivePoint::generator() * bcast_type5.1.gamma_i.as_ref();
+        if &Gamma_i != bcast_type5.0.Gamma_i.as_ref() {
+            warn!(
+                "peer {} says: invalid Gamma_i detected from peer {}",
+                my_sign_id, peer_sign_id
+            );
+            faulters.set(peer_sign_id, ProtocolFault)?;
+            continue;
         }
 
         // beta_ij, alpha_ij
@@ -119,7 +115,7 @@ pub fn type5_checks(
             if !mta::verify_mta_response(
                 receiver_ek,
                 receiver_k_i_ciphertext,
-                bcast_type5.gamma_i.as_ref(),
+                bcast_type5.1.gamma_i.as_ref(),
                 receiver_alpha_ciphertext,
                 &peer_mta_plaintext.beta_secret,
             ) {

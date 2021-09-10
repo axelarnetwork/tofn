@@ -10,5 +10,5 @@ pub(super) use sad::R4Sad;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Bcast {
     Happy(BcastHappy),
-    SadType5(BcastSadType5),
+    SadType5(BcastHappy, BcastSadType5),
 }

@@ -1,5 +1,5 @@
 use crate::{
-    collections::{FillVecMap, FullP2ps, P2ps, VecMap},
+    collections::{zip2, FillVecMap, FullP2ps, P2ps, VecMap},
     gg20::{
         keygen::SecretKeyShare,
         sign::{
@@ -87,16 +87,20 @@ impl Executer for R7Type5 {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
-        // type-5 sad path: everyone is in R7Path::SadType5--unwrap bcast and p2p into expected types
-        // TODO combine to_vecmap() and to_fullp2ps() into new map2_result methods?
-        let bcasts_in = bcasts_in.to_vecmap()?;
-        let bcasts_in = bcasts_in.map2_result(|(_, bcast)| {
-            if let r6::Bcast::SadType5(t) = bcast {
-                Ok(t)
-            } else {
-                Err(TofnFatal)
-            }
-        })?;
+        // everyone is now in type-5 sad path: prepare bcasts_in, p2ps_in
+
+        // prepare bcasts_in for the call to type5_checks()
+        let bcasts_in = zip2(bcasts_in, self.r4bcasts)
+            .map(|(_, bcast_option, happy)| {
+                if let Some(Self::Bcast::SadType5(type5)) = bcast_option {
+                    Ok((happy, type5))
+                } else {
+                    Err(TofnFatal)
+                }
+            })
+            .collect::<TofnResult<_>>()?;
+
+        // unwrap p2ps_in into expected type
         let p2ps_in = p2ps_in.to_fullp2ps()?;
         let p2ps_in = p2ps_in.map2_result(|(_, p2p)| {
             if let r6::P2p::SadType5(t) = p2p {
@@ -114,7 +118,6 @@ impl Executer for R7Type5 {
             self.r1bcasts,
             self.r2p2ps,
             self.r3bcasts,
-            Some(self.r4bcasts),
             self.all_keygen_ids,
             self.secret_key_share.group().all_shares(),
         )?;
