@@ -23,7 +23,7 @@ mod utils {
 }
 pub use utils::{log_accuse_warn, log_fault_info, log_fault_warn};
 
-#[cfg(test)]
+#[cfg(any(test, feature = "malicious"))]
 pub use super::wire_bytes::{
     decode, decode_message, encode, encode_message, ExpectedMsgTypes, MsgType,
 };
