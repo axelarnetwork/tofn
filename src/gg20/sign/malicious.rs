@@ -1,7 +1,7 @@
 use tracing::info;
 
 use crate::{
-    collections::{TypedUsize, VecMap},
+    collections::{HoleVecMap, TypedUsize, VecMap},
     gg20::sign::r3,
     sdk::{
         api::{BytesVec, MsgType},
@@ -56,9 +56,9 @@ pub(crate) fn log_confess_info<K>(sign_id: TypedUsize<K>, behaviour: &Behaviour,
 }
 
 pub fn delta_inverse_r3(
-    malicious_sign_share_id: TypedUsize<SignShareId>,
+    faulter_share_id: TypedUsize<SignShareId>,
     all_bcasts: VecMap<SignShareId, Option<BytesVec>>,
-) -> VecMap<SignShareId, Option<BytesVec>> {
+) -> (VecMap<SignShareId, Option<BytesVec>>, Option<k256::Scalar>) {
     let mut all_bcasts_deserialized: Vec<r3::BcastHappy> = all_bcasts
         .map(|bytes_option| {
             bincode::deserialize(
@@ -70,26 +70,50 @@ pub fn delta_inverse_r3(
         })
         .into_vec();
 
-    let mut faulter_bcast = all_bcasts_deserialized.remove(malicious_sign_share_id.as_usize());
+    let mut faulter_bcast = all_bcasts_deserialized.remove(faulter_share_id.as_usize());
 
     let delta_i_sum_except_faulter = all_bcasts_deserialized
         .iter()
         .map(|bcast| bcast.delta_i.as_ref())
         .fold(k256::Scalar::zero(), |acc, delta_i| acc + delta_i);
 
+    let faulter_delta_i_change = faulter_bcast.delta_i.as_ref() - &delta_i_sum_except_faulter;
+
     faulter_bcast.delta_i = delta_i_sum_except_faulter.negate().into();
 
-    all_bcasts_deserialized.insert(malicious_sign_share_id.as_usize(), faulter_bcast);
+    all_bcasts_deserialized.insert(faulter_share_id.as_usize(), faulter_bcast);
 
-    VecMap::from_vec(all_bcasts_deserialized).map2(|(from, bcast)| {
-        Some(
-            encode_message::<SignShareId>(
-                serialize(&bcast).unwrap(),
-                from,
-                MsgType::Bcast,
-                ExpectedMsgTypes::BcastOnly,
+    (
+        VecMap::from_vec(all_bcasts_deserialized).map2(|(from, bcast)| {
+            Some(
+                encode_message::<SignShareId>(
+                    serialize(&bcast).unwrap(),
+                    from,
+                    MsgType::Bcast,
+                    ExpectedMsgTypes::BcastOnly,
+                )
+                .unwrap(),
             )
-            .unwrap(),
-        )
-    })
+        }),
+        Some(faulter_delta_i_change),
+    )
+}
+
+// which scalar to corrupt in a delta-inverse attack
+#[allow(non_camel_case_types)]
+pub enum DeltaInvFaultType {
+    delta_i,
+    alpha_ij,
+    beta_ij,
+    k_i,
+}
+
+pub fn delta_inverse_r4(
+    fault_type: DeltaInvFaultType,
+    delta_i_change: k256::Scalar,
+    faulter_share_id: TypedUsize<SignShareId>,
+    faulter_bcast: &mut BytesVec,
+    faulter_p2ps: &mut HoleVecMap<SignShareId, BytesVec>,
+) {
+    todo!()
 }

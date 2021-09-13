@@ -5,7 +5,7 @@ use tofn::{
     gg20::{
         keygen::{KeygenPartyId, KeygenShareId},
         sign::{
-            malicious::{delta_inverse_r3, Behaviour},
+            malicious::{delta_inverse_r3, delta_inverse_r4, Behaviour, DeltaInvFaultType},
             new_sign, MessageDigest, SignParties, SignPartyId, SignProtocol, SignShareId,
         },
     },
@@ -39,12 +39,14 @@ fn delta_inverse() {
         .set(TypedUsize::from_usize(1), Fault::ProtocolFault)
         .unwrap();
 
-    let test_case = DeltaInvTestCase {
+    let mut test_case = DeltaInvTestCase {
         party_share_counts: PartyShareCounts::from_vec(vec![1, 2, 3]).unwrap(),
         threshold: 3,
         sign_parties,
         expected_honest_output: Err(faulters),
-        malicious_sign_share_id: TypedUsize::from_usize(3),
+        faulter_share_id: TypedUsize::from_usize(3),
+        fault_type: DeltaInvFaultType::delta_i,
+        delta_i_change: None,
     };
 
     info!("generate secret key shares");
@@ -84,11 +86,11 @@ fn delta_inverse() {
             .unwrap()
         });
 
-    let outputs = execute_sign_protocol(shares, &test_case).unwrap();
+    let outputs = execute_sign_protocol(shares, &mut test_case).unwrap();
 
     // TEST: honest parties finished and produced the expected output
     for (sign_share_id, result) in outputs.iter() {
-        if sign_share_id != test_case.malicious_sign_share_id {
+        if sign_share_id != test_case.faulter_share_id {
             match result {
                 Protocol::NotDone(_) => {
                     panic!("honest sign share_id {} not done yet", sign_share_id)
@@ -104,7 +106,9 @@ pub struct DeltaInvTestCase {
     pub threshold: usize,
     pub sign_parties: SignParties,
     pub expected_honest_output: ProtocolOutput<BytesVec, SignPartyId>,
-    pub malicious_sign_share_id: TypedUsize<SignShareId>,
+    pub faulter_share_id: TypedUsize<SignShareId>,
+    pub fault_type: DeltaInvFaultType,
+    pub delta_i_change: Option<k256::Scalar>,
 }
 
 impl DeltaInvTestCase {
@@ -127,7 +131,7 @@ impl DeltaInvTestCase {
 
 pub fn execute_sign_protocol(
     mut shares: VecMap<SignShareId, SignProtocol>,
-    test_case: &DeltaInvTestCase,
+    test_case: &mut DeltaInvTestCase,
 ) -> TofnResult<VecMap<SignShareId, SignProtocol>> {
     let mut current_round = 0;
     while nobody_done(&shares) {
@@ -139,7 +143,7 @@ pub fn execute_sign_protocol(
 
 fn next_sign_round(
     shares: VecMap<SignShareId, SignProtocol>,
-    test_case: &DeltaInvTestCase,
+    test_case: &mut DeltaInvTestCase,
     current_round: usize,
 ) -> TofnResult<VecMap<SignShareId, SignProtocol>> {
     // extract current round from parties
@@ -152,23 +156,35 @@ fn next_sign_round(
         .collect();
 
     // collect bcasts and p2ps
-    let all_bcasts: VecMap<SignShareId, Option<BytesVec>> = rounds
+    let mut all_bcasts: VecMap<SignShareId, Option<BytesVec>> = rounds
         .iter()
         .map(|(_, round)| round.bcast_out().cloned())
         .collect();
-    let all_p2ps: VecMap<SignShareId, Option<HoleVecMap<_, BytesVec>>> = rounds
+    let mut all_p2ps: VecMap<SignShareId, Option<HoleVecMap<_, BytesVec>>> = rounds
         .iter()
         .map(|(_, round)| round.p2ps_out().cloned())
         .collect();
 
-    // execute delta-inverse attack
-    let all_bcasts = if current_round == 3 {
-        delta_inverse_r3(test_case.malicious_sign_share_id, all_bcasts)
-    } else {
-        all_bcasts
-    };
+    // execute delta-inverse attack: round 3 corrupt delta_i
+    if current_round == 3 {
+        let (all_bcasts_corrupted, delta_i_change) =
+            delta_inverse_r3(test_case.faulter_share_id, all_bcasts);
+        all_bcasts = all_bcasts_corrupted;
+        test_case.delta_i_change = delta_i_change;
+    }
 
-    // TODO hit other code paths in type-5 sad path by corrupting alpha_ij, beta_ij, k_i, gamma_i
+    // execute delta-inverse attack: round 4 corrupt alpha_ij, beta_ij, k_i, gamma_i
+    // let all_bcasts = if current_round == 4 {
+    //     delta_inverse_r4(
+    //         test_case.fault_type,
+    //         faulter_delta_i_change,
+    //         test_case.faulter_share_id,
+    //         faulter_bcast,
+    //         faulter_p2ps,
+    //     )
+    // } else {
+    //     all_bcasts
+    // };
 
     // deliver bcasts
     for (from, bcast) in all_bcasts.into_iter() {
