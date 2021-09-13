@@ -170,21 +170,27 @@ fn next_sign_round(
         let (all_bcasts_corrupted, delta_i_change) =
             delta_inverse_r3(test_case.faulter_share_id, all_bcasts);
         all_bcasts = all_bcasts_corrupted;
-        test_case.delta_i_change = delta_i_change;
+        test_case.delta_i_change = Some(delta_i_change);
     }
 
     // execute delta-inverse attack: round 4 corrupt alpha_ij, beta_ij, k_i, gamma_i
-    // let all_bcasts = if current_round == 4 {
-    //     delta_inverse_r4(
-    //         test_case.fault_type,
-    //         faulter_delta_i_change,
-    //         test_case.faulter_share_id,
-    //         faulter_bcast,
-    //         faulter_p2ps,
-    //     )
-    // } else {
-    //     all_bcasts
-    // };
+    if current_round == 4 {
+        delta_inverse_r4(
+            &test_case.fault_type,
+            test_case.delta_i_change.unwrap(),
+            test_case.faulter_share_id,
+            all_bcasts
+                .get_mut(test_case.faulter_share_id)
+                .unwrap()
+                .as_mut()
+                .unwrap(),
+            &mut all_p2ps
+                .get_mut(test_case.faulter_share_id)
+                .unwrap()
+                .as_mut()
+                .unwrap(),
+        )
+    }
 
     // deliver bcasts
     for (from, bcast) in all_bcasts.into_iter() {

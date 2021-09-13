@@ -9,7 +9,7 @@ use crate::{
     },
 };
 
-use super::SignShareId;
+use super::{r4, r6, SignShareId};
 
 // all malicious behaviours
 // names have the form <round><fault> where
@@ -58,7 +58,7 @@ pub(crate) fn log_confess_info<K>(sign_id: TypedUsize<K>, behaviour: &Behaviour,
 pub fn delta_inverse_r3(
     faulter_share_id: TypedUsize<SignShareId>,
     all_bcasts: VecMap<SignShareId, Option<BytesVec>>,
-) -> (VecMap<SignShareId, Option<BytesVec>>, Option<k256::Scalar>) {
+) -> (VecMap<SignShareId, Option<BytesVec>>, k256::Scalar) {
     let mut all_bcasts_deserialized: Vec<r3::BcastHappy> = all_bcasts
         .map(|bytes_option| {
             bincode::deserialize(
@@ -95,7 +95,7 @@ pub fn delta_inverse_r3(
                 .unwrap(),
             )
         }),
-        Some(faulter_delta_i_change),
+        faulter_delta_i_change,
     )
 }
 
@@ -109,11 +109,51 @@ pub enum DeltaInvFaultType {
 }
 
 pub fn delta_inverse_r4(
-    fault_type: DeltaInvFaultType,
+    fault_type: &DeltaInvFaultType,
     delta_i_change: k256::Scalar,
     faulter_share_id: TypedUsize<SignShareId>,
     faulter_bcast: &mut BytesVec,
     faulter_p2ps: &mut HoleVecMap<SignShareId, BytesVec>,
 ) {
-    todo!()
+    let faulter_bcast_deserialized: r4::Bcast = bincode::deserialize(
+        &decode_message::<SignShareId>(&faulter_bcast)
+            .unwrap()
+            .payload,
+    )
+    .unwrap();
+
+    let faulter_p2ps_deserialized: HoleVecMap<_, r6::P2pSadType5> = faulter_p2ps
+        .clone_map2_result(|(_, bytes)| {
+            Ok(
+                bincode::deserialize(&decode_message::<SignShareId>(bytes).unwrap().payload)
+                    .unwrap(),
+            )
+        })
+        .unwrap();
+
+    match fault_type {
+        DeltaInvFaultType::delta_i => {} // nothing to do here
+        DeltaInvFaultType::alpha_ij => todo!(),
+        DeltaInvFaultType::beta_ij => todo!(),
+        DeltaInvFaultType::k_i => todo!(),
+    }
+
+    *faulter_bcast = encode_message::<SignShareId>(
+        serialize(&faulter_bcast_deserialized).unwrap(),
+        faulter_share_id,
+        MsgType::Bcast,
+        ExpectedMsgTypes::BcastAndP2p,
+    )
+    .unwrap();
+
+    *faulter_p2ps = faulter_p2ps_deserialized
+        .map2_result(|(to, p2p)| {
+            encode_message::<SignShareId>(
+                serialize(&p2p).unwrap(),
+                faulter_share_id,
+                MsgType::P2p { to },
+                ExpectedMsgTypes::BcastAndP2p,
+            )
+        })
+        .unwrap();
 }
