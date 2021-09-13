@@ -253,9 +253,8 @@ fn execute_sign(
 
 #[test]
 #[traced_test]
-/// This test cannot easily be implemented in an integration test
-/// because it requires a rushing adversary to tweak her messages in response to other shares' messages.
-/// So instead we implement it here as a unit test.
+/// This unit test is now redundant.
+/// It has been replicated as an integration test in `tests/integration/single_thread/malicious/sign_delta_inv.rs`.
 fn malicious_delta_inverse() {
     let msg_to_sign = msg_to_sign();
     let test_case = TestCase {
