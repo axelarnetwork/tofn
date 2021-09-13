@@ -77,7 +77,7 @@ pub fn delta_inverse_r3(
         .map(|bcast| bcast.delta_i.as_ref())
         .fold(k256::Scalar::zero(), |acc, delta_i| acc + delta_i);
 
-    let faulter_delta_i_change = faulter_bcast.delta_i.as_ref() - &delta_i_sum_except_faulter;
+    let faulter_delta_i_change = faulter_bcast.delta_i.as_ref() + &delta_i_sum_except_faulter;
 
     faulter_bcast.delta_i = delta_i_sum_except_faulter.negate().into();
 
@@ -100,12 +100,15 @@ pub fn delta_inverse_r3(
 }
 
 // which scalar to corrupt in a delta-inverse attack
+#[derive(Debug)]
 #[allow(non_camel_case_types)]
 pub enum DeltaInvFaultType {
     delta_i,
-    alpha_ij,
-    beta_ij,
+    alpha_ij { victim: TypedUsize<SignShareId> },
+    beta_ij { victim: TypedUsize<SignShareId> },
     k_i,
+    gamma_i,
+    Gamma_i_gamma_i,
 }
 
 pub fn delta_inverse_r4(
@@ -115,14 +118,18 @@ pub fn delta_inverse_r4(
     faulter_bcast: &mut BytesVec,
     faulter_p2ps: &mut HoleVecMap<SignShareId, BytesVec>,
 ) {
-    let faulter_bcast_deserialized: r4::Bcast = bincode::deserialize(
+    let mut faulter_bcast_deserialized = match bincode::deserialize::<r4::Bcast>(
         &decode_message::<SignShareId>(&faulter_bcast)
             .unwrap()
             .payload,
     )
-    .unwrap();
+    .unwrap()
+    {
+        r4::Bcast::SadType5(h, s) => (h, s),
+        _ => panic!("expected SadType5 variant, got something else"),
+    };
 
-    let faulter_p2ps_deserialized: HoleVecMap<_, r6::P2pSadType5> = faulter_p2ps
+    let mut faulter_p2ps_deserialized: HoleVecMap<_, r6::P2pSadType5> = faulter_p2ps
         .clone_map2_result(|(_, bytes)| {
             Ok(
                 bincode::deserialize(&decode_message::<SignShareId>(bytes).unwrap().payload)
@@ -133,13 +140,43 @@ pub fn delta_inverse_r4(
 
     match fault_type {
         DeltaInvFaultType::delta_i => {} // nothing to do here
-        DeltaInvFaultType::alpha_ij => todo!(),
-        DeltaInvFaultType::beta_ij => todo!(),
-        DeltaInvFaultType::k_i => todo!(),
+        DeltaInvFaultType::alpha_ij { victim } => {
+            let p2p = faulter_p2ps_deserialized.get_mut(*victim).unwrap();
+            p2p.mta_plaintext
+                .alpha_plaintext
+                .corrupt_with(&delta_i_change);
+        }
+        DeltaInvFaultType::beta_ij { victim } => {
+            let p2p = faulter_p2ps_deserialized.get_mut(*victim).unwrap();
+            *p2p.mta_plaintext.beta_secret.beta.as_mut() -= delta_i_change;
+        }
+        DeltaInvFaultType::k_i => {
+            *faulter_bcast_deserialized.1.k_i.as_mut() -= delta_i_change
+                * faulter_bcast_deserialized
+                    .1
+                    .gamma_i
+                    .as_ref()
+                    .invert()
+                    .unwrap();
+        }
+        DeltaInvFaultType::gamma_i => {
+            *faulter_bcast_deserialized.1.gamma_i.as_mut() -=
+                delta_i_change * faulter_bcast_deserialized.1.k_i.as_ref().invert().unwrap();
+        }
+        DeltaInvFaultType::Gamma_i_gamma_i => {
+            *faulter_bcast_deserialized.1.gamma_i.as_mut() -=
+                delta_i_change * faulter_bcast_deserialized.1.k_i.as_ref().invert().unwrap();
+            *faulter_bcast_deserialized.0.Gamma_i.as_mut() =
+                k256::ProjectivePoint::generator() * faulter_bcast_deserialized.1.gamma_i.as_ref()
+        }
     }
 
     *faulter_bcast = encode_message::<SignShareId>(
-        serialize(&faulter_bcast_deserialized).unwrap(),
+        serialize(&r4::Bcast::SadType5(
+            faulter_bcast_deserialized.0,
+            faulter_bcast_deserialized.1,
+        ))
+        .unwrap(),
         faulter_share_id,
         MsgType::Bcast,
         ExpectedMsgTypes::BcastAndP2p,

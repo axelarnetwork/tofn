@@ -228,6 +228,9 @@ pub mod malicious {
         pub fn corrupt(&mut self) {
             self.0 += BigInt::one();
         }
+        pub fn corrupt_with(&mut self, offset: &k256::Scalar) {
+            self.0 -= to_bigint(offset);
+        }
     }
     impl Ciphertext {
         pub fn corrupt(&mut self) {

@@ -149,6 +149,13 @@ impl AsRef<k256::ProjectivePoint> for ProjectivePoint {
     }
 }
 
+#[cfg(feature = "malicious")]
+impl AsMut<k256::ProjectivePoint> for ProjectivePoint {
+    fn as_mut(&mut self) -> &mut k256::ProjectivePoint {
+        &mut self.0
+    }
+}
+
 pub fn to_bytes(p: &k256::ProjectivePoint) -> BytesVec {
     p.to_affine().to_encoded_point(true).as_bytes().to_vec()
 }

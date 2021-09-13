@@ -39,7 +39,19 @@ fn delta_inverse() {
         .set(TypedUsize::from_usize(1), Fault::ProtocolFault)
         .unwrap();
 
-    let mut test_case = DeltaInvTestCase {
+    let fault_types = vec![
+        DeltaInvFaultType::delta_i,
+        DeltaInvFaultType::alpha_ij {
+            victim: TypedUsize::from_usize(0),
+        },
+        DeltaInvFaultType::beta_ij {
+            victim: TypedUsize::from_usize(0),
+        },
+        DeltaInvFaultType::k_i,
+        DeltaInvFaultType::gamma_i,
+        DeltaInvFaultType::Gamma_i_gamma_i,
+    ];
+    let mut test_case = DeltaInvTestData {
         party_share_counts: PartyShareCounts::from_vec(vec![1, 2, 3]).unwrap(),
         threshold: 3,
         sign_parties,
@@ -70,38 +82,44 @@ fn delta_inverse() {
     );
     let msg_to_sign = MessageDigest::try_from(&[42; 32][..]).unwrap();
 
-    info!("sign with malicious delta-inverse attacker");
+    for fault_type in fault_types {
+        info!(
+            "sign with malicious delta-inverse attacker [{:?}]",
+            fault_type
+        );
+        test_case.fault_type = fault_type;
 
-    let shares = keygen_share_ids
-        .clone()
-        .map2(|(_sign_share_id, keygen_share_id)| {
-            let secret_key_share = secret_key_shares.get(keygen_share_id).unwrap();
-            new_sign(
-                secret_key_share.group(),
-                secret_key_share.share(),
-                &test_case.sign_parties,
-                &msg_to_sign,
-                Behaviour::Honest,
-            )
-            .unwrap()
-        });
+        let shares = keygen_share_ids
+            .clone()
+            .map2(|(_sign_share_id, keygen_share_id)| {
+                let secret_key_share = secret_key_shares.get(keygen_share_id).unwrap();
+                new_sign(
+                    secret_key_share.group(),
+                    secret_key_share.share(),
+                    &test_case.sign_parties,
+                    &msg_to_sign,
+                    Behaviour::Honest,
+                )
+                .unwrap()
+            });
 
-    let outputs = execute_sign_protocol(shares, &mut test_case).unwrap();
+        let outputs = execute_sign_protocol(shares, &mut test_case).unwrap();
 
-    // TEST: honest parties finished and produced the expected output
-    for (sign_share_id, result) in outputs.iter() {
-        if sign_share_id != test_case.faulter_share_id {
-            match result {
-                Protocol::NotDone(_) => {
-                    panic!("honest sign share_id {} not done yet", sign_share_id)
+        // TEST: honest parties finished and produced the expected output
+        for (sign_share_id, result) in outputs.iter() {
+            if sign_share_id != test_case.faulter_share_id {
+                match result {
+                    Protocol::NotDone(_) => {
+                        panic!("honest sign share_id {} not done yet", sign_share_id)
+                    }
+                    Protocol::Done(output) => test_case.assert_expected_output(output),
                 }
-                Protocol::Done(output) => test_case.assert_expected_output(output),
             }
         }
     }
 }
 
-pub struct DeltaInvTestCase {
+pub struct DeltaInvTestData {
     pub party_share_counts: PartyShareCounts<KeygenPartyId>,
     pub threshold: usize,
     pub sign_parties: SignParties,
@@ -111,7 +129,7 @@ pub struct DeltaInvTestCase {
     pub delta_i_change: Option<k256::Scalar>,
 }
 
-impl DeltaInvTestCase {
+impl DeltaInvTestData {
     pub fn assert_expected_output(&self, output: &ProtocolOutput<BytesVec, SignPartyId>) {
         match output {
             Ok(_) => assert!(
@@ -131,7 +149,7 @@ impl DeltaInvTestCase {
 
 pub fn execute_sign_protocol(
     mut shares: VecMap<SignShareId, SignProtocol>,
-    test_case: &mut DeltaInvTestCase,
+    test_case: &mut DeltaInvTestData,
 ) -> TofnResult<VecMap<SignShareId, SignProtocol>> {
     let mut current_round = 0;
     while nobody_done(&shares) {
@@ -143,7 +161,7 @@ pub fn execute_sign_protocol(
 
 fn next_sign_round(
     shares: VecMap<SignShareId, SignProtocol>,
-    test_case: &mut DeltaInvTestCase,
+    test_case: &mut DeltaInvTestData,
     current_round: usize,
 ) -> TofnResult<VecMap<SignShareId, SignProtocol>> {
     // extract current round from parties
