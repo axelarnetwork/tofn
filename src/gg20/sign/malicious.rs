@@ -77,7 +77,7 @@ pub fn delta_inverse_r3(
         .map(|bcast| bcast.delta_i.as_ref())
         .fold(k256::Scalar::zero(), |acc, delta_i| acc + delta_i);
 
-    let faulter_delta_i_change = faulter_bcast.delta_i.as_ref() + &delta_i_sum_except_faulter;
+    let faulter_delta_i_change = faulter_bcast.delta_i.as_ref() + delta_i_sum_except_faulter;
 
     faulter_bcast.delta_i = delta_i_sum_except_faulter.negate().into();
 
@@ -119,7 +119,7 @@ pub fn delta_inverse_r4(
     faulter_p2ps: &mut HoleVecMap<SignShareId, BytesVec>,
 ) {
     let mut faulter_bcast_deserialized = match bincode::deserialize::<r4::Bcast>(
-        &decode_message::<SignShareId>(&faulter_bcast)
+        &decode_message::<SignShareId>(faulter_bcast)
             .unwrap()
             .payload,
     )
