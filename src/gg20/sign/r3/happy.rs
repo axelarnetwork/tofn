@@ -50,7 +50,7 @@ pub(in super::super) struct R3Happy {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(non_snake_case)]
-pub(in super::super) struct BcastHappy {
+pub struct BcastHappy {
     pub delta_i: k256_serde::Scalar,
     pub T_i: k256_serde::ProjectivePoint,
     pub T_i_proof: pedersen::Proof,

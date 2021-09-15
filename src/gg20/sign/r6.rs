@@ -3,9 +3,8 @@ use crate::{
     corrupt,
     gg20::{
         crypto_tools::{
-            k256_serde,
-            mta::{self, Secret},
-            paillier::{self, zk, Plaintext},
+            k256_serde, mta,
+            paillier::{self, zk},
             zkp::pedersen,
         },
         keygen::{KeygenShareId, SecretKeyShare},
@@ -19,7 +18,11 @@ use k256::{ProjectivePoint, Scalar};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use super::{r1, r2, r3, r4, r5, r7, KeygenShareIds, Peers, SignShareId};
+use super::{
+    r1, r2, r3, r4, r5, r7,
+    type5_common::{BcastSadType5, MtaPlaintext, P2pSadType5},
+    KeygenShareIds, Peers, SignShareId,
+};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -36,11 +39,11 @@ pub(super) struct R6 {
     pub(super) k_i_randomness: paillier::Randomness,
     pub(super) sigma_i: Scalar,
     pub(super) l_i: Scalar,
-    pub(super) beta_secrets: HoleVecMap<SignShareId, Secret>,
+    pub(super) beta_secrets: HoleVecMap<SignShareId, mta::Secret>,
     pub(super) r1bcasts: VecMap<SignShareId, r1::Bcast>,
     pub(super) r2p2ps: FullP2ps<SignShareId, r2::P2pHappy>,
     pub(super) r3bcasts: VecMap<SignShareId, r3::BcastHappy>,
-    pub(super) r4bcasts: VecMap<SignShareId, r4::Bcast>,
+    pub(super) r4bcasts: VecMap<SignShareId, r4::BcastHappy>,
     pub(super) R: ProjectivePoint,
 
     #[cfg(feature = "malicious")]
@@ -67,30 +70,8 @@ pub struct BcastHappy {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BcastSadType5 {
-    pub(super) k_i: k256_serde::Scalar,
-    pub(super) k_i_randomness: paillier::Randomness,
-    pub(super) gamma_i: k256_serde::Scalar,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct P2pSad {
     pub(super) zkp_complaint: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct P2pSadType5 {
-    pub(super) mta_palintext: MtaPlaintext,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct MtaPlaintext {
-    // need alpha_plaintext instead of alpha
-    // because alpha_plaintext may differ from alpha
-    // why? because the ciphertext was formed from homomorphic Paillier operations, not just encrypting alpha
-    pub(super) alpha_plaintext: Plaintext,
-    pub(super) alpha_randomness: paillier::Randomness,
-    pub(super) beta_secret: mta::Secret,
 }
 
 impl Executer for R6 {
@@ -256,8 +237,8 @@ impl Executer for R6 {
                 gamma_i: self.gamma_i.into(),
             }))?);
 
-            let p2ps_out = Some(mta_plaintexts.map2_result(|(_, mta_palintext)| {
-                serialize(&P2p::SadType5(P2pSadType5 { mta_palintext }))
+            let p2ps_out = Some(mta_plaintexts.map2_result(|(_, mta_plaintext)| {
+                serialize(&P2p::SadType5(P2pSadType5 { mta_plaintext }))
             })?);
 
             return Ok(ProtocolBuilder::NotDone(RoundBuilder::new(

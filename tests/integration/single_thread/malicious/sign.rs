@@ -78,7 +78,7 @@ fn single_faults() {
 }
 
 fn single_fault_test_cases() -> SingleFaultTestCaseList {
-    // 3 keygen parties: 2,3,4 shares per party
+    // 3 keygen parties: 1,2,3 shares per party
     // 2 sign participants: keygen parties 0,2
     // share 3 (keygen party 2, sign party 1) is malicious
     let (keygen_party_count, sign_party_count) = (3, 2);
@@ -118,8 +118,8 @@ fn single_fault_test_cases() -> SingleFaultTestCaseList {
     ];
 
     SingleFaultTestCaseList {
-        party_share_counts: PartyShareCounts::from_vec(vec![2, 3, 4]).unwrap(),
-        threshold: 4,
+        party_share_counts: PartyShareCounts::from_vec(vec![1, 2, 3]).unwrap(),
+        threshold: 3,
         sign_parties,
         expected_honest_output: Err(faulters),
         cases,

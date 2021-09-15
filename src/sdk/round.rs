@@ -304,6 +304,11 @@ impl<F, K, P> Round<F, K, P> {
     pub fn round_as_any(&self) -> &dyn std::any::Any {
         self.round.as_any()
     }
+
+    #[cfg(test)]
+    pub fn bcast_out_mut(&mut self) -> &mut Option<BytesVec> {
+        &mut self.bcast_out
+    }
 }
 
 #[cfg(feature = "malicious")]

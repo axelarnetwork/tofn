@@ -10,6 +10,8 @@ mod r6;
 mod r7;
 mod r8;
 
+mod type5_common;
+
 #[cfg(test)]
 mod tests;
 

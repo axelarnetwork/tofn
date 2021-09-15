@@ -4,10 +4,14 @@ use crate::{
     gg20::{
         crypto_tools::{hash::Randomness, k256_serde, mta::Secret, paillier, zkp::pedersen},
         keygen::{KeygenShareId, SecretKeyShare},
-        sign::{r4, KeygenShareIds},
+        sign::{
+            r4::{self, Bcast},
+            type5_common::{BcastSadType5, MtaPlaintext, P2pSadType5},
+            KeygenShareIds,
+        },
     },
     sdk::{
-        api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
+        api::{BytesVec, Fault::ProtocolFault, TofnResult},
         implementer_api::{serialize, Executer, ProtocolBuilder, ProtocolInfo, RoundBuilder},
     },
 };
@@ -44,7 +48,7 @@ pub(in super::super) struct R4Happy {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(non_snake_case)]
-pub(in super::super) struct Bcast {
+pub struct BcastHappy {
     pub(in super::super) Gamma_i: k256_serde::ProjectivePoint,
     pub(in super::super) Gamma_i_reveal: Randomness,
 }
@@ -119,6 +123,18 @@ impl Executer for R4Happy {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
+        // prepare BcastHappy
+        let Gamma_i_reveal = self.Gamma_i_reveal.clone();
+        corrupt!(
+            Gamma_i_reveal,
+            self.corrupt_Gamma_i_reveal(my_sign_id, Gamma_i_reveal)
+        );
+
+        let bcast_happy = BcastHappy {
+            Gamma_i: self.Gamma_i.into(),
+            Gamma_i_reveal,
+        };
+
         // compute delta_inv
         let delta_inv = bcasts_in
             .iter()
@@ -127,22 +143,57 @@ impl Executer for R4Happy {
             })
             .invert();
 
-        // TODO defend against undefined delta_inv attack https://github.com/axelarnetwork/tofn/issues/110
+        // if delta_inv is undefined then move to 'type 5' sad path https://github.com/axelarnetwork/tofn/issues/110
         if bool::from(delta_inv.is_none()) {
-            warn!("peer {} says: delta inv computation failed", my_sign_id);
-            return Err(TofnFatal);
+            warn!(
+                "peer {} says: delta inversion failure: switch to 'type 5' sad path",
+                my_sign_id
+            );
+
+            let mta_plaintexts =
+                self.beta_secrets
+                    .clone_map2_result(|(peer_sign_id, beta_secret)| {
+                        let r2p2p = self.r2p2ps.get(peer_sign_id, my_sign_id)?;
+                        let (alpha_plaintext, alpha_randomness) = self
+                            .secret_key_share
+                            .share()
+                            .dk()
+                            .decrypt_with_randomness(&r2p2p.alpha_ciphertext);
+                        Ok(MtaPlaintext {
+                            alpha_plaintext,
+                            alpha_randomness,
+                            beta_secret: beta_secret.clone(),
+                        })
+                    })?;
+
+            let bcast_out = Some(serialize(&Bcast::SadType5(
+                bcast_happy,
+                BcastSadType5 {
+                    k_i: self.k_i.into(),
+                    k_i_randomness: self.k_i_randomness.clone(),
+                    gamma_i: self.gamma_i.into(),
+                },
+            ))?);
+
+            let p2ps_out = Some(
+                mta_plaintexts
+                    .map2_result(|(_, mta_plaintext)| serialize(&P2pSadType5 { mta_plaintext }))?,
+            );
+
+            return Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
+                Box::new(r5::R5Type5 {
+                    secret_key_share: self.secret_key_share,
+                    all_keygen_ids: self.all_keygen_ids,
+                    r1bcasts: self.r1bcasts,
+                    r2p2ps: self.r2p2ps,
+                    r3bcasts: bcasts_in,
+                }),
+                bcast_out,
+                p2ps_out,
+            )));
         }
 
-        let Gamma_i_reveal = self.Gamma_i_reveal.clone();
-        corrupt!(
-            Gamma_i_reveal,
-            self.corrupt_Gamma_i_reveal(my_sign_id, Gamma_i_reveal)
-        );
-
-        let bcast_out = Some(serialize(&Bcast {
-            Gamma_i: self.Gamma_i.into(),
-            Gamma_i_reveal,
-        })?);
+        let bcast_out = Some(serialize(&Bcast::Happy(bcast_happy))?);
 
         Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
             Box::new(r5::R5 {

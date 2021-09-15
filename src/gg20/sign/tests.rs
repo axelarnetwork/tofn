@@ -7,8 +7,11 @@ use crate::{
         keygen::{tests::execute_keygen, KeygenPartyShareCounts, KeygenShareId, SecretKeyShare},
         sign::api::{new_sign, SignShareId},
     },
-    sdk::api::{BytesVec, Fault, Protocol, Round},
-    sdk::implementer_api::decode_message,
+    sdk::implementer_api::{decode_message, encode_message},
+    sdk::{
+        api::{BytesVec, Fault, Protocol, Round},
+        implementer_api::{serialize, ExpectedMsgTypes, MsgType},
+    },
 };
 use ecdsa::{elliptic_curve::sec1::ToEncodedPoint, hazmat::VerifyPrimitive};
 use k256::{ecdsa::Signature, ProjectivePoint};
@@ -69,19 +72,20 @@ fn test_case_list() -> Vec<TestCase> {
     ]
 }
 
-#[test]
-#[traced_test]
-fn basic_correctness() {
+fn msg_to_sign() -> MessageDigest {
     let msg: &[u8] = &[
         42, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0,
     ];
-    let msg_to_sign: MessageDigest =
-        MessageDigest::try_from(msg).expect("could not convert msg to MessageDigest");
+    MessageDigest::try_from(msg).expect("could not convert msg to MessageDigest")
+}
 
+#[test]
+#[traced_test]
+fn basic_correctness() {
+    let msg_to_sign = msg_to_sign();
     for test_case in test_case_list() {
         let key_shares = execute_keygen(&test_case.party_share_counts, test_case.threshold);
-
         execute_sign(key_shares, &test_case, &msg_to_sign);
     }
 }
@@ -234,9 +238,7 @@ fn execute_sign(
     let encoded_sig = sig.to_der().as_bytes().to_vec();
 
     for result in results {
-        let encoded_threshold_sig = result
-            .map_err(|_| ())
-            .expect("round 8 signature computation failed");
+        let encoded_threshold_sig = result.expect("round 8 signature computation failed");
         let threshold_sig =
             Signature::from_der(&encoded_threshold_sig).expect("decoding threshold sig failed");
 
@@ -249,6 +251,137 @@ fn execute_sign(
     assert!(pub_key.verify_prehashed(&m, &sig).is_ok());
 }
 
+#[test]
+#[traced_test]
+/// This unit test is now redundant.
+/// It has been replicated as an integration test in `tests/integration/single_thread/malicious/sign_delta_inv.rs`.
+fn malicious_delta_inverse() {
+    let msg_to_sign = msg_to_sign();
+    let test_case = TestCase {
+        party_share_counts: KeygenPartyShareCounts::from_vec(vec![2, 2, 1]).unwrap(),
+        threshold: 2,
+        sign_share_count: 3,
+    };
+    let key_shares = execute_keygen(&test_case.party_share_counts, test_case.threshold);
+
+    // `execute_sign` except with a rushing adversary in r4 to set delta = 0
+
+    let mut sign_share_count = 0;
+    let mut sign_parties = Subset::with_max_size(test_case.party_share_counts.party_count());
+    for (i, _) in test_case.party_share_counts.iter() {
+        sign_parties
+            .add(TypedUsize::from_usize(i.as_usize()))
+            .unwrap();
+
+        sign_share_count += test_case.party_share_counts.party_share_count(i).unwrap();
+
+        if sign_share_count > test_case.sign_share_count {
+            break;
+        }
+    }
+
+    let keygen_share_ids = VecMap::<TypedUsize<SignShareId>, TypedUsize<KeygenShareId>>::from_vec(
+        test_case
+            .party_share_counts
+            .share_id_subset(&sign_parties)
+            .unwrap(),
+    );
+
+    let r1_shares: Vec<_> = keygen_share_ids
+        .iter()
+        .map(|(_, &keygen_id)| {
+            let key_share = key_shares.get(keygen_id).unwrap();
+
+            match new_sign(
+                key_share.group(),
+                key_share.share(),
+                &sign_parties,
+                &msg_to_sign,
+                #[cfg(feature = "malicious")]
+                Honest,
+            )
+            .unwrap()
+            {
+                Protocol::NotDone(round) => round,
+                Protocol::Done(_) => panic!("`new_sign` returned a `Done` protocol"),
+            }
+        })
+        .collect();
+
+    let (r2_shares, ..) = execute_round(r1_shares, 2, true, true);
+
+    let (mut r3_shares, ..) = execute_round(r2_shares, 3, false, true);
+
+    // change the 0th share's `delta_i` so that sum_i delta_i = 0
+    let delta_i_sum_except_0 = r3_shares
+        .iter()
+        .skip(1)
+        .map(|party| {
+            let r3_bcast: r3::BcastHappy = bincode::deserialize(
+                &decode_message::<SignShareId>(party.bcast_out().unwrap())
+                    .unwrap()
+                    .payload,
+            )
+            .unwrap();
+            *r3_bcast.delta_i.as_ref()
+        })
+        .fold(k256::Scalar::zero(), |acc, delta_i| acc + delta_i);
+
+    let share_0_bcast_out: r3::BcastHappy = bincode::deserialize(
+        &decode_message::<SignShareId>(r3_shares[0].bcast_out().unwrap())
+            .unwrap()
+            .payload,
+    )
+    .unwrap();
+
+    *r3_shares[0].bcast_out_mut() = Some(
+        encode_message(
+            serialize(&r3::BcastHappy {
+                delta_i: delta_i_sum_except_0.negate().into(),
+                ..share_0_bcast_out
+            })
+            .unwrap(),
+            TypedUsize::<SignShareId>::from_usize(0),
+            MsgType::Bcast,
+            ExpectedMsgTypes::BcastOnly,
+        )
+        .unwrap(),
+    );
+
+    // sanity check: delta == 0?
+    assert_eq!(
+        r3_shares
+            .iter()
+            .map(|share| {
+                let r3_bcast: r3::BcastHappy = bincode::deserialize(
+                    &decode_message::<SignShareId>(share.bcast_out().unwrap())
+                        .unwrap()
+                        .payload,
+                )
+                .unwrap();
+                *r3_bcast.delta_i.as_ref()
+            })
+            .fold(k256::Scalar::zero(), |acc, delta_i| acc + delta_i),
+        k256::Scalar::zero()
+    );
+
+    let (r4_shares, ..) = execute_round(r3_shares, 4, true, false);
+
+    // we should now be in round 5 'type 5' sad path
+    let result_shares = execute_final_round(r4_shares, 5, true, true);
+
+    // TEST: honest shares (ie. everyone except the 0th share) correctly computed the faulters list
+    let mut expected_faulters = FillVecMap::with_size(sign_parties.member_count());
+    expected_faulters
+        .set(TypedUsize::from_usize(0), Fault::ProtocolFault)
+        .unwrap();
+    for result in result_shares.into_iter().skip(1) {
+        let faulters =
+            result.expect_err("honest sign share_id {} protocol success, expect failure");
+        assert_eq!(faulters, expected_faulters);
+    }
+}
+
 fn round_cast<T: 'static>(party: &Party) -> &T {
     return party.round_as_any().downcast_ref::<T>().unwrap();
 }
@@ -256,17 +389,19 @@ fn round_cast<T: 'static>(party: &Party) -> &T {
 fn execute_round(
     mut parties: Parties,
     round_num: usize,
-    mut expect_bcast_in: bool,
+    expect_bcast_in: bool,
     expect_p2p_in: bool,
 ) -> (Parties, PartyBcast, PartyP2p) {
     debug!("execute round {}", round_num);
 
     // Special case: total_share_count == 1 and expected_msg_types == P2pOnly
     // In this case we should expect a bcast indicating P2pOnly
-    if parties.len() == 1 && !expect_bcast_in && expect_p2p_in {
+    let expect_bcast_in = if parties.len() == 1 && !expect_bcast_in && expect_p2p_in {
         debug!("special case in round {}: total_share_count 1 and P2psOnly: look for bcast TotalShareCount1P2pOnly", round_num);
-        expect_bcast_in = true;
-    }
+        true
+    } else {
+        expect_bcast_in
+    };
 
     let bcasts = retrieve_and_set_bcasts(&mut parties, expect_bcast_in, round_num);
     let p2ps = retrieve_and_set_p2ps(&mut parties, expect_p2p_in, round_num);
