@@ -10,7 +10,7 @@ use crate::{
             paillier::{self, zk},
         },
         keygen::{KeygenShareId, SecretKeyShare},
-        sign::r5::common::R5Path,
+        sign::{r5::common::R5Path, type5_common},
     },
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
@@ -66,7 +66,7 @@ impl Executer for R5 {
     type FinalOutput = BytesVec;
     type Index = SignShareId;
     type Bcast = r4::Bcast;
-    type P2p = r6::P2pSadType5;
+    type P2p = type5_common::P2pSadType5;
 
     #[allow(non_snake_case)]
     fn execute(

@@ -25,6 +25,11 @@ pub struct BcastSadType5 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct P2pSadType5 {
+    pub(super) mta_plaintext: MtaPlaintext,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MtaPlaintext {
     // need alpha_plaintext instead of alpha
     // because alpha_plaintext may differ from alpha
@@ -55,10 +60,11 @@ pub fn type5_checks(
     all_keygen_ids: VecMap<SignShareId, TypedUsize<KeygenShareId>>,
     all_share_public_infos: &VecMap<KeygenShareId, SharePublicInfo>,
 ) -> TofnResult<()> {
-    for (peer_sign_id, bcast_type5, peer_mta_plaintexts) in zip2(bcasts_in, p2ps_in) {
+    for (peer_sign_id, (bcast_happy, bcast_type5), peer_mta_plaintexts) in zip2(bcasts_in, p2ps_in)
+    {
         // verify correct computation of delta_i
         let delta_i = peer_mta_plaintexts.iter().fold(
-            bcast_type5.1.k_i.as_ref() * bcast_type5.1.gamma_i.as_ref(),
+            bcast_type5.k_i.as_ref() * bcast_type5.gamma_i.as_ref(),
             |acc, (_, mta_plaintext)| {
                 acc + mta_plaintext.alpha_plaintext.to_scalar()
                     + mta_plaintext.beta_secret.beta.as_ref()
@@ -79,8 +85,8 @@ pub fn type5_checks(
 
         // k_i
         let k_i_ciphertext = peer_ek.encrypt_with_randomness(
-            &(bcast_type5.1.k_i.as_ref()).into(),
-            &bcast_type5.1.k_i_randomness,
+            &(bcast_type5.k_i.as_ref()).into(),
+            &bcast_type5.k_i_randomness,
         );
         if k_i_ciphertext != all_r1_bcasts.get(peer_sign_id)?.k_i_ciphertext {
             warn!(
@@ -92,8 +98,8 @@ pub fn type5_checks(
         }
 
         // gamma_i
-        let Gamma_i = ProjectivePoint::generator() * bcast_type5.1.gamma_i.as_ref();
-        if &Gamma_i != bcast_type5.0.Gamma_i.as_ref() {
+        let Gamma_i = ProjectivePoint::generator() * bcast_type5.gamma_i.as_ref();
+        if &Gamma_i != bcast_happy.Gamma_i.as_ref() {
             warn!(
                 "peer {} says: inconsistent (gamma_i, Gamma_i) from peer {}",
                 my_sign_id, peer_sign_id
@@ -109,8 +115,8 @@ pub fn type5_checks(
         let Gamma_i_commit = hash::commit_with_randomness(
             constants::GAMMA_I_COMMIT_TAG,
             peer_sign_id,
-            bcast_type5.0.Gamma_i.bytes(),
-            &bcast_type5.0.Gamma_i_reveal,
+            bcast_happy.Gamma_i.bytes(),
+            &bcast_happy.Gamma_i_reveal,
         );
         if Gamma_i_commit != all_r1_bcasts.get(peer_sign_id)?.Gamma_i_commit {
             warn!(
@@ -135,7 +141,7 @@ pub fn type5_checks(
             if !mta::verify_mta_response(
                 receiver_ek,
                 receiver_k_i_ciphertext,
-                bcast_type5.1.gamma_i.as_ref(),
+                bcast_type5.gamma_i.as_ref(),
                 receiver_alpha_ciphertext,
                 &peer_mta_plaintext.beta_secret,
             ) {

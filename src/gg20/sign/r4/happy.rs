@@ -6,8 +6,7 @@ use crate::{
         keygen::{KeygenShareId, SecretKeyShare},
         sign::{
             r4::{self, Bcast},
-            r6,
-            type5_common::{BcastSadType5, MtaPlaintext},
+            type5_common::{BcastSadType5, MtaPlaintext, P2pSadType5},
             KeygenShareIds,
         },
     },
@@ -131,7 +130,7 @@ impl Executer for R4Happy {
             self.corrupt_Gamma_i_reveal(my_sign_id, Gamma_i_reveal)
         );
 
-        let bcast_out_happy = BcastHappy {
+        let bcast_happy = BcastHappy {
             Gamma_i: self.Gamma_i.into(),
             Gamma_i_reveal,
         };
@@ -160,29 +159,26 @@ impl Executer for R4Happy {
                             .share()
                             .dk()
                             .decrypt_with_randomness(&r2p2p.alpha_ciphertext);
-                        let beta_secret = beta_secret.clone();
                         Ok(MtaPlaintext {
                             alpha_plaintext,
                             alpha_randomness,
-                            beta_secret,
+                            beta_secret: beta_secret.clone(),
                         })
                     })?;
 
-            let k_i = self.k_i;
-
             let bcast_out = Some(serialize(&Bcast::SadType5(
-                bcast_out_happy,
+                bcast_happy,
                 BcastSadType5 {
-                    k_i: k_i.into(),
+                    k_i: self.k_i.into(),
                     k_i_randomness: self.k_i_randomness.clone(),
                     gamma_i: self.gamma_i.into(),
                 },
             ))?);
 
-            let p2ps_out =
-                Some(mta_plaintexts.map2_result(|(_, mta_plaintext)| {
-                    serialize(&r6::P2pSadType5 { mta_plaintext })
-                })?);
+            let p2ps_out = Some(
+                mta_plaintexts
+                    .map2_result(|(_, mta_plaintext)| serialize(&P2pSadType5 { mta_plaintext }))?,
+            );
 
             return Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
                 Box::new(r5::R5Type5 {
@@ -197,7 +193,7 @@ impl Executer for R4Happy {
             )));
         }
 
-        let bcast_out = Some(serialize(&Bcast::Happy(bcast_out_happy))?);
+        let bcast_out = Some(serialize(&Bcast::Happy(bcast_happy))?);
 
         Ok(ProtocolBuilder::NotDone(RoundBuilder::new(
             Box::new(r5::R5 {

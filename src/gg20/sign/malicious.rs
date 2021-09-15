@@ -2,14 +2,14 @@ use tracing::info;
 
 use crate::{
     collections::{HoleVecMap, TypedUsize, VecMap},
-    gg20::sign::r3,
+    gg20::sign::{r3, type5_common::P2pSadType5},
     sdk::{
         api::{BytesVec, MsgType},
         implementer_api::{decode_message, encode_message, serialize, ExpectedMsgTypes},
     },
 };
 
-use super::{r4, r6, SignShareId};
+use super::{r4, SignShareId};
 
 // all malicious behaviours
 // names have the form <round><fault> where
@@ -129,7 +129,7 @@ pub fn delta_inverse_r4(
         _ => panic!("expected SadType5 variant, got something else"),
     };
 
-    let mut faulter_p2ps_deserialized: HoleVecMap<_, r6::P2pSadType5> = faulter_p2ps
+    let mut faulter_p2ps_deserialized: HoleVecMap<_, P2pSadType5> = faulter_p2ps
         .clone_map2_result(|(_, bytes)| {
             Ok(
                 bincode::deserialize(&decode_message::<SignShareId>(bytes).unwrap().payload)

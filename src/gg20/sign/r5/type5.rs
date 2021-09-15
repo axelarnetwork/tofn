@@ -2,7 +2,12 @@ use crate::{
     collections::{FillVecMap, FullP2ps, P2ps, VecMap},
     gg20::{
         keygen::SecretKeyShare,
-        sign::{r2, r4, r5::common::R5Path, type5_common::type5_checks, KeygenShareIds},
+        sign::{
+            r2, r4,
+            r5::common::R5Path,
+            type5_common::{self, type5_checks},
+            KeygenShareIds,
+        },
     },
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
@@ -12,7 +17,7 @@ use crate::{
 use tracing::{error, warn};
 
 use super::{
-    super::{r1, r3, r6, SignShareId},
+    super::{r1, r3, SignShareId},
     common::check_message_types,
 };
 
@@ -29,7 +34,7 @@ impl Executer for R5Type5 {
     type FinalOutput = BytesVec;
     type Index = SignShareId;
     type Bcast = r4::Bcast;
-    type P2p = r6::P2pSadType5;
+    type P2p = type5_common::P2pSadType5;
 
     #[allow(non_snake_case)]
     fn execute(

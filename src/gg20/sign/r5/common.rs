@@ -2,7 +2,7 @@ use tracing::warn;
 
 use crate::{
     collections::{zip2, FillVecMap, P2ps, VecMap},
-    gg20::sign::{r4, r6, SignShareId},
+    gg20::sign::{r4, type5_common::P2pSadType5, SignShareId},
     sdk::{
         api::{
             Fault::{self, ProtocolFault},
@@ -21,7 +21,7 @@ use crate::{
 pub fn check_message_types(
     info: &ProtocolInfo<SignShareId>,
     bcasts_in: &FillVecMap<SignShareId, r4::Bcast>,
-    p2ps_in: &P2ps<SignShareId, r6::P2pSadType5>,
+    p2ps_in: &P2ps<SignShareId, P2pSadType5>,
     faulters: &mut FillVecMap<SignShareId, Fault>,
 ) -> TofnResult<VecMap<SignShareId, R5Path>> {
     let my_sign_id = info.my_id();

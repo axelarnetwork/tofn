@@ -20,7 +20,7 @@ use tracing::warn;
 
 use super::{
     r1, r2, r3, r4, r5, r7,
-    type5_common::{BcastSadType5, MtaPlaintext},
+    type5_common::{BcastSadType5, MtaPlaintext, P2pSadType5},
     KeygenShareIds, Peers, SignShareId,
 };
 
@@ -72,11 +72,6 @@ pub struct BcastHappy {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct P2pSad {
     pub(super) zkp_complaint: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct P2pSadType5 {
-    pub(super) mta_plaintext: MtaPlaintext,
 }
 
 impl Executer for R6 {
