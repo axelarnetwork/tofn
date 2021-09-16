@@ -11,17 +11,24 @@ use crate::{
 
 use super::{KeygenPartyId, SecretRecoveryKey};
 
+const SESSION_NONCE_LENGTH_MIN: usize = 4;
+const SESSION_NONCE_LENGTH_MAX: usize = 256;
+
 pub(crate) fn rng_seed(
     tag: u8,
     party_id: TypedUsize<KeygenPartyId>,
     secret_recovery_key: &SecretRecoveryKey,
     session_nonce: &[u8],
 ) -> TofnResult<impl CryptoRng + RngCore> {
-    // TODO: Enforce a sufficient minimum length as a sanity check against collisions.
-    // While reusing Paillier keys is not known to be insecure, there's also no security proof for it.
-    // This task primarily requires a review of axelar-core to see if it's providing long random nonces.
-    if session_nonce.is_empty() {
-        error!("invalid session_nonce length: {}", session_nonce.len());
+    if session_nonce.len() < SESSION_NONCE_LENGTH_MIN
+        || session_nonce.len() > SESSION_NONCE_LENGTH_MAX
+    {
+        error!(
+            "invalid session_nonce length {} not in [{},{}]",
+            session_nonce.len(),
+            SESSION_NONCE_LENGTH_MIN,
+            SESSION_NONCE_LENGTH_MAX
+        );
         return Err(TofnFatal);
     }
 
