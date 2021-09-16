@@ -44,14 +44,14 @@ pub struct ProofWc {
 }
 
 // (x,y) coordinates of a point of unknown discrete log on the sekp256k1 curve
-// reference: https://github.com/ZenGo-X/curv/blob/b3b9c39b3113395604c50a248dfd3b9bbaa034fa/src/elliptic/curves/secp256_k1.rs#L44-L55
+// see test `secp256k1_alternate_generator` below
 const SECP256K1_ALTERNATE_GENERATOR_X: [u8; 32] = [
-    0x08, 0xd1, 0x32, 0x21, 0xe3, 0xa7, 0x32, 0x6a, 0x34, 0xdd, 0x45, 0x21, 0x4b, 0xa8, 0x01, 0x16,
-    0xdd, 0x14, 0x2e, 0x4b, 0x5f, 0xf3, 0xce, 0x66, 0xa8, 0xdc, 0x7b, 0xfa, 0x03, 0x78, 0xb7, 0x95,
+    0x09, 0xc9, 0xf8, 0xe1, 0xc7, 0xe2, 0x5c, 0xb8, 0x71, 0x39, 0x1b, 0xeb, 0xe1, 0xf5, 0x80, 0x7a,
+    0xc5, 0xcc, 0xca, 0x85, 0xc5, 0xa1, 0xdd, 0x57, 0x33, 0x85, 0x18, 0xc4, 0x90, 0x48, 0x1d, 0xae,
 ];
 const SECP256K1_ALTERNATE_GENERATOR_Y: [u8; 32] = [
-    0x5d, 0x41, 0xac, 0x14, 0x77, 0x61, 0x4b, 0x5c, 0x08, 0x48, 0xd5, 0x0d, 0xbd, 0x56, 0x5e, 0xa2,
-    0x80, 0x7b, 0xcb, 0xa1, 0xdf, 0x0d, 0xf0, 0x7a, 0x82, 0x17, 0xe9, 0xf7, 0xf7, 0xc2, 0xbe, 0x88,
+    0x4c, 0x5a, 0x4d, 0xf7, 0xc3, 0xad, 0x74, 0xf1, 0x8e, 0x7d, 0x87, 0xff, 0x5d, 0x16, 0xa4, 0x3c,
+    0x16, 0x87, 0x20, 0xa9, 0xba, 0x35, 0x4d, 0x2c, 0x28, 0x26, 0xd0, 0x52, 0x79, 0xea, 0x49, 0x84,
 ];
 
 pub fn alternate_generator() -> k256::ProjectivePoint {
@@ -203,6 +203,8 @@ pub mod malicious {
 
 #[cfg(test)]
 mod tests {
+    use ecdsa::elliptic_curve::group::prime::PrimeCurveAffine;
+
     use super::{
         malicious::{corrupt_proof, corrupt_proof_wc},
         *,
@@ -270,5 +272,26 @@ mod tests {
         // test: bad witness wc (with check)
         let bad_wit_proof_wc = prove_wc(stmt_wc, bad_wit).unwrap();
         assert!(!verify_wc(stmt_wc, &bad_wit_proof_wc));
+    }
+
+    #[test]
+    /// This test proves that the return value of `alternate_generator()`
+    /// has unknown discrete log with respect to the secp256k1 curve generator
+    fn secp256k1_alternate_generator() {
+        // prepare a pseudorandom SEC1 encoding of a k256 curve point
+        let hash = Sha256::new()
+            .chain(constants::PEDERSEN_SECP256K1_ALTERNATE_GENERATOR_TAG.to_le_bytes())
+            .chain(k256::EncodedPoint::from(k256::AffinePoint::generator()).as_bytes())
+            .chain(&[0x01])
+            .finalize();
+        let mut bytes = vec![0x02]; // use even y-coordinate
+        bytes.extend_from_slice(hash.as_slice());
+
+        let curve_point = k256::ProjectivePoint::from_encoded_point(
+            &k256::EncodedPoint::from_bytes(bytes).unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(curve_point, alternate_generator());
     }
 }
