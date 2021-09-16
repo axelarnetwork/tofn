@@ -5,7 +5,7 @@ use crate::{
         crypto_tools::{
             k256_serde,
             paillier::{
-                to_bigint, to_scalar, to_vec,
+                secp256k1_modulus, to_bigint, to_scalar, to_vec,
                 zk::{mulm, random, ZkSetup},
                 BigInt, Ciphertext, EncryptionKey, Plaintext, Randomness,
             },
@@ -119,11 +119,14 @@ impl ZkSetup {
     ) -> (Proof, Option<k256::ProjectivePoint>) {
         let alpha = random(&secp256k1_modulus_cubed());
 
-        let sigma = random(&self.q_n_tilde);
-        let tau = random(&self.q_n_tilde);
-        let rho = random(&self.q_n_tilde);
+        let q_n_tilde = secp256k1_modulus() * &self.composite_dlog_statement.N;
+        let q3_n_tilde = secp256k1_modulus_cubed() * &self.composite_dlog_statement.N;
 
-        let rho_prime = random(&self.q3_n_tilde);
+        let sigma = random(&q_n_tilde);
+        let tau = random(&q_n_tilde);
+        let rho = random(&q_n_tilde);
+
+        let rho_prime = random(&q3_n_tilde);
 
         let beta = stmt.ek.sample_randomness();
         let gamma = Plaintext(stmt.ek.sample_randomness().0.clone());
