@@ -13,8 +13,6 @@ pub type EncryptionKeyProof = NICorrectKeyProof;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ZkSetup {
     composite_dlog_statement: DLogStatement,
-    q_n_tilde: BigInt,
-    q3_n_tilde: BigInt,
 }
 
 pub type ZkSetupProof = CompositeDLogProof;
@@ -25,8 +23,6 @@ impl Zeroize for ZkSetup {
         self.composite_dlog_statement.N = BigInt::zero();
         self.composite_dlog_statement.g = BigInt::zero();
         self.composite_dlog_statement.ni = BigInt::zero();
-        self.q_n_tilde = BigInt::zero();
-        self.q3_n_tilde = BigInt::zero();
     }
 }
 
@@ -58,12 +54,8 @@ impl ZkSetup {
         };
         let dlog_proof = CompositeDLogProof::prove(&dlog_statement, &xhi);
 
-        let q = super::secp256k1_modulus();
-        let q3 = secp256k1_modulus_cubed();
         (
             Self {
-                q_n_tilde: q * &dlog_statement.N,
-                q3_n_tilde: &q3 * &dlog_statement.N,
                 composite_dlog_statement: dlog_statement,
             },
             dlog_proof,
