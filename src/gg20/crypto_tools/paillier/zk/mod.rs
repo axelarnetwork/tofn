@@ -1,5 +1,5 @@
 //! Minimize direct use of paillier, zk_paillier crates
-use super::{keygen, keygen_unsafe, BigInt, DecryptionKey, EncryptionKey};
+use super::{BigInt, DecryptionKey, EncryptionKey, keygen, keygen_unsafe};
 use paillier::zk::{CompositeDLogProof, DLogStatement, NICorrectKeyProof};
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
