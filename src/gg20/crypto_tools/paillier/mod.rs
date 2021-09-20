@@ -16,21 +16,27 @@ pub type BigInt = BigNumber;
 /// unsafe because key pair does not use safe primes
 pub fn keygen_unsafe(rng: &mut (impl CryptoRng + RngCore)) -> (EncryptionKey, DecryptionKey) {
     // let (ek, dk) = Paillier::keypair(rng).keys();
-    let dk = libpaillier::DecryptionKey::random().unwrap();
+    let p = BigNumber::prime_with_rng(rng, 1024);
+    let q = BigNumber::prime_with_rng(rng, 1024);
+    let dk = libpaillier::DecryptionKey::with_safe_primes_unchecked(&p, &q).unwrap();
+
+    // let dk = libpaillier::DecryptionKey::random().unwrap();
     let ek = (&dk).into();
 
     (EncryptionKey(ek), DecryptionKey(dk))
 }
 pub fn keygen(rng: &mut (impl CryptoRng + RngCore)) -> (EncryptionKey, DecryptionKey) {
     // let (ek, dk) = Paillier::keypair_safe_primes(rng).keys();
-    let dk = libpaillier::DecryptionKey::random().unwrap();
+    let dk = libpaillier::DecryptionKey::with_rng(rng).unwrap();
+
+    // let dk = libpaillier::DecryptionKey::random().unwrap();
     let ek = (&dk).into();
 
     (EncryptionKey(ek), DecryptionKey(dk))
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EncryptionKey(libpaillier::EncryptionKey);
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct EncryptionKey(pub libpaillier::EncryptionKey);
 
 impl EncryptionKey {
     pub fn sample_randomness(&self) -> Randomness {
@@ -49,7 +55,7 @@ impl EncryptionKey {
         Ciphertext(
             self.0.encrypt(
                 &p.0.to_bytes(),
-                Some(r.0),
+                Some(r.0.clone()),
             ).unwrap().0,
         )
     }
@@ -90,7 +96,7 @@ impl Zeroize for EncryptionKey {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct DecryptionKey(libpaillier::DecryptionKey);
 
 impl DecryptionKey {
@@ -103,7 +109,9 @@ impl DecryptionKey {
         // )
     }
     pub fn decrypt_with_randomness(&self, c: &Ciphertext) -> (Plaintext, Randomness) {
-        (self.decrypt(c), Randomness(BigNumber::zero()))
+        let (m, r) = self.0.decrypt_with_randomness(&c.0).unwrap();
+        (Plaintext(m), Randomness(r))
+        // (self.decrypt(c), Randomness(BigNumber::zero()))
         // let (pt, r) = Paillier::open(&self.0, paillier::RawCiphertext::from(&c.0));
         // (Plaintext(pt.0.into_owned()), Randomness(r.0))
     }
@@ -124,7 +132,7 @@ impl Drop for DecryptionKey {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Plaintext(BigNumber);
+pub struct Plaintext(pub BigNumber);
 
 impl Plaintext {
     pub fn to_scalar(&self) -> k256::Scalar {

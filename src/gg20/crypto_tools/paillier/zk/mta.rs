@@ -6,8 +6,8 @@ use crate::{
             k256_serde,
             paillier::{
                 secp256k1_modulus, to_bigint, to_scalar, to_vec,
-                zk::{mulm, random, ZkSetup},
-                BigInt, Ciphertext, EncryptionKey, Plaintext, Randomness,
+                zk::{ZkSetup},
+                Ciphertext, EncryptionKey, Plaintext, Randomness,
             },
         },
         sign::SignShareId,
@@ -15,6 +15,7 @@ use crate::{
     sdk::api::{TofnFatal, TofnResult},
 };
 use ecdsa::hazmat::FromDigest;
+use libpaillier::unknown_order::BigNumber;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tracing::{error, warn};
@@ -39,16 +40,16 @@ pub struct Witness<'a> {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Proof {
-    z: BigInt,
-    z_prime: BigInt,
-    t: BigInt,
-    v: BigInt,
-    w: BigInt,
+    z: BigNumber,
+    z_prime: BigNumber,
+    t: BigNumber,
+    v: BigNumber,
+    w: BigNumber,
     s: Randomness,
-    s1: BigInt,
-    s2: BigInt,
+    s1: BigNumber,
+    s2: BigNumber,
     t1: Plaintext,
-    t2: BigInt,
+    t2: BigNumber,
 }
 
 #[derive(Clone, Debug)]
@@ -117,16 +118,16 @@ impl ZkSetup {
         x_g: Option<&k256::ProjectivePoint>,
         wit: &Witness,
     ) -> (Proof, Option<k256::ProjectivePoint>) {
-        let alpha = random(&secp256k1_modulus_cubed());
+        let alpha = BigNumber::random(&secp256k1_modulus_cubed());
 
         let q_n_tilde = secp256k1_modulus() * &self.composite_dlog_statement.N;
         let q3_n_tilde = secp256k1_modulus_cubed() * &self.composite_dlog_statement.N;
 
-        let sigma = random(&q_n_tilde);
-        let tau = random(&q_n_tilde);
-        let rho = random(&q_n_tilde);
+        let sigma = BigNumber::random(&q_n_tilde);
+        let tau = BigNumber::random(&q_n_tilde);
+        let rho = BigNumber::random(&q_n_tilde);
 
-        let rho_prime = random(&q3_n_tilde);
+        let rho_prime = BigNumber::random(&q3_n_tilde);
 
         let beta = stmt.ek.sample_randomness();
         let gamma = Plaintext(stmt.ek.sample_randomness().0.clone());
@@ -141,10 +142,9 @@ impl ZkSetup {
             k256::ProjectivePoint::generator() * to_scalar(&alpha)
         });
 
-        let v = mulm(
-            &stmt.ek.encrypt_with_randomness(&gamma, &beta).0,
-            &stmt.ciphertext1.0.powm(&alpha, &stmt.ek.0.nn),
-            &stmt.ek.0.nn,
+        let v = stmt.ek.encrypt_with_randomness(&gamma, &beta).0.modmul(
+            &stmt.ciphertext1.0.modpow(&alpha, stmt.ek.0.nn()),
+            stmt.ek.0.nn(),
         );
 
         let w = self.commit(&gamma.0, &tau);
@@ -154,7 +154,7 @@ impl ZkSetup {
                 .chain(tag.to_le_bytes())
                 .chain(stmt.prover_id.to_bytes())
                 .chain(stmt.verifier_id.to_bytes())
-                .chain(to_vec(&stmt.ek.0.n))
+                .chain(to_vec(stmt.ek.0.n()))
                 .chain(to_vec(&stmt.ciphertext1.0))
                 .chain(to_vec(&stmt.ciphertext2.0))
                 .chain(x_g.map_or(Vec::new(), |x_g| k256_serde::to_bytes(x_g)))
@@ -166,14 +166,13 @@ impl ZkSetup {
                 .chain(to_vec(&w)),
         ));
 
-        let s = Randomness(mulm(
-            &wit.randomness.0.powm(&e, &stmt.ek.0.n),
+        let s = Randomness(wit.randomness.0.modpow(&e, stmt.ek.0.n()).modmul(
             &beta.0,
-            &stmt.ek.0.n,
+            stmt.ek.0.n(),
         ));
         let s1 = &e * &x_bigint + alpha;
         let s2 = &e * rho + rho_prime;
-        let t1 = Plaintext(&e * &wit.msg.0 + gamma.0.clone());
+        let t1 = Plaintext(&e * &wit.msg.0 + gamma.0.clone());  // TODO: This exceeds the modulus N
         let t2 = e * sigma + tau;
 
         (
@@ -200,7 +199,7 @@ impl ZkSetup {
         proof: &Proof,
         x_g_u: Option<(&k256::ProjectivePoint, &k256::ProjectivePoint)>, // (x_g, u)
     ) -> bool {
-        if proof.s1 > secp256k1_modulus_cubed() || proof.s1 < BigInt::zero() {
+        if proof.s1 > secp256k1_modulus_cubed() || proof.s1 < BigNumber::zero() {
             warn!("s1 not in range q^3");
             return false;
         }
@@ -210,7 +209,7 @@ impl ZkSetup {
                 .chain(tag.to_le_bytes())
                 .chain(stmt.prover_id.to_bytes())
                 .chain(stmt.verifier_id.to_bytes())
-                .chain(to_vec(&stmt.ek.0.n))
+                .chain(to_vec(stmt.ek.0.n()))
                 .chain(to_vec(&stmt.ciphertext1.0))
                 .chain(to_vec(&stmt.ciphertext2.0))
                 .chain(x_g_u.map_or(Vec::new(), |(x_g, _)| k256_serde::to_bytes(x_g)))
@@ -221,7 +220,7 @@ impl ZkSetup {
                 .chain(to_vec(&proof.v))
                 .chain(to_vec(&proof.w)),
         );
-        let e_bigint = to_bigint(&e);
+        let e_BigNumber = to_bigint(&e);
 
         if let Some((x_g, u)) = x_g_u {
             let s1 = to_scalar(&proof.s1);
@@ -233,8 +232,7 @@ impl ZkSetup {
             }
         }
 
-        let z_e_z_prime = mulm(
-            &proof.z.powm(&e_bigint, self.n_tilde()),
+        let z_e_z_prime = proof.z.modpow(&e_BigNumber, self.n_tilde()).modmul(
             &proof.z_prime,
             self.n_tilde(),
         );
@@ -244,8 +242,7 @@ impl ZkSetup {
             return false;
         }
 
-        let t_e_w = mulm(
-            &proof.t.powm(&e_bigint, self.n_tilde()),
+        let t_e_w = proof.t.modpow(&e_BigNumber, self.n_tilde()).modmul(
             &proof.w,
             self.n_tilde(),
         );
@@ -255,15 +252,13 @@ impl ZkSetup {
             return false;
         }
 
-        let cipher_check_lhs = mulm(
-            &stmt.ek.encrypt_with_randomness(&proof.t1, &proof.s).0,
-            &stmt.ciphertext1.0.powm(&proof.s1, &stmt.ek.0.nn),
-            &stmt.ek.0.nn,
+        let cipher_check_lhs = stmt.ek.encrypt_with_randomness(&proof.t1, &proof.s).0.modmul(
+            &stmt.ciphertext1.0.modpow(&proof.s1, stmt.ek.0.nn()),
+            stmt.ek.0.nn(),
         );
-        let cipher_check_rhs = mulm(
-            &proof.v,
-            &stmt.ciphertext2.0.powm(&e_bigint, &stmt.ek.0.nn),
-            &stmt.ek.0.nn,
+        let cipher_check_rhs = proof.v.modmul(
+            &stmt.ciphertext2.0.modpow(&e_BigNumber, stmt.ek.0.nn()),
+            stmt.ek.0.nn(),
         );
         if cipher_check_lhs != cipher_check_rhs {
             warn!("cipher check fail");
@@ -287,7 +282,7 @@ pub mod malicious {
     pub fn corrupt_proof(proof: &Proof) -> Proof {
         let proof = proof.clone();
         Proof {
-            v: proof.v + BigInt::from(1),
+            v: proof.v + BigNumber::from(1),
             ..proof
         }
     }
@@ -307,11 +302,11 @@ pub mod malicious {
 pub(crate) mod tests {
     use super::{
         malicious::{corrupt_proof, corrupt_proof_wc},
-        BigInt, Statement, StatementWc, Witness, ZkSetup,
+        BigNumber, Statement, StatementWc, Witness, ZkSetup,
     };
     use crate::{
         collections::TypedUsize,
-        gg20::crypto_tools::paillier::{keygen_unsafe, zk::random, Ciphertext, Plaintext},
+        gg20::crypto_tools::paillier::{keygen_unsafe, Ciphertext, Plaintext},
     };
     use ecdsa::elliptic_curve::Field;
     use tracing_test::traced_test; // enable logs in tests
@@ -325,7 +320,7 @@ pub(crate) mod tests {
         let x = &k256::Scalar::random(rand::thread_rng());
         let x_g = &(k256::ProjectivePoint::generator() * x);
         let randomness = &ek.sample_randomness();
-        let ciphertext1 = &Ciphertext(random(&ek.0.nn));
+        let ciphertext1 = &Ciphertext(BigNumber::random(ek.0.nn()));
         let ciphertext2 = &ek.add(
             &ek.mul(ciphertext1, &Plaintext::from_scalar(x)),
             &ek.encrypt_with_randomness(msg, randomness),
@@ -384,7 +379,7 @@ pub(crate) mod tests {
 
         // test: bad witness
         let bad_wit = &Witness {
-            msg: &Plaintext(&wit.msg.0 + BigInt::one()),
+            msg: &Plaintext(&wit.msg.0 + BigNumber::one()),
             ..*wit
         };
         let bad_wit_proof = zkp.mta_proof(stmt, bad_wit);

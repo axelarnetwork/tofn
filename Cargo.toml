@@ -25,7 +25,7 @@ tracing = {version = "0", default-features = false}
 
 # TODO need a better Paillier library
 paillier = { git = "https://github.com/axelarnetwork/rust-paillier"}
-libpaillier = { path = "../paillier-rs" }
+libpaillier = { path = "../paillier-rs", features = ["gmp"], default-features = false }
 
 [dev-dependencies]
 tracing-test = "0" # enable logging for tests
