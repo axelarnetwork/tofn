@@ -38,8 +38,7 @@ impl ZkSetup {
     fn from_keypair(
         (ek_tilde, dk_tilde): (EncryptionKey, DecryptionKey),
     ) -> (ZkSetup, ZkSetupProof) {
-        let one = BigNumber::one();
-        let s = BigNumber::one() << (256_u32);  // BigNumber::from(1) << 256;
+        let s = BigNumber::one() << (256_usize);
 
         // TODO zeroize these secrets after use
         let phi = dk_tilde.0.totient();

@@ -136,14 +136,14 @@ impl ZkSetup {
                 .chain(&u1.map_or(Vec::new(), |u1| k256_serde::to_bytes(&u1)))
                 .chain(to_vec(&w)),
         );
-        let e_BigNumber = to_bigint(&e);
+        let e_bigint = to_bigint(&e);
 
-        let s = Randomness(wit.randomness.0.modpow(&e_BigNumber, stmt.ek.0.n()).modmul(
+        let s = Randomness(wit.randomness.0.modpow(&e_bigint, stmt.ek.0.n()).modmul(
             &beta.0,
             stmt.ek.0.n(),
         ));
-        let s1 = Plaintext(e_BigNumber.clone() * to_bigint(wit.msg) + alpha_bigint);
-        let s2 = e_BigNumber * rho + gamma;
+        let s1 = Plaintext(e_bigint.clone() * to_bigint(wit.msg) + alpha_bigint);
+        let s2 = e_bigint * rho + gamma;
 
         (Proof { z, u, w, s, s1, s2 }, u1)
     }
@@ -175,7 +175,7 @@ impl ZkSetup {
                 .chain(&msg_g_g_u1.map_or(Vec::new(), |(_, _, u1)| k256_serde::to_bytes(u1)))
                 .chain(to_vec(&proof.w)),
         );
-        let e_neg_BigNumber = to_bigint(&e).neg();
+        let e_neg_bigint = to_bigint(&e).neg();
         let e_neg = e.negate();
 
         if let Some((msg_g, g, u1)) = msg_g_g_u1 {
@@ -189,7 +189,7 @@ impl ZkSetup {
         }
 
         let u_check = stmt.ek.encrypt_with_randomness(&proof.s1, &proof.s).0.modmul(
-            &stmt.ciphertext.0.modpow(&e_neg_BigNumber, stmt.ek.0.nn()),
+            &stmt.ciphertext.0.modpow(&e_neg_bigint, stmt.ek.0.nn()),
             stmt.ek.0.nn(),
         );
         if u_check != proof.u.0 {
@@ -198,7 +198,7 @@ impl ZkSetup {
         }
 
         let w_check = self.commit(&proof.s1.0, &proof.s2).modmul(
-            &proof.z.modpow(&e_neg_BigNumber, self.n_tilde()),
+            &proof.z.modpow(&e_neg_bigint, self.n_tilde()),
             self.n_tilde(),
         );
         if w_check != proof.w {

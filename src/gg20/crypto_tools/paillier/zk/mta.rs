@@ -220,7 +220,7 @@ impl ZkSetup {
                 .chain(to_vec(&proof.v))
                 .chain(to_vec(&proof.w)),
         );
-        let e_BigNumber = to_bigint(&e);
+        let e_bigint = to_bigint(&e);
 
         if let Some((x_g, u)) = x_g_u {
             let s1 = to_scalar(&proof.s1);
@@ -232,7 +232,7 @@ impl ZkSetup {
             }
         }
 
-        let z_e_z_prime = proof.z.modpow(&e_BigNumber, self.n_tilde()).modmul(
+        let z_e_z_prime = proof.z.modpow(&e_bigint, self.n_tilde()).modmul(
             &proof.z_prime,
             self.n_tilde(),
         );
@@ -242,7 +242,7 @@ impl ZkSetup {
             return false;
         }
 
-        let t_e_w = proof.t.modpow(&e_BigNumber, self.n_tilde()).modmul(
+        let t_e_w = proof.t.modpow(&e_bigint, self.n_tilde()).modmul(
             &proof.w,
             self.n_tilde(),
         );
@@ -257,7 +257,7 @@ impl ZkSetup {
             stmt.ek.0.nn(),
         );
         let cipher_check_rhs = proof.v.modmul(
-            &stmt.ciphertext2.0.modpow(&e_BigNumber, stmt.ek.0.nn()),
+            &stmt.ciphertext2.0.modpow(&e_bigint, stmt.ek.0.nn()),
             stmt.ek.0.nn(),
         );
         if cipher_check_lhs != cipher_check_rhs {
