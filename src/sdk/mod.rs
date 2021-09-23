@@ -1,5 +1,8 @@
 pub mod api;
-pub mod implementer_api;
+
+/// Do not expose [implementer_api] publicly for now.
+/// Currently the only protocol implementation using this API is [gg20] and it's inside this crate.
+pub(crate) mod implementer_api;
 
 mod executer;
 mod party_share_counts;
