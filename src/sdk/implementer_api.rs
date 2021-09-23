@@ -3,7 +3,7 @@ pub use super::executer::{Executer, ExecuterRaw};
 pub use super::protocol::new_protocol;
 pub use super::protocol_builder::{ProtocolBuilder, ProtocolBuilderOutput, RoundBuilder};
 pub use super::protocol_info::ProtocolInfo;
-pub use super::wire_bytes::serialize;
+pub use super::wire_bytes::{decode, encode, serialize};
 
 mod utils {
     use crate::collections::TypedUsize;
@@ -24,6 +24,4 @@ mod utils {
 pub use utils::{log_accuse_warn, log_fault_info, log_fault_warn};
 
 #[cfg(any(test, feature = "malicious"))]
-pub use super::wire_bytes::{
-    decode, decode_message, encode, encode_message, ExpectedMsgTypes, MsgType,
-};
+pub use super::wire_bytes::{decode_message, encode_message, ExpectedMsgTypes, MsgType};

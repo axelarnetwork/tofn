@@ -4,7 +4,7 @@ use crate::{
     gg20::crypto_tools::{k256_serde, paillier, vss},
     sdk::{
         api::{BytesVec, TofnFatal, TofnResult},
-        decode, encode,
+        implementer_api::{decode, encode},
     },
 };
 use k256::ProjectivePoint;
