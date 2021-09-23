@@ -49,7 +49,7 @@ fn compute_challenge(stmt: &CompositeDLogStmt, domain: &[u8], x: &BigNumber) -> 
             .chain(domain)
             .chain(x.to_bytes())
             .chain(stmt.g.to_bytes())
-            .chain(stmt.v.to_bytes()) // TODO: The old code didn't depend on this
+            .chain(stmt.v.to_bytes())
             .chain(stmt.n.to_bytes())
             .finalize(),
     )
@@ -84,7 +84,7 @@ impl CompositeDLogStmt {
         };
 
         let S = BigNumber::one() << WITNESS_SIZE;
-        let s = BigNumber::random(&S); // TODO: Does negation work for modpow?
+        let s = BigNumber::random(&S);
 
         let v = g.modpow(&(-&s), n);
 
@@ -102,7 +102,7 @@ impl NIZKProof for CompositeDLogStmt {
         let r = BigNumber::random(&R);
         let x = self.g.modpow(&r, &self.n);
 
-        // TODO: The challenge should only be K bits long. Here we are hashing with SHA256 giving us 256 bits
+        // TODO: The challenge should only be K bits long. Here we are hashing with SHA256 giving us 256 bits?
         let e = compute_challenge(self, domain, &x);
 
         // y = r + e s
@@ -115,8 +115,6 @@ impl NIZKProof for CompositeDLogStmt {
     }
 
     fn verify(&self, proof: &Self::Proof, domain: &[u8]) -> bool {
-        // Check x is in Z*n and smaller than n
-        // TODO: Check that N is positive? and composite?
         if self.n <= BigNumber::zero()
             || self.n.bit_length() < constants::MODULUS_MIN_SIZE
             || self.n.bit_length() > constants::MODULUS_MAX_SIZE
@@ -142,7 +140,6 @@ impl NIZKProof for CompositeDLogStmt {
             return false;
         }
 
-        // TODO: Check that y is not negative?
         if proof.y < BigNumber::zero() || proof.y.bit_length() > R_SIZE + 1 {
             return false;
         }

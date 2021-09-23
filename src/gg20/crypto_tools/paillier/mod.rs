@@ -7,8 +7,6 @@ use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
-use crate::sdk::api::{TofnFatal, TofnResult};
-
 pub mod zk;
 
 /// unsafe because key pair does not use safe primes

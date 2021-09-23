@@ -1,6 +1,4 @@
 //! Minimize direct use of paillier, zk_paillier crates
-use crate::gg20::constants::ZKSETUP_TAG;
-
 use super::{keygen, keygen_unsafe, DecryptionKey, EncryptionKey};
 use libpaillier::unknown_order::BigNumber;
 use rand::{CryptoRng, RngCore};
@@ -15,7 +13,7 @@ mod traits;
 pub use traits::*;
 
 mod utils;
-pub use utils::*;
+use utils::*;
 
 mod composite_dlog;
 use composite_dlog::{CompositeDLogProof, CompositeDLogStmt};
@@ -71,9 +69,7 @@ impl ZkSetup {
     }
 
     pub fn verify(&self, proof: &ZkSetupProof) -> bool {
-        let domain = ZKSETUP_TAG.to_le_bytes(); // TODO: Add peer id
-
-        self.dlog_stmt.verify(proof, &domain)
+        self.dlog_stmt.verify(proof, &[0_u8])
     }
 }
 

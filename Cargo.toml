@@ -19,12 +19,11 @@ k256 = { version = "0", features = ["ecdsa", "zeroize"], default-features = fals
 ecdsa = { version = "0", features = ["digest"], default-features = false } # needed only for FromDigest trait
 rand = "0"
 sha2 = { version = "0", features = ["std", "asm"], default-features = false }
+sha3 = { version = "0.9", default-features = false }
 
 # logging
 tracing = {version = "0", default-features = false}
 
-# TODO need a better Paillier library
-paillier = { git = "https://github.com/axelarnetwork/rust-paillier"}
 libpaillier = { path = "../paillier-rs", features = ["gmp"], default-features = false }
 
 [dev-dependencies]
