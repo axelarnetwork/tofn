@@ -122,7 +122,7 @@ pub mod malicious {
     }
 
     pub fn corrupt_ek_proof(mut proof: EncryptionKeyProof) -> EncryptionKeyProof {
-        proof.sigma_vec[0] += BigNumber::one();
+        proof.sigmas[0] += BigNumber::one();
         proof
     }
 }

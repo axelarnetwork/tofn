@@ -32,8 +32,8 @@ pub struct CompositeDLogStmt {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Zeroize)]
 pub struct CompositeDLogProof {
-    x: BigNumber,
-    y: BigNumber,
+    pub(crate) x: BigNumber,
+    pub(crate) y: BigNumber,
 }
 
 const CHALLENGE_K: usize = 128;
