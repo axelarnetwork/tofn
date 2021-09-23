@@ -6,9 +6,8 @@ use crate::{
         crypto_tools::{
             k256_serde,
             paillier::{
-                secp256k1_modulus, to_bigint, to_scalar, to_vec,
-                zk::{ZkSetup},
-                Ciphertext, EncryptionKey, Plaintext, Randomness,
+                secp256k1_modulus, to_bigint, to_scalar, to_vec, zk::ZkSetup, Ciphertext,
+                EncryptionKey, Plaintext, Randomness,
             },
         },
     },
@@ -112,8 +111,8 @@ impl ZkSetup {
         let alpha_pt = Plaintext(BigNumber::random(&secp256k1_modulus_cubed()));
         let alpha_bigint = &alpha_pt.0;
 
-        let q_n_tilde = secp256k1_modulus() * &self.composite_dlog_statement.N;
-        let q3_n_tilde = secp256k1_modulus_cubed() * &self.composite_dlog_statement.N;
+        let q_n_tilde = secp256k1_modulus() * &self.dlog_stmt.n;
+        let q3_n_tilde = secp256k1_modulus_cubed() * &self.dlog_stmt.n;
 
         let rho = BigNumber::random(&q_n_tilde);
         let gamma = BigNumber::random(&q3_n_tilde);
@@ -138,10 +137,12 @@ impl ZkSetup {
         );
         let e_bigint = to_bigint(&e);
 
-        let s = Randomness(wit.randomness.0.modpow(&e_bigint, stmt.ek.0.n()).modmul(
-            &beta.0,
-            stmt.ek.0.n(),
-        ));
+        let s = Randomness(
+            wit.randomness
+                .0
+                .modpow(&e_bigint, stmt.ek.0.n())
+                .modmul(&beta.0, stmt.ek.0.n()),
+        );
         let s1 = Plaintext(e_bigint.clone() * to_bigint(wit.msg) + alpha_bigint);
         let s2 = e_bigint * rho + gamma;
 
@@ -188,10 +189,14 @@ impl ZkSetup {
             }
         }
 
-        let u_check = stmt.ek.encrypt_with_randomness(&proof.s1, &proof.s).0.modmul(
-            &stmt.ciphertext.0.modpow(&e_neg_bigint, stmt.ek.0.nn()),
-            stmt.ek.0.nn(),
-        );
+        let u_check = stmt
+            .ek
+            .encrypt_with_randomness(&proof.s1, &proof.s)
+            .0
+            .modmul(
+                &stmt.ciphertext.0.modpow(&e_neg_bigint, stmt.ek.0.nn()),
+                stmt.ek.0.nn(),
+            );
         if u_check != proof.u.0 {
             warn!("u check fail");
             return false;

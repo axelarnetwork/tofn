@@ -47,7 +47,7 @@ pub(super) fn start(
         malicious::corrupt_commit(my_keygen_id, &behaviour, y_i_commit)
     );
 
-    let ek_proof = keypair.dk.correctness_proof();
+    let ek_proof = keypair.ek.correctness_proof(&keypair.dk);
     corrupt!(
         ek_proof,
         malicious::corrupt_ek_proof(my_keygen_id, &behaviour, ek_proof)

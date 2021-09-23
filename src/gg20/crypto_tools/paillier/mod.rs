@@ -3,141 +3,96 @@
 //! * facilitate easy swap-out of rust-paillier crate for something else
 
 use libpaillier::unknown_order::BigNumber;
-use paillier::{
-    Add, Decrypt, EncryptWithChosenRandomness, KeyGeneration, Mul, Open, Paillier,
-};
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
+use crate::sdk::api::{TofnFatal, TofnResult};
+
 pub mod zk;
-pub type BigInt = BigNumber;
 
 /// unsafe because key pair does not use safe primes
 pub fn keygen_unsafe(rng: &mut (impl CryptoRng + RngCore)) -> (EncryptionKey, DecryptionKey) {
     // let (ek, dk) = Paillier::keypair(rng).keys();
     let p = BigNumber::prime_with_rng(rng, 1024);
     let q = BigNumber::prime_with_rng(rng, 1024);
+
     let dk = libpaillier::DecryptionKey::with_safe_primes_unchecked(&p, &q).unwrap();
-
-    // let dk = libpaillier::DecryptionKey::random().unwrap();
     let ek = (&dk).into();
 
     (EncryptionKey(ek), DecryptionKey(dk))
 }
+
 pub fn keygen(rng: &mut (impl CryptoRng + RngCore)) -> (EncryptionKey, DecryptionKey) {
-    // let (ek, dk) = Paillier::keypair_safe_primes(rng).keys();
     let dk = libpaillier::DecryptionKey::with_rng(rng).unwrap();
-
-    // let dk = libpaillier::DecryptionKey::random().unwrap();
     let ek = (&dk).into();
 
     (EncryptionKey(ek), DecryptionKey(dk))
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Zeroize)]
 pub struct EncryptionKey(pub libpaillier::EncryptionKey);
 
 impl EncryptionKey {
     pub fn sample_randomness(&self) -> Randomness {
         Randomness(BigNumber::random(self.0.n()))
     }
+
     pub fn random_plaintext(&self) -> Plaintext {
         Plaintext(BigNumber::random(self.0.n()))
     }
+
     // TODO how to make `encrypt` generic over `T` where `&T` impls `Into<Plaintext>`?
     // example: https://docs.rs/ecdsa/0.11.1/ecdsa/struct.Signature.html#method.from_scalars
     pub fn encrypt(&self, p: &Plaintext) -> (Ciphertext, Randomness) {
         let r = self.sample_randomness();
         (self.encrypt_with_randomness(p, &r), r)
     }
+
     pub fn encrypt_with_randomness(&self, p: &Plaintext, r: &Randomness) -> Ciphertext {
         Ciphertext(
-            self.0.encrypt(
-                &p.0.to_bytes(),
-                Some(r.0.clone()),
-            ).unwrap().0,
+            self.0
+                .encrypt_with_randomness(&p.0.to_bytes(), r.0.clone())
+                .unwrap()
+                .0,
         )
     }
+
     /// Homomorphically add `c1` to `c2`
     pub fn add(&self, c1: &Ciphertext, c2: &Ciphertext) -> Ciphertext {
         Ciphertext(self.0.add(&c1.0, &c2.0).unwrap())
-        // Ciphertext(
-        //     Paillier::add(
-        //         &self.0,
-        //         paillier::RawCiphertext::from(&c1.0),
-        //         paillier::RawCiphertext::from(&c2.0),
-        //     )
-        //     .0
-        //     .into_owned(),
-        // )
     }
 
     /// Homomorphically multiply `c` by `p`
     pub fn mul(&self, c: &Ciphertext, p: &Plaintext) -> Ciphertext {
         Ciphertext(self.0.mul(&c.0, &p.0).unwrap())
-        // Ciphertext(
-        //     Paillier::mul(
-        //         &self.0,
-        //         paillier::RawCiphertext::from(&c.0),
-        //         paillier::RawPlaintext::from(&p.0),
-        //     )
-        //     .0
-        //     .into_owned(),
-        // )
     }
 }
 
-// TODO: This might be optimized away since BigInt itself doesn't implement Zeroize
-impl Zeroize for EncryptionKey {
-    fn zeroize(&mut self) {
-        // self.0.n = BigNumber::zero();
-        // self.0.nn = BigNumber::zero();
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Zeroize)]
+#[zeroize(drop)]
 pub struct DecryptionKey(libpaillier::DecryptionKey);
 
 impl DecryptionKey {
     pub fn decrypt(&self, c: &Ciphertext) -> Plaintext {
         Plaintext(BigNumber::from_slice(self.0.decrypt(&c.0).unwrap()))
-        // Plaintext(
-        //     Paillier::decrypt(&self.0, paillier::RawCiphertext::from(&c.0))
-        //         .0
-        //         .into_owned(),
-        // )
     }
+
     pub fn decrypt_with_randomness(&self, c: &Ciphertext) -> (Plaintext, Randomness) {
         let (m, r) = self.0.decrypt_with_randomness(&c.0).unwrap();
         (Plaintext(m), Randomness(r))
-        // (self.decrypt(c), Randomness(BigNumber::zero()))
-        // let (pt, r) = Paillier::open(&self.0, paillier::RawCiphertext::from(&c.0));
-        // (Plaintext(pt.0.into_owned()), Randomness(r.0))
     }
 }
 
-// TODO: This might be optimized away since BigInt itself doesn't implement Zeroize
-impl Zeroize for DecryptionKey {
-    fn zeroize(&mut self) {
-        // self.0.p = BigInt::zero();
-        // self.0.q = BigInt::zero();
-    }
-}
-
-impl Drop for DecryptionKey {
-    fn drop(&mut self) {
-        self.zeroize()
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Zeroize)]
+#[zeroize(drop)]
 pub struct Plaintext(pub BigNumber);
 
 impl Plaintext {
     pub fn to_scalar(&self) -> k256::Scalar {
         to_scalar(&self.0)
     }
+
     pub fn from_scalar(s: &k256::Scalar) -> Self {
         Self(to_bigint(s))
     }
@@ -150,43 +105,19 @@ impl From<&Plaintext> for k256::Scalar {
         p.to_scalar()
     }
 }
+
 impl From<&k256::Scalar> for Plaintext {
     fn from(s: &k256::Scalar) -> Self {
         Plaintext::from_scalar(s)
     }
 }
 
-// TODO: This might be optimized away since BigInt itself doesn't implement Zeroize
-impl Zeroize for Plaintext {
-    fn zeroize(&mut self) {
-        self.0 = BigNumber::zero();
-    }
-}
-
-impl Drop for Plaintext {
-    fn drop(&mut self) {
-        self.zeroize()
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Ciphertext(libpaillier::Ciphertext);
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Zeroize)]
+#[zeroize(drop)]
 pub struct Randomness(BigNumber);
-
-// TODO: This might be optimized away since BigInt itself doesn't implement Zeroize
-impl Zeroize for Randomness {
-    fn zeroize(&mut self) {
-        self.0 = BigNumber::zero();
-    }
-}
-
-impl Drop for Randomness {
-    fn drop(&mut self) {
-        self.zeroize()
-    }
-}
 
 fn to_bigint(s: &k256::Scalar) -> BigNumber {
     BigNumber::from_slice(s.to_bytes().as_slice())
@@ -222,6 +153,7 @@ fn pad32(v: Vec<u8>) -> Vec<u8> {
     v_pad
 }
 
+// TODO: Why is it padded by ones in beginning?
 // The order of the secp256k1 curve
 const SECP256K1_CURVE_ORDER: [u8; 32] = [
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe,
@@ -241,18 +173,22 @@ fn mod_secp256k1(n: &BigNumber) -> BigNumber {
 #[cfg(feature = "malicious")]
 pub mod malicious {
     use super::*;
+
     impl Plaintext {
         pub fn corrupt(&mut self) {
             self.0 += BigNumber::one();
         }
+
         pub fn corrupt_with(&mut self, offset: &k256::Scalar) {
             self.0 -= to_bigint(offset);
         }
     }
+
     impl Ciphertext {
         pub fn corrupt(&mut self) {
             self.0 += BigNumber::one();
         }
+
         pub fn corrupt_owned(mut self) -> Self {
             self.corrupt();
             self

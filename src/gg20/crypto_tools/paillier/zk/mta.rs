@@ -5,9 +5,8 @@ use crate::{
         crypto_tools::{
             k256_serde,
             paillier::{
-                secp256k1_modulus, to_bigint, to_scalar, to_vec,
-                zk::{ZkSetup},
-                Ciphertext, EncryptionKey, Plaintext, Randomness,
+                secp256k1_modulus, to_bigint, to_scalar, to_vec, zk::ZkSetup, Ciphertext,
+                EncryptionKey, Plaintext, Randomness,
             },
         },
         sign::SignShareId,
@@ -120,8 +119,8 @@ impl ZkSetup {
     ) -> (Proof, Option<k256::ProjectivePoint>) {
         let alpha = BigNumber::random(&secp256k1_modulus_cubed());
 
-        let q_n_tilde = secp256k1_modulus() * &self.composite_dlog_statement.N;
-        let q3_n_tilde = secp256k1_modulus_cubed() * &self.composite_dlog_statement.N;
+        let q_n_tilde = secp256k1_modulus() * &self.dlog_stmt.n;
+        let q3_n_tilde = secp256k1_modulus_cubed() * &self.dlog_stmt.n;
 
         let sigma = BigNumber::random(&q_n_tilde);
         let tau = BigNumber::random(&q_n_tilde);
@@ -166,13 +165,15 @@ impl ZkSetup {
                 .chain(to_vec(&w)),
         ));
 
-        let s = Randomness(wit.randomness.0.modpow(&e, stmt.ek.0.n()).modmul(
-            &beta.0,
-            stmt.ek.0.n(),
-        ));
+        let s = Randomness(
+            wit.randomness
+                .0
+                .modpow(&e, stmt.ek.0.n())
+                .modmul(&beta.0, stmt.ek.0.n()),
+        );
         let s1 = &e * &x_bigint + alpha;
         let s2 = &e * rho + rho_prime;
-        let t1 = Plaintext(&e * &wit.msg.0 + gamma.0.clone());  // TODO: This exceeds the modulus N
+        let t1 = Plaintext(&e * &wit.msg.0 + gamma.0.clone()); // TODO: This exceeds the modulus N
         let t2 = e * sigma + tau;
 
         (
@@ -232,30 +233,34 @@ impl ZkSetup {
             }
         }
 
-        let z_e_z_prime = proof.z.modpow(&e_bigint, self.n_tilde()).modmul(
-            &proof.z_prime,
-            self.n_tilde(),
-        );
+        let z_e_z_prime = proof
+            .z
+            .modpow(&e_bigint, self.n_tilde())
+            .modmul(&proof.z_prime, self.n_tilde());
         let z_e_z_prime_check = self.commit(&proof.s1, &proof.s2);
         if z_e_z_prime_check != z_e_z_prime {
             warn!("z^e z_prime check fail");
             return false;
         }
 
-        let t_e_w = proof.t.modpow(&e_bigint, self.n_tilde()).modmul(
-            &proof.w,
-            self.n_tilde(),
-        );
+        let t_e_w = proof
+            .t
+            .modpow(&e_bigint, self.n_tilde())
+            .modmul(&proof.w, self.n_tilde());
         let t_e_w_check = self.commit(&proof.t1.0, &proof.t2);
         if t_e_w_check != t_e_w {
             warn!("t^e w check fail");
             return false;
         }
 
-        let cipher_check_lhs = stmt.ek.encrypt_with_randomness(&proof.t1, &proof.s).0.modmul(
-            &stmt.ciphertext1.0.modpow(&proof.s1, stmt.ek.0.nn()),
-            stmt.ek.0.nn(),
-        );
+        let cipher_check_lhs = stmt
+            .ek
+            .encrypt_with_randomness(&proof.t1, &proof.s)
+            .0
+            .modmul(
+                &stmt.ciphertext1.0.modpow(&proof.s1, stmt.ek.0.nn()),
+                stmt.ek.0.nn(),
+            );
         let cipher_check_rhs = proof.v.modmul(
             &stmt.ciphertext2.0.modpow(&e_bigint, stmt.ek.0.nn()),
             stmt.ek.0.nn(),

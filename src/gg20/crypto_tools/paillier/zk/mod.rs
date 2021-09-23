@@ -1,7 +1,8 @@
 //! Minimize direct use of paillier, zk_paillier crates
-use super::{DecryptionKey, EncryptionKey, keygen, keygen_unsafe};
+use crate::gg20::constants::ZKSETUP_TAG;
+
+use super::{keygen, keygen_unsafe, DecryptionKey, EncryptionKey};
 use libpaillier::unknown_order::BigNumber;
-use libpaillier::zk::{CompositeDLogProof, DLogStatement, NICorrectKeyProof};
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
@@ -9,28 +10,30 @@ use zeroize::Zeroize;
 pub(crate) mod mta;
 pub(crate) mod range;
 
-pub type EncryptionKeyProof = NICorrectKeyProof;
+mod paillier_key;
+mod traits;
+pub use traits::*;
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+mod utils;
+pub use utils::*;
+
+mod composite_dlog;
+use composite_dlog::{CompositeDLogProof, CompositeDLogStmt};
+
+pub type EncryptionKeyProof = paillier_key::PaillierKeyProof;
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Zeroize)]
 pub struct ZkSetup {
-    composite_dlog_statement: DLogStatement,
+    dlog_stmt: CompositeDLogStmt,
 }
 
 pub type ZkSetupProof = CompositeDLogProof;
-
-// TODO: This might be optimized away since BigNumber itself doesn't implement Zeroize
-impl Zeroize for ZkSetup {
-    fn zeroize(&mut self) {
-        self.composite_dlog_statement.N = BigNumber::zero();
-        self.composite_dlog_statement.g = BigNumber::zero();
-        self.composite_dlog_statement.ni = BigNumber::zero();
-    }
-}
 
 impl ZkSetup {
     pub fn new_unsafe(rng: &mut (impl CryptoRng + RngCore)) -> (ZkSetup, ZkSetupProof) {
         Self::from_keypair(keygen_unsafe(rng))
     }
+
     pub fn new(rng: &mut (impl CryptoRng + RngCore)) -> (ZkSetup, ZkSetupProof) {
         Self::from_keypair(keygen(rng))
     }
@@ -38,92 +41,51 @@ impl ZkSetup {
     fn from_keypair(
         (ek_tilde, dk_tilde): (EncryptionKey, DecryptionKey),
     ) -> (ZkSetup, ZkSetupProof) {
-        let s = BigNumber::one() << (256_usize);
+        let (dlog_stmt, mut witness) =
+            CompositeDLogStmt::setup(ek_tilde.0.n(), dk_tilde.0.p(), dk_tilde.0.q());
 
-        // TODO zeroize these secrets after use
-        let phi = dk_tilde.0.totient();
-        let xhi = BigNumber::random(&s);
+        let dlog_proof = dlog_stmt.prove(&witness, &[0_u8]); // TODO: Fix the domain
 
-        let h1 = BigNumber::random(&phi);
-        let h2 = h1.modpow(&(-&xhi), ek_tilde.0.n());
+        witness.zeroize();
 
-        let dlog_statement = DLogStatement {
-            N: ek_tilde.0.n().clone(), // n_tilde
-            g: h1,           // h1
-            ni: h2,          // h2
-        };
-        let dlog_proof = CompositeDLogProof::prove(&dlog_statement, &xhi);
-
-        (
-            Self {
-                composite_dlog_statement: dlog_statement,
-            },
-            dlog_proof,
-        )
+        (Self { dlog_stmt }, dlog_proof)
     }
 
     fn h1(&self) -> &BigNumber {
-        &self.composite_dlog_statement.g
+        &self.dlog_stmt.g
     }
+
     fn h2(&self) -> &BigNumber {
-        &self.composite_dlog_statement.ni
+        &self.dlog_stmt.v
     }
+
     fn n_tilde(&self) -> &BigNumber {
-        &self.composite_dlog_statement.N
+        &self.dlog_stmt.n
     }
+
     fn commit(&self, msg: &BigNumber, randomness: &BigNumber) -> BigNumber {
         let h1_x = self.h1().modpow(msg, self.n_tilde());
         let h2_r = self.h2().modpow(randomness, self.n_tilde());
+
         h1_x.modmul(&h2_r, self.n_tilde())
-        // mulm(&h1_x, &h2_r, self.n_tilde())
     }
 
     pub fn verify(&self, proof: &ZkSetupProof) -> bool {
-        proof.verify(&self.composite_dlog_statement).is_ok()
-    }
-}
+        let domain = ZKSETUP_TAG.to_le_bytes(); // TODO: Add peer id
 
-impl DecryptionKey {
-    pub fn correctness_proof(&self) -> EncryptionKeyProof {
-        EncryptionKeyProof::proof(&self.0, None)
+        self.dlog_stmt.verify(proof, &domain)
     }
 }
 
 impl EncryptionKey {
-    pub fn verify(&self, proof: &EncryptionKeyProof) -> bool {
-        proof.verify(&self.0, None).is_ok()
+    pub fn correctness_proof(&self, dk: &DecryptionKey) -> EncryptionKeyProof {
+        self.prove(dk, &[0_u8]) // TODO: Fix domain
+    }
+
+    pub fn verify_correctness(&self, proof: &EncryptionKeyProof) -> bool {
+        self.verify(proof, &[0_u8])
     }
 }
-
-// re-implement low-level BigNumber functions
-// so as to avoid direct dependence on curv
-
-/// return a random (BigNumber in [0,n)
-fn random(n: &BigNumber, len: usize) -> BigNumber {
-    debug_assert!(n > &BigNumber::zero());
-
-    let zero = BigNumber::zero();
-
-    if n <= &zero {
-        return zero;
-    }
-
-    let bit_len = len;
-    let byte_len = (bit_len - 1) / 8 + 1;
-    let mut bytes = vec![0u8; byte_len];
-    loop {
-        rand::thread_rng().fill_bytes(&mut bytes);
-        let candidate = BigNumber::from_slice(&*bytes) >> (byte_len * 8 - bit_len);
-        if candidate < *n {
-            return candidate;
-        }
-    }
-}
-
-// /// return x*y mod n
-// fn mulm(x: &BigNumber, y: &BigNumber, n: &BigNumber) -> BigNumber {
-//     (x.modulus(n) * y.modulus(n)).modulus(n)
-// }
 
 // The order of the secp256k1 curve raised to exponent 3
 const SECP256K1_CURVE_ORDER_CUBED: [u8; 96] = [
@@ -139,6 +101,7 @@ const SECP256K1_CURVE_ORDER_CUBED: [u8; 96] = [
 fn secp256k1_modulus_cubed() -> BigNumber {
     BigNumber::from_slice(SECP256K1_CURVE_ORDER_CUBED.as_ref())
 }
+
 #[cfg(test)]
 mod tests {
     use super::secp256k1_modulus_cubed;
@@ -156,10 +119,12 @@ mod tests {
 #[cfg(feature = "malicious")]
 pub mod malicious {
     use super::*;
+
     pub fn corrupt_zksetup_proof(mut proof: ZkSetupProof) -> ZkSetupProof {
         proof.x += BigNumber::one();
         proof
     }
+
     pub fn corrupt_ek_proof(mut proof: EncryptionKeyProof) -> EncryptionKeyProof {
         proof.sigma_vec[0] += BigNumber::one();
         proof

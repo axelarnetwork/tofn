@@ -85,7 +85,7 @@ impl Executer for R2 {
 
         // check Paillier proofs
         for (peer_keygen_id, bcast) in bcasts_in.iter() {
-            if !bcast.ek.verify(&bcast.ek_proof) {
+            if !bcast.ek.verify_correctness(&bcast.ek_proof) {
                 warn!(
                     "peer {} says: ek proof from peer {} failed to verify",
                     my_keygen_id, peer_keygen_id
