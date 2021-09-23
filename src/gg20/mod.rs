@@ -1,14 +1,15 @@
 mod constants;
 mod crypto_tools;
-pub mod keygen;
-pub mod sign;
 
-// TODO: Rust 2018 doesn't allow importing a macro from another module
-// in the same crate without a crate level export.
-#[macro_export]
+/// corrupt! should be visible only within modules [keygen], [sign]
+/// Thus, we must define it here in accordance with the bizarre rules for macro visibility:
+/// <https://danielkeep.github.io/tlborm/book/mbe-min-scoping.html>
 macro_rules! corrupt {
     ($sym:ident, $e:expr) => {
         #[cfg(feature = "malicious")]
         let $sym = $e;
     };
 }
+
+pub mod keygen;
+pub mod sign;

@@ -1,6 +1,5 @@
 use crate::{
     collections::{FillVecMap, FullP2ps, HoleVecMap, P2ps, TypedUsize, VecMap},
-    corrupt,
     gg20::{
         crypto_tools::{hash::Randomness, k256_serde, mta::Secret, paillier, vss, zkp::pedersen},
         keygen::{KeygenShareId, SecretKeyShare},
