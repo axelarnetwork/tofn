@@ -11,7 +11,6 @@ pub mod zk;
 
 /// unsafe because key pair does not use safe primes
 pub fn keygen_unsafe(rng: &mut (impl CryptoRng + RngCore)) -> (EncryptionKey, DecryptionKey) {
-    // let (ek, dk) = Paillier::keypair(rng).keys();
     let p = BigNumber::prime_with_rng(rng, 1024);
     let q = BigNumber::prime_with_rng(rng, 1024);
 
@@ -48,22 +47,17 @@ impl EncryptionKey {
     }
 
     pub fn encrypt_with_randomness(&self, p: &Plaintext, r: &Randomness) -> Ciphertext {
-        Ciphertext(
-            self.0
-                .encrypt_with_randomness(&p.0.to_bytes(), r.0.clone())
-                .unwrap()
-                .0,
-        )
+        Ciphertext(self.0.encrypt_with_randomness(&p.0, &r.0))
     }
 
     /// Homomorphically add `c1` to `c2`
     pub fn add(&self, c1: &Ciphertext, c2: &Ciphertext) -> Ciphertext {
-        Ciphertext(self.0.add(&c1.0, &c2.0).unwrap())
+        Ciphertext(self.0.add_unchecked(&c1.0, &c2.0))
     }
 
     /// Homomorphically multiply `c` by `p`
     pub fn mul(&self, c: &Ciphertext, p: &Plaintext) -> Ciphertext {
-        Ciphertext(self.0.mul(&c.0, &p.0).unwrap())
+        Ciphertext(self.0.mul_unchecked(&c.0, &p.0))
     }
 }
 
@@ -73,11 +67,11 @@ pub struct DecryptionKey(libpaillier::DecryptionKey);
 
 impl DecryptionKey {
     pub fn decrypt(&self, c: &Ciphertext) -> Plaintext {
-        Plaintext(BigNumber::from_slice(self.0.decrypt(&c.0).unwrap()))
+        Plaintext(BigNumber::from_slice(self.0.decrypt_unchecked(&c.0)))
     }
 
     pub fn decrypt_with_randomness(&self, c: &Ciphertext) -> (Plaintext, Randomness) {
-        let (m, r) = self.0.decrypt_with_randomness(&c.0).unwrap();
+        let (m, r) = self.0.decrypt_with_randomness(&c.0);
         (Plaintext(m), Randomness(r))
     }
 }

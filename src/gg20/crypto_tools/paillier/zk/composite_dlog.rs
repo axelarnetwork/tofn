@@ -122,6 +122,8 @@ impl NIZKProof for CompositeDLogStmt {
             return false;
         }
 
+        // TODO: Mark these as sanity checks
+
         // TODO: Verify the serialization of BigNumber
         if self.n.is_prime() {
             return false;

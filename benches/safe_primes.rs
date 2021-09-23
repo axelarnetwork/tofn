@@ -1,16 +1,23 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use paillier::{KeyGeneration, Paillier};
+use libpaillier::{DecryptionKey, EncryptionKey};
 use rand::{CryptoRng, RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 
 pub fn unsafe_primes(c: &mut Criterion) {
     let mut rng = chacha_rng();
-    c.bench_function("unsafe primes", |b| b.iter(|| Paillier::keypair(&mut rng)));
+    // TODO: Expose unsafe prime keygen for benchmarking
+    // c.bench_function("unsafe primes", |b| b.iter(|| DecryptionKey::with_rng(&mut rng)));
 
     let mut g = c.benchmark_group("safe-primes-group");
     g.sample_size(10);
     g.bench_function("safe primes", |b| {
-        b.iter(|| Paillier::keypair_safe_primes(&mut rng))
+        b.iter(|| {
+            let dk = DecryptionKey::with_rng(&mut rng).unwrap();
+
+            let ek: EncryptionKey = (&dk).into();
+
+            (ek, dk)
+        })
     });
 }
 

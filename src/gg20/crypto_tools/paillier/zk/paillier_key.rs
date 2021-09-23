@@ -18,6 +18,7 @@ use crate::gg20::{
 use super::{member_of_mul_group, NIZKProof};
 
 // TODO: Generate this using a constant function or add a test
+/// The product of all primes less than 2^k
 const TWO_K_PRIMORIAL_BYTES: &[u8] = &[
     0x4D, 0xDE, 0xC7, 0x72, 0xC2, 0xEE, 0x9F, 0xB1, 0x1E, 0x7B, 0x9E, 0xD0, 0xE5, 0xF6, 0xB7, 0xDE,
     0x5B, 0x83, 0xA0, 0xF2, 0x0C, 0xFA, 0xD9, 0xF3, 0x7E, 0xC2, 0xAD, 0x15, 0x13, 0x41, 0xEB, 0xBE,
@@ -152,6 +153,7 @@ impl NIZKProof for PaillierKeyStmt {
             return false;
         }
 
+        // TODO: Use a static array instead
         if proof.sigmas.len() != PARAM_M {
             return false;
         }
