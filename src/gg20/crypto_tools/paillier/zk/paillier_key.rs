@@ -7,7 +7,8 @@
 /// Section 6.2.3 of https://eprint.iacr.org/2018/987.pdf
 use libpaillier::unknown_order::BigNumber;
 use serde::{Deserialize, Serialize};
-use sha3::{Digest, Sha3_512};
+use sha2::digest::*;
+use sha3::Shake128;
 use zeroize::Zeroize;
 
 use crate::{
@@ -101,28 +102,33 @@ const PARAM_M: usize = 11;
 
 pub type PaillierKeyStmt = EncryptionKey;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Zeroize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, Zeroize)]
 pub struct PaillierKeyProof {
-    pub sigmas: Vec<BigNumber>,
+    pub sigmas: [BigNumber; PARAM_M],
 }
 
 /// Compute the challenge for the NIZKProof
-/// TODO: Use the hash-to-field draft or implement MGF1 from
-/// https://tools.ietf.org/html/rfc8017#appendix-B.2.1
 fn compute_challenge(
     stmt: &PaillierKeyStmt,
-    run: usize,
+    iteration: usize,
     prover_id: <PaillierKeyStmt as NIZKStatement>::Domain,
 ) -> BigNumber {
-    let mut hash = Sha3_512::new(); // Use SHAKE128
+    // We use an XOF (Shake128) to get an n-byte output
+    // and reduce it modulo the modulus N
+    let hash = Shake128::default()
+        .chain(PAILLIER_KEY_PROOF_TAG.to_le_bytes())
+        .chain(iteration.to_be_bytes())
+        .chain(prover_id.to_bytes())
+        .chain(stmt.0.n().to_bytes());
 
-    hash.update(PAILLIER_KEY_PROOF_TAG.to_le_bytes());
-    hash.update(run.to_be_bytes());
-    hash.update(prover_id.to_bytes());
-    hash.update(stmt.0.n().to_bytes());
+    let num_bytes = (stmt.0.n().bit_length() + 7) / 8;
+    let mut buffer = vec![0; num_bytes];
 
-    // TODO: Using Shake, reduce modulo n
-    BigNumber::from_slice(hash.finalize())
+    hash.finalize_xof().read(&mut buffer);
+
+    let h = BigNumber::from_slice(buffer);
+
+    h.modadd(&BigNumber::zero(), stmt.0.n())
 }
 
 impl NIZKStatement for PaillierKeyStmt {
@@ -134,18 +140,18 @@ impl NIZKStatement for PaillierKeyStmt {
     fn prove(&self, wit: &Self::Witness, domain: Self::Domain) -> Self::Proof {
         let n_inv = wit.0.n_inv();
 
-        let sigmas = (0..PARAM_M)
-            .map(|i| {
-                let rho = compute_challenge(self, i, domain);
+        let mut proof = Self::Proof::default();
 
-                // sigma = rho^(N^-1 mod phi(N)) mod N
-                let sigma = rho.modpow(n_inv, self.0.n());
+        for i in 0..PARAM_M {
+            let rho = compute_challenge(self, i, domain);
 
-                sigma
-            })
-            .collect::<Vec<_>>();
+            // sigma = rho^(N^-1 mod phi(N)) mod N
+            let sigma = rho.modpow(n_inv, self.0.n());
 
-        Self::Proof { sigmas }
+            proof.sigmas[i] = sigma
+        }
+
+        proof
     }
 
     fn verify(&self, proof: &Self::Proof, domain: Self::Domain) -> bool {
@@ -159,11 +165,6 @@ impl NIZKStatement for PaillierKeyStmt {
         }
 
         if n.is_prime() {
-            return false;
-        }
-
-        // TODO: Use a static array instead
-        if proof.sigmas.len() != PARAM_M {
             return false;
         }
 
