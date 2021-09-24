@@ -30,16 +30,23 @@ pub struct ZkSetup {
 pub type ZkSetupProof = CompositeDLogProof;
 
 impl ZkSetup {
-    pub fn new_unsafe(rng: &mut (impl CryptoRng + RngCore), party_id: TypedUsize<KeygenPartyId>) -> TofnResult<(ZkSetup, ZkSetupProof)> {
+    pub fn new_unsafe(
+        rng: &mut (impl CryptoRng + RngCore),
+        party_id: TypedUsize<KeygenPartyId>,
+    ) -> TofnResult<(ZkSetup, ZkSetupProof)> {
         Ok(Self::from_keypair(keygen_unsafe(rng)?, party_id))
     }
 
-    pub fn new(rng: &mut (impl CryptoRng + RngCore), party_id: TypedUsize<KeygenPartyId>) -> TofnResult<(ZkSetup, ZkSetupProof)> {
+    pub fn new(
+        rng: &mut (impl CryptoRng + RngCore),
+        party_id: TypedUsize<KeygenPartyId>,
+    ) -> TofnResult<(ZkSetup, ZkSetupProof)> {
         Ok(Self::from_keypair(keygen(rng)?, party_id))
     }
 
     fn from_keypair(
-        (ek_tilde, dk_tilde): (EncryptionKey, DecryptionKey), party_id: TypedUsize<KeygenPartyId>
+        (ek_tilde, dk_tilde): (EncryptionKey, DecryptionKey),
+        party_id: TypedUsize<KeygenPartyId>,
     ) -> (ZkSetup, ZkSetupProof) {
         let (dlog_stmt, mut witness) =
             CompositeDLogStmt::setup(ek_tilde.0.n(), dk_tilde.0.p(), dk_tilde.0.q());
@@ -76,11 +83,19 @@ impl ZkSetup {
 }
 
 impl EncryptionKey {
-    pub fn correctness_proof(&self, dk: &DecryptionKey, prover_id: TypedUsize<KeygenPartyId>) -> EncryptionKeyProof {
+    pub fn correctness_proof(
+        &self,
+        dk: &DecryptionKey,
+        prover_id: TypedUsize<KeygenPartyId>,
+    ) -> EncryptionKeyProof {
         self.prove(dk, prover_id)
     }
 
-    pub fn verify_correctness(&self, proof: &EncryptionKeyProof, prover_id: TypedUsize<KeygenPartyId>) -> bool {
+    pub fn verify_correctness(
+        &self,
+        proof: &EncryptionKeyProof,
+        prover_id: TypedUsize<KeygenPartyId>,
+    ) -> bool {
         self.verify(proof, prover_id)
     }
 }

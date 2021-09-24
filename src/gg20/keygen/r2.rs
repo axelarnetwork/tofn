@@ -87,7 +87,10 @@ impl Executer for R2 {
         for (peer_keygen_id, bcast) in bcasts_in.iter() {
             let peer_keygen_party_id = self.party_share_counts.share_to_party_id(peer_keygen_id)?;
 
-            if !bcast.ek.verify_correctness(&bcast.ek_proof, peer_keygen_party_id) {
+            if !bcast
+                .ek
+                .verify_correctness(&bcast.ek_proof, peer_keygen_party_id)
+            {
                 warn!(
                     "peer {} says: ek proof from peer {} failed to verify",
                     my_keygen_id, peer_keygen_id
