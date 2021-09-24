@@ -3,7 +3,6 @@ use tracing::warn;
 
 use crate::{
     collections::{FillVecMap, P2ps, VecMap},
-    corrupt,
     gg20::{
         constants,
         crypto_tools::{hash, k256_serde::to_bytes, paillier, vss, zkp::schnorr},

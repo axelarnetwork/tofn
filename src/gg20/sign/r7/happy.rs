@@ -1,6 +1,5 @@
 use crate::{
     collections::{FillVecMap, FullP2ps, P2ps, TypedUsize, VecMap},
-    corrupt,
     gg20::{
         crypto_tools::{
             paillier,

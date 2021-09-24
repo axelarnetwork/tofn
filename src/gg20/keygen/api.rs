@@ -3,7 +3,7 @@ use std::{
     convert::{TryFrom, TryInto},
 };
 
-use super::{r1, rng, SecretKeyShare};
+use super::{r1, rng};
 use crate::{
     collections::TypedUsize,
     gg20::{
@@ -25,6 +25,8 @@ use zeroize::Zeroize;
 
 #[cfg(feature = "malicious")]
 use super::malicious;
+
+pub use super::secret_key_share::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct KeygenShareId;
