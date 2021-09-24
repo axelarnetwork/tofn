@@ -10,16 +10,20 @@ use serde::{Deserialize, Serialize};
 use sha3::{Digest, Sha3_512};
 use zeroize::Zeroize;
 
-use crate::gg20::{
-    constants::{MODULUS_MAX_SIZE, MODULUS_MIN_SIZE, PAILLIER_KEY_PROOF_TAG},
-    crypto_tools::paillier::{DecryptionKey, EncryptionKey},
+use crate::{
+    collections::TypedUsize,
+    gg20::{
+        constants::{MODULUS_MAX_SIZE, MODULUS_MIN_SIZE, PAILLIER_KEY_PROOF_TAG},
+        crypto_tools::paillier::{DecryptionKey, EncryptionKey},
+        keygen::KeygenPartyId,
+    },
 };
 
-use super::{member_of_mul_group, NIZKProof};
+use super::{member_of_mul_group, NIZKStatement};
 
 // TODO: Generate this using a constant function or add a test
-/// The product of all primes less than 2^k
-const TWO_K_PRIMORIAL_BYTES: &[u8] = &[
+/// The product of all primes less than alpha
+const ALPHA_PRIMORIAL_BYTES: &[u8] = &[
     0x4D, 0xDE, 0xC7, 0x72, 0xC2, 0xEE, 0x9F, 0xB1, 0x1E, 0x7B, 0x9E, 0xD0, 0xE5, 0xF6, 0xB7, 0xDE,
     0x5B, 0x83, 0xA0, 0xF2, 0x0C, 0xFA, 0xD9, 0xF3, 0x7E, 0xC2, 0xAD, 0x15, 0x13, 0x41, 0xEB, 0xBE,
     0x75, 0xCB, 0x19, 0x04, 0x41, 0x85, 0x5D, 0x0D, 0x90, 0x14, 0xEF, 0xD6, 0x83, 0x71, 0x6A, 0xC9,
@@ -105,24 +109,29 @@ pub struct PaillierKeyProof {
 /// Compute the challenge for the NIZKProof
 /// TODO: Use the hash-to-field draft or implement MGF1 from
 /// https://tools.ietf.org/html/rfc8017#appendix-B.2.1
-fn compute_challenge(stmt: &PaillierKeyStmt, run: usize, domain: &[u8]) -> BigNumber {
+fn compute_challenge(
+    stmt: &PaillierKeyStmt,
+    run: usize,
+    prover_id: <PaillierKeyStmt as NIZKStatement>::Domain,
+) -> BigNumber {
     let mut hash = Sha3_512::new(); // Use SHAKE128
 
     hash.update(PAILLIER_KEY_PROOF_TAG.to_le_bytes());
-    hash.update(run.to_le_bytes());
-    hash.update(domain);
+    hash.update(run.to_be_bytes());
+    hash.update(prover_id.to_bytes());
     hash.update(stmt.0.n().to_bytes());
 
     // TODO: Using Shake, reduce modulo n
     BigNumber::from_slice(hash.finalize())
 }
 
-impl NIZKProof for PaillierKeyStmt {
+impl NIZKStatement for PaillierKeyStmt {
     type Witness = DecryptionKey;
     type Proof = PaillierKeyProof;
+    type Domain = TypedUsize<KeygenPartyId>;
 
     #[allow(non_snake_case)]
-    fn prove(&self, wit: &Self::Witness, domain: &[u8]) -> Self::Proof {
+    fn prove(&self, wit: &Self::Witness, domain: Self::Domain) -> Self::Proof {
         let n_inv = wit.0.n_inv();
 
         let sigmas = (0..PARAM_M)
@@ -139,7 +148,7 @@ impl NIZKProof for PaillierKeyStmt {
         Self::Proof { sigmas }
     }
 
-    fn verify(&self, proof: &Self::Proof, domain: &[u8]) -> bool {
+    fn verify(&self, proof: &Self::Proof, domain: Self::Domain) -> bool {
         let n = self.0.n();
 
         if n <= &BigNumber::zero()
@@ -158,7 +167,7 @@ impl NIZKProof for PaillierKeyStmt {
             return false;
         }
 
-        let alpha_primorial: BigNumber = BigNumber::from_slice(TWO_K_PRIMORIAL_BYTES);
+        let alpha_primorial: BigNumber = BigNumber::from_slice(ALPHA_PRIMORIAL_BYTES);
 
         if !n.gcd(&alpha_primorial).is_one() {
             return false;
@@ -182,7 +191,10 @@ impl NIZKProof for PaillierKeyStmt {
 
 #[cfg(test)]
 mod tests {
-    use crate::gg20::crypto_tools::paillier::{keygen_unsafe, zk::NIZKProof};
+    use crate::{
+        collections::TypedUsize,
+        gg20::crypto_tools::paillier::{keygen_unsafe, zk::NIZKStatement},
+    };
 
     #[test]
     fn basic_correctness() {
@@ -190,8 +202,8 @@ mod tests {
 
         let (ek, dk) = keygen_unsafe(&mut rng).unwrap();
 
-        let proof = ek.prove(&dk, &[0_u8]);
+        let proof = ek.prove(&dk, TypedUsize::from_usize(1));
 
-        assert!(ek.verify(&proof, &[0_u8]));
+        assert!(ek.verify(&proof, TypedUsize::from_usize(1)));
     }
 }

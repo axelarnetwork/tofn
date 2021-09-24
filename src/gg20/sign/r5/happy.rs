@@ -147,21 +147,13 @@ impl Executer for R5 {
             .get(self.my_keygen_id)?
             .ek();
 
-        let stmt_wc = &zk::range::StatementWc {
-            stmt: zk::range::Statement {
-                ciphertext: k_i_ciphertext,
-                ek,
-            },
-            msg_g: &R_i,
-            g: &R,
-        };
         let wit = &zk::range::Witness {
             msg: &self.k_i,
             randomness: &self.k_i_randomness,
         };
 
         let p2ps_out = Some(self.peer_keygen_ids.clone_map2_result(
-            |(_peer_sign_id, &peer_keygen_id)| {
+            |(peer_sign_id, &peer_keygen_id)| {
                 let peer_zkp = &self
                     .secret_key_share
                     .group()
@@ -169,11 +161,22 @@ impl Executer for R5 {
                     .get(peer_keygen_id)?
                     .zkp();
 
+                let stmt_wc = &zk::range::StatementWc {
+                    stmt: zk::range::Statement {
+                        prover_id: my_sign_id,
+                        verifier_id: peer_sign_id,
+                        ciphertext: k_i_ciphertext,
+                        ek,
+                    },
+                    msg_g: &R_i,
+                    g: &R,
+                };
+
                 let k_i_range_proof_wc = peer_zkp.range_proof_wc(stmt_wc, wit)?;
 
                 corrupt!(
                     k_i_range_proof_wc,
-                    self.corrupt_k_i_range_proof_wc(my_sign_id, _peer_sign_id, k_i_range_proof_wc)
+                    self.corrupt_k_i_range_proof_wc(my_sign_id, peer_sign_id, k_i_range_proof_wc)
                 );
 
                 serialize(&P2p { k_i_range_proof_wc })

@@ -1,5 +1,5 @@
 //! Minimize direct use of paillier, zk_paillier crates
-use crate::sdk::api::TofnResult;
+use crate::{collections::TypedUsize, gg20::keygen::KeygenPartyId, sdk::api::TofnResult};
 
 use super::{keygen, keygen_unsafe, DecryptionKey, EncryptionKey};
 use libpaillier::unknown_order::BigNumber;
@@ -30,21 +30,21 @@ pub struct ZkSetup {
 pub type ZkSetupProof = CompositeDLogProof;
 
 impl ZkSetup {
-    pub fn new_unsafe(rng: &mut (impl CryptoRng + RngCore)) -> TofnResult<(ZkSetup, ZkSetupProof)> {
-        Ok(Self::from_keypair(keygen_unsafe(rng)?))
+    pub fn new_unsafe(rng: &mut (impl CryptoRng + RngCore), party_id: TypedUsize<KeygenPartyId>) -> TofnResult<(ZkSetup, ZkSetupProof)> {
+        Ok(Self::from_keypair(keygen_unsafe(rng)?, party_id))
     }
 
-    pub fn new(rng: &mut (impl CryptoRng + RngCore)) -> TofnResult<(ZkSetup, ZkSetupProof)> {
-        Ok(Self::from_keypair(keygen(rng)?))
+    pub fn new(rng: &mut (impl CryptoRng + RngCore), party_id: TypedUsize<KeygenPartyId>) -> TofnResult<(ZkSetup, ZkSetupProof)> {
+        Ok(Self::from_keypair(keygen(rng)?, party_id))
     }
 
     fn from_keypair(
-        (ek_tilde, dk_tilde): (EncryptionKey, DecryptionKey),
+        (ek_tilde, dk_tilde): (EncryptionKey, DecryptionKey), party_id: TypedUsize<KeygenPartyId>
     ) -> (ZkSetup, ZkSetupProof) {
         let (dlog_stmt, mut witness) =
             CompositeDLogStmt::setup(ek_tilde.0.n(), dk_tilde.0.p(), dk_tilde.0.q());
 
-        let dlog_proof = dlog_stmt.prove(&witness, &[0_u8]); // TODO: Fix the domain
+        let dlog_proof = dlog_stmt.prove(&witness, party_id); // TODO: Fix the domain
 
         witness.zeroize();
 
@@ -70,18 +70,18 @@ impl ZkSetup {
         h1_x.modmul(&h2_r, self.n_tilde())
     }
 
-    pub fn verify(&self, proof: &ZkSetupProof) -> bool {
-        self.dlog_stmt.verify(proof, &[0_u8])
+    pub fn verify(&self, proof: &ZkSetupProof, prover_id: TypedUsize<KeygenPartyId>) -> bool {
+        self.dlog_stmt.verify(proof, prover_id)
     }
 }
 
 impl EncryptionKey {
-    pub fn correctness_proof(&self, dk: &DecryptionKey) -> EncryptionKeyProof {
-        self.prove(dk, &[0_u8]) // TODO: Fix domain
+    pub fn correctness_proof(&self, dk: &DecryptionKey, prover_id: TypedUsize<KeygenPartyId>) -> EncryptionKeyProof {
+        self.prove(dk, prover_id)
     }
 
-    pub fn verify_correctness(&self, proof: &EncryptionKeyProof) -> bool {
-        self.verify(proof, &[0_u8])
+    pub fn verify_correctness(&self, proof: &EncryptionKeyProof, prover_id: TypedUsize<KeygenPartyId>) -> bool {
+        self.verify(proof, prover_id)
     }
 }
 

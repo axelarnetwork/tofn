@@ -1,6 +1,7 @@
 use std::ops::Neg;
 
 use crate::{
+    collections::TypedUsize,
     gg20::{
         constants,
         crypto_tools::{
@@ -10,6 +11,7 @@ use crate::{
                 EncryptionKey, Plaintext, Randomness,
             },
         },
+        sign::SignShareId,
     },
     sdk::api::{TofnFatal, TofnResult},
 };
@@ -23,6 +25,8 @@ use super::secp256k1_modulus_cubed;
 
 #[derive(Clone, Debug)]
 pub struct Statement<'a> {
+    pub prover_id: TypedUsize<SignShareId>,
+    pub verifier_id: TypedUsize<SignShareId>,
     pub ciphertext: &'a Ciphertext,
     pub ek: &'a EncryptionKey,
 }
@@ -126,6 +130,8 @@ impl ZkSetup {
         let e = k256::Scalar::from_digest(
             Sha256::new()
                 .chain(tag.to_le_bytes())
+                .chain(stmt.prover_id.to_bytes())
+                .chain(stmt.verifier_id.to_bytes())
                 .chain(to_vec(stmt.ek.0.n()))
                 .chain(to_vec(&stmt.ciphertext.0))
                 .chain(&msg_g_g.map_or(Vec::new(), |(msg_g, _)| k256_serde::to_bytes(msg_g)))
@@ -167,6 +173,8 @@ impl ZkSetup {
         let e = k256::Scalar::from_digest(
             Sha256::new()
                 .chain(tag.to_le_bytes())
+                .chain(stmt.prover_id.to_bytes())
+                .chain(stmt.verifier_id.to_bytes())
                 .chain(to_vec(stmt.ek.0.n()))
                 .chain(to_vec(&stmt.ciphertext.0))
                 .chain(&msg_g_g_u1.map_or(Vec::new(), |(msg_g, _, _)| k256_serde::to_bytes(msg_g)))
@@ -245,7 +253,7 @@ pub mod malicious {
 }
 #[cfg(test)]
 mod tests {
-    use crate::gg20::crypto_tools::paillier::keygen_unsafe;
+    use crate::{collections::TypedUsize, gg20::crypto_tools::paillier::keygen_unsafe};
 
     use super::{
         ZkSetup,
@@ -266,15 +274,24 @@ mod tests {
         let g = &k256::ProjectivePoint::generator();
         let msg_g = &(g * msg);
         let (ciphertext, randomness) = &ek.encrypt(&msg.into());
+        let prover_id = TypedUsize::from_usize(10);
+        let verifier_id = TypedUsize::from_usize(4);
+        let bad_id = TypedUsize::from_usize(100);
 
         let stmt_wc = &StatementWc {
-            stmt: Statement { ciphertext, ek },
+            stmt: Statement {
+                prover_id,
+                verifier_id,
+                ciphertext,
+                ek,
+            },
             msg_g,
             g,
         };
         let stmt = &stmt_wc.stmt;
         let wit = &Witness { msg, randomness };
-        let (zkp, _) = ZkSetup::new_unsafe(&mut rand::thread_rng()).unwrap();
+        let (zkp, _) =
+            ZkSetup::new_unsafe(&mut rand::thread_rng(), TypedUsize::from_usize(0)).unwrap();
 
         // test: valid proof
         let proof = zkp.range_proof(stmt, wit);
@@ -283,6 +300,22 @@ mod tests {
         // test: valid proof wc (with check)
         let proof_wc = zkp.range_proof_wc(stmt_wc, wit).unwrap();
         assert!(zkp.verify_range_proof_wc(stmt_wc, &proof_wc));
+
+        let mut bad_stmt_wc = &mut stmt_wc.clone();
+        bad_stmt_wc.stmt.prover_id = verifier_id;
+        bad_stmt_wc.stmt.verifier_id = prover_id;
+
+        let mut bad_stmt = &mut bad_stmt_wc.stmt.clone();
+
+        // test: valid proof and bad id
+        assert!(!zkp.verify_range_proof(bad_stmt, &proof));
+        bad_stmt.verifier_id = bad_id;
+        assert!(!zkp.verify_range_proof(bad_stmt, &proof));
+
+        // test: valid proof wc and bad id
+        assert!(!zkp.verify_range_proof_wc(bad_stmt_wc, &proof_wc));
+        bad_stmt_wc.stmt.verifier_id = bad_id;
+        assert!(!zkp.verify_range_proof_wc(bad_stmt_wc, &proof_wc));
 
         // test: bad proof
         let bad_proof = corrupt_proof(&proof);

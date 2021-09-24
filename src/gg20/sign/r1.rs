@@ -82,7 +82,7 @@ pub(super) fn start(
     let (k_i_ciphertext, k_i_randomness) = ek.encrypt(&(&k_i).into());
 
     let p2ps_out = Some(peer_keygen_ids.clone_map2_result(
-        |(_peer_sign_id, &peer_keygen_id)| {
+        |(peer_sign_id, &peer_keygen_id)| {
             let peer_zkp = secret_key_share
                 .group()
                 .all_shares()
@@ -91,6 +91,8 @@ pub(super) fn start(
 
             let range_proof = peer_zkp.range_proof(
                 &paillier::zk::range::Statement {
+                    prover_id: my_sign_id,
+                    verifier_id: peer_sign_id,
                     ciphertext: &k_i_ciphertext,
                     ek,
                 },
@@ -102,7 +104,7 @@ pub(super) fn start(
 
             corrupt!(
                 range_proof,
-                malicious::corrupt_range_proof(my_sign_id, &behaviour, _peer_sign_id, range_proof)
+                malicious::corrupt_range_proof(my_sign_id, &behaviour, peer_sign_id, range_proof)
             );
 
             serialize(&P2p { range_proof })

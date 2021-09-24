@@ -114,6 +114,8 @@ impl Executer for R2 {
                     let peer_k_i_ciphertext = &bcasts_in.get(peer_sign_id)?.k_i_ciphertext;
 
                     let peer_stmt = &paillier::zk::range::Statement {
+                        prover_id: peer_sign_id,
+                        verifier_id: my_sign_id,
                         ciphertext: peer_k_i_ciphertext,
                         ek: peer_ek,
                     };

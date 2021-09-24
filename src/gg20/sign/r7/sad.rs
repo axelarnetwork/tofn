@@ -82,6 +82,8 @@ impl Executer for R7Sad {
 
                 let accused_stmt = &paillier::zk::range::StatementWc {
                     stmt: paillier::zk::range::Statement {
+                        prover_id: accused_sign_id,
+                        verifier_id: accuser_sign_id,
                         ciphertext: accused_k_i_ciphertext,
                         ek: accused_ek,
                     },
