@@ -24,7 +24,7 @@ sha3 = { version = "0.9", default-features = false }
 # logging
 tracing = {version = "0", default-features = false}
 
-libpaillier = { git = "https://github.com/axelarnetwork/paillier-rs", branch = "tofn", features = ["gmp"], default-features = false }
+libpaillier = { git = "https://github.com/axelarnetwork/paillier-rs", features = ["gmp"], default-features = false }
 
 [dev-dependencies]
 tracing-test = "0" # enable logging for tests
