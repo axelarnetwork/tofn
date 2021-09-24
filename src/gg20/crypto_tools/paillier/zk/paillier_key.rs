@@ -5,6 +5,7 @@
 /// (which also implies that N is square-free).
 /// Parameters M = 11, alpha = 6370 have been selected from
 /// Section 6.2.3 of https://eprint.iacr.org/2018/987.pdf
+
 use libpaillier::unknown_order::BigNumber;
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Sha3_512};
@@ -22,7 +23,7 @@ use crate::{
 use super::{member_of_mul_group, NIZKStatement};
 
 // TODO: Generate this using a constant function or add a test
-/// The product of all primes less than alpha
+/// The product of all primes less than alpha = 6370
 const ALPHA_PRIMORIAL_BYTES: &[u8] = &[
     0x4D, 0xDE, 0xC7, 0x72, 0xC2, 0xEE, 0x9F, 0xB1, 0x1E, 0x7B, 0x9E, 0xD0, 0xE5, 0xF6, 0xB7, 0xDE,
     0x5B, 0x83, 0xA0, 0xF2, 0x0C, 0xFA, 0xD9, 0xF3, 0x7E, 0xC2, 0xAD, 0x15, 0x13, 0x41, 0xEB, 0xBE,
@@ -191,10 +192,14 @@ impl NIZKStatement for PaillierKeyStmt {
 
 #[cfg(test)]
 mod tests {
+    use libpaillier::unknown_order::BigNumber;
+
     use crate::{
         collections::TypedUsize,
         gg20::crypto_tools::paillier::{keygen_unsafe, zk::NIZKStatement},
     };
+
+    use super::ALPHA_PRIMORIAL_BYTES;
 
     #[test]
     fn basic_correctness() {
@@ -205,5 +210,29 @@ mod tests {
         let proof = ek.prove(&dk, TypedUsize::from_usize(1));
 
         assert!(ek.verify(&proof, TypedUsize::from_usize(1)));
+
+        // Verify using another domain
+        assert!(!ek.verify(&proof, TypedUsize::from_usize(2)));
+
+        let (ek2, _) = keygen_unsafe(&mut rng).unwrap();
+
+        // Verify using another pub key
+        assert!(!ek2.verify(&proof, TypedUsize::from_usize(1)));
+    }
+
+    #[test]
+    fn test_primorial() {
+        let alpha = 6370;
+        let mut primorial = BigNumber::one();
+
+        for i in 1..alpha {
+            if BigNumber::from(i).is_prime() {
+                primorial *= i;
+            }
+        }
+
+        let primorial_from_bytes = BigNumber::from_slice(ALPHA_PRIMORIAL_BYTES);
+
+        assert_eq!(primorial, primorial_from_bytes);
     }
 }
