@@ -29,27 +29,38 @@ pub struct ZkSetup {
 
 pub type ZkSetupProof = CompositeDLogProof;
 
+/// As per the GG20 paper on Pg. 13, a different RSA modulus is needed for
+/// the ZK proofs used in the protocol. While we don't need a Paillier keypair
+/// here, we use the same keygen methods for convenience.
+/// According to GG20, each peer (acting as the verifier)
+/// can generate these setup parameters, comprised of the RSA modulus `N_tilde`,
+/// and group elements `h1`, `h2`, such that the peer proves that the
+/// discrete log between `h2` and `h1` exists. Using this setup, all other peers
+/// can prove their statements (e.g. range, MtA proofs) as needed in the protocol.
 impl ZkSetup {
     pub fn new_unsafe(
         rng: &mut (impl CryptoRng + RngCore),
         party_id: TypedUsize<KeygenPartyId>,
     ) -> TofnResult<(ZkSetup, ZkSetupProof)> {
-        Ok(Self::from_keypair(keygen_unsafe(rng)?, party_id))
+        let keypair = keygen_unsafe(rng)?;
+        Ok(Self::from_keypair(rng, keypair, party_id))
     }
 
     pub fn new(
         rng: &mut (impl CryptoRng + RngCore),
         party_id: TypedUsize<KeygenPartyId>,
     ) -> TofnResult<(ZkSetup, ZkSetupProof)> {
-        Ok(Self::from_keypair(keygen(rng)?, party_id))
+        let keypair = keygen(rng)?;
+        Ok(Self::from_keypair(rng, keypair, party_id))
     }
 
     fn from_keypair(
+        rng: &mut (impl CryptoRng + RngCore),
         (ek_tilde, dk_tilde): (EncryptionKey, DecryptionKey),
         party_id: TypedUsize<KeygenPartyId>,
     ) -> (ZkSetup, ZkSetupProof) {
         let (dlog_stmt, mut witness) =
-            CompositeDLogStmt::setup(ek_tilde.0.n(), dk_tilde.0.p(), dk_tilde.0.q());
+            CompositeDLogStmt::setup(rng, ek_tilde.0.n(), dk_tilde.0.p(), dk_tilde.0.q());
 
         let dlog_proof = dlog_stmt.prove(&witness, party_id); // TODO: Fix the domain
 

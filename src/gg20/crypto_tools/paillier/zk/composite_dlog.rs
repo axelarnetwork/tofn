@@ -15,6 +15,7 @@
 ///    g is a quadratic residue for only one of Z_p or Z_q,
 ///    i.e Jacobi symbol (g | n) = (g | p) (g | q) = -1
 use libpaillier::unknown_order::BigNumber;
+use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use zeroize::Zeroize;
@@ -39,7 +40,10 @@ pub struct CompositeDLogProof {
     pub(crate) y: BigNumber,
 }
 
-const CHALLENGE_K: usize = 128;
+// The challenge size is likely a conservative choice as opposed to 128.
+// This was chosen since we used SHA256 to compute
+// the challenge hash which is 256 bits long.
+const CHALLENGE_K: usize = 256;
 const SECURITY_PARAM_K_PRIME: usize = 128;
 const WITNESS_SIZE: usize = 256;
 const R_SIZE: usize = CHALLENGE_K + SECURITY_PARAM_K_PRIME + WITNESS_SIZE;
@@ -81,18 +85,29 @@ fn jacobi_symbol(a: &BigNumber, p: &BigNumber, q: &BigNumber) -> i32 {
 
 impl CompositeDLogStmt {
     #[allow(clippy::many_single_char_names, non_snake_case)]
-    pub fn setup(n: &BigNumber, p: &BigNumber, q: &BigNumber) -> (Self, BigNumber) {
+    /// Setup the statement for Composite Dlog proof using the modulus `N = pq`
+    /// This will generate an asymmetric basis `g` and witness `s` to be used
+    /// for the
+    pub fn setup(
+        rng: &mut (impl CryptoRng + RngCore),
+        n: &BigNumber,
+        p: &BigNumber,
+        q: &BigNumber,
+    ) -> (Self, BigNumber) {
+        // Sample an asymmetric basis g
         let g = loop {
-            let g = BigNumber::random(n);
+            let g = BigNumber::random_with_rng(rng, n);
 
+            // g is asymmetric when Jacobi symbol (g | n) = -1
             if jacobi_symbol(&g, p, q) == -1 {
                 break g;
             }
         };
 
         let S = BigNumber::one() << WITNESS_SIZE;
-        let s = BigNumber::random(&S);
+        let s = BigNumber::random_with_rng(rng, &S);
 
+        // v = g^(-s) mod N
         let v = g.modpow(&(-&s), n);
 
         (Self { n: n.clone(), g, v }, s)
@@ -110,7 +125,6 @@ impl NIZKStatement for CompositeDLogStmt {
         let r = BigNumber::random(&R);
         let x = self.g.modpow(&r, &self.n);
 
-        // TODO: The challenge should only be K bits long. Here we are hashing with SHA256 giving us 256 bits?
         let e = compute_challenge(self, domain, &x);
 
         // y = r + e s
@@ -173,7 +187,7 @@ mod tests {
         gg20::crypto_tools::paillier::{keygen_unsafe, zk::NIZKStatement},
     };
 
-    use super::CompositeDLogStmt;
+    use super::{CompositeDLogStmt, WITNESS_SIZE};
 
     #[test]
     fn basic_correctness() {
@@ -181,10 +195,16 @@ mod tests {
 
         let (ek, dk) = keygen_unsafe(&mut rng).unwrap();
 
-        let (stmt, witness) = CompositeDLogStmt::setup(ek.0.n(), dk.0.p(), dk.0.q());
+        let (stmt, witness) =
+            CompositeDLogStmt::setup(&mut rand::thread_rng(), ek.0.n(), dk.0.p(), dk.0.q());
+
+        assert!(witness.bit_length() <= WITNESS_SIZE);
 
         let proof = stmt.prove(&witness, TypedUsize::from_usize(1));
 
         assert!(stmt.verify(&proof, TypedUsize::from_usize(1)));
+
+        // Fail to verify a proof with the incorrect domain
+        assert!(!stmt.verify(&proof, TypedUsize::from_usize(10)));
     }
 }

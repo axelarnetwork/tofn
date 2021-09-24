@@ -22,7 +22,6 @@ use crate::{
 
 use super::{member_of_mul_group, NIZKStatement};
 
-// TODO: Generate this using a constant function or add a test
 /// The product of all primes less than alpha = 6370
 const ALPHA_PRIMORIAL_BYTES: &[u8] = &[
     0x4D, 0xDE, 0xC7, 0x72, 0xC2, 0xEE, 0x9F, 0xB1, 0x1E, 0x7B, 0x9E, 0xD0, 0xE5, 0xF6, 0xB7, 0xDE,
@@ -168,7 +167,7 @@ impl NIZKStatement for PaillierKeyStmt {
             return false;
         }
 
-        let alpha_primorial: BigNumber = BigNumber::from_slice(ALPHA_PRIMORIAL_BYTES);
+        let alpha_primorial = BigNumber::from_slice(ALPHA_PRIMORIAL_BYTES);
 
         if !n.gcd(&alpha_primorial).is_one() {
             return false;
