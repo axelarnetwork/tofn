@@ -1,4 +1,6 @@
 //! Minimize direct use of paillier, zk_paillier crates
+use crate::sdk::api::TofnResult;
+
 use super::{keygen, keygen_unsafe, DecryptionKey, EncryptionKey};
 use libpaillier::unknown_order::BigNumber;
 use rand::{CryptoRng, RngCore};
@@ -28,12 +30,12 @@ pub struct ZkSetup {
 pub type ZkSetupProof = CompositeDLogProof;
 
 impl ZkSetup {
-    pub fn new_unsafe(rng: &mut (impl CryptoRng + RngCore)) -> (ZkSetup, ZkSetupProof) {
-        Self::from_keypair(keygen_unsafe(rng))
+    pub fn new_unsafe(rng: &mut (impl CryptoRng + RngCore)) -> TofnResult<(ZkSetup, ZkSetupProof)> {
+        Ok(Self::from_keypair(keygen_unsafe(rng)?))
     }
 
-    pub fn new(rng: &mut (impl CryptoRng + RngCore)) -> (ZkSetup, ZkSetupProof) {
-        Self::from_keypair(keygen(rng))
+    pub fn new(rng: &mut (impl CryptoRng + RngCore)) -> TofnResult<(ZkSetup, ZkSetupProof)> {
+        Ok(Self::from_keypair(keygen(rng)?))
     }
 
     fn from_keypair(

@@ -7,24 +7,28 @@ use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
+use crate::sdk::api::{TofnFatal, TofnResult};
+
 pub mod zk;
 
 /// unsafe because key pair does not use safe primes
-pub fn keygen_unsafe(rng: &mut (impl CryptoRng + RngCore)) -> (EncryptionKey, DecryptionKey) {
+pub fn keygen_unsafe(
+    rng: &mut (impl CryptoRng + RngCore),
+) -> TofnResult<(EncryptionKey, DecryptionKey)> {
     let p = BigNumber::prime_with_rng(rng, 1024);
     let q = BigNumber::prime_with_rng(rng, 1024);
 
-    let dk = libpaillier::DecryptionKey::with_safe_primes_unchecked(&p, &q).unwrap();
+    let dk = libpaillier::DecryptionKey::with_safe_primes_unchecked(&p, &q).ok_or(TofnFatal)?;
     let ek = (&dk).into();
 
-    (EncryptionKey(ek), DecryptionKey(dk))
+    Ok((EncryptionKey(ek), DecryptionKey(dk)))
 }
 
-pub fn keygen(rng: &mut (impl CryptoRng + RngCore)) -> (EncryptionKey, DecryptionKey) {
-    let dk = libpaillier::DecryptionKey::with_rng(rng).unwrap();
+pub fn keygen(rng: &mut (impl CryptoRng + RngCore)) -> TofnResult<(EncryptionKey, DecryptionKey)> {
+    let dk = libpaillier::DecryptionKey::with_rng(rng).ok_or(TofnFatal)?;
     let ek = (&dk).into();
 
-    (EncryptionKey(ek), DecryptionKey(dk))
+    Ok((EncryptionKey(ek), DecryptionKey(dk)))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Zeroize)]
@@ -197,7 +201,7 @@ mod tests {
     fn basic_round_trip() {
         let s = k256::Scalar::random(rand::thread_rng());
         let pt = Plaintext::from_scalar(&s);
-        let (ek, dk) = keygen_unsafe(&mut rand::thread_rng());
+        let (ek, dk) = keygen_unsafe(&mut rand::thread_rng()).unwrap();
         let (ct, r) = ek.encrypt(&pt);
         let (pt2, r2) = dk.decrypt_with_randomness(&ct);
         assert_eq!(pt, pt2);

@@ -73,7 +73,7 @@ pub fn create_party_keypair_and_zksetup(
 
     let mut zksetup_rng =
         rng::rng_seed(ZKSETUP_TAG, my_party_id, secret_recovery_key, session_nonce)?;
-    let (zkp, zkp_proof) = ZkSetup::new(&mut zksetup_rng);
+    let (zkp, zkp_proof) = ZkSetup::new(&mut zksetup_rng)?;
 
     Ok((keypair, PartyZkSetup { zkp, zkp_proof }))
 }
@@ -85,7 +85,7 @@ pub fn recover_party_keypair(
 ) -> TofnResult<PartyKeyPair> {
     let mut rng = rng::rng_seed(KEYPAIR_TAG, my_party_id, secret_recovery_key, session_nonce)?;
 
-    let (ek, dk) = paillier::keygen(&mut rng);
+    let (ek, dk) = paillier::keygen(&mut rng)?;
 
     Ok(PartyKeyPair { ek, dk })
 }
@@ -100,7 +100,7 @@ pub fn create_party_keypair_and_zksetup_unsafe(
 
     let mut zksetup_rng =
         rng::rng_seed(ZKSETUP_TAG, my_party_id, secret_recovery_key, session_nonce)?;
-    let (zkp, zkp_proof) = ZkSetup::new_unsafe(&mut zksetup_rng);
+    let (zkp, zkp_proof) = ZkSetup::new_unsafe(&mut zksetup_rng)?;
 
     Ok((keypair, PartyZkSetup { zkp, zkp_proof }))
 }
@@ -113,7 +113,7 @@ pub fn recover_party_keypair_unsafe(
 ) -> TofnResult<PartyKeyPair> {
     let mut rng = rng::rng_seed(KEYPAIR_TAG, my_party_id, secret_recovery_key, session_nonce)?;
 
-    let (ek, dk) = paillier::keygen_unsafe(&mut rng);
+    let (ek, dk) = paillier::keygen_unsafe(&mut rng)?;
 
     Ok(PartyKeyPair { ek, dk })
 }

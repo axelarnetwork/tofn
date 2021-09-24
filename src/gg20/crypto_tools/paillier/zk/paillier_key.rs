@@ -188,7 +188,7 @@ mod tests {
     fn basic_correctness() {
         let mut rng = rand::thread_rng();
 
-        let (ek, dk) = keygen_unsafe(&mut rng);
+        let (ek, dk) = keygen_unsafe(&mut rng).unwrap();
 
         let proof = ek.prove(&dk, &[0_u8]);
 

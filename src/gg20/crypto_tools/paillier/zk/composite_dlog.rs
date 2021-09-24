@@ -168,7 +168,7 @@ mod tests {
     fn basic_correctness() {
         let mut rng = rand::thread_rng();
 
-        let (ek, dk) = keygen_unsafe(&mut rng);
+        let (ek, dk) = keygen_unsafe(&mut rng).unwrap();
 
         let (stmt, witness) = CompositeDLogStmt::setup(ek.0.n(), dk.0.p(), dk.0.q());
 
