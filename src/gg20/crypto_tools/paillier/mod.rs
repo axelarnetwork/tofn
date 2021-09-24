@@ -71,7 +71,7 @@ pub struct DecryptionKey(libpaillier::DecryptionKey);
 
 impl DecryptionKey {
     pub fn decrypt(&self, c: &Ciphertext) -> Plaintext {
-        Plaintext(BigNumber::from_slice(self.0.decrypt_unchecked(&c.0)))
+        Plaintext(self.0.decrypt_unchecked(&c.0))
     }
 
     pub fn decrypt_with_randomness(&self, c: &Ciphertext) -> (Plaintext, Randomness) {
