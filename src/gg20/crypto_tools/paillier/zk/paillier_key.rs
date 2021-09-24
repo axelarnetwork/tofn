@@ -5,7 +5,6 @@
 /// (which also implies that N is square-free).
 /// Parameters M = 11, alpha = 6370 have been selected from
 /// Section 6.2.3 of https://eprint.iacr.org/2018/987.pdf
-
 use libpaillier::unknown_order::BigNumber;
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Sha3_512};
