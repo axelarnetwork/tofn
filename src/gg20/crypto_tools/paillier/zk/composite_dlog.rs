@@ -131,10 +131,8 @@ impl NIZKStatement for CompositeDLogStmt {
         let e = compute_challenge(self, domain, &x);
 
         // y = r + e s
-        // This operation is performed over the integers which is
-        // simulated with a large enough modulus
-        let modulus = R << 1;
-        let y = r.modadd(&e.modmul(wit, &modulus), &modulus);
+        // This operation is performed over the integers
+        let y = r + e * wit;
 
         Self::Proof { x, y }
     }
