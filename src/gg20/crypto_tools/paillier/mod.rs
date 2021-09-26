@@ -1,6 +1,7 @@
-//! A centralized wrapper for rust-paillier:
-//! * tidy some API ergonomics in rust-paillier
-//! * facilitate easy swap-out of rust-paillier crate for something else
+//! A centralized wrapper for the paillier dependency:
+//! It exists for historical reasons:
+//! * provide an ergonomic API
+//! * facilitate easy swap-out of Paillier back-end
 
 use libpaillier::unknown_order::BigNumber;
 use rand::{CryptoRng, RngCore};
@@ -24,6 +25,7 @@ pub fn keygen_unsafe(
     Ok((EncryptionKey(ek), DecryptionKey(dk)))
 }
 
+/// Generate a Paillier keypair (using safe primes)
 pub fn keygen(rng: &mut (impl CryptoRng + RngCore)) -> TofnResult<(EncryptionKey, DecryptionKey)> {
     let dk = libpaillier::DecryptionKey::with_rng(rng).ok_or(TofnFatal)?;
     let ek = (&dk).into();
@@ -31,8 +33,9 @@ pub fn keygen(rng: &mut (impl CryptoRng + RngCore)) -> TofnResult<(EncryptionKey
     Ok((EncryptionKey(ek), DecryptionKey(dk)))
 }
 
+/// Wrapper for Paillier encryption key
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Zeroize)]
-pub struct EncryptionKey(pub libpaillier::EncryptionKey);
+pub struct EncryptionKey(libpaillier::EncryptionKey);
 
 impl EncryptionKey {
     pub fn sample_randomness(&self) -> Randomness {
@@ -65,6 +68,7 @@ impl EncryptionKey {
     }
 }
 
+/// Wrapper for Paillier decryption key
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Zeroize)]
 #[zeroize(drop)]
 pub struct DecryptionKey(libpaillier::DecryptionKey);
@@ -80,9 +84,10 @@ impl DecryptionKey {
     }
 }
 
+/// Wrapper for Paillier plaintext
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Zeroize)]
 #[zeroize(drop)]
-pub struct Plaintext(pub BigNumber);
+pub struct Plaintext(BigNumber);
 
 impl Plaintext {
     pub fn to_scalar(&self) -> k256::Scalar {
@@ -108,9 +113,11 @@ impl From<&k256::Scalar> for Plaintext {
     }
 }
 
+/// Wrapper for Paillier ciphertext
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Ciphertext(libpaillier::Ciphertext);
 
+/// Wrapper for randomness used in Paillier encryption
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Zeroize)]
 #[zeroize(drop)]
 pub struct Randomness(BigNumber);
@@ -149,14 +156,13 @@ fn pad32(v: Vec<u8>) -> Vec<u8> {
     v_pad
 }
 
-// TODO: Why is it padded by ones in beginning?
-// The order of the secp256k1 curve
+/// The order of the secp256k1 curve
 const SECP256K1_CURVE_ORDER: [u8; 32] = [
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe,
     0xba, 0xae, 0xdc, 0xe6, 0xaf, 0x48, 0xa0, 0x3b, 0xbf, 0xd2, 0x5e, 0x8c, 0xd0, 0x36, 0x41, 0x41,
 ];
 
-/// secp256k1 curve order as a `BigInt`
+/// secp256k1 curve order as a `BigNumber`
 fn secp256k1_modulus() -> BigNumber {
     BigNumber::from_slice(SECP256K1_CURVE_ORDER.as_ref())
 }

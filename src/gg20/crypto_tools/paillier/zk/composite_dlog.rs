@@ -18,6 +18,7 @@ use libpaillier::unknown_order::BigNumber;
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use tracing::warn;
 use zeroize::Zeroize;
 
 use crate::{
@@ -123,6 +124,8 @@ impl NIZKStatement for CompositeDLogStmt {
     fn prove(&self, wit: &Self::Witness, domain: Self::Domain) -> Self::Proof {
         let R = BigNumber::one() << R_SIZE;
         let r = BigNumber::random(&R);
+
+        // x = g^r mod N
         let x = self.g.modpow(&r, &self.n);
 
         let e = compute_challenge(self, domain, &x);
@@ -137,6 +140,10 @@ impl NIZKStatement for CompositeDLogStmt {
     }
 
     fn verify(&self, proof: &Self::Proof, domain: Self::Domain) -> bool {
+        // The following checks (except upper-bound checks) on the statements are just for sanity
+        // since in GG20, a malicious peer who sent a bad statement/ZkSetup
+        // is only harming herself as the Zk proofs that use this modulus
+        // won't guarantee anything.
         if self.n <= BigNumber::zero()
             || self.n.bit_length() < constants::MODULUS_MIN_SIZE
             || self.n.bit_length() > constants::MODULUS_MAX_SIZE
@@ -144,14 +151,12 @@ impl NIZKStatement for CompositeDLogStmt {
             return false;
         }
 
-        // TODO: Mark these as sanity checks
-
-        // TODO: Verify the serialization of BigNumber
         if self.n.is_prime() {
             return false;
         }
 
-        // TODO: Check g's order? Should we check if jacobi(g, n) = -1?
+        // Note that we don't perform the sanity check that
+        // g is an asymmetric basis
         if !member_of_mul_group(&self.g, &self.n) {
             return false;
         }
@@ -160,11 +165,13 @@ impl NIZKStatement for CompositeDLogStmt {
             return false;
         }
 
+        // The remaining checks are performed using the Zk proof and are required
         if !member_of_mul_group(&proof.x, &self.n) {
             return false;
         }
 
         if proof.y < BigNumber::zero() || proof.y.bit_length() > R_SIZE + 1 {
+            warn!("composite dlog proof: y out of allowed bounds");
             return false;
         }
 
@@ -176,7 +183,12 @@ impl NIZKStatement for CompositeDLogStmt {
             .modpow(&proof.y, &self.n)
             .modmul(&self.v.modpow(&e, &self.n), &self.n);
 
-        g_y_v_e == proof.x
+        if g_y_v_e == proof.x {
+            true
+        } else {
+            warn!("composite dlog proof: failed to verify");
+            false
+        }
     }
 }
 

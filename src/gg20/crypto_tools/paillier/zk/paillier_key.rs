@@ -9,6 +9,7 @@ use libpaillier::unknown_order::BigNumber;
 use serde::{Deserialize, Serialize};
 use sha2::digest::*;
 use sha3::Shake128;
+use tracing::warn;
 use zeroize::Zeroize;
 
 use crate::{
@@ -97,6 +98,7 @@ const ALPHA_PRIMORIAL_BYTES: &[u8] = &[
     0xB6, 0xA2, 0x3B, 0x0B, 0x98, 0xA1, 0x77, 0x20, 0x1F, 0xA3, 0xFB, 0x87, 0xB8, 0x93, 0x12, 0x24,
     0x7E,
 ];
+/// The number of repetitions of the Zk protocol
 const PARAM_M: usize = 11;
 
 pub type PaillierKeyStmt = EncryptionKey;
@@ -156,6 +158,10 @@ impl NIZKStatement for PaillierKeyStmt {
     fn verify(&self, proof: &Self::Proof, domain: Self::Domain) -> bool {
         let n = self.0.n();
 
+        // The following checks (except upper-bound checks) on the statements are just for sanity
+        // since in GG20, a malicious peer who sent a bad Paillier encryption key
+        // is only harming herself as the ciphertexts under her key sent to her by other peers
+        // will be compromised.
         if n <= &BigNumber::zero()
             || n.bit_length() < MODULUS_MIN_SIZE
             || n.bit_length() > MODULUS_MAX_SIZE
@@ -167,9 +173,11 @@ impl NIZKStatement for PaillierKeyStmt {
             return false;
         }
 
+        // The remaining checks are performed using the Zk proof and are required
         let alpha_primorial = BigNumber::from_slice(ALPHA_PRIMORIAL_BYTES);
 
         if !n.gcd(&alpha_primorial).is_one() {
+            warn!("paillier key proof: small prime factors found, failed to verify");
             return false;
         }
 
@@ -182,7 +190,12 @@ impl NIZKStatement for PaillierKeyStmt {
 
             let prover_rho = sigma.modpow(n, n);
 
-            rho == prover_rho
+            if rho == prover_rho {
+                true
+            } else {
+                warn!("paillier key proof: failed to verify proof {}", i);
+                false
+            }
         });
 
         verification

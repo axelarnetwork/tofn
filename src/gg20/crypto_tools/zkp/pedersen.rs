@@ -284,7 +284,7 @@ mod tests {
             .chain(k256::EncodedPoint::from(k256::AffinePoint::generator()).as_bytes())
             .chain(&[0x01])
             .finalize();
-        let mut bytes = vec![0x02]; // use even y-coordinate // TODO: Is this in BE or LE?
+        let mut bytes = vec![0x02]; // use even y-coordinate using SEC1 encoding
         bytes.extend_from_slice(hash.as_slice());
 
         let curve_point = k256::ProjectivePoint::from_encoded_point(

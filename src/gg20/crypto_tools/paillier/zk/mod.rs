@@ -36,7 +36,7 @@ pub type ZkSetupProof = CompositeDLogProof;
 /// can generate these setup parameters, comprised of the RSA modulus `N_tilde`,
 /// and group elements `h1`, `h2`, such that the peer proves that the
 /// discrete log between `h2` and `h1` exists. Using this setup, all other peers
-/// can prove their statements (e.g. range, MtA proofs) as needed in the protocol.
+/// can prove their statements (e.g. range, MtA proofs etc.) as needed in the protocol.
 impl ZkSetup {
     pub fn new_unsafe(
         rng: &mut (impl CryptoRng + RngCore),

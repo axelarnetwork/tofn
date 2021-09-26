@@ -12,8 +12,8 @@ pub const GAMMA_I_COMMIT_TAG: u8 = 0x08;
 #[cfg(test)]
 pub const PEDERSEN_SECP256K1_ALTERNATE_GENERATOR_TAG: u8 = 0x09;
 
-pub(crate) const COMPOSITE_DLOG_PROOF_TAG: u8 = 0x0A;
-pub(crate) const PAILLIER_KEY_PROOF_TAG: u8 = 0x0B;
+pub const COMPOSITE_DLOG_PROOF_TAG: u8 = 0x0A;
+pub const PAILLIER_KEY_PROOF_TAG: u8 = 0x0B;
 
 // Domain separation for seeding the RNG
 pub const KEYPAIR_TAG: u8 = 0x00;
