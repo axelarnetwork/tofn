@@ -21,8 +21,6 @@ use sha2::{Digest, Sha256};
 use tracing::warn;
 use zeroize::Zeroize;
 
-// use super::super::constants;
-
 use crate::gg20::crypto_tools::constants;
 
 use super::{member_of_mul_group, NIZKStatement};
@@ -81,9 +79,8 @@ fn jacobi_symbol(a: &BigNumber, p: &BigNumber, q: &BigNumber) -> i32 {
 
 impl CompositeDLogStmt {
     #[allow(clippy::many_single_char_names, non_snake_case)]
-    /// Setup the statement for Composite Dlog proof using the modulus `N = pq`
-    /// This will generate an asymmetric basis `g` and witness `s` to be used
-    /// for the
+    /// Setup the statement for Composite Dlog proof using the modulus `N = pq`.
+    /// This will generate an asymmetric basis `g` and a witness `s`.
     pub fn setup(
         rng: &mut (impl CryptoRng + RngCore),
         n: &BigNumber,
@@ -125,7 +122,7 @@ impl NIZKStatement for CompositeDLogStmt {
         let e = compute_challenge(self, domain, &x);
 
         // y = r + e s
-        // This operation is performed over the integers
+        // This operation is performed over the integers (not modulo anything)
         let y = r + e * wit;
 
         Self::Proof { x, y }
