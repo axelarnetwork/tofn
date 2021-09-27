@@ -1,5 +1,5 @@
 //! Minimize direct use of paillier, zk_paillier crates
-use crate::{sdk::api::TofnResult};
+use crate::sdk::api::TofnResult;
 
 use super::{keygen, keygen_unsafe, DecryptionKey, EncryptionKey};
 use libpaillier::unknown_order::BigNumber;
