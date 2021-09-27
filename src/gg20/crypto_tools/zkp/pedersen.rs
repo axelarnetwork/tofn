@@ -123,7 +123,7 @@ fn prove_inner(
     let beta = msg_g_g.map(|(_, g)| g * &a);
     let c = k256::Scalar::from_digest(
         Sha256::new()
-            .chain(constants::PEDERSEN_PROOF_TAG.to_le_bytes())
+            .chain(constants::PEDERSEN_PROOF_TAG.to_be_bytes())
             .chain(stmt.prover_id.to_bytes())
             .chain(k256_serde::to_bytes(stmt.commit))
             .chain(&msg_g_g.map_or(Vec::new(), |(msg_g, _)| k256_serde::to_bytes(msg_g)))
@@ -152,7 +152,7 @@ fn verify_inner(
 ) -> bool {
     let c = k256::Scalar::from_digest(
         Sha256::new()
-            .chain(constants::PEDERSEN_PROOF_TAG.to_le_bytes())
+            .chain(constants::PEDERSEN_PROOF_TAG.to_be_bytes())
             .chain(stmt.prover_id.to_bytes())
             .chain(k256_serde::to_bytes(stmt.commit))
             .chain(&msg_g_g_beta.map_or(Vec::new(), |(msg_g, _, _)| k256_serde::to_bytes(msg_g)))
@@ -280,7 +280,7 @@ mod tests {
     fn secp256k1_alternate_generator() {
         // prepare a pseudorandom SEC1 encoding of a k256 curve point
         let hash = Sha256::new()
-            .chain(constants::PEDERSEN_SECP256K1_ALTERNATE_GENERATOR_TAG.to_le_bytes())
+            .chain(constants::PEDERSEN_SECP256K1_ALTERNATE_GENERATOR_TAG.to_be_bytes())
             .chain(k256::EncodedPoint::from(k256::AffinePoint::generator()).as_bytes())
             .chain(&[0x01])
             .finalize();

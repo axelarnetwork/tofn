@@ -109,7 +109,7 @@ fn compute_challenge(stmt: &PaillierKeyStmt, iteration: usize, domain: &[u8]) ->
     // We use an XOF (Shake128) to get an n-byte output
     // and reduce it modulo the modulus N
     let hash = Shake128::default()
-        .chain(PAILLIER_KEY_PROOF_TAG.to_le_bytes())
+        .chain(PAILLIER_KEY_PROOF_TAG.to_be_bytes())
         .chain(iteration.to_be_bytes())
         .chain(domain)
         .chain(stmt.0.n().to_bytes());

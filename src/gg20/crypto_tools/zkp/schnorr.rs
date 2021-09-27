@@ -32,7 +32,7 @@ pub fn prove(stmt: &Statement, wit: &Witness) -> Proof {
     let alpha = stmt.base * &a;
     let c = k256::Scalar::from_digest(
         Sha256::new()
-            .chain(constants::SCHNORR_PROOF_TAG.to_le_bytes())
+            .chain(constants::SCHNORR_PROOF_TAG.to_be_bytes())
             .chain(stmt.prover_id.to_bytes())
             .chain(k256_serde::to_bytes(stmt.base))
             .chain(k256_serde::to_bytes(stmt.target))
@@ -48,7 +48,7 @@ pub fn verify(stmt: &Statement, proof: &Proof) -> bool {
     let alpha = stmt.base * proof.t.as_ref() + stmt.target * proof.c.as_ref();
     let c_check = k256::Scalar::from_digest(
         Sha256::new()
-            .chain(constants::SCHNORR_PROOF_TAG.to_le_bytes())
+            .chain(constants::SCHNORR_PROOF_TAG.to_be_bytes())
             .chain(stmt.prover_id.to_bytes())
             .chain(k256_serde::to_bytes(stmt.base))
             .chain(k256_serde::to_bytes(stmt.target))

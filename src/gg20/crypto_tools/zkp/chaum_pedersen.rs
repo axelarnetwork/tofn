@@ -38,7 +38,7 @@ pub fn prove(stmt: &Statement, wit: &Witness) -> Proof {
     let alpha2 = k256_serde::ProjectivePoint::from(stmt.base2 * &a);
     let c = k256::Scalar::from_digest(
         Sha256::new()
-            .chain(constants::CHAUM_PEDERSEN_PROOF_TAG.to_le_bytes())
+            .chain(constants::CHAUM_PEDERSEN_PROOF_TAG.to_be_bytes())
             .chain(stmt.prover_id.to_bytes())
             .chain(k256_serde::to_bytes(stmt.base1))
             .chain(k256_serde::to_bytes(stmt.base2))
@@ -57,7 +57,7 @@ pub fn prove(stmt: &Statement, wit: &Witness) -> Proof {
 pub fn verify(stmt: &Statement, proof: &Proof) -> bool {
     let c = k256::Scalar::from_digest(
         Sha256::new()
-            .chain(constants::CHAUM_PEDERSEN_PROOF_TAG.to_le_bytes())
+            .chain(constants::CHAUM_PEDERSEN_PROOF_TAG.to_be_bytes())
             .chain(stmt.prover_id.to_bytes())
             .chain(k256_serde::to_bytes(stmt.base1))
             .chain(k256_serde::to_bytes(stmt.base2))

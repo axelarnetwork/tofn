@@ -129,7 +129,7 @@ impl ZkSetup {
 
         let e = k256::Scalar::from_digest(
             Sha256::new()
-                .chain(tag.to_le_bytes())
+                .chain(tag.to_be_bytes())
                 .chain(stmt.prover_id.to_bytes())
                 .chain(stmt.verifier_id.to_bytes())
                 .chain(to_vec(stmt.ek.0.n()))
@@ -172,7 +172,7 @@ impl ZkSetup {
         }
         let e = k256::Scalar::from_digest(
             Sha256::new()
-                .chain(tag.to_le_bytes())
+                .chain(tag.to_be_bytes())
                 .chain(stmt.prover_id.to_bytes())
                 .chain(stmt.verifier_id.to_bytes())
                 .chain(to_vec(stmt.ek.0.n()))

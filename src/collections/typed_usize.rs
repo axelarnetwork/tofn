@@ -15,7 +15,7 @@ impl<K> TypedUsize<K> {
 
     // Platform-independent byte conversion
     pub fn to_bytes(&self) -> [u8; 8] {
-        (self.0 as u64).to_le_bytes()
+        (self.0 as u64).to_be_bytes()
     }
 }
 

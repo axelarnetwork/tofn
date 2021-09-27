@@ -50,7 +50,7 @@ const R_SIZE: usize = CHALLENGE_K + SECURITY_PARAM_K_PRIME + WITNESS_SIZE;
 fn compute_challenge(stmt: &CompositeDLogStmt, domain: &[u8], x: &BigNumber) -> BigNumber {
     BigNumber::from_slice(
         Sha256::new()
-            .chain(constants::COMPOSITE_DLOG_PROOF_TAG.to_le_bytes())
+            .chain(constants::COMPOSITE_DLOG_PROOF_TAG.to_be_bytes())
             .chain(domain)
             .chain(x.to_bytes())
             .chain(stmt.g.to_bytes())
