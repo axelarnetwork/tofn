@@ -3,9 +3,8 @@ use std::ops::Neg;
 use crate::{
     collections::TypedUsize,
     gg20::{
-        constants,
         crypto_tools::{
-            k256_serde,
+            constants, k256_serde,
             paillier::{
                 secp256k1_modulus, to_bigint, to_scalar, to_vec, zk::ZkSetup, Ciphertext,
                 EncryptionKey, Plaintext, Randomness,

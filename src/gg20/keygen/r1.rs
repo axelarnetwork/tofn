@@ -1,9 +1,6 @@
 use crate::{
     collections::TypedUsize,
-    gg20::{
-        constants,
-        crypto_tools::{hash, k256_serde, paillier, vss},
-    },
+    gg20::crypto_tools::{constants, hash, k256_serde, paillier, vss},
     sdk::{
         api::TofnResult,
         implementer_api::{serialize, ProtocolBuilder, RoundBuilder},

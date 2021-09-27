@@ -5,8 +5,7 @@ use tracing::warn;
 use crate::{
     collections::{zip2, FillVecMap, FullP2ps, TypedUsize, VecMap},
     gg20::{
-        constants,
-        crypto_tools::{hash, k256_serde, mta, paillier},
+        crypto_tools::{constants, hash, k256_serde, mta, paillier},
         keygen::{KeygenShareId, SharePublicInfo},
     },
     sdk::api::{

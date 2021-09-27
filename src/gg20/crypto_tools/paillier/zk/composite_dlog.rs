@@ -21,7 +21,9 @@ use sha2::{Digest, Sha256};
 use tracing::warn;
 use zeroize::Zeroize;
 
-use crate::gg20::constants;
+// use super::super::constants;
+
+use crate::gg20::crypto_tools::constants;
 
 use super::{member_of_mul_group, NIZKStatement};
 

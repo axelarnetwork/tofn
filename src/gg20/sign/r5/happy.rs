@@ -1,8 +1,8 @@
 use crate::{
     collections::{FillVecMap, FullP2ps, HoleVecMap, P2ps, TypedUsize, VecMap},
     gg20::{
-        constants,
         crypto_tools::{
+            constants,
             hash::{self},
             k256_serde,
             mta::Secret,

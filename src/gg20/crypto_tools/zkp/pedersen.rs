@@ -1,6 +1,9 @@
 use crate::{
     collections::TypedUsize,
-    gg20::{constants, crypto_tools::k256_serde, sign::SignShareId},
+    gg20::{
+        crypto_tools::{constants, k256_serde},
+        sign::SignShareId,
+    },
     sdk::api::{TofnFatal, TofnResult},
 };
 use ecdsa::{

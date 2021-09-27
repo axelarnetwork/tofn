@@ -12,9 +12,9 @@ use sha3::Shake128;
 use tracing::warn;
 use zeroize::Zeroize;
 
-use crate::gg20::{
+use crate::gg20::crypto_tools::{
     constants::{MODULUS_MAX_SIZE, MODULUS_MIN_SIZE, PAILLIER_KEY_PROOF_TAG},
-    crypto_tools::paillier::{DecryptionKey, EncryptionKey},
+    paillier::{DecryptionKey, EncryptionKey},
 };
 
 use super::{member_of_mul_group, NIZKStatement};

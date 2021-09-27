@@ -1,8 +1,7 @@
 use crate::{
     collections::TypedUsize,
     gg20::{
-        constants,
-        crypto_tools::{hash, k256_serde::to_bytes, paillier, vss},
+        crypto_tools::{constants, hash, k256_serde::to_bytes, paillier, vss},
         keygen::SecretKeyShare,
     },
     sdk::{
