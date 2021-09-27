@@ -151,9 +151,9 @@ mod tests {
         let b_g = k256::ProjectivePoint::generator() * b;
         let (a_ek, a_dk) = keygen_unsafe(&mut rand::thread_rng()).unwrap();
         let (a_zkp, _) =
-            ZkSetup::new_unsafe(&mut rand::thread_rng(), TypedUsize::from_usize(0)).unwrap();
+            ZkSetup::new_unsafe(&mut rand::thread_rng(), &0_u32.to_be_bytes()).unwrap();
         let (b_zkp, _) =
-            ZkSetup::new_unsafe(&mut rand::thread_rng(), TypedUsize::from_usize(1)).unwrap();
+            ZkSetup::new_unsafe(&mut rand::thread_rng(), &1_u32.to_be_bytes()).unwrap();
         let a_id = TypedUsize::from_usize(0);
         let b_id = TypedUsize::from_usize(1);
 

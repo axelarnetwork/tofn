@@ -21,10 +21,7 @@ use sha2::{Digest, Sha256};
 use tracing::warn;
 use zeroize::Zeroize;
 
-use crate::{
-    collections::TypedUsize,
-    gg20::{constants, keygen::KeygenPartyId},
-};
+use crate::gg20::constants;
 
 use super::{member_of_mul_group, NIZKStatement};
 
@@ -50,15 +47,11 @@ const WITNESS_SIZE: usize = 256;
 const R_SIZE: usize = CHALLENGE_K + SECURITY_PARAM_K_PRIME + WITNESS_SIZE;
 
 /// Compute the challenge for the NIZKProof
-fn compute_challenge(
-    stmt: &CompositeDLogStmt,
-    prover_id: <CompositeDLogStmt as NIZKStatement>::Domain,
-    x: &BigNumber,
-) -> BigNumber {
+fn compute_challenge(stmt: &CompositeDLogStmt, domain: &[u8], x: &BigNumber) -> BigNumber {
     BigNumber::from_slice(
         Sha256::new()
             .chain(constants::COMPOSITE_DLOG_PROOF_TAG.to_le_bytes())
-            .chain(prover_id.to_bytes())
+            .chain(domain)
             .chain(x.to_bytes())
             .chain(stmt.g.to_bytes())
             .chain(stmt.v.to_bytes())
@@ -118,10 +111,9 @@ impl CompositeDLogStmt {
 impl NIZKStatement for CompositeDLogStmt {
     type Witness = BigNumber;
     type Proof = CompositeDLogProof;
-    type Domain = TypedUsize<KeygenPartyId>;
 
     #[allow(non_snake_case)]
-    fn prove(&self, wit: &Self::Witness, domain: Self::Domain) -> Self::Proof {
+    fn prove(&self, wit: &Self::Witness, domain: &[u8]) -> Self::Proof {
         let R = BigNumber::one() << R_SIZE;
         let r = BigNumber::random(&R);
 
@@ -137,7 +129,7 @@ impl NIZKStatement for CompositeDLogStmt {
         Self::Proof { x, y }
     }
 
-    fn verify(&self, proof: &Self::Proof, domain: Self::Domain) -> bool {
+    fn verify(&self, proof: &Self::Proof, domain: &[u8]) -> bool {
         // The following checks (except upper-bound checks) on the statements are just for sanity
         // since in GG20, a malicious peer who sent a bad statement/ZkSetup
         // is only harming herself as the Zk proofs that use this modulus
@@ -192,10 +184,7 @@ impl NIZKStatement for CompositeDLogStmt {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        collections::TypedUsize,
-        gg20::crypto_tools::paillier::{keygen_unsafe, zk::NIZKStatement},
-    };
+    use crate::gg20::crypto_tools::paillier::{keygen_unsafe, zk::NIZKStatement};
 
     use super::{CompositeDLogStmt, WITNESS_SIZE};
 
@@ -210,11 +199,18 @@ mod tests {
 
         assert!(witness.bit_length() <= WITNESS_SIZE);
 
-        let proof = stmt.prove(&witness, TypedUsize::from_usize(1));
+        let domain = &1_u32.to_be_bytes();
+        let proof = stmt.prove(&witness, domain);
 
-        assert!(stmt.verify(&proof, TypedUsize::from_usize(1)));
+        assert!(stmt.verify(&proof, domain));
 
         // Fail to verify a proof with the incorrect domain
-        assert!(!stmt.verify(&proof, TypedUsize::from_usize(10)));
+        assert!(!stmt.verify(&proof, &10_u32.to_be_bytes()));
+
+        let mut proof = proof;
+        proof.y -= 1;
+
+        // Fail to verify using an invalid proof
+        assert!(!stmt.verify(&proof, domain));
     }
 }

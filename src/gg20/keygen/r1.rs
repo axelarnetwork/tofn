@@ -49,7 +49,9 @@ pub(super) fn start(
 
     let ek_proof = keypair.ek.correctness_proof(
         &keypair.dk,
-        party_share_counts.share_to_party_id(my_keygen_id)?,
+        &party_share_counts
+            .share_to_party_id(my_keygen_id)?
+            .to_bytes(),
     );
     corrupt!(
         ek_proof,

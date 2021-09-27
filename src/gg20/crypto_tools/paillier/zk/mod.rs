@@ -40,29 +40,29 @@ pub type ZkSetupProof = CompositeDLogProof;
 impl ZkSetup {
     pub fn new_unsafe(
         rng: &mut (impl CryptoRng + RngCore),
-        party_id: TypedUsize<KeygenPartyId>,
+        domain: &[u8],
     ) -> TofnResult<(ZkSetup, ZkSetupProof)> {
         let keypair = keygen_unsafe(rng)?;
-        Ok(Self::from_keypair(rng, keypair, party_id))
+        Ok(Self::from_keypair(rng, keypair, domain))
     }
 
     pub fn new(
         rng: &mut (impl CryptoRng + RngCore),
-        party_id: TypedUsize<KeygenPartyId>,
+        domain: &[u8],
     ) -> TofnResult<(ZkSetup, ZkSetupProof)> {
         let keypair = keygen(rng)?;
-        Ok(Self::from_keypair(rng, keypair, party_id))
+        Ok(Self::from_keypair(rng, keypair, domain))
     }
 
     fn from_keypair(
         rng: &mut (impl CryptoRng + RngCore),
         (ek_tilde, dk_tilde): (EncryptionKey, DecryptionKey),
-        party_id: TypedUsize<KeygenPartyId>,
+        domain: &[u8],
     ) -> (ZkSetup, ZkSetupProof) {
         let (dlog_stmt, mut witness) =
             CompositeDLogStmt::setup(rng, ek_tilde.0.n(), dk_tilde.0.p(), dk_tilde.0.q());
 
-        let dlog_proof = dlog_stmt.prove(&witness, party_id); // TODO: Fix the domain
+        let dlog_proof = dlog_stmt.prove(&witness, domain);
 
         witness.zeroize();
 
@@ -88,30 +88,22 @@ impl ZkSetup {
         h1_x.modmul(&h2_r, self.n_tilde())
     }
 
-    pub fn verify(&self, proof: &ZkSetupProof, prover_id: TypedUsize<KeygenPartyId>) -> bool {
-        self.dlog_stmt.verify(proof, prover_id)
+    pub fn verify(&self, proof: &ZkSetupProof, domain: &[u8]) -> bool {
+        self.dlog_stmt.verify(proof, domain)
     }
 }
 
 impl EncryptionKey {
-    pub fn correctness_proof(
-        &self,
-        dk: &DecryptionKey,
-        prover_id: TypedUsize<KeygenPartyId>,
-    ) -> EncryptionKeyProof {
-        self.prove(dk, prover_id)
+    pub fn correctness_proof(&self, dk: &DecryptionKey, domain: &[u8]) -> EncryptionKeyProof {
+        self.prove(dk, domain)
     }
 
-    pub fn verify_correctness(
-        &self,
-        proof: &EncryptionKeyProof,
-        prover_id: TypedUsize<KeygenPartyId>,
-    ) -> bool {
-        self.verify(proof, prover_id)
+    pub fn verify_correctness(&self, proof: &EncryptionKeyProof, domain: &[u8]) -> bool {
+        self.verify(proof, domain)
     }
 }
 
-// The order of the secp256k1 curve raised to exponent 3
+/// The order of the secp256k1 curve raised to exponent 3
 const SECP256K1_CURVE_ORDER_CUBED: [u8; 96] = [
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfc,
     0x30, 0x0c, 0x96, 0xb4, 0x0d, 0xd9, 0xe0, 0xb3, 0x3f, 0x77, 0x1b, 0xa6, 0x70, 0xa2, 0xc3, 0xc7,

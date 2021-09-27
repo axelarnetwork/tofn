@@ -290,8 +290,7 @@ mod tests {
         };
         let stmt = &stmt_wc.stmt;
         let wit = &Witness { msg, randomness };
-        let (zkp, _) =
-            ZkSetup::new_unsafe(&mut rand::thread_rng(), TypedUsize::from_usize(0)).unwrap();
+        let (zkp, _) = ZkSetup::new_unsafe(&mut rand::thread_rng(), &0_u32.to_be_bytes()).unwrap();
 
         // test: valid proof
         let proof = zkp.range_proof(stmt, wit);

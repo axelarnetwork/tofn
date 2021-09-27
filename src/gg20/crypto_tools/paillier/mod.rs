@@ -210,10 +210,22 @@ mod tests {
         let (ek, dk) = keygen_unsafe(&mut rand::thread_rng()).unwrap();
         let (ct, r) = ek.encrypt(&pt);
         let (pt2, r2) = dk.decrypt_with_randomness(&ct);
+        let s2 = pt2.to_scalar();
+
         assert_eq!(pt, pt2);
         assert_eq!(r, r2);
-        let s2 = pt2.to_scalar();
         assert_eq!(s, s2);
+    }
+
+    #[test]
+    fn secp256k1_order() {
+        // Test that secp256k1 modulus is the order of the generator
+        let g = k256::ProjectivePoint::generator();
+
+        assert_eq!(
+            g * to_scalar(&secp256k1_modulus()),
+            k256::ProjectivePoint::identity()
+        );
     }
 
     // TODO test for round trip after homomorphic ops

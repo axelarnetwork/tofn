@@ -12,13 +12,9 @@ use sha3::Shake128;
 use tracing::warn;
 use zeroize::Zeroize;
 
-use crate::{
-    collections::TypedUsize,
-    gg20::{
-        constants::{MODULUS_MAX_SIZE, MODULUS_MIN_SIZE, PAILLIER_KEY_PROOF_TAG},
-        crypto_tools::paillier::{DecryptionKey, EncryptionKey},
-        keygen::KeygenPartyId,
-    },
+use crate::gg20::{
+    constants::{MODULUS_MAX_SIZE, MODULUS_MIN_SIZE, PAILLIER_KEY_PROOF_TAG},
+    crypto_tools::paillier::{DecryptionKey, EncryptionKey},
 };
 
 use super::{member_of_mul_group, NIZKStatement};
@@ -109,17 +105,13 @@ pub struct PaillierKeyProof {
 }
 
 /// Compute the challenge for the NIZKProof
-fn compute_challenge(
-    stmt: &PaillierKeyStmt,
-    iteration: usize,
-    prover_id: <PaillierKeyStmt as NIZKStatement>::Domain,
-) -> BigNumber {
+fn compute_challenge(stmt: &PaillierKeyStmt, iteration: usize, domain: &[u8]) -> BigNumber {
     // We use an XOF (Shake128) to get an n-byte output
     // and reduce it modulo the modulus N
     let hash = Shake128::default()
         .chain(PAILLIER_KEY_PROOF_TAG.to_le_bytes())
         .chain(iteration.to_be_bytes())
-        .chain(prover_id.to_bytes())
+        .chain(domain)
         .chain(stmt.0.n().to_bytes());
 
     let num_bytes = (stmt.0.n().bit_length() + 7) / 8;
@@ -135,10 +127,9 @@ fn compute_challenge(
 impl NIZKStatement for PaillierKeyStmt {
     type Witness = DecryptionKey;
     type Proof = PaillierKeyProof;
-    type Domain = TypedUsize<KeygenPartyId>;
 
     #[allow(non_snake_case)]
-    fn prove(&self, wit: &Self::Witness, domain: Self::Domain) -> Self::Proof {
+    fn prove(&self, wit: &Self::Witness, domain: &[u8]) -> Self::Proof {
         let n_inv = wit.0.n_inv();
 
         let mut proof = Self::Proof::default();
@@ -155,7 +146,7 @@ impl NIZKStatement for PaillierKeyStmt {
         proof
     }
 
-    fn verify(&self, proof: &Self::Proof, domain: Self::Domain) -> bool {
+    fn verify(&self, proof: &Self::Proof, domain: &[u8]) -> bool {
         let n = self.0.n();
 
         // The following checks (except upper-bound checks) on the statements are just for sanity
@@ -206,10 +197,7 @@ impl NIZKStatement for PaillierKeyStmt {
 mod tests {
     use libpaillier::unknown_order::BigNumber;
 
-    use crate::{
-        collections::TypedUsize,
-        gg20::crypto_tools::paillier::{keygen_unsafe, zk::NIZKStatement},
-    };
+    use crate::gg20::crypto_tools::paillier::{keygen_unsafe, zk::NIZKStatement};
 
     use super::ALPHA_PRIMORIAL_BYTES;
 
@@ -219,17 +207,24 @@ mod tests {
 
         let (ek, dk) = keygen_unsafe(&mut rng).unwrap();
 
-        let proof = ek.prove(&dk, TypedUsize::from_usize(1));
+        let domain = &1_u32.to_be_bytes();
+        let proof = ek.prove(&dk, domain);
 
-        assert!(ek.verify(&proof, TypedUsize::from_usize(1)));
+        assert!(ek.verify(&proof, domain));
 
-        // Verify using another domain
-        assert!(!ek.verify(&proof, TypedUsize::from_usize(2)));
+        // Fail to verify using another domain
+        assert!(!ek.verify(&proof, &10_u32.to_be_bytes()));
 
         let (ek2, _) = keygen_unsafe(&mut rng).unwrap();
 
-        // Verify using another pub key
-        assert!(!ek2.verify(&proof, TypedUsize::from_usize(1)));
+        // Fail to verify using another pub key
+        assert!(!ek2.verify(&proof, domain));
+
+        let mut proof = proof;
+        proof.sigmas[0] += 1;
+
+        // Fail to verify using an invalid proof
+        assert!(!ek2.verify(&proof, domain));
     }
 
     #[test]

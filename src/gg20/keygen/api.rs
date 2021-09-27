@@ -73,7 +73,7 @@ pub fn create_party_keypair_and_zksetup(
 
     let mut zksetup_rng =
         rng::rng_seed(ZKSETUP_TAG, my_party_id, secret_recovery_key, session_nonce)?;
-    let (zkp, zkp_proof) = ZkSetup::new(&mut zksetup_rng, my_party_id)?;
+    let (zkp, zkp_proof) = ZkSetup::new(&mut zksetup_rng, &my_party_id.to_bytes())?;
 
     Ok((keypair, PartyZkSetup { zkp, zkp_proof }))
 }
@@ -100,7 +100,7 @@ pub fn create_party_keypair_and_zksetup_unsafe(
 
     let mut zksetup_rng =
         rng::rng_seed(ZKSETUP_TAG, my_party_id, secret_recovery_key, session_nonce)?;
-    let (zkp, zkp_proof) = ZkSetup::new_unsafe(&mut zksetup_rng, my_party_id)?;
+    let (zkp, zkp_proof) = ZkSetup::new_unsafe(&mut zksetup_rng, &my_party_id.to_bytes())?;
 
     Ok((keypair, PartyZkSetup { zkp, zkp_proof }))
 }

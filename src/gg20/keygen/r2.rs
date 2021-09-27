@@ -89,7 +89,7 @@ impl Executer for R2 {
 
             if !bcast
                 .ek
-                .verify_correctness(&bcast.ek_proof, peer_keygen_party_id)
+                .verify_correctness(&bcast.ek_proof, &peer_keygen_party_id.to_bytes())
             {
                 warn!(
                     "peer {} says: ek proof from peer {} failed to verify",
@@ -100,7 +100,10 @@ impl Executer for R2 {
                 continue;
             }
 
-            if !bcast.zkp.verify(&bcast.zkp_proof, peer_keygen_party_id) {
+            if !bcast
+                .zkp
+                .verify(&bcast.zkp_proof, &peer_keygen_party_id.to_bytes())
+            {
                 warn!(
                     "peer {} says: zk setup proof from peer {} failed to verify",
                     my_keygen_id, peer_keygen_id,
