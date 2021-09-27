@@ -139,6 +139,8 @@ impl Executer for R6 {
 
                     let peer_stmt = &zk::range::StatementWc {
                         stmt: zk::range::Statement {
+                            prover_id: peer_sign_id,
+                            verifier_id: my_sign_id,
                             ciphertext: peer_k_i_ciphertext,
                             ek: peer_ek,
                         },

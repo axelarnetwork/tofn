@@ -1,8 +1,7 @@
 use crate::{
     collections::TypedUsize,
     gg20::{
-        constants,
-        crypto_tools::{hash, k256_serde::to_bytes, paillier, vss},
+        crypto_tools::{constants, hash, k256_serde::to_bytes, paillier, vss},
         keygen::SecretKeyShare,
     },
     sdk::{
@@ -81,8 +80,8 @@ pub(super) fn start(
         .ek();
     let (k_i_ciphertext, k_i_randomness) = ek.encrypt(&(&k_i).into());
 
-    let p2ps_out = Some(peer_keygen_ids.clone_map2_result(
-        |(_peer_sign_id, &peer_keygen_id)| {
+    let p2ps_out = Some(
+        peer_keygen_ids.clone_map2_result(|(peer_sign_id, &peer_keygen_id)| {
             let peer_zkp = secret_key_share
                 .group()
                 .all_shares()
@@ -91,6 +90,8 @@ pub(super) fn start(
 
             let range_proof = peer_zkp.range_proof(
                 &paillier::zk::range::Statement {
+                    prover_id: my_sign_id,
+                    verifier_id: peer_sign_id,
                     ciphertext: &k_i_ciphertext,
                     ek,
                 },
@@ -102,12 +103,12 @@ pub(super) fn start(
 
             corrupt!(
                 range_proof,
-                malicious::corrupt_range_proof(my_sign_id, &behaviour, _peer_sign_id, range_proof)
+                malicious::corrupt_range_proof(my_sign_id, &behaviour, peer_sign_id, range_proof)
             );
 
             serialize(&P2p { range_proof })
-        },
-    )?);
+        })?,
+    );
 
     let bcast_out = Some(serialize(&Bcast {
         Gamma_i_commit,

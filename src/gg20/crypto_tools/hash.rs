@@ -31,7 +31,7 @@ pub fn commit_with_randomness<K>(
 ) -> Output {
     Output(
         Sha256::new()
-            .chain(tag.to_le_bytes())
+            .chain(tag.to_be_bytes())
             .chain(peer_id.to_bytes())
             .chain(msg)
             .chain(randomness.0)

@@ -149,9 +149,11 @@ mod tests {
         let a = k256::Scalar::random(rand::thread_rng());
         let b = k256::Scalar::random(rand::thread_rng());
         let b_g = k256::ProjectivePoint::generator() * b;
-        let (a_ek, a_dk) = keygen_unsafe(&mut rand::thread_rng());
-        let (a_zkp, _) = ZkSetup::new_unsafe(&mut rand::thread_rng());
-        let (b_zkp, _) = ZkSetup::new_unsafe(&mut rand::thread_rng());
+        let (a_ek, a_dk) = keygen_unsafe(&mut rand::thread_rng()).unwrap();
+        let (a_zkp, _) =
+            ZkSetup::new_unsafe(&mut rand::thread_rng(), &0_u32.to_be_bytes()).unwrap();
+        let (b_zkp, _) =
+            ZkSetup::new_unsafe(&mut rand::thread_rng(), &1_u32.to_be_bytes()).unwrap();
         let a_id = TypedUsize::from_usize(0);
         let b_id = TypedUsize::from_usize(1);
 
@@ -159,6 +161,8 @@ mod tests {
         let (a_ciphertext, a_randomness) = a_ek.encrypt(&(&a).into());
         let a_range_proof = b_zkp.range_proof(
             &range::Statement {
+                prover_id: a_id,
+                verifier_id: b_id,
                 ciphertext: &a_ciphertext,
                 ek: &a_ek,
             },
@@ -171,6 +175,8 @@ mod tests {
         // MtA step 2: party b (this module)
         assert!(b_zkp.verify_range_proof(
             &range::Statement {
+                prover_id: a_id,
+                verifier_id: b_id,
                 ciphertext: &a_ciphertext,
                 ek: &a_ek,
             },

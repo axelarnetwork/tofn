@@ -1,9 +1,6 @@
 use crate::{
     collections::TypedUsize,
-    gg20::{
-        constants,
-        crypto_tools::{hash, k256_serde, paillier, vss},
-    },
+    gg20::crypto_tools::{constants, hash, k256_serde, paillier, vss},
     sdk::{
         api::TofnResult,
         implementer_api::{serialize, ProtocolBuilder, RoundBuilder},
@@ -47,7 +44,12 @@ pub(super) fn start(
         malicious::corrupt_commit(my_keygen_id, &behaviour, y_i_commit)
     );
 
-    let ek_proof = keypair.dk.correctness_proof();
+    let ek_proof = keypair.ek.correctness_proof(
+        &keypair.dk,
+        &party_share_counts
+            .share_to_party_id(my_keygen_id)?
+            .to_bytes(),
+    );
     corrupt!(
         ek_proof,
         malicious::corrupt_ek_proof(my_keygen_id, &behaviour, ek_proof)

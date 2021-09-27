@@ -1,6 +1,8 @@
 //! Minimize direct use of paillier, zk_paillier crates
-use super::{keygen, keygen_unsafe, BigInt, DecryptionKey, EncryptionKey};
-use paillier::zk::{CompositeDLogProof, DLogStatement, NICorrectKeyProof};
+use crate::sdk::api::TofnResult;
+
+use super::{keygen, keygen_unsafe, DecryptionKey, EncryptionKey};
+use libpaillier::unknown_order::BigNumber;
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
@@ -8,123 +10,100 @@ use zeroize::Zeroize;
 pub(crate) mod mta;
 pub(crate) mod range;
 
-pub type EncryptionKeyProof = NICorrectKeyProof;
+mod paillier_key;
+mod traits;
+pub use traits::*;
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+mod utils;
+use utils::*;
+
+mod composite_dlog;
+use composite_dlog::{CompositeDLogProof, CompositeDLogStmt};
+
+pub type EncryptionKeyProof = paillier_key::PaillierKeyProof;
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Zeroize)]
 pub struct ZkSetup {
-    composite_dlog_statement: DLogStatement,
+    dlog_stmt: CompositeDLogStmt,
 }
 
 pub type ZkSetupProof = CompositeDLogProof;
 
-// TODO: This might be optimized away since BigInt itself doesn't implement Zeroize
-impl Zeroize for ZkSetup {
-    fn zeroize(&mut self) {
-        self.composite_dlog_statement.N = BigInt::zero();
-        self.composite_dlog_statement.g = BigInt::zero();
-        self.composite_dlog_statement.ni = BigInt::zero();
-    }
-}
-
+/// As per the GG20 paper on Pg. 13, a different RSA modulus is needed for
+/// the ZK proofs used in the protocol. While we don't need a Paillier keypair
+/// here, we use the same keygen methods for convenience.
+/// According to GG20, each peer (acting as the verifier)
+/// can generate these setup parameters, comprised of the RSA modulus `N_tilde`,
+/// and group elements `h1`, `h2`, such that the peer proves that the
+/// discrete log between `h2` and `h1` exists. Using this setup, all other peers
+/// can prove their statements (e.g. range, MtA proofs etc.) as needed in the protocol.
 impl ZkSetup {
-    pub fn new_unsafe(rng: &mut (impl CryptoRng + RngCore)) -> (ZkSetup, ZkSetupProof) {
-        Self::from_keypair(keygen_unsafe(rng))
+    pub fn new_unsafe(
+        rng: &mut (impl CryptoRng + RngCore),
+        domain: &[u8],
+    ) -> TofnResult<(ZkSetup, ZkSetupProof)> {
+        let keypair = keygen_unsafe(rng)?;
+        Ok(Self::from_keypair(rng, keypair, domain))
     }
-    pub fn new(rng: &mut (impl CryptoRng + RngCore)) -> (ZkSetup, ZkSetupProof) {
-        Self::from_keypair(keygen(rng))
+
+    pub fn new(
+        rng: &mut (impl CryptoRng + RngCore),
+        domain: &[u8],
+    ) -> TofnResult<(ZkSetup, ZkSetupProof)> {
+        let keypair = keygen(rng)?;
+        Ok(Self::from_keypair(rng, keypair, domain))
     }
 
     fn from_keypair(
+        rng: &mut (impl CryptoRng + RngCore),
         (ek_tilde, dk_tilde): (EncryptionKey, DecryptionKey),
+        domain: &[u8],
     ) -> (ZkSetup, ZkSetupProof) {
-        let one = BigInt::one();
-        let s = BigInt::from(2).pow(256_u32);
+        let (dlog_stmt, mut witness) =
+            CompositeDLogStmt::setup(rng, ek_tilde.0.n(), dk_tilde.0.p(), dk_tilde.0.q());
 
-        // TODO zeroize these secrets after use
-        let phi = (&dk_tilde.0.p - &one) * (&dk_tilde.0.q - &one);
-        let xhi = random(&s);
+        let dlog_proof = dlog_stmt.prove(&witness, domain);
 
-        let h1 = random(&phi);
-        let h2 = h1.powm(&(-&xhi), &ek_tilde.0.n);
+        witness.zeroize();
 
-        let dlog_statement = DLogStatement {
-            N: ek_tilde.0.n, // n_tilde
-            g: h1,           // h1
-            ni: h2,          // h2
-        };
-        let dlog_proof = CompositeDLogProof::prove(&dlog_statement, &xhi);
-
-        (
-            Self {
-                composite_dlog_statement: dlog_statement,
-            },
-            dlog_proof,
-        )
+        (Self { dlog_stmt }, dlog_proof)
     }
 
-    fn h1(&self) -> &BigInt {
-        &self.composite_dlog_statement.g
-    }
-    fn h2(&self) -> &BigInt {
-        &self.composite_dlog_statement.ni
-    }
-    fn n_tilde(&self) -> &BigInt {
-        &self.composite_dlog_statement.N
-    }
-    fn commit(&self, msg: &BigInt, randomness: &BigInt) -> BigInt {
-        let h1_x = self.h1().powm(msg, self.n_tilde());
-        let h2_r = self.h2().powm(randomness, self.n_tilde());
-        mulm(&h1_x, &h2_r, self.n_tilde())
+    fn h1(&self) -> &BigNumber {
+        &self.dlog_stmt.g
     }
 
-    pub fn verify(&self, proof: &ZkSetupProof) -> bool {
-        proof.verify(&self.composite_dlog_statement).is_ok()
+    fn h2(&self) -> &BigNumber {
+        &self.dlog_stmt.v
     }
-}
 
-impl DecryptionKey {
-    pub fn correctness_proof(&self) -> EncryptionKeyProof {
-        EncryptionKeyProof::proof(&self.0, None)
+    fn n_tilde(&self) -> &BigNumber {
+        &self.dlog_stmt.n
+    }
+
+    fn commit(&self, msg: &BigNumber, randomness: &BigNumber) -> BigNumber {
+        let h1_x = self.h1().modpow(msg, self.n_tilde());
+        let h2_r = self.h2().modpow(randomness, self.n_tilde());
+
+        h1_x.modmul(&h2_r, self.n_tilde())
+    }
+
+    pub fn verify(&self, proof: &ZkSetupProof, domain: &[u8]) -> bool {
+        self.dlog_stmt.verify(proof, domain)
     }
 }
 
 impl EncryptionKey {
-    pub fn verify(&self, proof: &EncryptionKeyProof) -> bool {
-        proof.verify(&self.0, None).is_ok()
+    pub fn correctness_proof(&self, dk: &DecryptionKey, domain: &[u8]) -> EncryptionKeyProof {
+        self.prove(dk, domain)
+    }
+
+    pub fn verify_correctness(&self, proof: &EncryptionKeyProof, domain: &[u8]) -> bool {
+        self.verify(proof, domain)
     }
 }
 
-// re-implement low-level BigInt functions
-// so as to avoid direct dependence on curv
-
-/// return a random BigInt in [0,n)
-fn random(n: &BigInt) -> BigInt {
-    debug_assert!(n > &BigInt::zero());
-
-    let zero = BigInt::zero();
-
-    if n <= &zero {
-        return zero;
-    }
-
-    let bit_len = n.bit_length();
-    let byte_len = (bit_len - 1) / 8 + 1;
-    let mut bytes = vec![0u8; byte_len];
-    loop {
-        rand::thread_rng().fill_bytes(&mut bytes);
-        let candidate = BigInt::from(&*bytes) >> (byte_len * 8 - bit_len);
-        if candidate < *n {
-            return candidate;
-        }
-    }
-}
-
-/// return x*y mod n
-fn mulm(x: &BigInt, y: &BigInt, n: &BigInt) -> BigInt {
-    (x.modulus(n) * y.modulus(n)).modulus(n)
-}
-
-// The order of the secp256k1 curve raised to exponent 3
+/// The order of the secp256k1 curve raised to exponent 3
 const SECP256K1_CURVE_ORDER_CUBED: [u8; 96] = [
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfc,
     0x30, 0x0c, 0x96, 0xb4, 0x0d, 0xd9, 0xe0, 0xb3, 0x3f, 0x77, 0x1b, 0xa6, 0x70, 0xa2, 0xc3, 0xc7,
@@ -134,10 +113,11 @@ const SECP256K1_CURVE_ORDER_CUBED: [u8; 96] = [
     0x35, 0x52, 0x09, 0x0f, 0xe1, 0xe1, 0x1b, 0x11, 0xeb, 0x69, 0x26, 0xb7, 0x85, 0x7b, 0x73, 0xc1,
 ];
 
-/// secp256k1 curve order cubed as a `BigInt`
-fn secp256k1_modulus_cubed() -> BigInt {
-    BigInt::from(SECP256K1_CURVE_ORDER_CUBED.as_ref())
+/// secp256k1 curve order cubed as a `BigNumber`
+fn secp256k1_modulus_cubed() -> BigNumber {
+    BigNumber::from_slice(SECP256K1_CURVE_ORDER_CUBED.as_ref())
 }
+
 #[cfg(test)]
 mod tests {
     use super::secp256k1_modulus_cubed;
@@ -146,7 +126,7 @@ mod tests {
     #[test]
     fn q_cubed() {
         let q = secp256k1_modulus();
-        let q3_test = q.pow(3);
+        let q3_test = &q * &q * &q;
         let q3 = secp256k1_modulus_cubed();
         assert_eq!(q3_test, q3);
     }
@@ -155,12 +135,14 @@ mod tests {
 #[cfg(feature = "malicious")]
 pub mod malicious {
     use super::*;
+
     pub fn corrupt_zksetup_proof(mut proof: ZkSetupProof) -> ZkSetupProof {
-        proof.x += BigInt::one();
+        proof.x += BigNumber::one();
         proof
     }
+
     pub fn corrupt_ek_proof(mut proof: EncryptionKeyProof) -> EncryptionKeyProof {
-        proof.sigma_vec[0] += BigInt::one();
+        proof.sigmas[0] += BigNumber::one();
         proof
     }
 }

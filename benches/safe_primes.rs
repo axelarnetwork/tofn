@@ -1,20 +1,41 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use paillier::{KeyGeneration, Paillier};
+use libpaillier::{unknown_order::BigNumber, DecryptionKey, EncryptionKey};
 use rand::{CryptoRng, RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 
-pub fn unsafe_primes(c: &mut Criterion) {
+pub fn safe_primes(c: &mut Criterion) {
     let mut rng = chacha_rng();
-    c.bench_function("unsafe primes", |b| b.iter(|| Paillier::keypair(&mut rng)));
 
-    let mut g = c.benchmark_group("safe-primes-group");
+    let mut g = c.benchmark_group("paillier-keypair-gen");
     g.sample_size(10);
+
+    g.bench_function("unsafe primes", |b| {
+        b.iter(|| {
+            let p = BigNumber::prime_with_rng(&mut rng, 1024);
+            let q = BigNumber::prime_with_rng(&mut rng, 1024);
+
+            let dk = DecryptionKey::with_safe_primes_unchecked(&p, &q).unwrap();
+
+            let ek: EncryptionKey = (&dk).into();
+
+            (ek, dk)
+        })
+    });
+
+    let mut rng = chacha_rng();
+
     g.bench_function("safe primes", |b| {
-        b.iter(|| Paillier::keypair_safe_primes(&mut rng))
+        b.iter(|| {
+            let dk = DecryptionKey::with_rng(&mut rng).unwrap();
+
+            let ek: EncryptionKey = (&dk).into();
+
+            (ek, dk)
+        })
     });
 }
 
-criterion_group!(benches, unsafe_primes);
+criterion_group!(benches, safe_primes);
 criterion_main!(benches);
 
 // initialize a deterministic rng to conserve random bits

@@ -85,7 +85,12 @@ impl Executer for R2 {
 
         // check Paillier proofs
         for (peer_keygen_id, bcast) in bcasts_in.iter() {
-            if !bcast.ek.verify(&bcast.ek_proof) {
+            let peer_keygen_party_id = self.party_share_counts.share_to_party_id(peer_keygen_id)?;
+
+            if !bcast
+                .ek
+                .verify_correctness(&bcast.ek_proof, &peer_keygen_party_id.to_bytes())
+            {
                 warn!(
                     "peer {} says: ek proof from peer {} failed to verify",
                     my_keygen_id, peer_keygen_id
@@ -95,7 +100,10 @@ impl Executer for R2 {
                 continue;
             }
 
-            if !bcast.zkp.verify(&bcast.zkp_proof) {
+            if !bcast
+                .zkp
+                .verify(&bcast.zkp_proof, &peer_keygen_party_id.to_bytes())
+            {
                 warn!(
                     "peer {} says: zk setup proof from peer {} failed to verify",
                     my_keygen_id, peer_keygen_id,

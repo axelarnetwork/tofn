@@ -78,6 +78,8 @@ impl Executer for R3Sad {
                 let accused_k_i_ciphertext = &self.r1bcasts.get(accused_sign_id)?.k_i_ciphertext;
 
                 let accused_stmt = &paillier::zk::range::Statement {
+                    prover_id: accused_sign_id,
+                    verifier_id: accuser_sign_id,
                     ciphertext: accused_k_i_ciphertext,
                     ek: accused_ek,
                 };
