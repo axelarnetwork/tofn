@@ -121,7 +121,7 @@ fn compute_challenge(stmt: &PaillierKeyStmt, iteration: usize, domain: &[u8]) ->
 
     let h = BigNumber::from_slice(buffer);
 
-    h.modadd(&BigNumber::zero(), stmt.0.n())
+    h % stmt.0.n()
 }
 
 impl NIZKStatement for PaillierKeyStmt {

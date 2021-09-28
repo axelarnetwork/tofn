@@ -27,7 +27,7 @@ pub mod keygen {
                 // each party use the same secret recovery key for all its subshares
                 let secret_recovery_key = super::dummy_secret_recovery_key(party_id);
 
-                let (party_keypair, party_zksetup) = create_party_keypair_and_zksetup_unsafe(
+                let party_keygen_data = create_party_keypair_and_zksetup_unsafe(
                     party_id,
                     &secret_recovery_key,
                     session_nonce,
@@ -40,8 +40,7 @@ pub mod keygen {
                         threshold,
                         party_id,
                         subshare_id,
-                        &party_keypair,
-                        &party_zksetup,
+                        &party_keygen_data,
                         #[cfg(feature = "malicious")]
                         Behaviour::Honest,
                     )
