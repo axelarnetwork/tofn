@@ -41,13 +41,13 @@ pub(super) fn start(
         malicious::corrupt_commit(my_keygen_id, &behaviour, y_i_commit)
     );
 
-    let ek_proof = party_keygen_data.keypair_proof.clone();
+    let ek_proof = party_keygen_data.encryption_keypair_proof.clone();
     corrupt!(
         ek_proof,
         malicious::corrupt_ek_proof(my_keygen_id, &behaviour, ek_proof)
     );
 
-    let zkp_proof = party_keygen_data.zkp_proof.clone();
+    let zkp_proof = party_keygen_data.zk_setup_proof.clone();
     corrupt!(
         zkp_proof,
         malicious::corrupt_zkp_proof(my_keygen_id, &behaviour, zkp_proof)
@@ -55,9 +55,9 @@ pub(super) fn start(
 
     let bcast_out = Some(serialize(&Bcast {
         y_i_commit,
-        ek: party_keygen_data.keypair.ek.clone(),
+        ek: party_keygen_data.encryption_keypair.ek.clone(),
         ek_proof,
-        zkp: party_keygen_data.zkp.clone(),
+        zkp: party_keygen_data.zk_setup.clone(),
         zkp_proof,
     })?);
 
@@ -65,7 +65,7 @@ pub(super) fn start(
         Box::new(r2::R2 {
             threshold,
             party_share_counts,
-            dk: party_keygen_data.keypair.dk.clone(),
+            dk: party_keygen_data.encryption_keypair.dk.clone(),
             u_i_vss,
             y_i_reveal,
             #[cfg(feature = "malicious")]
