@@ -10,7 +10,7 @@ use crate::{
         constants::{KEYPAIR_TAG, ZKSETUP_TAG},
         crypto_tools::paillier::{
             self,
-            zk::{ZkSetup, ZkSetupProof},
+            zk::{EncryptionKeyProof, ZkSetup, ZkSetupProof},
             DecryptionKey, EncryptionKey,
         },
     },
@@ -57,9 +57,11 @@ pub struct PartyKeyPair {
 }
 
 #[derive(Debug, Clone)]
-pub struct PartyZkSetup {
-    pub(crate) zkp: ZkSetup,
-    pub(crate) zkp_proof: ZkSetupProof,
+pub struct PartyKeygenData {
+    pub(crate) encryption_keypair: PartyKeyPair,
+    pub(crate) encryption_keypair_proof: EncryptionKeyProof,
+    pub(crate) zk_setup: ZkSetup,
+    pub(crate) zk_setup_proof: ZkSetupProof,
 }
 
 // Since safe prime generation is expensive, a party is expected to generate
@@ -68,14 +70,24 @@ pub fn create_party_keypair_and_zksetup(
     my_party_id: TypedUsize<KeygenPartyId>,
     secret_recovery_key: &SecretRecoveryKey,
     session_nonce: &[u8],
-) -> TofnResult<(PartyKeyPair, PartyZkSetup)> {
-    let keypair = recover_party_keypair(my_party_id, secret_recovery_key, session_nonce)?;
+) -> TofnResult<PartyKeygenData> {
+    let encryption_keypair =
+        recover_party_keypair(my_party_id, secret_recovery_key, session_nonce)?;
+
+    let encryption_keypair_proof = encryption_keypair
+        .ek
+        .correctness_proof(&encryption_keypair.dk, &my_party_id.to_bytes());
 
     let mut zksetup_rng =
         rng::rng_seed(ZKSETUP_TAG, my_party_id, secret_recovery_key, session_nonce)?;
-    let (zkp, zkp_proof) = ZkSetup::new(&mut zksetup_rng, &my_party_id.to_bytes())?;
+    let (zk_setup, zk_setup_proof) = ZkSetup::new(&mut zksetup_rng, &my_party_id.to_bytes())?;
 
-    Ok((keypair, PartyZkSetup { zkp, zkp_proof }))
+    Ok(PartyKeygenData {
+        encryption_keypair,
+        encryption_keypair_proof,
+        zk_setup,
+        zk_setup_proof,
+    })
 }
 
 pub fn recover_party_keypair(
@@ -95,14 +107,25 @@ pub fn create_party_keypair_and_zksetup_unsafe(
     my_party_id: TypedUsize<KeygenPartyId>,
     secret_recovery_key: &SecretRecoveryKey,
     session_nonce: &[u8],
-) -> TofnResult<(PartyKeyPair, PartyZkSetup)> {
-    let keypair = recover_party_keypair_unsafe(my_party_id, secret_recovery_key, session_nonce)?;
+) -> TofnResult<PartyKeygenData> {
+    let encryption_keypair =
+        recover_party_keypair_unsafe(my_party_id, secret_recovery_key, session_nonce)?;
+
+    let encryption_keypair_proof = encryption_keypair
+        .ek
+        .correctness_proof(&encryption_keypair.dk, &my_party_id.to_bytes());
 
     let mut zksetup_rng =
         rng::rng_seed(ZKSETUP_TAG, my_party_id, secret_recovery_key, session_nonce)?;
-    let (zkp, zkp_proof) = ZkSetup::new_unsafe(&mut zksetup_rng, &my_party_id.to_bytes())?;
+    let (zk_setup, zk_setup_proof) =
+        ZkSetup::new_unsafe(&mut zksetup_rng, &my_party_id.to_bytes())?;
 
-    Ok((keypair, PartyZkSetup { zkp, zkp_proof }))
+    Ok(PartyKeygenData {
+        encryption_keypair,
+        encryption_keypair_proof,
+        zk_setup,
+        zk_setup_proof,
+    })
 }
 
 // BEWARE: This is only made visible for faster integration testing
@@ -137,8 +160,7 @@ pub fn new_keygen(
     threshold: usize,
     my_party_id: TypedUsize<KeygenPartyId>,
     my_subshare_id: usize, // in 0..party_share_counts[my_party_id]
-    party_keypair: &PartyKeyPair,
-    party_zksetup: &PartyZkSetup,
+    party_keygen_data: &PartyKeygenData,
     #[cfg(feature = "malicious")] behaviour: malicious::Behaviour,
 ) -> TofnResult<KeygenProtocol> {
     // validate args
@@ -171,8 +193,7 @@ pub fn new_keygen(
         my_keygen_id,
         threshold,
         party_share_counts.clone(),
-        party_keypair,
-        party_zksetup,
+        party_keygen_data,
         #[cfg(feature = "malicious")]
         behaviour,
     )?;

@@ -81,7 +81,7 @@ impl TestCase {
                     .share_to_party_subshare_ids(share_id)
                     .unwrap();
 
-                let (party_keypair, party_zksetup) = create_party_keypair_and_zksetup_unsafe(
+                let party_keygen_data = create_party_keypair_and_zksetup_unsafe(
                     party_id,
                     &dummy_secret_recovery_key(share_id),
                     session_nonce,
@@ -93,8 +93,7 @@ impl TestCase {
                     self.threshold,
                     party_id,
                     subshare_id,
-                    &party_keypair,
-                    &party_zksetup,
+                    &party_keygen_data,
                     behaviour.clone(),
                 )
                 .unwrap()

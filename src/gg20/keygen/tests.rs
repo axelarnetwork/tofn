@@ -83,7 +83,7 @@ fn execute_keygen_from_recovery(
     let mut r1_parties: Vec<_> = party_share_counts
         .iter()
         .map(|(party_id, &party_share_count)| {
-            let (party_keypair, party_zksetup) = create_party_keypair_and_zksetup_unsafe(
+            let party_keygen_data = create_party_keypair_and_zksetup_unsafe(
                 party_id,
                 secret_recovery_keys.get(party_id).unwrap(),
                 session_nonce,
@@ -97,8 +97,7 @@ fn execute_keygen_from_recovery(
                     threshold,
                     party_id,
                     subshare_id,
-                    &party_keypair,
-                    &party_zksetup,
+                    &party_keygen_data,
                     #[cfg(feature = "malicious")]
                     Honest,
                 )

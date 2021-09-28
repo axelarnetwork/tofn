@@ -8,9 +8,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::{
-    r2, KeygenPartyShareCounts, KeygenProtocolBuilder, KeygenShareId, PartyKeyPair, PartyZkSetup,
-};
+use super::{r2, KeygenPartyShareCounts, KeygenProtocolBuilder, KeygenShareId, PartyKeygenData};
 
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
@@ -28,8 +26,7 @@ pub(super) fn start(
     my_keygen_id: TypedUsize<KeygenShareId>,
     threshold: usize,
     party_share_counts: KeygenPartyShareCounts,
-    keypair: &PartyKeyPair,
-    zksetup: &PartyZkSetup,
+    party_keygen_data: &PartyKeygenData,
     #[cfg(feature = "malicious")] behaviour: Behaviour,
 ) -> TofnResult<KeygenProtocolBuilder> {
     let u_i_vss = vss::Vss::new(threshold);
@@ -44,18 +41,13 @@ pub(super) fn start(
         malicious::corrupt_commit(my_keygen_id, &behaviour, y_i_commit)
     );
 
-    let ek_proof = keypair.ek.correctness_proof(
-        &keypair.dk,
-        &party_share_counts
-            .share_to_party_id(my_keygen_id)?
-            .to_bytes(),
-    );
+    let ek_proof = party_keygen_data.encryption_keypair_proof.clone();
     corrupt!(
         ek_proof,
         malicious::corrupt_ek_proof(my_keygen_id, &behaviour, ek_proof)
     );
 
-    let zkp_proof = zksetup.zkp_proof.clone();
+    let zkp_proof = party_keygen_data.zk_setup_proof.clone();
     corrupt!(
         zkp_proof,
         malicious::corrupt_zkp_proof(my_keygen_id, &behaviour, zkp_proof)
@@ -63,9 +55,9 @@ pub(super) fn start(
 
     let bcast_out = Some(serialize(&Bcast {
         y_i_commit,
-        ek: keypair.ek.clone(),
+        ek: party_keygen_data.encryption_keypair.ek.clone(),
         ek_proof,
-        zkp: zksetup.zkp.clone(),
+        zkp: party_keygen_data.zk_setup.clone(),
         zkp_proof,
     })?);
 
@@ -73,7 +65,7 @@ pub(super) fn start(
         Box::new(r2::R2 {
             threshold,
             party_share_counts,
-            dk: keypair.dk.clone(),
+            dk: party_keygen_data.encryption_keypair.dk.clone(),
             u_i_vss,
             y_i_reveal,
             #[cfg(feature = "malicious")]
