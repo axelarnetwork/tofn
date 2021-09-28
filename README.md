@@ -260,9 +260,17 @@ As such, if `bytes` is malformed or malicious then `B` will accuse `A` of faulty
 * We assume that an honest party's Round x message is sent before Round x + i.
 * We also assume that no party receives a Round x + i message from any other party before their Round x message.
 
-## Paillier dependency
+## License
 
-Tofn currently uses [a fork of rust-paillier](https://github.com/axelarnetwork/rust-paillier) for Paillier encryption.  This fork has not been audited for security.  In the future we intend to improve our Paillier encryption.
+All crates licensed under either of
 
+ * [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0)
+ * [MIT license](http://opensource.org/licenses/MIT)
 
+at your option.
 
+### Contribution
+
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
+dual licensed as above, without any additional terms or conditions.
