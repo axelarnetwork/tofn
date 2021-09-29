@@ -260,7 +260,7 @@ As such, if `bytes` is malformed or malicious then `B` will accuse `A` of faulty
 * We assume that an honest party's Round x message is sent before Round x + i.
 * We also assume that no party receives a Round x + i message from any other party before their Round x message.
 
-## License
+# License
 
 All crates licensed under either of
 
@@ -269,7 +269,7 @@ All crates licensed under either of
 
 at your option.
 
-### Contribution
+## Contribution
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
