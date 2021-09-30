@@ -26,6 +26,8 @@ use zeroize::Zeroize;
 #[cfg(feature = "malicious")]
 use super::malicious;
 
+pub const MAX_MSG_LEN: usize = 9000;
+
 pub use super::secret_key_share::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -34,7 +36,7 @@ pub struct KeygenShareId;
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct KeygenPartyId;
 
-pub type KeygenProtocol = Protocol<SecretKeyShare, KeygenShareId, KeygenPartyId>;
+pub type KeygenProtocol = Protocol<SecretKeyShare, KeygenShareId, KeygenPartyId, MAX_MSG_LEN>;
 pub type KeygenProtocolBuilder = ProtocolBuilder<SecretKeyShare, KeygenShareId>;
 pub type KeygenPartyShareCounts = PartyShareCounts<KeygenPartyId>;
 

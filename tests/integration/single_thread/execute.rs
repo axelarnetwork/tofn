@@ -6,9 +6,9 @@ use tofn::{
 };
 use tracing::{debug, warn};
 
-pub fn execute_protocol<F, K, P>(
-    mut parties: VecMap<K, Protocol<F, K, P>>,
-) -> TofnResult<VecMap<K, Protocol<F, K, P>>>
+pub fn execute_protocol<F, K, P, const MAX_MSG_IN_LEN: usize>(
+    mut parties: VecMap<K, Protocol<F, K, P, MAX_MSG_IN_LEN>>,
+) -> TofnResult<VecMap<K, Protocol<F, K, P, MAX_MSG_IN_LEN>>>
 where
     K: Clone,
 {
@@ -18,7 +18,9 @@ where
     Ok(parties)
 }
 
-pub fn nobody_done<F, K, P>(parties: &VecMap<K, Protocol<F, K, P>>) -> bool {
+pub fn nobody_done<F, K, P, const MAX_MSG_IN_LEN: usize>(
+    parties: &VecMap<K, Protocol<F, K, P, MAX_MSG_IN_LEN>>,
+) -> bool {
     // warn if there's disagreement
     let (mut done, mut not_done) = (
         Vec::with_capacity(parties.len()),
@@ -40,9 +42,9 @@ pub fn nobody_done<F, K, P>(parties: &VecMap<K, Protocol<F, K, P>>) -> bool {
     done.is_empty()
 }
 
-fn next_round<F, K, P>(
-    parties: VecMap<K, Protocol<F, K, P>>,
-) -> TofnResult<VecMap<K, Protocol<F, K, P>>>
+fn next_round<F, K, P, const MAX_MSG_IN_LEN: usize>(
+    parties: VecMap<K, Protocol<F, K, P, MAX_MSG_IN_LEN>>,
+) -> TofnResult<VecMap<K, Protocol<F, K, P, MAX_MSG_IN_LEN>>>
 where
     K: Clone,
 {

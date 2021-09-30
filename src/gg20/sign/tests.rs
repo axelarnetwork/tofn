@@ -21,7 +21,7 @@ use tracing_test::traced_test;
 #[cfg(feature = "malicious")]
 use crate::gg20::sign::malicious::Behaviour::Honest;
 
-type Party = Round<BytesVec, SignShareId, SignPartyId>;
+type Party = Round<BytesVec, SignShareId, SignPartyId, MAX_MSG_LEN>;
 type Parties = Vec<Party>;
 type PartyBcast = Result<VecMap<SignShareId, BytesVec>, ()>;
 type PartyP2p = Result<VecMap<SignShareId, HoleVecMap<SignShareId, BytesVec>>, ()>;

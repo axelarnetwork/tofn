@@ -21,7 +21,9 @@ use super::r1;
 #[cfg(feature = "malicious")]
 use super::malicious;
 
-pub type SignProtocol = Protocol<BytesVec, SignShareId, SignPartyId>;
+pub const MAX_MSG_LEN: usize = 15000;
+
+pub type SignProtocol = Protocol<BytesVec, SignShareId, SignPartyId, MAX_MSG_LEN>;
 pub type SignProtocolBuilder = ProtocolBuilder<BytesVec, SignShareId>;
 
 // This includes all shares participating in the current signing protocol
