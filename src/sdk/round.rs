@@ -42,8 +42,22 @@ impl<F, K, P> Round<F, K, P> {
         let share_id = self.info().share_info().my_id();
         let party_id = self.info().party_id();
 
+        // guard against large-message attack
+        let max_len = 14000;
+        if bytes.len() > max_len {
+            warn!(
+                "peer {} (party {}) says: msg_in bytes length {} exceeds maximum {} from party {}",
+                share_id,
+                party_id,
+                bytes.len(),
+                max_len,
+                from
+            );
+            self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
+            return Ok(());
+        }
+
         // deserialize metadata
-        // TODO bounds check everything in bytes_meta
         let bytes_meta: WireBytes<K> = match wire_bytes::decode_message(bytes) {
             Some(w) => w,
             None => {
@@ -51,7 +65,7 @@ impl<F, K, P> Round<F, K, P> {
                     "peer {} (party {}) says: msg_in fail to deserialize metadata for msg from party {}",
                     share_id, party_id, from
                 );
-                self.msg_in_faulters.set(from, Fault::CorruptedMessage)?; // fatal error if `from` is out of bounds
+                self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
                 return Ok(());
             }
         };
