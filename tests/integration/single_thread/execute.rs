@@ -1,10 +1,10 @@
 //! Single-threaded generic protocol execution
 
 use tofn::{
-    collections::{HoleVecMap, VecMap},
+    collections::{HoleVecMap, TypedUsize, VecMap},
     sdk::api::{BytesVec, Protocol, TofnResult},
 };
-use tracing::warn;
+use tracing::{debug, warn};
 
 pub fn execute_protocol<F, K, P>(
     mut parties: VecMap<K, Protocol<F, K, P>>,
@@ -62,6 +62,10 @@ where
         .collect();
     for (from, bcast) in bcasts.into_iter() {
         if let Some(bytes) = bcast {
+            if from.as_usize() == 0 {
+                debug!("bcast byte length {}", bytes.len());
+            }
+
             for (_, round) in rounds.iter_mut() {
                 round.msg_in(
                     round
@@ -82,6 +86,12 @@ where
         .collect();
     for (from, p2ps) in all_p2ps.into_iter() {
         if let Some(p2ps) = p2ps {
+            if from.as_usize() == 0 {
+                debug!(
+                    "p2p byte length {}",
+                    p2ps.get(TypedUsize::from_usize(1)).unwrap().len()
+                );
+            }
             for (_, bytes) in p2ps {
                 for (_, round) in rounds.iter_mut() {
                     round.msg_in(
