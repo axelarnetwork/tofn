@@ -39,7 +39,7 @@ fn basic_correctness() {
     set_up_logs();
 
     // keygen
-    let party_share_counts = PartyShareCounts::from_vec(vec![1, 2, 3, 14]).unwrap(); // 10 total shares
+    let party_share_counts = PartyShareCounts::from_vec(vec![1, 2, 3, 4]).unwrap(); // 10 total shares
     let threshold = 5;
     let sign_parties = {
         let mut sign_parties = SignParties::with_max_size(party_share_counts.party_count());
