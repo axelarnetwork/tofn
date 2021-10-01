@@ -29,6 +29,7 @@ use super::malicious;
 /// Maximum byte length of messages exchanged during keygen.
 /// The sender of a message larger than this maximum will be accused as a faulter.
 /// View all message sizes in the logs of the integration test `single_thred::basic_correctness`.
+/// The largest keygen message is r1::Bcast with size 8554 bytes on the wire.
 pub const MAX_MSG_LEN: usize = 9000;
 
 pub use super::secret_key_share::*;

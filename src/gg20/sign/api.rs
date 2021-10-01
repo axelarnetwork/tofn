@@ -24,6 +24,7 @@ use super::malicious;
 /// Maximum byte length of messages exchanged during sign.
 /// The sender of a message larger than this maximum will be accused as a faulter.
 /// View all message sizes in the logs of the integration test `single_thred::basic_correctness`.
+/// The largest sign message is r2::P2pHappy with size ~13700 bytes on the wire.
 pub const MAX_MSG_LEN: usize = 15000;
 
 pub type SignProtocol = Protocol<BytesVec, SignShareId, SignPartyId, MAX_MSG_LEN>;

@@ -15,6 +15,8 @@ use super::{
     wire_bytes::{self, MsgType::*, WireBytes},
 };
 
+/// MAX_MSG_IN_LEN is the maximum byte length of messages exchanged during sign.
+/// The sender of a message larger than this maximum will be accused as a faulter.
 pub struct Round<F, K, P, const MAX_MSG_IN_LEN: usize> {
     info: ProtocolInfoDeluxe<K, P>,
     round: Box<dyn ExecuterRaw<FinalOutput = F, Index = K>>,
