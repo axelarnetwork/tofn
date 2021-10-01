@@ -48,8 +48,12 @@ impl EncryptionKey {
 
     // TODO how to make `encrypt` generic over `T` where `&T` impls `Into<Plaintext>`?
     // example: https://docs.rs/ecdsa/0.11.1/ecdsa/struct.Signature.html#method.from_scalars
+    /// Encrypt a plaintext `p` with the Paillier encryption key.
     pub fn encrypt(&self, p: &Plaintext) -> (Ciphertext, Randomness) {
+        // Paillier encryption requires r to be co-prime to N
+        // Sampling a random integer mod N has negligible probability of not being co-prime
         let r = self.sample_randomness();
+
         (self.encrypt_with_randomness(p, &r), r)
     }
 

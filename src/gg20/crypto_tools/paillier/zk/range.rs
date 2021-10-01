@@ -6,8 +6,12 @@ use crate::{
         crypto_tools::{
             constants, k256_serde,
             paillier::{
-                secp256k1_modulus, to_bigint, to_scalar, to_vec, zk::ZkSetup, Ciphertext,
-                EncryptionKey, Plaintext, Randomness,
+                secp256k1_modulus, to_bigint, to_scalar,
+                zk::{
+                    utils::{member_of_mod, member_of_mul_group},
+                    ZkSetup,
+                },
+                Ciphertext, EncryptionKey, Plaintext, Randomness,
             },
         },
         sign::SignShareId,
@@ -103,6 +107,34 @@ impl ZkSetup {
         )
     }
 
+    /// Compute the challenge e in Z_q for the range proof
+    fn compute_range_proof_challenge(
+        tag: u8,
+        stmt: &Statement,
+        msg_g_g: Option<(&k256::ProjectivePoint, &k256::ProjectivePoint)>, // (msg_g, g)
+        z: &BigNumber,
+        u: &Ciphertext,
+        u1: Option<&k256::ProjectivePoint>,
+        w: &BigNumber,
+    ) -> k256::Scalar {
+        let e = k256::Scalar::from_digest(
+            Sha256::new()
+                .chain(tag.to_be_bytes())
+                .chain(stmt.prover_id.to_bytes())
+                .chain(stmt.verifier_id.to_bytes())
+                .chain(stmt.ek.0.n().to_bytes())
+                .chain(stmt.ciphertext.0.to_bytes())
+                .chain(msg_g_g.map_or(Vec::new(), |(msg_g, _)| k256_serde::to_bytes(msg_g)))
+                .chain(msg_g_g.map_or(Vec::new(), |(_, g)| k256_serde::to_bytes(g)))
+                .chain(z.to_bytes())
+                .chain(u.0.to_bytes())
+                .chain(u1.map_or(Vec::new(), |u1| k256_serde::to_bytes(u1)))
+                .chain(w.to_bytes()),
+        );
+
+        e
+    }
+
     #[allow(clippy::many_single_char_names)]
     fn range_proof_inner(
         &self,
@@ -111,45 +143,63 @@ impl ZkSetup {
         msg_g_g: Option<(&k256::ProjectivePoint, &k256::ProjectivePoint)>, // (msg_g, g)
         wit: &Witness,
     ) -> (Proof, Option<k256::ProjectivePoint>) {
-        let alpha_pt = Plaintext(BigNumber::random(&secp256k1_modulus_cubed()));
-        let alpha_bigint = &alpha_pt.0;
+        // Assume: m in Z_q
+        debug_assert!(member_of_mod(&to_bigint(wit.msg), &secp256k1_modulus()));
 
-        let q_n_tilde = secp256k1_modulus() * &self.dlog_stmt.n;
-        let q3_n_tilde = secp256k1_modulus_cubed() * &self.dlog_stmt.n;
+        // Assume: r in Z*_N
+        debug_assert!(member_of_mul_group(&wit.randomness.0, stmt.ek.0.n()));
 
-        let rho = BigNumber::random(&q_n_tilde);
-        let gamma = BigNumber::random(&q3_n_tilde);
+        // Assume: c in Z*_N^2
+        debug_assert!(member_of_mul_group(&stmt.ciphertext.0, stmt.ek.0.nn()));
 
-        let z = self.commit(&to_bigint(wit.msg), &rho);
-        let (u, beta) = stmt.ek.encrypt(&alpha_pt);
-        let w = self.commit(alpha_bigint, &gamma);
+        // Sample alpha from Z_q^3
+        let alpha = Plaintext(BigNumber::random(&secp256k1_modulus_cubed()));
+        let alpha_bigint = &alpha.0;
 
-        let u1 = msg_g_g.map::<k256::ProjectivePoint, _>(|(_, g)| g * &alpha_pt.to_scalar());
+        let q_n_tilde = secp256k1_modulus() * self.n_tilde();
+        let q3_n_tilde = secp256k1_modulus_cubed() * self.n_tilde();
 
-        let e = k256::Scalar::from_digest(
-            Sha256::new()
-                .chain(tag.to_be_bytes())
-                .chain(stmt.prover_id.to_bytes())
-                .chain(stmt.verifier_id.to_bytes())
-                .chain(to_vec(stmt.ek.0.n()))
-                .chain(to_vec(&stmt.ciphertext.0))
-                .chain(&msg_g_g.map_or(Vec::new(), |(msg_g, _)| k256_serde::to_bytes(msg_g)))
-                .chain(&msg_g_g.map_or(Vec::new(), |(_, g)| k256_serde::to_bytes(g)))
-                .chain(to_vec(&z))
-                .chain(to_vec(&u.0))
-                .chain(&u1.map_or(Vec::new(), |u1| k256_serde::to_bytes(&u1)))
-                .chain(to_vec(&w)),
-        );
-        let e_bigint = to_bigint(&e);
+        // Sample rho from Z_(q N~)
+        let rho = Randomness(BigNumber::random(&q_n_tilde));
+        // Sample gamma from Z_(q^3 N~)
+        let gamma = Randomness(BigNumber::random(&q3_n_tilde));
 
+        // z = h_1^m h_2^rho mod N_tilde
+        let z = self.commit(&to_bigint(wit.msg), &rho.0);
+
+        // Sample beta from Z*_N
+        // u = Paillier-Enc(alpha, beta)
+        let (u, beta) = stmt.ek.encrypt(&alpha);
+
+        // w = h_1^alpha h_2^gamma mod N_tilde
+        let w = self.commit(alpha_bigint, &gamma.0);
+
+        // u1 = g^alpha
+        let u1 = msg_g_g.map::<k256::ProjectivePoint, _>(|(_, g)| g * &alpha.to_scalar());
+
+        let e = &to_bigint(&Self::compute_range_proof_challenge(
+            tag,
+            stmt,
+            msg_g_g,
+            &z,
+            &u,
+            u1.as_ref(),
+            &w,
+        ));
+
+        // s = r^e beta mod N
         let s = Randomness(
             wit.randomness
                 .0
-                .modpow(&e_bigint, stmt.ek.0.n())
+                .modpow(e, stmt.ek.0.n())
                 .modmul(&beta.0, stmt.ek.0.n()),
         );
-        let s1 = Plaintext(e_bigint.clone() * to_bigint(wit.msg) + alpha_bigint);
-        let s2 = e_bigint * rho + gamma;
+
+        // s1 = e * m + alpha
+        let s1 = Plaintext(e * to_bigint(wit.msg) + alpha_bigint);
+
+        // s2 = e * rho + gamma
+        let s2 = e * &rho.0 + &gamma.0;
 
         (Proof { z, u, w, s, s1, s2 }, u1)
     }
@@ -165,37 +215,81 @@ impl ZkSetup {
             &k256::ProjectivePoint,
         )>, // (msg_g, g, u1)
     ) -> bool {
-        if proof.s1.0 > secp256k1_modulus_cubed() || proof.s1.0 < BigNumber::zero() {
-            warn!("s1 not in range q^3");
+        // Ensure c is in Z*_N^2
+        if !member_of_mul_group(&stmt.ciphertext.0, stmt.ek.0.nn()) {
+            warn!("range proof: ciphertext not in Z*_N^2");
             return false;
         }
-        let e = k256::Scalar::from_digest(
-            Sha256::new()
-                .chain(tag.to_be_bytes())
-                .chain(stmt.prover_id.to_bytes())
-                .chain(stmt.verifier_id.to_bytes())
-                .chain(to_vec(stmt.ek.0.n()))
-                .chain(to_vec(&stmt.ciphertext.0))
-                .chain(&msg_g_g_u1.map_or(Vec::new(), |(msg_g, _, _)| k256_serde::to_bytes(msg_g)))
-                .chain(&msg_g_g_u1.map_or(Vec::new(), |(_, g, _)| k256_serde::to_bytes(g)))
-                .chain(to_vec(&proof.z))
-                .chain(to_vec(&proof.u.0))
-                .chain(&msg_g_g_u1.map_or(Vec::new(), |(_, _, u1)| k256_serde::to_bytes(u1)))
-                .chain(to_vec(&proof.w)),
+
+        // Ensure z is in Z*_N~
+        if !member_of_mul_group(&proof.z, self.n_tilde()) {
+            warn!("range proof: z not in Z*_N~");
+            return false;
+        }
+
+        // Ensure u is in Z*_N^2
+        if !member_of_mul_group(&proof.u.0, stmt.ek.0.nn()) {
+            warn!("range proof: u not in Z*_N^2");
+            return false;
+        }
+
+        // Ensure w is in Z*_N~
+        if !member_of_mul_group(&proof.w, self.n_tilde()) {
+            warn!("range proof: w not in Z*_N~");
+            return false;
+        }
+
+        // Ensure s is in Z*_N
+        if !member_of_mul_group(&proof.s.0, stmt.ek.0.n()) {
+            warn!("range proof: s not in Z*_N");
+            return false;
+        }
+
+        // Ensure s1 is in Z_q^3
+        // Note that the Appendix says to check for s1 <= q^3,
+        // but it'll be equal with negligible probability from an honest user
+        // and the soundness proof mentions s1 < q^3.
+        if !member_of_mod(&proof.s1.0, &secp256k1_modulus_cubed()) {
+            warn!("range proof: s1 not in Z_q^3");
+            return false;
+        }
+
+        // Ensure s2 is in Z_(q^3 N~)
+        let q3_n_tilde = secp256k1_modulus_cubed() * self.n_tilde();
+        if !member_of_mod(&proof.s2, &q3_n_tilde) {
+            warn!("range proof: s2 not in Z_(q^3 N~)");
+            return false;
+        }
+
+        // Ensure msg_g and u1 is are points on secp256k1
+        // This is handled by k256_serde on deserialize.
+
+        let e = Self::compute_range_proof_challenge(
+            tag,
+            stmt,
+            msg_g_g_u1.map(|(msg_g, g, _)| (msg_g, g)),
+            &proof.z,
+            &proof.u,
+            msg_g_g_u1.map(|(_, _, u1)| u1),
+            &proof.w,
         );
+
         let e_neg_bigint = to_bigint(&e).neg();
         let e_neg = e.negate();
 
         if let Some((msg_g, g, u1)) = msg_g_g_u1 {
             let s1 = to_scalar(&proof.s1.0);
             let s1_g = g * &s1;
+
+            // u1 ?= g^s1 y^(-e)
             let u1_check = msg_g * &e_neg + s1_g;
             if u1_check != *u1 {
-                warn!("'wc' check fail");
+                warn!("range proof: 'wc' check failed, invalid u1");
                 return false;
             }
         }
 
+        // u ?= Paillier-Enc(s1, s) * c^(-e) mod N^2
         let u_check = stmt
             .ek
             .encrypt_with_randomness(&proof.s1, &proof.s)
@@ -205,16 +299,17 @@ impl ZkSetup {
                 stmt.ek.0.nn(),
             );
         if u_check != proof.u.0 {
-            warn!("u check fail");
+            warn!("range proof: u check failed");
             return false;
         }
 
+        // w ?= h1^s1 h2^s2 z^(-e) mod N~
         let w_check = self.commit(&proof.s1.0, &proof.s2).modmul(
             &proof.z.modpow(&e_neg_bigint, self.n_tilde()),
             self.n_tilde(),
         );
         if w_check != proof.w {
-            warn!("w check fail");
+            warn!("range proof: w check failed");
             return false;
         }
 

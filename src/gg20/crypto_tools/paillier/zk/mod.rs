@@ -29,7 +29,7 @@ pub struct ZkSetup {
 
 pub type ZkSetupProof = CompositeDLogProof;
 
-/// As per the GG20 paper on Pg. 13, a different RSA modulus is needed for
+/// As per the Appendix, Pg. 25 of GG18 (2019/114) and Pg. 13 of GG20, a different RSA modulus is needed for
 /// the ZK proofs used in the protocol. While we don't need a Paillier keypair
 /// here, we use the same keygen methods for convenience.
 /// According to GG20, each peer (acting as the verifier)
@@ -81,6 +81,7 @@ impl ZkSetup {
         &self.dlog_stmt.n
     }
 
+    /// Compute the FO commitment, `h1^msg h2^r mod N~`
     fn commit(&self, msg: &BigNumber, randomness: &BigNumber) -> BigNumber {
         let h1_x = self.h1().modpow(msg, self.n_tilde());
         let h2_r = self.h2().modpow(randomness, self.n_tilde());
