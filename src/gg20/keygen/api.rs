@@ -26,6 +26,9 @@ use zeroize::Zeroize;
 #[cfg(feature = "malicious")]
 use super::malicious;
 
+/// Maximum byte length of messages exchanged during keygen.
+/// The sender of a message larger than this maximum will be accused as a faulter.
+/// View all message sizes in the logs of the integration test `single_thred::basic_correctness`.
 pub const MAX_MSG_LEN: usize = 9000;
 
 pub use super::secret_key_share::*;

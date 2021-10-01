@@ -18,6 +18,9 @@ use super::{r1, KeygenPartyShareCounts, KeygenShareId};
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
 
+/// TODO: The byte length of this struct is proportional to the threshold.
+/// Instead it should be constant.
+/// https://github.com/axelarnetwork/tofn/issues/171
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(super) struct Bcast {
     pub(super) y_i_reveal: hash::Randomness,
