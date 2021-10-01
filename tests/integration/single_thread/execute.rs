@@ -1,24 +1,28 @@
 //! Single-threaded generic protocol execution
 
 use tofn::{
-    collections::{HoleVecMap, VecMap},
+    collections::{HoleVecMap, TypedUsize, VecMap},
     sdk::api::{BytesVec, Protocol, TofnResult},
 };
-use tracing::warn;
+use tracing::{debug, warn};
 
-pub fn execute_protocol<F, K, P>(
-    mut parties: VecMap<K, Protocol<F, K, P>>,
-) -> TofnResult<VecMap<K, Protocol<F, K, P>>>
+pub fn execute_protocol<F, K, P, const MAX_MSG_IN_LEN: usize>(
+    mut parties: VecMap<K, Protocol<F, K, P, MAX_MSG_IN_LEN>>,
+) -> TofnResult<VecMap<K, Protocol<F, K, P, MAX_MSG_IN_LEN>>>
 where
     K: Clone,
 {
+    let mut current_round = 0;
     while nobody_done(&parties) {
-        parties = next_round(parties)?;
+        current_round += 1;
+        parties = next_round(parties, current_round)?;
     }
     Ok(parties)
 }
 
-pub fn nobody_done<F, K, P>(parties: &VecMap<K, Protocol<F, K, P>>) -> bool {
+pub fn nobody_done<F, K, P, const MAX_MSG_IN_LEN: usize>(
+    parties: &VecMap<K, Protocol<F, K, P, MAX_MSG_IN_LEN>>,
+) -> bool {
     // warn if there's disagreement
     let (mut done, mut not_done) = (
         Vec::with_capacity(parties.len()),
@@ -40,9 +44,10 @@ pub fn nobody_done<F, K, P>(parties: &VecMap<K, Protocol<F, K, P>>) -> bool {
     done.is_empty()
 }
 
-fn next_round<F, K, P>(
-    parties: VecMap<K, Protocol<F, K, P>>,
-) -> TofnResult<VecMap<K, Protocol<F, K, P>>>
+fn next_round<F, K, P, const MAX_MSG_IN_LEN: usize>(
+    parties: VecMap<K, Protocol<F, K, P, MAX_MSG_IN_LEN>>,
+    current_round: usize,
+) -> TofnResult<VecMap<K, Protocol<F, K, P, MAX_MSG_IN_LEN>>>
 where
     K: Clone,
 {
@@ -62,6 +67,10 @@ where
         .collect();
     for (from, bcast) in bcasts.into_iter() {
         if let Some(bytes) = bcast {
+            if from.as_usize() == 0 {
+                debug!("round {} bcast byte length {}", current_round, bytes.len());
+            }
+
             for (_, round) in rounds.iter_mut() {
                 round.msg_in(
                     round
@@ -82,6 +91,13 @@ where
         .collect();
     for (from, p2ps) in all_p2ps.into_iter() {
         if let Some(p2ps) = p2ps {
+            if from.as_usize() == 0 {
+                debug!(
+                    "round {} p2p byte length {}",
+                    current_round,
+                    p2ps.get(TypedUsize::from_usize(1)).unwrap().len()
+                );
+            }
             for (_, bytes) in p2ps {
                 for (_, round) in rounds.iter_mut() {
                     round.msg_in(

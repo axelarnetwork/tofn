@@ -93,8 +93,8 @@ pub enum FaultType {
     Duplicate,
 }
 
-fn execute_test_case<F, K, P>(
-    shares: VecMap<K, Protocol<F, K, P>>,
+fn execute_test_case<F, K, P, const MAX_MSG_IN_LEN: usize>(
+    shares: VecMap<K, Protocol<F, K, P, MAX_MSG_IN_LEN>>,
     test_case: SingleFaulterTestCase<K, P>,
 ) where
     K: PartialEq + std::fmt::Debug + Clone + Copy, // TODO can't quite escape ugly trait bounds :(
@@ -119,10 +119,10 @@ fn execute_test_case<F, K, P>(
     }
 }
 
-pub fn execute_protocol<F, K, P>(
-    mut parties: VecMap<K, Protocol<F, K, P>>,
+pub fn execute_protocol<F, K, P, const MAX_MSG_IN_LEN: usize>(
+    mut parties: VecMap<K, Protocol<F, K, P, MAX_MSG_IN_LEN>>,
     test_case: &SingleFaulterTestCase<K, P>,
-) -> TofnResult<VecMap<K, Protocol<F, K, P>>>
+) -> TofnResult<VecMap<K, Protocol<F, K, P, MAX_MSG_IN_LEN>>>
 where
     K: Clone + Copy,
 {
@@ -134,11 +134,11 @@ where
     Ok(parties)
 }
 
-fn next_round<F, K, P>(
-    parties: VecMap<K, Protocol<F, K, P>>,
+fn next_round<F, K, P, const MAX_MSG_IN_LEN: usize>(
+    parties: VecMap<K, Protocol<F, K, P, MAX_MSG_IN_LEN>>,
     test_case: &SingleFaulterTestCase<K, P>,
     current_round: usize,
-) -> TofnResult<VecMap<K, Protocol<F, K, P>>>
+) -> TofnResult<VecMap<K, Protocol<F, K, P, MAX_MSG_IN_LEN>>>
 where
     K: Clone + Copy,
 {

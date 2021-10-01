@@ -14,6 +14,7 @@ use tofn::{
 
 #[cfg(feature = "malicious")]
 use tofn::gg20::sign;
+use tracing::debug;
 
 // use test_env_log::test;
 // use tracing_test::traced_test; // enable logs in tests
@@ -40,6 +41,20 @@ fn basic_correctness() {
     // keygen
     let party_share_counts = PartyShareCounts::from_vec(vec![1, 2, 3, 4]).unwrap(); // 10 total shares
     let threshold = 5;
+    let sign_parties = {
+        let mut sign_parties = SignParties::with_max_size(party_share_counts.party_count());
+        sign_parties.add(TypedUsize::from_usize(0)).unwrap();
+        sign_parties.add(TypedUsize::from_usize(1)).unwrap();
+        sign_parties.add(TypedUsize::from_usize(3)).unwrap();
+        sign_parties
+    };
+    debug!(
+        "total_share_count {}, threshold {}",
+        party_share_counts.total_share_count(),
+        threshold,
+    );
+
+    debug!("keygen...");
     let keygen_shares = keygen::initialize_honest_parties(&party_share_counts, threshold);
     let keygen_share_outputs = execute_protocol(keygen_shares).expect("internal tofn error");
     let secret_key_shares: VecMap<KeygenShareId, SecretKeyShare> =
@@ -49,13 +64,8 @@ fn basic_correctness() {
         });
 
     // sign
-    let sign_parties = {
-        let mut sign_parties = SignParties::with_max_size(party_share_counts.party_count());
-        sign_parties.add(TypedUsize::from_usize(0)).unwrap();
-        sign_parties.add(TypedUsize::from_usize(1)).unwrap();
-        sign_parties.add(TypedUsize::from_usize(3)).unwrap();
-        sign_parties
-    };
+    debug!("sign...");
+
     let keygen_share_ids = VecMap::<SignShareId, _>::from_vec(
         party_share_counts.share_id_subset(&sign_parties).unwrap(),
     );

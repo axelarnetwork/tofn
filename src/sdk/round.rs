@@ -15,7 +15,9 @@ use super::{
     wire_bytes::{self, MsgType::*, WireBytes},
 };
 
-pub struct Round<F, K, P> {
+/// MAX_MSG_IN_LEN is the maximum byte length of messages exchanged during sign.
+/// The sender of a message larger than this maximum will be accused as a faulter.
+pub struct Round<F, K, P, const MAX_MSG_IN_LEN: usize> {
     info: ProtocolInfoDeluxe<K, P>,
     round: Box<dyn ExecuterRaw<FinalOutput = F, Index = K>>,
     bcast_out: Option<BytesVec>,
@@ -27,7 +29,7 @@ pub struct Round<F, K, P> {
 }
 
 // api: Round methods for tofn users
-impl<F, K, P> Round<F, K, P> {
+impl<F, K, P, const MAX_MSG_IN_LEN: usize> Round<F, K, P, MAX_MSG_IN_LEN> {
     pub fn bcast_out(&self) -> Option<&BytesVec> {
         self.bcast_out.as_ref()
     }
@@ -42,8 +44,21 @@ impl<F, K, P> Round<F, K, P> {
         let share_id = self.info().share_info().my_id();
         let party_id = self.info().party_id();
 
+        // guard against large-message attack
+        if bytes.len() > MAX_MSG_IN_LEN {
+            warn!(
+                "peer {} (party {}) says: msg_in bytes length {} exceeds maximum {} from party {}",
+                share_id,
+                party_id,
+                bytes.len(),
+                MAX_MSG_IN_LEN,
+                from
+            );
+            self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
+            return Ok(());
+        }
+
         // deserialize metadata
-        // TODO bounds check everything in bytes_meta
         let bytes_meta: WireBytes<K> = match wire_bytes::decode_message(bytes) {
             Some(w) => w,
             None => {
@@ -51,7 +66,7 @@ impl<F, K, P> Round<F, K, P> {
                     "peer {} (party {}) says: msg_in fail to deserialize metadata for msg from party {}",
                     share_id, party_id, from
                 );
-                self.msg_in_faulters.set(from, Fault::CorruptedMessage)?; // fatal error if `from` is out of bounds
+                self.msg_in_faulters.set(from, Fault::CorruptedMessage)?;
                 return Ok(());
             }
         };
@@ -184,7 +199,7 @@ impl<F, K, P> Round<F, K, P> {
         false
     }
 
-    pub fn execute_next_round(mut self) -> TofnResult<Protocol<F, K, P>> {
+    pub fn execute_next_round(mut self) -> TofnResult<Protocol<F, K, P, MAX_MSG_IN_LEN>> {
         let my_share_id = self.info().share_info().my_id();
         let my_party_id = self.info().party_id();
         let curr_round_num = self.info.round();
@@ -325,7 +340,7 @@ pub mod malicious {
 
     use super::{Round, TofnResult};
 
-    impl<F, K, P> Round<F, K, P> {
+    impl<F, K, P, const MAX_MSG_IN_LEN: usize> Round<F, K, P, MAX_MSG_IN_LEN> {
         pub fn corrupt_msg_payload(&mut self, msg_type: MsgType<K>) -> TofnResult<()> {
             info!(
                 "malicious party {} corrupt msg",

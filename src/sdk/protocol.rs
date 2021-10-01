@@ -5,8 +5,8 @@ use super::{
 use crate::collections::{FillVecMap, TypedUsize};
 use serde::{Deserialize, Serialize};
 
-pub enum Protocol<F, K, P> {
-    NotDone(Round<F, K, P>),
+pub enum Protocol<F, K, P, const MAX_MSG_IN_LEN: usize> {
+    NotDone(Round<F, K, P, MAX_MSG_IN_LEN>),
     Done(ProtocolOutput<F, P>),
 }
 
@@ -22,10 +22,10 @@ pub enum Fault {
 
 // not an associated function of `Protocol`
 // because we want to expose it only in the implementer api
-pub fn new_protocol<F, K, P>(
+pub fn new_protocol<F, K, P, const MAX_MSG_IN_LEN: usize>(
     party_share_counts: PartyShareCounts<P>,
     share_id: TypedUsize<K>,
     first_round: ProtocolBuilder<F, K>,
-) -> TofnResult<Protocol<F, K, P>> {
+) -> TofnResult<Protocol<F, K, P, MAX_MSG_IN_LEN>> {
     first_round.build(ProtocolInfoDeluxe::new(party_share_counts, share_id)?)
 }

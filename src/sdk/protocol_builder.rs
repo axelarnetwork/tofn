@@ -34,7 +34,10 @@ impl<F, K> RoundBuilder<F, K> {
 }
 
 impl<F, K> ProtocolBuilder<F, K> {
-    pub(super) fn build<P>(self, info: ProtocolInfoDeluxe<K, P>) -> TofnResult<Protocol<F, K, P>> {
+    pub(super) fn build<P, const MAX_MSG_IN_LEN: usize>(
+        self,
+        info: ProtocolInfoDeluxe<K, P>,
+    ) -> TofnResult<Protocol<F, K, P, MAX_MSG_IN_LEN>> {
         Ok(match self {
             Self::NotDone(builder) => Protocol::NotDone(Round::new(
                 builder.round,

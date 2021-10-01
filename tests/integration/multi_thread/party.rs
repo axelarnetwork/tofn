@@ -17,8 +17,8 @@ pub struct Message<P> {
     bytes: BytesVec,
 }
 
-pub fn execute_protocol<F, K, P>(
-    mut party: Protocol<F, K, P>,
+pub fn execute_protocol<F, K, P, const MAX_MSG_IN_LEN: usize>(
+    mut party: Protocol<F, K, P, MAX_MSG_IN_LEN>,
     input: Receiver<Message<P>>,
     broadcaster: Broadcaster<Message<P>>,
 ) -> TofnResult<ProtocolOutput<F, P>>

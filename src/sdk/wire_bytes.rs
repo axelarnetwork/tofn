@@ -40,7 +40,6 @@ where
     }
 }
 
-// TODO: Look into using bincode::config::Bounded to limit the max pre-allocation size
 /// deserialization failures are non-fatal: do not return TofnResult
 pub fn decode<T: DeserializeOwned>(bytes: &[u8]) -> Option<T> {
     let bytes_versioned: BytesVecVersioned = bincode::deserialize(bytes)
