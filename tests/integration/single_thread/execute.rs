@@ -12,8 +12,10 @@ pub fn execute_protocol<F, K, P, const MAX_MSG_IN_LEN: usize>(
 where
     K: Clone,
 {
+    let mut current_round = 0;
     while nobody_done(&parties) {
-        parties = next_round(parties)?;
+        current_round += 1;
+        parties = next_round(parties, current_round)?;
     }
     Ok(parties)
 }
@@ -44,6 +46,7 @@ pub fn nobody_done<F, K, P, const MAX_MSG_IN_LEN: usize>(
 
 fn next_round<F, K, P, const MAX_MSG_IN_LEN: usize>(
     parties: VecMap<K, Protocol<F, K, P, MAX_MSG_IN_LEN>>,
+    current_round: usize,
 ) -> TofnResult<VecMap<K, Protocol<F, K, P, MAX_MSG_IN_LEN>>>
 where
     K: Clone,
@@ -65,7 +68,7 @@ where
     for (from, bcast) in bcasts.into_iter() {
         if let Some(bytes) = bcast {
             if from.as_usize() == 0 {
-                debug!("bcast byte length {}", bytes.len());
+                debug!("round {} bcast byte length {}", current_round, bytes.len());
             }
 
             for (_, round) in rounds.iter_mut() {
@@ -90,7 +93,8 @@ where
         if let Some(p2ps) = p2ps {
             if from.as_usize() == 0 {
                 debug!(
-                    "p2p byte length {}",
+                    "round {} p2p byte length {}",
+                    current_round,
                     p2ps.get(TypedUsize::from_usize(1)).unwrap().len()
                 );
             }

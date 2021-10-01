@@ -39,9 +39,22 @@ fn basic_correctness() {
     set_up_logs();
 
     // keygen
-    debug!("keygen...");
-    let party_share_counts = PartyShareCounts::from_vec(vec![1, 2, 3, 4]).unwrap(); // 10 total shares
+    let party_share_counts = PartyShareCounts::from_vec(vec![1, 2, 3, 14]).unwrap(); // 10 total shares
     let threshold = 5;
+    let sign_parties = {
+        let mut sign_parties = SignParties::with_max_size(party_share_counts.party_count());
+        sign_parties.add(TypedUsize::from_usize(0)).unwrap();
+        sign_parties.add(TypedUsize::from_usize(1)).unwrap();
+        sign_parties.add(TypedUsize::from_usize(3)).unwrap();
+        sign_parties
+    };
+    debug!(
+        "total_share_count {}, threshold {}",
+        party_share_counts.total_share_count(),
+        threshold,
+    );
+
+    debug!("keygen...");
     let keygen_shares = keygen::initialize_honest_parties(&party_share_counts, threshold);
     let keygen_share_outputs = execute_protocol(keygen_shares).expect("internal tofn error");
     let secret_key_shares: VecMap<KeygenShareId, SecretKeyShare> =
@@ -52,13 +65,7 @@ fn basic_correctness() {
 
     // sign
     debug!("sign...");
-    let sign_parties = {
-        let mut sign_parties = SignParties::with_max_size(party_share_counts.party_count());
-        sign_parties.add(TypedUsize::from_usize(0)).unwrap();
-        sign_parties.add(TypedUsize::from_usize(1)).unwrap();
-        sign_parties.add(TypedUsize::from_usize(3)).unwrap();
-        sign_parties
-    };
+
     let keygen_share_ids = VecMap::<SignShareId, _>::from_vec(
         party_share_counts.share_id_subset(&sign_parties).unwrap(),
     );
