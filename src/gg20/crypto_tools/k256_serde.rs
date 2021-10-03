@@ -216,7 +216,7 @@ mod tests {
         let p = ProjectivePoint(
             k256::ProjectivePoint::generator() * k256::Scalar::random(rand::thread_rng()),
         );
-        let p_serialized = bincode::serialize(&p).unwrap();
+        let p_serialized = serialize(&p).unwrap();
         let p_deserialized = deserialize(&p_serialized).unwrap();
         assert_eq!(p, p_deserialized);
     }
