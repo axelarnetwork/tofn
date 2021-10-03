@@ -77,6 +77,7 @@ impl<'de, K> Deserialize<'de> for TypedUsize<K> {
 #[cfg(test)]
 mod tests {
     use super::TypedUsize;
+    use crate::sdk::implementer_api::{deserialize, serialize};
 
     struct TestMarker;
 
@@ -85,11 +86,10 @@ mod tests {
         // test: `TypedUsize` and `usize` serialize to the same bytes
         let untyped: usize = 12345678;
         let typed = TypedUsize::<TestMarker>::from_usize(untyped);
-        let untyped_bytes = bincode::serialize(&untyped).unwrap();
-        let typed_bytes = bincode::serialize(&typed).unwrap();
+        let untyped_bytes = serialize(&untyped).unwrap();
+        let typed_bytes = serialize(&typed).unwrap();
         assert_eq!(typed_bytes, untyped_bytes);
-        let typed_deserialized: TypedUsize<TestMarker> =
-            bincode::deserialize(&typed_bytes).unwrap();
+        let typed_deserialized: TypedUsize<TestMarker> = deserialize(&typed_bytes).unwrap();
         assert_eq!(typed_deserialized, typed);
         assert_eq!(typed_deserialized.as_usize(), untyped);
     }

@@ -5,7 +5,9 @@ use crate::{
     gg20::sign::{r3, type5_common::P2pSadType5},
     sdk::{
         api::{BytesVec, MsgType},
-        implementer_api::{decode_message, encode_message, serialize, ExpectedMsgTypes},
+        implementer_api::{
+            decode_message, deserialize, encode_message, serialize, ExpectedMsgTypes,
+        },
     },
 };
 
@@ -61,7 +63,7 @@ pub fn delta_inverse_r3(
 ) -> (VecMap<SignShareId, Option<BytesVec>>, k256::Scalar) {
     let mut all_bcasts_deserialized: Vec<r3::BcastHappy> = all_bcasts
         .map(|bytes_option| {
-            bincode::deserialize(
+            deserialize(
                 &decode_message::<SignShareId>(&bytes_option.unwrap())
                     .unwrap()
                     .payload,
@@ -118,7 +120,7 @@ pub fn delta_inverse_r4(
     faulter_bcast: &mut BytesVec,
     faulter_p2ps: &mut HoleVecMap<SignShareId, BytesVec>,
 ) {
-    let mut faulter_bcast_deserialized = match bincode::deserialize::<r4::Bcast>(
+    let mut faulter_bcast_deserialized = match deserialize::<r4::Bcast>(
         &decode_message::<SignShareId>(faulter_bcast)
             .unwrap()
             .payload,
@@ -131,10 +133,7 @@ pub fn delta_inverse_r4(
 
     let mut faulter_p2ps_deserialized: HoleVecMap<_, P2pSadType5> = faulter_p2ps
         .clone_map2_result(|(_, bytes)| {
-            Ok(
-                bincode::deserialize(&decode_message::<SignShareId>(bytes).unwrap().payload)
-                    .unwrap(),
-            )
+            Ok(deserialize(&decode_message::<SignShareId>(bytes).unwrap().payload).unwrap())
         })
         .unwrap();
 

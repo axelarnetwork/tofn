@@ -6,6 +6,7 @@ use crate::{
     sdk::{
         api::{BytesVec, Fault, TofnResult},
         protocol_info::ProtocolInfo,
+        wire_bytes::deserialize,
     },
 };
 
@@ -109,9 +110,8 @@ impl<T: Executer> ExecuterRaw for T {
 
         // attempt to deserialize bcasts, p2ps
         let bcasts_deserialized: FillVecMap<_, Result<_, _>> =
-            bcasts_in.map(|bytes| bincode::deserialize(&bytes));
-        let p2ps_deserialized: FillP2ps<_, Result<_, _>> =
-            p2ps_in.map(|bytes| bincode::deserialize(&bytes));
+            bcasts_in.map(|bytes| deserialize(&bytes));
+        let p2ps_deserialized: FillP2ps<_, Result<_, _>> = p2ps_in.map(|bytes| deserialize(&bytes));
 
         // check for deserialization faults
         for (from, bcast) in bcasts_deserialized.iter() {

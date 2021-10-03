@@ -7,7 +7,7 @@ use crate::{
         keygen::{tests::execute_keygen, KeygenPartyShareCounts, KeygenShareId, SecretKeyShare},
         sign::api::{new_sign, SignShareId},
     },
-    sdk::implementer_api::{decode_message, encode_message},
+    sdk::implementer_api::{decode_message, deserialize, encode_message},
     sdk::{
         api::{BytesVec, Fault, Protocol, Round},
         implementer_api::{serialize, ExpectedMsgTypes, MsgType},
@@ -181,7 +181,7 @@ fn execute_sign(
     let k_gamma = r3_parties
         .iter()
         .map(|party| {
-            let r3_bcast: r3::BcastHappy = bincode::deserialize(
+            let r3_bcast: r3::BcastHappy = deserialize(
                 &decode_message::<SignShareId>(party.bcast_out().unwrap())
                     .unwrap()
                     .payload,
@@ -317,7 +317,7 @@ fn malicious_delta_inverse() {
         .iter()
         .skip(1)
         .map(|party| {
-            let r3_bcast: r3::BcastHappy = bincode::deserialize(
+            let r3_bcast: r3::BcastHappy = deserialize(
                 &decode_message::<SignShareId>(party.bcast_out().unwrap())
                     .unwrap()
                     .payload,
@@ -327,7 +327,7 @@ fn malicious_delta_inverse() {
         })
         .fold(k256::Scalar::zero(), |acc, delta_i| acc + delta_i);
 
-    let share_0_bcast_out: r3::BcastHappy = bincode::deserialize(
+    let share_0_bcast_out: r3::BcastHappy = deserialize(
         &decode_message::<SignShareId>(r3_shares[0].bcast_out().unwrap())
             .unwrap()
             .payload,
@@ -353,7 +353,7 @@ fn malicious_delta_inverse() {
         r3_shares
             .iter()
             .map(|share| {
-                let r3_bcast: r3::BcastHappy = bincode::deserialize(
+                let r3_bcast: r3::BcastHappy = deserialize(
                     &decode_message::<SignShareId>(share.bcast_out().unwrap())
                         .unwrap()
                         .payload,

@@ -91,6 +91,25 @@ impl Executer for R3 {
         let bcasts_in = bcasts_in.to_vecmap()?;
         let p2ps_in = p2ps_in.to_fullp2ps()?;
 
+        // check vss commit lengths
+        for (peer_keygen_id, bcast) in bcasts_in.iter() {
+            if self.threshold + 1 != bcast.u_i_vss_commit.len() {
+                warn!(
+                    "peer {} says: u_i vss commit of invalid length {} (expected {}) from peer {}",
+                    my_keygen_id,
+                    bcast.u_i_vss_commit.len(),
+                    self.threshold + 1,
+                    peer_keygen_id,
+                );
+
+                faulters.set(peer_keygen_id, ProtocolFault)?;
+            }
+        }
+
+        if !faulters.is_empty() {
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
+        }
+
         // check y_i commits
         for (peer_keygen_id, bcast) in bcasts_in.iter() {
             let peer_y_i = bcast.u_i_vss_commit.secret_commit();

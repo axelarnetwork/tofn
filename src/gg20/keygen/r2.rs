@@ -18,7 +18,7 @@ use super::{r1, KeygenPartyShareCounts, KeygenShareId};
 #[cfg(feature = "malicious")]
 use super::malicious::Behaviour;
 
-/// TODO: The byte length of this struct is proportional to the threshold.
+/// TODO: The byte length of this struct is proportional to the threshold: 34t + 73
 /// Instead it should be constant.
 /// https://github.com/axelarnetwork/tofn/issues/171
 #[derive(Clone, Debug, Serialize, Deserialize)]
