@@ -5,6 +5,10 @@ use tracing::{error, warn};
 use super::api::{BytesVec, TofnResult};
 use bincode::{DefaultOptions, Options};
 
+/// Max message length allowed to be (de)serialized
+const MAX_MSG_LEN: u64 = 1000 * 1000; // 1 MB
+
+/// Tofn version for serialized data.
 const TOFN_SERIALIZATION_VERSION: u16 = 0;
 
 pub fn encode_message<K>(
@@ -37,10 +41,10 @@ where
     // The default options don't bound pre-allocation size,
     // use little-endian and varint encoding, and reject trailing bytes.
     let options = DefaultOptions::new()
-        .with_no_limit()
-        .with_big_endian()
-        .with_varint_encoding()
-        .reject_trailing_bytes();
+        .with_limit(MAX_MSG_LEN)
+        .with_big_endian() // do not ignore extra bytes at the end of the buffer
+        .with_varint_encoding() // saves a lot of space in smaller messages
+        .reject_trailing_bytes(); // do not ignore extra bytes at the end of the buffer
 
     options.serialize(value).map_err(|err| {
         error!("serialization failure: {}", err.to_string());
@@ -51,7 +55,7 @@ where
 /// Deserialize bytes to a type using bincode and log errors
 pub fn deserialize<T: DeserializeOwned>(bytes: &[u8]) -> TofnResult<T> {
     let options = DefaultOptions::new()
-        .with_no_limit()
+        .with_limit(MAX_MSG_LEN)
         .with_big_endian()
         .with_varint_encoding()
         .reject_trailing_bytes();
@@ -117,6 +121,67 @@ pub enum ExpectedMsgTypes {
 struct BytesVecVersioned {
     version: u16,
     payload: BytesVec,
+}
+
+#[cfg(test)]
+mod tests {
+    use bincode::{DefaultOptions, Options};
+
+    use crate::sdk::{
+        api::TofnResult,
+        wire_bytes::{decode, deserialize, encode, serialize, MAX_MSG_LEN},
+    };
+
+    #[test]
+    fn basic_correctness() {
+        let msg = 255u8;
+        let encoded_msg = encode(&msg).unwrap();
+        assert_eq!(msg, decode::<u8>(&encoded_msg).unwrap());
+
+        let msg = 0xFFFFFFFF_usize;
+        let encoded_msg = encode(&msg).unwrap();
+        assert_eq!(msg, decode::<usize>(&encoded_msg).unwrap());
+
+        let msg = vec![42u64; 10];
+        let encoded_msg = encode(&msg).unwrap();
+        assert_eq!(msg, decode::<Vec<u64>>(&encoded_msg).unwrap());
+    }
+
+    #[test]
+    fn large_message() {
+        // 5 bytes for length, and 1 byte for each int
+        let msg = vec![42u64; (MAX_MSG_LEN as usize) - 5];
+        let encoded_msg = serialize(&msg).unwrap();
+        assert_eq!(msg, deserialize::<Vec<u64>>(&encoded_msg).unwrap());
+
+        // 5 bytes for length, 1 byte for version, and 1 byte for each int
+        let msg = vec![42u64; (MAX_MSG_LEN as usize) - 11];
+        let encoded_msg = encode(&msg).unwrap();
+        assert_eq!(msg, decode::<Vec<u64>>(&encoded_msg).unwrap());
+    }
+
+    #[test]
+    fn serialization_checks() {
+        // Fail to serialize a large message
+        let msg = vec![0; (MAX_MSG_LEN - 2) as usize]; // 2 bytes for length
+        assert!(serialize(&msg).is_err());
+
+        // Fail to deserialize a buffer with extra bytes
+        let mut encoded_msg = serialize(&2_u8).unwrap();
+        encoded_msg.extend_from_slice(&[42u8]);
+        let res: TofnResult<u8> = deserialize(&encoded_msg);
+        assert!(res.is_err());
+
+        // Fail to deserialize a large buffer
+        let options = DefaultOptions::new()
+            .with_big_endian()
+            .with_varint_encoding();
+        let encoded_msg = options
+            .serialize(&[42; (MAX_MSG_LEN as usize) + 1][..])
+            .unwrap();
+        let res: TofnResult<u8> = deserialize(&encoded_msg);
+        assert!(res.is_err());
+    }
 }
 
 #[cfg(feature = "malicious")]
