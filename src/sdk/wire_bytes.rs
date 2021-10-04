@@ -25,6 +25,7 @@ pub fn encode_message<K>(
     })
 }
 
+/// Encode a value of generic type `T` with versioning
 pub fn encode<T: Serialize>(payload: &T) -> TofnResult<BytesVec> {
     serialize(&BytesVecVersioned {
         version: TOFN_SERIALIZATION_VERSION,
@@ -52,25 +53,30 @@ where
     })
 }
 
-/// Deserialize bytes to a type using bincode and log errors
-pub fn deserialize<T: DeserializeOwned>(bytes: &[u8]) -> TofnResult<T> {
+/// Deserialize bytes to a type using bincode and log errors.
+/// Return an Option type since deserialization isn't treated as a Fatal error
+/// in tofn (for the purposes of fault identification).
+pub fn deserialize<T: DeserializeOwned>(bytes: &[u8]) -> Option<T> {
     let options = DefaultOptions::new()
         .with_limit(MAX_MSG_LEN)
         .with_big_endian()
         .with_varint_encoding()
         .reject_trailing_bytes();
 
-    options.deserialize(bytes).map_err(|err| {
-        error!("deserialization failure: {}", err.to_string());
-        TofnFatal
-    })
+    options
+        .deserialize(bytes)
+        .map_err(|err| {
+            warn!("deserialization failure: {}", err.to_string());
+        })
+        .ok()
 }
 
-/// deserialization failures are non-fatal: do not return TofnResult
-pub fn decode<T: DeserializeOwned>(bytes: &[u8]) -> TofnResult<T> {
-    let bytes_versioned: BytesVecVersioned = deserialize(bytes).map_err(|err| {
+/// Decode a versioned byte array to a value of generic type `T`
+/// Note that deserialization failures are non-fatal: do not return TofnResult
+pub fn decode<T: DeserializeOwned>(bytes: &[u8]) -> Option<T> {
+    let bytes_versioned: BytesVecVersioned = deserialize(bytes).or_else(|| {
         warn!("outer deserialization failure");
-        err
+        None
     })?;
 
     if bytes_versioned.version != TOFN_SERIALIZATION_VERSION {
@@ -78,16 +84,16 @@ pub fn decode<T: DeserializeOwned>(bytes: &[u8]) -> TofnResult<T> {
             "encoding version {}, expected {}",
             bytes_versioned.version, TOFN_SERIALIZATION_VERSION
         );
-        return Err(TofnFatal);
+        return None;
     }
 
-    deserialize(&bytes_versioned.payload).map_err(|err| {
+    deserialize(&bytes_versioned.payload).or_else(|| {
         warn!("inner deserialization failure");
-        err
+        None
     })
 }
 
-pub fn decode_message<K>(bytes: &[u8]) -> TofnResult<WireBytes<K>> {
+pub fn decode_message<K>(bytes: &[u8]) -> Option<WireBytes<K>> {
     decode(bytes)
 }
 
@@ -127,10 +133,7 @@ struct BytesVecVersioned {
 mod tests {
     use bincode::{DefaultOptions, Options};
 
-    use crate::sdk::{
-        api::TofnResult,
-        wire_bytes::{decode, deserialize, encode, serialize, MAX_MSG_LEN},
-    };
+    use crate::sdk::wire_bytes::{decode, deserialize, encode, serialize, MAX_MSG_LEN};
 
     #[test]
     fn basic_correctness() {
@@ -169,8 +172,8 @@ mod tests {
         // Fail to deserialize a buffer with extra bytes
         let mut encoded_msg = serialize(&2_u8).unwrap();
         encoded_msg.extend_from_slice(&[42u8]);
-        let res: TofnResult<u8> = deserialize(&encoded_msg);
-        assert!(res.is_err());
+        let res: Option<u8> = deserialize(&encoded_msg);
+        assert!(res.is_none());
 
         // Fail to deserialize a large buffer
         let options = DefaultOptions::new()
@@ -179,8 +182,8 @@ mod tests {
         let encoded_msg = options
             .serialize(&[42; (MAX_MSG_LEN as usize) + 1][..])
             .unwrap();
-        let res: TofnResult<u8> = deserialize(&encoded_msg);
-        assert!(res.is_err());
+        let res: Option<u8> = deserialize(&encoded_msg);
+        assert!(res.is_none());
     }
 }
 
@@ -188,16 +191,16 @@ mod tests {
 pub mod malicious {
     use tracing::error;
 
-    use crate::sdk::api::{BytesVec, TofnResult};
+    use crate::sdk::api::{BytesVec, TofnFatal, TofnResult};
 
     use super::{decode_message, encode_message, WireBytes};
 
     pub fn corrupt_payload<K>(bytes: &[u8]) -> TofnResult<BytesVec> {
         // for simplicity, deserialization error is treated as fatal
         // (we're in a malicious module so who cares?)
-        let wire_bytes: WireBytes<K> = decode_message(bytes).map_err(|err| {
+        let wire_bytes: WireBytes<K> = decode_message(bytes).ok_or_else(|| {
             error!("can't corrupt payload: deserialization failure");
-            err
+            TofnFatal
         })?;
 
         encode_message(

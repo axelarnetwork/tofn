@@ -60,8 +60,8 @@ impl<F, K, P, const MAX_MSG_IN_LEN: usize> Round<F, K, P, MAX_MSG_IN_LEN> {
 
         // deserialize metadata
         let bytes_meta: WireBytes<K> = match wire_bytes::decode_message(bytes) {
-            Ok(w) => w,
-            Err(TofnFatal) => {
+            Some(w) => w,
+            None => {
                 warn!(
                     "peer {} (party {}) says: msg_in fail to deserialize metadata for msg from party {}",
                     share_id, party_id, from

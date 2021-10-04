@@ -109,26 +109,24 @@ impl<T: Executer> ExecuterRaw for T {
         let expected_msg_types = expected_msg_types.to_vecmap()?;
 
         // attempt to deserialize bcasts, p2ps
-        let bcasts_deserialized: FillVecMap<_, Result<_, _>> =
+        let bcasts_deserialized: FillVecMap<_, Option<_>> =
             bcasts_in.map(|bytes| deserialize(&bytes));
-        let p2ps_deserialized: FillP2ps<_, Result<_, _>> = p2ps_in.map(|bytes| deserialize(&bytes));
+        let p2ps_deserialized: FillP2ps<_, Option<_>> = p2ps_in.map(|bytes| deserialize(&bytes));
 
         // check for deserialization faults
         for (from, bcast) in bcasts_deserialized.iter() {
-            if let Some(bcast) = bcast {
-                if bcast.is_err() {
-                    warn!(
-                        "peer {} says: detected corrupted bcast from peer {}",
-                        info.my_id(),
-                        from
-                    );
-                    faulters.set(from, Fault::CorruptedMessage)?;
-                }
+            if let Some(None) = bcast {
+                warn!(
+                    "peer {} says: detected corrupted bcast from peer {}",
+                    info.my_id(),
+                    from
+                );
+                faulters.set(from, Fault::CorruptedMessage)?;
             }
         }
         for (from, p2ps) in p2ps_deserialized.iter() {
             for (to, p2p) in p2ps.iter() {
-                if let Some(Err(_)) = p2p {
+                if let Some(None) = p2p {
                     warn!(
                         "peer {} says: detected corrupted p2p from peer {} to peer {}",
                         info.my_id(),
@@ -145,8 +143,8 @@ impl<T: Executer> ExecuterRaw for T {
 
         // all deserialization succeeded---unwrap deserialized bcasts, p2ps
         // TODO instead of unwrap() make a map2_result() for FillVecMap, FillP2ps
-        let bcasts_in = bcasts_deserialized.map(Result::unwrap);
-        let p2ps_in = p2ps_deserialized.map(Result::unwrap).to_p2ps()?;
+        let bcasts_in = bcasts_deserialized.map(Option::unwrap);
+        let p2ps_in = p2ps_deserialized.map(Option::unwrap).to_p2ps()?;
 
         // special case: total_share_count == 1: `p2ps_in` is `[None]` by default
         let expected_msg_type = expected_msg_types.get(TypedUsize::from_usize(0))?;

@@ -190,22 +190,22 @@ impl SecretKeyShare {
             return Err(TofnFatal);
         }
 
-        let recovery_info: KeyShareRecoveryInfo = decode(recovery_info_bytes).map_err(|err| {
+        let recovery_info: KeyShareRecoveryInfo = decode(recovery_info_bytes).ok_or_else(|| {
             error!(
                 "peer {} says: failed to deserialize recovery info",
                 share_id
             );
-            err
+            TofnFatal
         })?;
 
         // Since we trust group_info_bytes, we expect the order of all_shares to be correct
-        let all_shares: VecMap<KeygenShareId, SharePublicInfo> =
-            decode(group_info_bytes).map_err(|err| {
+        let all_shares: VecMap<KeygenShareId, SharePublicInfo> = decode(group_info_bytes)
+            .ok_or_else(|| {
                 error!(
                     "peer {} says: failed to deserialize public share info",
                     share_id
                 );
-                err
+                TofnFatal
             })?;
 
         if all_shares.len() != share_count {
