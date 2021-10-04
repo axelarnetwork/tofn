@@ -11,3 +11,7 @@ mod protocol_builder;
 mod protocol_info;
 mod round;
 mod wire_bytes;
+
+/// Expose tofn's (de)serialization functions
+/// that use the appropriate bincode config options.
+pub use wire_bytes::{deserialize, serialize};
