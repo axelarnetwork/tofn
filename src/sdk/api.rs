@@ -15,5 +15,9 @@ pub struct TofnFatal;
 pub const MAX_TOTAL_SHARE_COUNT: usize = 1000;
 pub const MAX_PARTY_SHARE_COUNT: usize = MAX_TOTAL_SHARE_COUNT;
 
+/// Expose tofn's (de)serialization functions
+/// that use the appropriate bincode config options.
+pub use super::wire_bytes::{deserialize, serialize};
+
 #[cfg(feature = "malicious")]
 pub use super::wire_bytes::MsgType;
