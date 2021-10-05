@@ -1,7 +1,9 @@
 //! Minimize direct use of paillier, zk_paillier crates
 use crate::sdk::api::TofnResult;
 
-use super::{keygen, keygen_unsafe, DecryptionKey, EncryptionKey};
+use super::{
+    keygen, keygen_unsafe, secp256k1_modulus, DecryptionKey, EncryptionKey, Plaintext, Randomness,
+};
 use libpaillier::unknown_order::BigNumber;
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
@@ -82,9 +84,9 @@ impl ZkSetup {
     }
 
     /// Compute the FO commitment, `h1^msg h2^r mod N~`
-    fn commit(&self, msg: &BigNumber, randomness: &BigNumber) -> BigNumber {
-        let h1_x = self.h1().modpow(msg, self.n_tilde());
-        let h2_r = self.h2().modpow(randomness, self.n_tilde());
+    fn commit(&self, msg: &Plaintext, randomness: &Randomness) -> BigNumber {
+        let h1_x = self.h1().modpow(&msg.0, self.n_tilde());
+        let h2_r = self.h2().modpow(&randomness.0, self.n_tilde());
 
         h1_x.modmul(&h2_r, self.n_tilde())
     }
@@ -117,6 +119,11 @@ const SECP256K1_CURVE_ORDER_CUBED: [u8; 96] = [
 /// secp256k1 curve order cubed as a `BigNumber`
 fn secp256k1_modulus_cubed() -> BigNumber {
     BigNumber::from_slice(SECP256K1_CURVE_ORDER_CUBED.as_ref())
+}
+
+/// secp256k1 curve order squared as a `BigNumber`
+fn secp256k1_modulus_squared() -> BigNumber {
+    secp256k1_modulus() * secp256k1_modulus()
 }
 
 #[cfg(test)]

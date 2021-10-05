@@ -46,7 +46,7 @@ pub struct Proof {
     w: BigNumber,
     s: Randomness,
     s1: Plaintext,
-    s2: BigNumber,
+    s2: Randomness,
 }
 
 #[derive(Clone, Debug)]
@@ -153,26 +153,27 @@ impl ZkSetup {
         debug_assert!(member_of_mul_group(&stmt.ciphertext.0, stmt.ek.0.nn()));
 
         // Sample alpha from Z_q^3
-        let alpha = Plaintext(BigNumber::random(&secp256k1_modulus_cubed()));
-        let alpha_bigint = &alpha.0;
+        let alpha = Plaintext::generate(&secp256k1_modulus_cubed());
 
         let q_n_tilde = secp256k1_modulus() * self.n_tilde();
         let q3_n_tilde = secp256k1_modulus_cubed() * self.n_tilde();
 
         // Sample rho from Z_(q N~)
-        let rho = Randomness(BigNumber::random(&q_n_tilde));
+        let rho = Randomness::generate(&q_n_tilde);
         // Sample gamma from Z_(q^3 N~)
-        let gamma = Randomness(BigNumber::random(&q3_n_tilde));
+        let gamma = Randomness::generate(&q3_n_tilde);
 
-        // z = h_1^m h_2^rho mod N_tilde
-        let z = self.commit(&to_bigint(wit.msg), &rho.0);
+        let msg_bigint = Plaintext(to_bigint(wit.msg));
+
+        // z = h1^m h2^rho mod N~
+        let z = self.commit(&msg_bigint, &rho);
 
         // Sample beta from Z*_N
         // u = Paillier-Enc(alpha, beta)
         let (u, beta) = stmt.ek.encrypt(&alpha);
 
-        // w = h_1^alpha h_2^gamma mod N_tilde
-        let w = self.commit(alpha_bigint, &gamma.0);
+        // w = h1^alpha h2^gamma mod N~
+        let w = self.commit(&alpha, &gamma);
 
         // u1 = g^alpha
         let u1 = msg_g_g.map::<k256::ProjectivePoint, _>(|(_, g)| g * &alpha.to_scalar());
@@ -196,10 +197,10 @@ impl ZkSetup {
         );
 
         // s1 = e * m + alpha
-        let s1 = Plaintext(e * to_bigint(wit.msg) + alpha_bigint);
+        let s1 = Plaintext(e * &msg_bigint.0 + &alpha.0);
 
         // s2 = e * rho + gamma
-        let s2 = e * &rho.0 + &gamma.0;
+        let s2 = Randomness(e * &rho.0 + &gamma.0);
 
         (Proof { z, u, w, s, s1, s2 }, u1)
     }
@@ -255,13 +256,14 @@ impl ZkSetup {
         }
 
         // Ensure s2 is in Z_(q^3 N~)
+        // There's a 1/q probability that it exceeds that bound
         let q3_n_tilde = secp256k1_modulus_cubed() * self.n_tilde();
-        if !member_of_mod(&proof.s2, &q3_n_tilde) {
+        if !member_of_mod(&proof.s2.0, &q3_n_tilde) {
             warn!("range proof: s2 not in Z_(q^3 N~)");
             return false;
         }
 
-        // Ensure msg_g and u1 is are points on secp256k1
+        // Ensure msg_g and u1 are points on secp256k1
         // This is handled by k256_serde on deserialize.
 
         let e = Self::compute_range_proof_challenge(
@@ -304,7 +306,7 @@ impl ZkSetup {
         }
 
         // w ?= h1^s1 h2^s2 z^(-e) mod N~
-        let w_check = self.commit(&proof.s1.0, &proof.s2).modmul(
+        let w_check = self.commit(&proof.s1, &proof.s2).modmul(
             &proof.z.modpow(&e_neg_bigint, self.n_tilde()),
             self.n_tilde(),
         );

@@ -94,6 +94,11 @@ impl DecryptionKey {
 pub struct Plaintext(BigNumber);
 
 impl Plaintext {
+    /// Generate a random plaintext in the range [0, n)
+    pub fn generate(n: &BigNumber) -> Self {
+        Self(BigNumber::random(n))
+    }
+
     pub fn to_scalar(&self) -> k256::Scalar {
         to_scalar(&self.0)
     }
@@ -125,6 +130,13 @@ pub struct Ciphertext(libpaillier::Ciphertext);
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Zeroize)]
 #[zeroize(drop)]
 pub struct Randomness(BigNumber);
+
+impl Randomness {
+    /// Generate a random number in the range [0, n)
+    pub fn generate(n: &BigNumber) -> Self {
+        Self(BigNumber::random(n))
+    }
+}
 
 fn to_bigint(s: &k256::Scalar) -> BigNumber {
     BigNumber::from_slice(s.to_bytes().as_slice())
@@ -173,7 +185,7 @@ fn secp256k1_modulus() -> BigNumber {
 
 /// reduce `n` modulo the order of the secp256k1 curve
 fn mod_secp256k1(n: &BigNumber) -> BigNumber {
-    n.modadd(&BigNumber::zero(), &secp256k1_modulus())
+    n % &secp256k1_modulus()
 }
 
 #[cfg(feature = "malicious")]
