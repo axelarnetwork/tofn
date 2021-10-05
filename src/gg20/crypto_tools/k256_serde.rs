@@ -195,30 +195,29 @@ impl<'de> Deserialize<'de> for ProjectivePoint {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::sdk::implementer_api::{deserialize, serialize};
     use ecdsa::elliptic_curve::group::prime::PrimeCurveAffine;
     use k256::elliptic_curve::Field;
 
     #[test]
-    fn basic_round_trip() -> Result<(), Box<dyn std::error::Error>> {
+    fn basic_round_trip() {
         let s = Scalar(k256::Scalar::random(rand::thread_rng()));
-        let s_serialized = bincode::serialize(&s)?;
-        let s_deserialized = bincode::deserialize(&s_serialized)?;
+        let s_serialized = serialize(&s).unwrap();
+        let s_deserialized = deserialize(&s_serialized).unwrap();
         assert_eq!(s, s_deserialized);
 
         let a = AffinePoint(
             (k256::AffinePoint::generator() * k256::Scalar::random(rand::thread_rng())).to_affine(),
         );
-        let a_serialized = bincode::serialize(&a)?;
-        let a_deserialized = bincode::deserialize(&a_serialized)?;
+        let a_serialized = serialize(&a).unwrap();
+        let a_deserialized = deserialize(&a_serialized).unwrap();
         assert_eq!(a, a_deserialized);
 
         let p = ProjectivePoint(
             k256::ProjectivePoint::generator() * k256::Scalar::random(rand::thread_rng()),
         );
-        let p_serialized = bincode::serialize(&p)?;
-        let p_deserialized = bincode::deserialize(&p_serialized)?;
+        let p_serialized = serialize(&p).unwrap();
+        let p_deserialized = deserialize(&p_serialized).unwrap();
         assert_eq!(p, p_deserialized);
-
-        Ok(())
     }
 }

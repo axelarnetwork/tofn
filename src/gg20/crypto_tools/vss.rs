@@ -69,6 +69,10 @@ pub struct Commit {
 }
 
 impl Commit {
+    pub fn len(&self) -> usize {
+        self.coeff_commits.len()
+    }
+
     pub fn share_commit(&self, index: usize) -> k256::ProjectivePoint {
         let index_scalar = k256::Scalar::from(index as u32 + 1); // vss indices start at 1
         self.coeff_commits

@@ -3,7 +3,7 @@ pub use super::executer::{Executer, ExecuterRaw};
 pub use super::protocol::new_protocol;
 pub use super::protocol_builder::{ProtocolBuilder, ProtocolBuilderOutput, RoundBuilder};
 pub use super::protocol_info::ProtocolInfo;
-pub use super::wire_bytes::{decode, encode, serialize};
+pub use super::wire_bytes::{decode, deserialize, encode, serialize};
 
 mod utils {
     use crate::collections::TypedUsize;
