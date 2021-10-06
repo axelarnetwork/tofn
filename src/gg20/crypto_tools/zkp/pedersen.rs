@@ -1,7 +1,10 @@
 use crate::{
     collections::TypedUsize,
     gg20::{
-        crypto_tools::{constants, k256_serde},
+        crypto_tools::{
+            constants,
+            k256_serde::{self, RandomScalar},
+        },
         sign::SignShareId,
     },
     sdk::api::{TofnFatal, TofnResult},
@@ -72,6 +75,8 @@ pub fn commit(msg: &k256::Scalar) -> (k256::ProjectivePoint, k256::Scalar) {
     let randomness = k256::Scalar::random(rand::thread_rng());
     (commit_with_randomness(msg, &randomness), randomness)
 }
+
+/// Compute commitment g^m h^r
 pub fn commit_with_randomness(
     msg: &k256::Scalar,
     randomness: &k256::Scalar,
@@ -81,7 +86,8 @@ pub fn commit_with_randomness(
 
 // statement (commitment), witness (msg, randomness)
 //   such that commitment = commit(msg, randomness)
-// notation follows section 3.3 of GG20 https://eprint.iacr.org/2020/540.pdf
+// notation follows section 3.3 (phase 6, but with alpha/beta switched)
+// of GG20 https://eprint.iacr.org/2020/540.pdf
 pub fn prove(stmt: &Statement, wit: &Witness) -> Proof {
     prove_inner(stmt, None, wit).0
 }
@@ -99,7 +105,7 @@ pub fn prove_wc(stmt: &StatementWc, wit: &Witness) -> TofnResult<ProofWc> {
 
     let beta = beta
         .ok_or_else(|| {
-            error!("pedersen wc: missing beta");
+            error!("pedersen proof: 'wc' missing beta");
             TofnFatal
         })?
         .into();
@@ -115,30 +121,52 @@ pub fn verify_wc(stmt: &StatementWc, proof: &ProofWc) -> bool {
     )
 }
 
-fn prove_inner(
+fn compute_challenge(
     stmt: &Statement,
-    msg_g_g: Option<(&k256::ProjectivePoint, &k256::ProjectivePoint)>, // (msg_g, g)
-    wit: &Witness,
-) -> (Proof, Option<k256::ProjectivePoint>) {
-    let a = k256::Scalar::random(rand::thread_rng());
-    let b = k256::Scalar::random(rand::thread_rng());
-    let alpha = commit_with_randomness(&a, &b);
-    let beta = msg_g_g.map(|(_, g)| g * &a);
-    let c = k256::Scalar::from_digest(
+    msg_g_g: Option<(&k256::ProjectivePoint, &k256::ProjectivePoint)>,
+    alpha: &k256::ProjectivePoint,
+    beta: Option<&k256::ProjectivePoint>,
+) -> k256::Scalar {
+    k256::Scalar::from_digest(
         Sha256::new()
             .chain(constants::PEDERSEN_PROOF_TAG.to_be_bytes())
             .chain(stmt.prover_id.to_bytes())
             .chain(k256_serde::to_bytes(stmt.commit))
             .chain(&msg_g_g.map_or(Vec::new(), |(msg_g, _)| k256_serde::to_bytes(msg_g)))
             .chain(&msg_g_g.map_or(Vec::new(), |(_, g)| k256_serde::to_bytes(g)))
-            .chain(k256_serde::to_bytes(&alpha))
-            .chain(&beta.map_or(Vec::new(), |beta| k256_serde::to_bytes(&beta))),
-    );
+            .chain(k256_serde::to_bytes(alpha))
+            .chain(&beta.map_or(Vec::new(), |beta| k256_serde::to_bytes(beta))),
+    )
+}
+
+#[allow(clippy::many_single_char_names)]
+fn prove_inner(
+    stmt: &Statement,
+    msg_g_g: Option<(&k256::ProjectivePoint, &k256::ProjectivePoint)>, // (msg_g, g)
+    wit: &Witness,
+) -> (Proof, Option<k256::ProjectivePoint>) {
+    let a = RandomScalar::generate();
+    let b = RandomScalar::generate();
+
+    // alpha = g^a h^b
+    let alpha = commit_with_randomness(a.as_ref(), b.as_ref());
+
+    // beta = R^a
+    let beta = msg_g_g.map(|(_, g)| g * a.as_ref());
+
+    let c = compute_challenge(stmt, msg_g_g, &alpha, beta.as_ref());
+
+    // t = a + c sigma mod q
+    let t = a.as_ref() + c * wit.msg;
+
+    // u = b + c l mod q
+    let u = b.as_ref() + c * wit.randomness;
+
     (
         Proof {
-            alpha: k256_serde::ProjectivePoint::from(alpha),
-            t: k256_serde::Scalar::from(a + c * wit.msg),
-            u: k256_serde::Scalar::from(b + c * wit.randomness),
+            alpha: alpha.into(),
+            t: t.into(),
+            u: u.into(),
         },
         beta,
     )
@@ -151,32 +179,32 @@ fn verify_inner(
         &k256::ProjectivePoint,
         &k256::ProjectivePoint,
         &k256::ProjectivePoint,
-    )>, // (msg_g, g, beta))
+    )>, // (msg_g, g, beta)
 ) -> bool {
-    let c = k256::Scalar::from_digest(
-        Sha256::new()
-            .chain(constants::PEDERSEN_PROOF_TAG.to_be_bytes())
-            .chain(stmt.prover_id.to_bytes())
-            .chain(k256_serde::to_bytes(stmt.commit))
-            .chain(&msg_g_g_beta.map_or(Vec::new(), |(msg_g, _, _)| k256_serde::to_bytes(msg_g)))
-            .chain(&msg_g_g_beta.map_or(Vec::new(), |(_, g, _)| k256_serde::to_bytes(g)))
-            .chain(k256_serde::to_bytes(proof.alpha.as_ref()))
-            .chain(&msg_g_g_beta.map_or(Vec::new(), |(_, _, beta)| k256_serde::to_bytes(beta))),
+    // Ensure that t and u are in Z_q and commit, alpha (and msg_g, g, beta) are in G
+    // This is handled by k256_serde on deserialize
+    let c = compute_challenge(
+        stmt,
+        msg_g_g_beta.map(|(msg_g, g, _)| (msg_g, g)),
+        proof.alpha.as_ref(),
+        msg_g_g_beta.map(|(_, _, beta)| beta),
     );
 
+    // R^t ?= alpha S^c
     if let Some((msg_g, g, beta)) = msg_g_g_beta {
         let lhs = g * proof.t.as_ref();
         let rhs = msg_g * &c + beta;
         if lhs != rhs {
-            warn!("'wc' check fail");
+            warn!("pedersen proof: 'wc' check failed");
             return false;
         }
     }
 
+    // g^t h^u ?= beta T^c
     let lhs = commit_with_randomness(proof.t.as_ref(), proof.u.as_ref());
     let rhs = stmt.commit * &c + proof.alpha.as_ref();
     if lhs != rhs {
-        warn!("verify fail");
+        warn!("pedersen proof: verify failed");
         return false;
     }
 

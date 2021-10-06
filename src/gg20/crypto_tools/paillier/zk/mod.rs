@@ -1,7 +1,7 @@
 //! Minimize direct use of paillier, zk_paillier crates
 use crate::sdk::api::TofnResult;
 
-use super::{keygen, keygen_unsafe, DecryptionKey, EncryptionKey};
+use super::{keygen, keygen_unsafe, DecryptionKey, EncryptionKey, Plaintext, Randomness};
 use libpaillier::unknown_order::BigNumber;
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
@@ -29,7 +29,7 @@ pub struct ZkSetup {
 
 pub type ZkSetupProof = CompositeDLogProof;
 
-/// As per the GG20 paper on Pg. 13, a different RSA modulus is needed for
+/// As per the Appendix, Pg. 25 of GG18 (2019/114) and Pg. 13 of GG20, a different RSA modulus is needed for
 /// the ZK proofs used in the protocol. While we don't need a Paillier keypair
 /// here, we use the same keygen methods for convenience.
 /// According to GG20, each peer (acting as the verifier)
@@ -81,9 +81,10 @@ impl ZkSetup {
         &self.dlog_stmt.n
     }
 
-    fn commit(&self, msg: &BigNumber, randomness: &BigNumber) -> BigNumber {
-        let h1_x = self.h1().modpow(msg, self.n_tilde());
-        let h2_r = self.h2().modpow(randomness, self.n_tilde());
+    /// Compute the FO commitment, `h1^msg h2^r mod N~`
+    fn commit(&self, msg: &Plaintext, randomness: &Randomness) -> BigNumber {
+        let h1_x = self.h1().modpow(&msg.0, self.n_tilde());
+        let h2_r = self.h2().modpow(&randomness.0, self.n_tilde());
 
         h1_x.modmul(&h2_r, self.n_tilde())
     }
@@ -113,15 +114,28 @@ const SECP256K1_CURVE_ORDER_CUBED: [u8; 96] = [
     0x35, 0x52, 0x09, 0x0f, 0xe1, 0xe1, 0x1b, 0x11, 0xeb, 0x69, 0x26, 0xb7, 0x85, 0x7b, 0x73, 0xc1,
 ];
 
+/// The order of the secp256k1 curve raised to exponent 2
+const SECP256K1_CURVE_ORDER_SQUARED: [u8; 64] = [
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfd,
+    0x75, 0x5d, 0xb9, 0xcd, 0x5e, 0x91, 0x40, 0x77, 0x7f, 0xa4, 0xbd, 0x19, 0xa0, 0x6c, 0x82, 0x83,
+    0x9d, 0x67, 0x1c, 0xd5, 0x81, 0xc6, 0x9b, 0xc5, 0xe6, 0x97, 0xf5, 0xe4, 0x5b, 0xcd, 0x07, 0xc5,
+    0x2e, 0xc3, 0x73, 0xa8, 0xbd, 0xc5, 0x98, 0xb4, 0x49, 0x3f, 0x50, 0xa1, 0x38, 0x0e, 0x12, 0x81,
+];
+
 /// secp256k1 curve order cubed as a `BigNumber`
 fn secp256k1_modulus_cubed() -> BigNumber {
     BigNumber::from_slice(SECP256K1_CURVE_ORDER_CUBED.as_ref())
 }
 
+/// secp256k1 curve order squared as a `BigNumber`
+fn secp256k1_modulus_squared() -> BigNumber {
+    BigNumber::from_slice(SECP256K1_CURVE_ORDER_SQUARED.as_ref())
+}
+
 #[cfg(test)]
 mod tests {
     use super::secp256k1_modulus_cubed;
-    use crate::gg20::crypto_tools::paillier::secp256k1_modulus;
+    use crate::gg20::crypto_tools::paillier::{secp256k1_modulus, zk::secp256k1_modulus_squared};
 
     #[test]
     fn q_cubed() {
@@ -129,6 +143,14 @@ mod tests {
         let q3_test = &q * &q * &q;
         let q3 = secp256k1_modulus_cubed();
         assert_eq!(q3_test, q3);
+    }
+
+    #[test]
+    fn q_squared() {
+        let q = secp256k1_modulus();
+        let q2_test = &q * &q;
+        let q2 = secp256k1_modulus_squared();
+        assert_eq!(q2_test, q2);
     }
 }
 

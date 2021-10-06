@@ -4,8 +4,12 @@ use crate::{
         crypto_tools::{
             constants, k256_serde,
             paillier::{
-                secp256k1_modulus, to_bigint, to_scalar, to_vec, zk::ZkSetup, Ciphertext,
-                EncryptionKey, Plaintext, Randomness,
+                secp256k1_modulus, to_bigint, to_scalar,
+                zk::{
+                    utils::{member_of_mod, member_of_mul_group},
+                    ZkSetup,
+                },
+                Ciphertext, EncryptionKey, Plaintext, Randomness,
             },
         },
         sign::SignShareId,
@@ -18,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tracing::{error, warn};
 
-use super::secp256k1_modulus_cubed;
+use super::{secp256k1_modulus_cubed, secp256k1_modulus_squared};
 
 #[derive(Clone, Debug)]
 pub struct Statement<'a> {
@@ -44,10 +48,10 @@ pub struct Proof {
     v: BigNumber,
     w: BigNumber,
     s: Randomness,
-    s1: BigNumber,
-    s2: BigNumber,
+    s1: Plaintext,
+    s2: Randomness,
     t1: Plaintext,
-    t2: BigNumber,
+    t2: Randomness,
 }
 
 #[derive(Clone, Debug)]
@@ -108,6 +112,39 @@ impl ZkSetup {
         )
     }
 
+    #[allow(clippy::many_single_char_names, clippy::too_many_arguments)]
+    /// Compute the challenge e in Z_q for the range proof
+    fn compute_mta_proof_challenge(
+        tag: u8,
+        stmt: &Statement,
+        x_g: Option<&k256::ProjectivePoint>, // (x_g)
+        z: &BigNumber,
+        z_prime: &BigNumber,
+        t: &BigNumber,
+        u: Option<&k256::ProjectivePoint>,
+        v: &BigNumber,
+        w: &BigNumber,
+    ) -> k256::Scalar {
+        let e = k256::Scalar::from_digest(
+            Sha256::new()
+                .chain(tag.to_be_bytes())
+                .chain(stmt.prover_id.to_bytes())
+                .chain(stmt.verifier_id.to_bytes())
+                .chain(stmt.ek.0.n().to_bytes())
+                .chain(stmt.ciphertext1.0.to_bytes())
+                .chain(stmt.ciphertext2.0.to_bytes())
+                .chain(x_g.map_or(Vec::new(), |x_g| k256_serde::to_bytes(x_g)))
+                .chain(z.to_bytes())
+                .chain(z_prime.to_bytes())
+                .chain(t.to_bytes())
+                .chain(u.map_or(Vec::new(), |u| k256_serde::to_bytes(u)))
+                .chain(v.to_bytes())
+                .chain(w.to_bytes()),
+        );
+
+        e
+    }
+
     #[allow(clippy::many_single_char_names)]
     fn mta_proof_inner(
         &self,
@@ -116,64 +153,97 @@ impl ZkSetup {
         x_g: Option<&k256::ProjectivePoint>,
         wit: &Witness,
     ) -> (Proof, Option<k256::ProjectivePoint>) {
-        let alpha = BigNumber::random(&secp256k1_modulus_cubed());
+        // Assume: x in Z_q
+        debug_assert!(member_of_mod(&to_bigint(wit.x), &secp256k1_modulus()));
 
-        let q_n_tilde = secp256k1_modulus() * &self.dlog_stmt.n;
-        let q3_n_tilde = secp256k1_modulus_cubed() * &self.dlog_stmt.n;
+        // Assume: y in Z_N
+        debug_assert!(member_of_mod(&wit.msg.0, stmt.ek.0.n()));
 
-        let sigma = BigNumber::random(&q_n_tilde);
-        let tau = BigNumber::random(&q_n_tilde);
-        let rho = BigNumber::random(&q_n_tilde);
+        // Assume: r in Z*_N
+        debug_assert!(member_of_mul_group(&wit.randomness.0, stmt.ek.0.n()));
 
-        let rho_prime = BigNumber::random(&q3_n_tilde);
+        // Assume: c1 in Z*_N^2
+        debug_assert!(member_of_mul_group(&stmt.ciphertext1.0, stmt.ek.0.nn()));
+
+        // Assume: c2 in Z*_N^2
+        debug_assert!(member_of_mul_group(&stmt.ciphertext2.0, stmt.ek.0.nn()));
+
+        // Assume: X = g^x
+        if let Some(x_g) = x_g {
+            debug_assert!(*x_g == k256::ProjectivePoint::generator() * wit.x);
+        }
+
+        let alpha = Plaintext::generate(&secp256k1_modulus_cubed());
+
+        let q_n_tilde = secp256k1_modulus() * self.n_tilde();
+        let q3_n_tilde = secp256k1_modulus_cubed() * self.n_tilde();
+
+        let sigma = Randomness::generate(&q_n_tilde);
+        let tau = Randomness::generate(&q_n_tilde);
+        let rho = Randomness::generate(&q_n_tilde);
+
+        let rho_prime = Randomness::generate(&q3_n_tilde);
 
         let beta = stmt.ek.sample_randomness();
-        let gamma = Plaintext(stmt.ek.sample_randomness().0.clone());
+        let gamma = Plaintext(stmt.ek.sample_randomness().0.to_owned());
 
-        let x_bigint = to_bigint(wit.x);
+        let x = Plaintext(to_bigint(wit.x));
 
-        let z = self.commit(&x_bigint, &rho);
+        // z = h1^m h2^rho mod N~
+        let z = self.commit(&x, &rho);
+
+        // z' = h1^alpha h2^rho' mod N~
         let z_prime = self.commit(&alpha, &rho_prime);
-        let t = self.commit(&wit.msg.0, &sigma);
 
+        // t = h1^y h2^sigma mod N~
+        let t = self.commit(wit.msg, &sigma);
+
+        // u = g^alpha
         let u = x_g.map::<k256::ProjectivePoint, _>(|_| {
-            k256::ProjectivePoint::generator() * to_scalar(&alpha)
+            k256::ProjectivePoint::generator() * to_scalar(&alpha.0)
         });
 
+        // v = c1^alpha Paillier-Enc(gamma, beta) mod N^2
         let v = stmt.ek.encrypt_with_randomness(&gamma, &beta).0.modmul(
-            &stmt.ciphertext1.0.modpow(&alpha, stmt.ek.0.nn()),
+            &stmt.ciphertext1.0.modpow(&alpha.0, stmt.ek.0.nn()),
             stmt.ek.0.nn(),
         );
 
-        let w = self.commit(&gamma.0, &tau);
+        // w = h1^gamma h2^tau mod N~
+        let w = self.commit(&gamma, &tau);
 
-        let e = to_bigint(&k256::Scalar::from_digest(
-            Sha256::new()
-                .chain(tag.to_be_bytes())
-                .chain(stmt.prover_id.to_bytes())
-                .chain(stmt.verifier_id.to_bytes())
-                .chain(to_vec(stmt.ek.0.n()))
-                .chain(to_vec(&stmt.ciphertext1.0))
-                .chain(to_vec(&stmt.ciphertext2.0))
-                .chain(x_g.map_or(Vec::new(), |x_g| k256_serde::to_bytes(x_g)))
-                .chain(to_vec(&z))
-                .chain(to_vec(&z_prime))
-                .chain(to_vec(&t))
-                .chain(&u.map_or(Vec::new(), |u| k256_serde::to_bytes(&u)))
-                .chain(to_vec(&v))
-                .chain(to_vec(&w)),
+        let e = &to_bigint(&Self::compute_mta_proof_challenge(
+            tag,
+            stmt,
+            x_g,
+            &z,
+            &z_prime,
+            &t,
+            u.as_ref(),
+            &v,
+            &w,
         ));
 
+        // s = r^e beta mod N
         let s = Randomness(
             wit.randomness
                 .0
-                .modpow(&e, stmt.ek.0.n())
+                .modpow(e, stmt.ek.0.n())
                 .modmul(&beta.0, stmt.ek.0.n()),
         );
-        let s1 = &e * &x_bigint + alpha;
-        let s2 = &e * rho + rho_prime;
-        let t1 = Plaintext(&e * &wit.msg.0 + gamma.0.clone()); // TODO: This exceeds the modulus N
-        let t2 = e * sigma + tau;
+
+        // The following computations are done over the integers (as opposed to integers modulo n)
+        // s1 = e x + alpha
+        let s1 = Plaintext(e * &x.0 + &alpha.0);
+
+        // s2 = e rho + rho'
+        let s2 = Randomness(e * &rho.0 + &rho_prime.0);
+
+        // t1 = e y + gamma
+        let t1 = Plaintext(e * &wit.msg.0 + &gamma.0); // TODO: This exceeds the modulus N
+
+        // t2 = e sigma + tau
+        let t2 = Randomness(e * &sigma.0 + &tau.0);
 
         (
             Proof {
@@ -199,65 +269,140 @@ impl ZkSetup {
         proof: &Proof,
         x_g_u: Option<(&k256::ProjectivePoint, &k256::ProjectivePoint)>, // (x_g, u)
     ) -> bool {
-        if proof.s1 > secp256k1_modulus_cubed() || proof.s1 < BigNumber::zero() {
-            warn!("s1 not in range q^3");
+        // Ensure c1 is in Z*_N^2
+        if !member_of_mul_group(&stmt.ciphertext1.0, stmt.ek.0.nn()) {
+            warn!("mta proof: c1 not in Z*_N^2");
             return false;
         }
 
-        let e = k256::Scalar::from_digest(
-            Sha256::new()
-                .chain(tag.to_be_bytes())
-                .chain(stmt.prover_id.to_bytes())
-                .chain(stmt.verifier_id.to_bytes())
-                .chain(to_vec(stmt.ek.0.n()))
-                .chain(to_vec(&stmt.ciphertext1.0))
-                .chain(to_vec(&stmt.ciphertext2.0))
-                .chain(x_g_u.map_or(Vec::new(), |(x_g, _)| k256_serde::to_bytes(x_g)))
-                .chain(to_vec(&proof.z))
-                .chain(to_vec(&proof.z_prime))
-                .chain(to_vec(&proof.t))
-                .chain(x_g_u.map_or(Vec::new(), |(_, u)| k256_serde::to_bytes(u)))
-                .chain(to_vec(&proof.v))
-                .chain(to_vec(&proof.w)),
+        // Ensure c2 is in Z*_N^2
+        if !member_of_mul_group(&stmt.ciphertext2.0, stmt.ek.0.nn()) {
+            warn!("mta proof: c2 not in Z*_N^2");
+            return false;
+        }
+
+        // Ensure z is in Z*_N~
+        if !member_of_mul_group(&proof.z, self.n_tilde()) {
+            warn!("mta proof: z not in Z*_N~");
+            return false;
+        }
+
+        // Ensure z' is in Z*_N~
+        if !member_of_mul_group(&proof.z_prime, self.n_tilde()) {
+            warn!("mta proof: z' not in Z*_N~");
+            return false;
+        }
+
+        // Ensure t is in Z*_N~
+        if !member_of_mul_group(&proof.t, self.n_tilde()) {
+            warn!("mta proof: t not in Z*_N~");
+            return false;
+        }
+
+        // Ensure v is in Z*_N^2
+        if !member_of_mul_group(&proof.v, stmt.ek.0.nn()) {
+            warn!("mta proof: v not in Z*_N^2");
+            return false;
+        }
+
+        // Ensure w is in Z*_N~
+        if !member_of_mul_group(&proof.w, self.n_tilde()) {
+            warn!("mta proof: w not in Z*_N~");
+            return false;
+        }
+
+        // Ensure s is in Z*_N
+        if !member_of_mul_group(&proof.s.0, stmt.ek.0.n()) {
+            warn!("mta proof: s not in Z*_N");
+            return false;
+        }
+
+        // Ensure s1 is in Z_q^3
+        // Note that the Appendix says to check for s1 <= q^3,
+        // but it'll be equal with negligible probability from an honest user
+        // and the soundness proof mentions s1 < q^3.
+        if !member_of_mod(&proof.s1.0, &secp256k1_modulus_cubed()) {
+            warn!("mta proof: s1 not in Z_q^3");
+            return false;
+        }
+
+        // Ensure s2 is in Z_(q^3 N~)
+        let q3_n_tilde = secp256k1_modulus_cubed() * self.n_tilde();
+        if !member_of_mod(&proof.s2.0, &q3_n_tilde) {
+            warn!("mta proof: s2 not in Z_(q^3 N~)");
+            return false;
+        }
+
+        // Ensure t1 is in Z_(q N) - {0} (since 0 != gamma in Z*_N, t1 = e y + gamma)
+        let q_n = secp256k1_modulus() * stmt.ek.0.n();
+        if proof.t1.0 == BigNumber::zero() || !member_of_mod(&proof.t1.0, &q_n) {
+            warn!("mta proof: t1 not in Z_(q N)");
+            return false;
+        }
+
+        // Ensure t2 is in Z_(q^2 N~)
+        let q2_n_tilde = &secp256k1_modulus_squared() * self.n_tilde();
+        if !member_of_mod(&proof.t2.0, &q2_n_tilde) {
+            warn!("mta proof: t2 not in Z_(q^2 N~)");
+            return false;
+        }
+
+        // Ensure x_g and u are points on secp256k1
+        // This is handled by k256_serde on deserialize.
+
+        let e = Self::compute_mta_proof_challenge(
+            tag,
+            stmt,
+            x_g_u.map(|(x_g, _)| x_g),
+            &proof.z,
+            &proof.z_prime,
+            &proof.t,
+            x_g_u.map(|(_, u)| u),
+            &proof.v,
+            &proof.w,
         );
         let e_bigint = to_bigint(&e);
 
+        // g^s1 ?= X^e u
         if let Some((x_g, u)) = x_g_u {
-            let s1 = to_scalar(&proof.s1);
+            let s1 = to_scalar(&proof.s1.0);
             let s1_g = k256::ProjectivePoint::generator() * s1;
             let s1_g_check = x_g * &e + u;
             if s1_g_check != s1_g {
-                warn!("'wc' check fail");
+                warn!("mta proof: 'wc' check failed, invalid (g^x, u, s1)");
                 return false;
             }
         }
 
+        // h1^s1 h2^s2 ?= z^e z' mod N~
         let z_e_z_prime = proof
             .z
             .modpow(&e_bigint, self.n_tilde())
             .modmul(&proof.z_prime, self.n_tilde());
         let z_e_z_prime_check = self.commit(&proof.s1, &proof.s2);
         if z_e_z_prime_check != z_e_z_prime {
-            warn!("z^e z_prime check fail");
+            warn!("mta proof: z^e z_prime check failed");
             return false;
         }
 
+        // h1^t1 h2^t2 ?= t^e w mod N~
         let t_e_w = proof
             .t
             .modpow(&e_bigint, self.n_tilde())
             .modmul(&proof.w, self.n_tilde());
-        let t_e_w_check = self.commit(&proof.t1.0, &proof.t2);
+        let t_e_w_check = self.commit(&proof.t1, &proof.t2);
         if t_e_w_check != t_e_w {
-            warn!("t^e w check fail");
+            warn!("mta proof: t^e w check failed");
             return false;
         }
 
+        // c1^s1 s^N Gamma^t1 ?= c2^e v mod N^2
         let cipher_check_lhs = stmt
             .ek
             .encrypt_with_randomness(&proof.t1, &proof.s)
             .0
             .modmul(
-                &stmt.ciphertext1.0.modpow(&proof.s1, stmt.ek.0.nn()),
+                &stmt.ciphertext1.0.modpow(&proof.s1.0, stmt.ek.0.nn()),
                 stmt.ek.0.nn(),
             );
         let cipher_check_rhs = proof.v.modmul(
@@ -265,7 +410,7 @@ impl ZkSetup {
             stmt.ek.0.nn(),
         );
         if cipher_check_lhs != cipher_check_rhs {
-            warn!("cipher check fail");
+            warn!("mta proof: cipher check failed");
             return false;
         }
 
@@ -306,7 +451,7 @@ pub mod malicious {
 pub(crate) mod tests {
     use super::{
         malicious::{corrupt_proof, corrupt_proof_wc},
-        BigNumber, Statement, StatementWc, Witness, ZkSetup,
+        BigNumber, Proof, Statement, StatementWc, Witness, ZkSetup,
     };
     use crate::{
         collections::TypedUsize,
@@ -365,6 +510,15 @@ pub(crate) mod tests {
         assert!(!zkp.verify_mta_proof(bad_stmt, &proof));
         bad_stmt.verifier_id = bad_id;
         assert!(!zkp.verify_mta_proof(bad_stmt, &proof));
+
+        // test: valid proof with large length
+        assert!(!zkp.verify_mta_proof(
+            stmt,
+            &Proof {
+                z_prime: proof.z_prime.clone() + zkp.n_tilde(),
+                ..proof.clone()
+            }
+        ));
 
         // test: valid proof wc and bad id
         assert!(!zkp.verify_mta_proof_wc(bad_stmt_wc, &proof_wc));

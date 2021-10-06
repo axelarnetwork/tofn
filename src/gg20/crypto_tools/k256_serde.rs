@@ -5,6 +5,7 @@
 //! [Implementing Serialize · Serde](https://serde.rs/impl-serialize.html)
 //! [Implementing Deserialize · Serde](https://serde.rs/impl-deserialize.html)
 
+use ecdsa::elliptic_curve::Field;
 use k256::{
     elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint},
     EncodedPoint,
@@ -13,6 +14,24 @@ use serde::{de, de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 use zeroize::Zeroize;
 
 use crate::sdk::api::BytesVec;
+
+/// A wrapper for a random scalar value that is zeroized on drop
+#[derive(Debug, Zeroize)]
+#[zeroize(drop)]
+pub struct RandomScalar(k256::Scalar);
+
+impl AsRef<k256::Scalar> for RandomScalar {
+    fn as_ref(&self) -> &k256::Scalar {
+        &self.0
+    }
+}
+
+impl RandomScalar {
+    /// Generate a random k256 Scalar
+    pub fn generate() -> Self {
+        Self(k256::Scalar::random(rand::thread_rng()))
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Zeroize)]
 pub struct Scalar(k256::Scalar);
@@ -69,13 +88,20 @@ impl<'de> Visitor<'de> for ScalarVisitor {
     {
         if v.len() != 32 {
             return Err(E::custom(format!(
-                "Invalid bytes length; expect 32, got {}",
+                "invalid bytes length: expect 32, got {}",
                 v.len()
             )));
         }
-        Ok(Scalar(k256::Scalar::from_bytes_reduced(
-            k256::FieldBytes::from_slice(v),
-        )))
+
+        // ensure v encodes an integer less than the secp256k1 modulus
+        // if not then scalar.to_bytes() will differ from bytes
+        let bytes = k256::FieldBytes::from_slice(v);
+        let scalar = k256::Scalar::from_bytes_reduced(bytes);
+        if bytes != &scalar.to_bytes() {
+            return Err(E::custom("integer exceeds secp256k1 modulus"));
+        }
+
+        Ok(Scalar(scalar))
     }
 }
 
@@ -195,29 +221,28 @@ impl<'de> Deserialize<'de> for ProjectivePoint {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sdk::implementer_api::{deserialize, serialize};
     use ecdsa::elliptic_curve::group::prime::PrimeCurveAffine;
     use k256::elliptic_curve::Field;
 
     #[test]
     fn basic_round_trip() {
         let s = Scalar(k256::Scalar::random(rand::thread_rng()));
-        let s_serialized = serialize(&s).unwrap();
-        let s_deserialized = deserialize(&s_serialized).unwrap();
+        let s_serialized = bincode::serialize(&s).unwrap();
+        let s_deserialized = bincode::deserialize(&s_serialized).unwrap();
         assert_eq!(s, s_deserialized);
 
         let a = AffinePoint(
             (k256::AffinePoint::generator() * k256::Scalar::random(rand::thread_rng())).to_affine(),
         );
-        let a_serialized = serialize(&a).unwrap();
-        let a_deserialized = deserialize(&a_serialized).unwrap();
+        let a_serialized = bincode::serialize(&a).unwrap();
+        let a_deserialized = bincode::deserialize(&a_serialized).unwrap();
         assert_eq!(a, a_deserialized);
 
         let p = ProjectivePoint(
             k256::ProjectivePoint::generator() * k256::Scalar::random(rand::thread_rng()),
         );
-        let p_serialized = serialize(&p).unwrap();
-        let p_deserialized = deserialize(&p_serialized).unwrap();
+        let p_serialized = bincode::serialize(&p).unwrap();
+        let p_deserialized = bincode::deserialize(&p_serialized).unwrap();
         assert_eq!(p, p_deserialized);
     }
 }
