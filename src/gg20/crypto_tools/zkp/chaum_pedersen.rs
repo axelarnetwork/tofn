@@ -1,11 +1,14 @@
 use crate::{
     collections::TypedUsize,
     gg20::{
-        crypto_tools::{constants, k256_serde},
+        crypto_tools::{
+            constants,
+            k256_serde::{self, RandomScalar},
+        },
         sign::SignShareId,
     },
 };
-use ecdsa::{elliptic_curve::Field, hazmat::FromDigest};
+use ecdsa::hazmat::FromDigest;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tracing::warn;
@@ -31,15 +34,12 @@ pub struct Proof {
     t: k256_serde::Scalar,
 }
 
-// statement (base1, base2, target1, target2), witness (scalar)
-//   such that target1 == scalar * base1 and target2 == scalar * base2
-// notation based on section 4.3 of GG20 https://eprint.iacr.org/2020/540.pdf
-// except: (g, R, Sigma, S, alpha, beta) ->  (base1, base2, target1, target2, alpha1, alpha2)
-pub fn prove(stmt: &Statement, wit: &Witness) -> Proof {
-    let a = k256::Scalar::random(rand::thread_rng());
-    let alpha1 = k256_serde::ProjectivePoint::from(stmt.base1 * &a);
-    let alpha2 = k256_serde::ProjectivePoint::from(stmt.base2 * &a);
-    let c = k256::Scalar::from_digest(
+fn compute_challenge(
+    stmt: &Statement,
+    alpha1: &k256_serde::ProjectivePoint,
+    alpha2: &k256_serde::ProjectivePoint,
+) -> k256::Scalar {
+    k256::Scalar::from_digest(
         Sha256::new()
             .chain(constants::CHAUM_PEDERSEN_PROOF_TAG.to_be_bytes())
             .chain(stmt.prover_id.to_bytes())
@@ -49,38 +49,56 @@ pub fn prove(stmt: &Statement, wit: &Witness) -> Proof {
             .chain(k256_serde::to_bytes(stmt.target2))
             .chain(alpha1.bytes())
             .chain(alpha2.bytes()),
-    );
+    )
+}
+
+// statement (base1, base2, target1, target2), witness (scalar)
+//   such that target1 == scalar * base1 and target2 == scalar * base2
+// notation based on section 4.3 of GG20 https://eprint.iacr.org/2020/540.pdf
+// except: (g, R, Sigma, S, alpha, beta) ->  (base1, base2, target1, target2, alpha1, alpha2)
+pub fn prove(stmt: &Statement, wit: &Witness) -> Proof {
+    let a = RandomScalar::generate();
+
+    // alpha = g^a
+    let alpha1 = k256_serde::ProjectivePoint::from(stmt.base1 * a.as_ref());
+
+    // beta = R^a
+    let alpha2 = k256_serde::ProjectivePoint::from(stmt.base2 * a.as_ref());
+
+    let c = compute_challenge(stmt, &alpha1, &alpha2);
+
+    // t = a + c sigma mod q
+    let t = a.as_ref() + c * wit.scalar;
+
     Proof {
         alpha1,
         alpha2,
-        t: (a + c * wit.scalar).into(),
+        t: t.into(),
     }
 }
 
 pub fn verify(stmt: &Statement, proof: &Proof) -> bool {
-    let c = k256::Scalar::from_digest(
-        Sha256::new()
-            .chain(constants::CHAUM_PEDERSEN_PROOF_TAG.to_be_bytes())
-            .chain(stmt.prover_id.to_bytes())
-            .chain(k256_serde::to_bytes(stmt.base1))
-            .chain(k256_serde::to_bytes(stmt.base2))
-            .chain(k256_serde::to_bytes(stmt.target1))
-            .chain(k256_serde::to_bytes(stmt.target2))
-            .chain(proof.alpha1.bytes())
-            .chain(proof.alpha2.bytes()),
-    );
+    // Ensure that t is in Z_q and base1, base2, target1, target2, alpha1, alpha2 are in G
+    // This is handled by k256_serde on deserialize
+
+    let c = compute_challenge(stmt, &proof.alpha1, &proof.alpha2);
+
+    // g^t ?= alpha Sigma^c
     let lhs1 = stmt.base1 * proof.t.as_ref();
-    let lhs2 = stmt.base2 * proof.t.as_ref();
     let rhs1 = *proof.alpha1.as_ref() + stmt.target1 * &c;
+
+    // R^t ?= beta S^c
+    let lhs2 = stmt.base2 * proof.t.as_ref();
     let rhs2 = *proof.alpha2.as_ref() + stmt.target2 * &c;
+
     let err = match (lhs1 == rhs1, lhs2 == rhs2) {
         (true, true) => return true,
-        (false, false) => "fail both targets",
-        (false, true) => "fail target1",
-        (true, false) => "fail target2",
+        (false, false) => "both targets",
+        (false, true) => "target1",
+        (true, false) => "target2",
     };
 
-    warn!("chaum pedersen verify failed: {}", err);
+    warn!("chaum pedersen proof: verify failed for {}", err);
 
     false
 }
@@ -102,7 +120,7 @@ pub(crate) mod malicious {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ecdsa::elliptic_curve::Group;
+    use ecdsa::elliptic_curve::{Field, Group};
 
     #[test]
     fn basic_correctness() {

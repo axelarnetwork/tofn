@@ -1,11 +1,14 @@
 use crate::{
     collections::TypedUsize,
     gg20::{
-        crypto_tools::{constants, k256_serde},
+        crypto_tools::{
+            constants,
+            k256_serde::{self, RandomScalar},
+        },
         keygen::KeygenShareId,
     },
 };
-use ecdsa::{elliptic_curve::Field, hazmat::FromDigest};
+use ecdsa::hazmat::FromDigest;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tracing::warn;
@@ -28,39 +31,42 @@ pub struct Proof {
     t: k256_serde::Scalar,
 }
 
-// statement (base, target), witness (scalar)
-//   such that target == scalar * base
-pub fn prove(stmt: &Statement, wit: &Witness) -> Proof {
-    let a = k256::Scalar::random(rand::thread_rng());
-    let alpha = stmt.base * &a;
-    let c = k256::Scalar::from_digest(
+/// Compute the challenge for Schnorr zk proof
+fn compute_challenge(stmt: &Statement, alpha: &k256::ProjectivePoint) -> k256::Scalar {
+    k256::Scalar::from_digest(
         Sha256::new()
             .chain(constants::SCHNORR_PROOF_TAG.to_be_bytes())
             .chain(stmt.prover_id.to_bytes())
             .chain(k256_serde::to_bytes(stmt.base))
             .chain(k256_serde::to_bytes(stmt.target))
-            .chain(k256_serde::to_bytes(&alpha)),
-    );
+            .chain(k256_serde::to_bytes(alpha)),
+    )
+}
+
+// statement (base, target), witness (scalar)
+//   such that target == scalar * base
+pub fn prove(stmt: &Statement, wit: &Witness) -> Proof {
+    let a = RandomScalar::generate();
+    let alpha = stmt.base * a.as_ref();
+    let c = compute_challenge(stmt, &alpha);
+    let t = a.as_ref() - &(c * wit.scalar);
+
     Proof {
         c: c.into(),
-        t: (a - c * wit.scalar).into(),
+        t: t.into(),
     }
 }
 
 pub fn verify(stmt: &Statement, proof: &Proof) -> bool {
+    // Ensure that c and t are in Z_q and target is in G
+    // This is handled by k256_serde on deserialize
     let alpha = stmt.base * proof.t.as_ref() + stmt.target * proof.c.as_ref();
-    let c_check = k256::Scalar::from_digest(
-        Sha256::new()
-            .chain(constants::SCHNORR_PROOF_TAG.to_be_bytes())
-            .chain(stmt.prover_id.to_bytes())
-            .chain(k256_serde::to_bytes(stmt.base))
-            .chain(k256_serde::to_bytes(stmt.target))
-            .chain(k256_serde::to_bytes(&alpha)),
-    );
+    let c_check = compute_challenge(stmt, &alpha);
+
     if &c_check == proof.c.as_ref() {
         true
     } else {
-        warn!("schnorr verify failed");
+        warn!("schnorr proof: verify failed");
         false
     }
 }
@@ -82,7 +88,7 @@ pub(crate) mod malicious {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ecdsa::elliptic_curve::Group;
+    use ecdsa::elliptic_curve::{Field, Group};
 
     #[test]
     fn basic_correctness() {

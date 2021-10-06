@@ -5,6 +5,7 @@
 //! [Implementing Serialize · Serde](https://serde.rs/impl-serialize.html)
 //! [Implementing Deserialize · Serde](https://serde.rs/impl-deserialize.html)
 
+use ecdsa::elliptic_curve::Field;
 use k256::{
     elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint},
     EncodedPoint,
@@ -13,6 +14,24 @@ use serde::{de, de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 use zeroize::Zeroize;
 
 use crate::sdk::api::BytesVec;
+
+/// A wrapper for a random scalar value that is zeroized on drop
+#[derive(Debug, Zeroize)]
+#[zeroize(drop)]
+pub struct RandomScalar(k256::Scalar);
+
+impl AsRef<k256::Scalar> for RandomScalar {
+    fn as_ref(&self) -> &k256::Scalar {
+        &self.0
+    }
+}
+
+impl RandomScalar {
+    /// Generate a random k256 Scalar
+    pub fn generate() -> Self {
+        Self(k256::Scalar::random(rand::thread_rng()))
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Zeroize)]
 pub struct Scalar(k256::Scalar);
@@ -73,6 +92,9 @@ impl<'de> Visitor<'de> for ScalarVisitor {
                 v.len()
             )));
         }
+
+        // TODO: Check if v is in Z_q before deserializing? k256 doesn't check this (and just does a reduction)
+        // Although it shouldn't be exploitable
         Ok(Scalar(k256::Scalar::from_bytes_reduced(
             k256::FieldBytes::from_slice(v),
         )))
