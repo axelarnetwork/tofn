@@ -116,6 +116,14 @@ const SECP256K1_CURVE_ORDER_CUBED: [u8; 96] = [
     0x35, 0x52, 0x09, 0x0f, 0xe1, 0xe1, 0x1b, 0x11, 0xeb, 0x69, 0x26, 0xb7, 0x85, 0x7b, 0x73, 0xc1,
 ];
 
+/// The order of the secp256k1 curve raised to exponent 2
+const SECP256K1_CURVE_ORDER_SQUARED: [u8; 64] = [
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfd,
+    0x75, 0x5d, 0xb9, 0xcd, 0x5e, 0x91, 0x40, 0x77, 0x7f, 0xa4, 0xbd, 0x19, 0xa0, 0x6c, 0x82, 0x83,
+    0x9d, 0x67, 0x1c, 0xd5, 0x81, 0xc6, 0x9b, 0xc5, 0xe6, 0x97, 0xf5, 0xe4, 0x5b, 0xcd, 0x07, 0xc5,
+    0x2e, 0xc3, 0x73, 0xa8, 0xbd, 0xc5, 0x98, 0xb4, 0x49, 0x3f, 0x50, 0xa1, 0x38, 0x0e, 0x12, 0x81,
+];
+
 /// secp256k1 curve order cubed as a `BigNumber`
 fn secp256k1_modulus_cubed() -> BigNumber {
     BigNumber::from_slice(SECP256K1_CURVE_ORDER_CUBED.as_ref())
@@ -123,13 +131,13 @@ fn secp256k1_modulus_cubed() -> BigNumber {
 
 /// secp256k1 curve order squared as a `BigNumber`
 fn secp256k1_modulus_squared() -> BigNumber {
-    secp256k1_modulus() * secp256k1_modulus()
+    BigNumber::from_slice(SECP256K1_CURVE_ORDER_SQUARED.as_ref())
 }
 
 #[cfg(test)]
 mod tests {
     use super::secp256k1_modulus_cubed;
-    use crate::gg20::crypto_tools::paillier::secp256k1_modulus;
+    use crate::gg20::crypto_tools::paillier::{secp256k1_modulus, zk::secp256k1_modulus_squared};
 
     #[test]
     fn q_cubed() {
@@ -137,6 +145,14 @@ mod tests {
         let q3_test = &q * &q * &q;
         let q3 = secp256k1_modulus_cubed();
         assert_eq!(q3_test, q3);
+    }
+
+    #[test]
+    fn q_squared() {
+        let q = secp256k1_modulus();
+        let q2_test = &q * &q;
+        let q2 = secp256k1_modulus_squared();
+        assert_eq!(q2_test, q2);
     }
 }
 
