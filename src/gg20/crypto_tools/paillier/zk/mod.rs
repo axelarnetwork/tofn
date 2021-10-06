@@ -1,9 +1,7 @@
 //! Minimize direct use of paillier, zk_paillier crates
 use crate::sdk::api::TofnResult;
 
-use super::{
-    keygen, keygen_unsafe, secp256k1_modulus, DecryptionKey, EncryptionKey, Plaintext, Randomness,
-};
+use super::{keygen, keygen_unsafe, DecryptionKey, EncryptionKey, Plaintext, Randomness};
 use libpaillier::unknown_order::BigNumber;
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
