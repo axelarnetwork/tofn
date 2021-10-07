@@ -10,6 +10,9 @@ use zeroize::Zeroize;
 
 use crate::sdk::api::{TofnFatal, TofnResult};
 
+use self::utils::{member_of_mod, member_of_mul_group};
+
+pub mod utils;
 pub mod zk;
 
 /// unsafe because key pair does not use safe primes
@@ -44,6 +47,21 @@ impl EncryptionKey {
 
     pub fn random_plaintext(&self) -> Plaintext {
         Plaintext(BigNumber::random(self.0.n()))
+    }
+
+    /// Validate that the `plaintext` is a valid input to the Paillier encryption key.
+    pub fn validate_plaintext(&self, p: &Plaintext) -> bool {
+        member_of_mod(&p.0, self.0.n())
+    }
+
+    /// Validate that the `ciphertext` is a valid output of the Paillier encryption key.
+    pub fn validate_ciphertext(&self, c: &Ciphertext) -> bool {
+        member_of_mul_group(&c.0, self.0.nn())
+    }
+
+    /// Validate that the `randomness` is a valid input to the Paillier encryption key.
+    pub fn validate_randomness(&self, r: &Randomness) -> bool {
+        member_of_mul_group(&r.0, self.0.n())
     }
 
     // TODO how to make `encrypt` generic over `T` where `&T` impls `Into<Plaintext>`?
@@ -132,9 +150,14 @@ pub struct Ciphertext(libpaillier::Ciphertext);
 pub struct Randomness(BigNumber);
 
 impl Randomness {
-    /// Generate a random number in the range [0, n)
+    /// Generate a random number in the range `[0, n)`
     pub fn generate(n: &BigNumber) -> Self {
         Self(BigNumber::random(n))
+    }
+
+    /// Generate a random number in the range `[0, n)` with the provided `rng`
+    pub fn generate_with_rng(rng: &mut (impl CryptoRng + RngCore), n: &BigNumber) -> Self {
+        Self(BigNumber::random_with_rng(rng, n))
     }
 }
 

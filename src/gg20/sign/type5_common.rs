@@ -61,6 +61,40 @@ pub fn type5_checks(
 ) -> TofnResult<()> {
     for (peer_sign_id, (bcast_happy, bcast_type5), peer_mta_plaintexts) in zip2(bcasts_in, p2ps_in)
     {
+        let peer_keygen_id = *all_keygen_ids.get(peer_sign_id)?;
+        let peer_ek = all_share_public_infos.get(peer_keygen_id)?.ek();
+
+        // validate k_i_randomness
+        if !peer_ek.validate_randomness(&bcast_type5.k_i_randomness) {
+            warn!(
+                "peer {} says: invalid k_i_randomness from peer {}",
+                my_sign_id, peer_sign_id
+            );
+            faulters.set(peer_sign_id, ProtocolFault)?;
+            continue;
+        }
+
+        // validate alpha_plaintext and alpha_randomness
+        for (receiver_sign_id, mta_plaintext) in peer_mta_plaintexts.iter() {
+            if !peer_ek.validate_plaintext(&mta_plaintext.alpha_plaintext) {
+                warn!(
+                    "peer {} says: invalid alpha_plaintext from peer {} to peer {}",
+                    my_sign_id, peer_sign_id, receiver_sign_id
+                );
+                faulters.set(peer_sign_id, ProtocolFault)?;
+                continue;
+            }
+
+            if !peer_ek.validate_randomness(&mta_plaintext.alpha_randomness) {
+                warn!(
+                    "peer {} says: invalid alpha_randomness from peer {} to peer {}",
+                    my_sign_id, peer_sign_id, receiver_sign_id
+                );
+                faulters.set(peer_sign_id, ProtocolFault)?;
+                continue;
+            }
+        }
+
         // verify correct computation of delta_i
         let delta_i = peer_mta_plaintexts.iter().fold(
             bcast_type5.k_i.as_ref() * bcast_type5.gamma_i.as_ref(),
@@ -78,9 +112,6 @@ pub fn type5_checks(
             faulters.set(peer_sign_id, ProtocolFault)?;
             continue;
         }
-
-        let peer_keygen_id = *all_keygen_ids.get(peer_sign_id)?;
-        let peer_ek = all_share_public_infos.get(peer_keygen_id)?.ek();
 
         // k_i
         let k_i_ciphertext = peer_ek.encrypt_with_randomness(

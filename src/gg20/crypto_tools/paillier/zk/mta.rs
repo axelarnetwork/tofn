@@ -5,10 +5,8 @@ use crate::{
             constants, k256_serde,
             paillier::{
                 secp256k1_modulus, to_bigint, to_scalar,
-                zk::{
-                    utils::{member_of_mod, member_of_mul_group},
-                    ZkSetup,
-                },
+                utils::{member_of_mod, member_of_mul_group},
+                zk::ZkSetup,
                 Ciphertext, EncryptionKey, Plaintext, Randomness,
             },
         },
@@ -240,7 +238,7 @@ impl ZkSetup {
         let s2 = Randomness(e * &rho.0 + &rho_prime.0);
 
         // t1 = e y + gamma
-        let t1 = Plaintext(e * &wit.msg.0 + &gamma.0); // TODO: This exceeds the modulus N
+        let t1 = Plaintext(e * &wit.msg.0 + &gamma.0);
 
         // t2 = e sigma + tau
         let t2 = Randomness(e * &sigma.0 + &tau.0);
