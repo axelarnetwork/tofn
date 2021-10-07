@@ -10,7 +10,7 @@ use k256::{
     elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint},
     EncodedPoint,
 };
-use serde::{de, de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{de, de::Error, de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 use zeroize::Zeroize;
 
 use crate::sdk::api::BytesVec;
@@ -60,7 +60,8 @@ impl Serialize for Scalar {
     where
         S: Serializer,
     {
-        serializer.serialize_bytes(self.0.to_bytes().as_slice())
+        let bytes: [u8; 32] = self.0.to_bytes().into();
+        bytes.serialize(serializer)
     }
 }
 
@@ -69,36 +70,14 @@ impl<'de> Deserialize<'de> for Scalar {
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_bytes(ScalarVisitor)
-    }
-}
+        let bytes: [u8; 32] = Deserialize::deserialize(deserializer)?;
+        let field_bytes = k256::FieldBytes::from(bytes);
+        let scalar = k256::Scalar::from_bytes_reduced(&field_bytes);
 
-struct ScalarVisitor;
-
-impl<'de> Visitor<'de> for ScalarVisitor {
-    type Value = Scalar;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("SEC1-encoded secp256k1 (K-256) scalar")
-    }
-
-    fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
-    where
-        E: de::Error,
-    {
-        if v.len() != 32 {
-            return Err(E::custom(format!(
-                "invalid bytes length: expect 32, got {}",
-                v.len()
-            )));
-        }
-
-        // ensure v encodes an integer less than the secp256k1 modulus
+        // ensure bytes encodes an integer less than the secp256k1 modulus
         // if not then scalar.to_bytes() will differ from bytes
-        let bytes = k256::FieldBytes::from_slice(v);
-        let scalar = k256::Scalar::from_bytes_reduced(bytes);
-        if bytes != &scalar.to_bytes() {
-            return Err(E::custom("integer exceeds secp256k1 modulus"));
+        if field_bytes != scalar.to_bytes() {
+            return Err(D::Error::custom("integer exceeds secp256k1 modulus"));
         }
 
         Ok(Scalar(scalar))
@@ -226,11 +205,14 @@ mod tests {
 
     #[test]
     fn basic_round_trip() {
+        // scalar
         let s = Scalar(k256::Scalar::random(rand::thread_rng()));
         let s_serialized = bincode::serialize(&s).unwrap();
+        assert_eq!(s_serialized.len(), 32);
         let s_deserialized = bincode::deserialize(&s_serialized).unwrap();
         assert_eq!(s, s_deserialized);
 
+        // affine point
         let a = AffinePoint(
             (k256::AffinePoint::generator() * k256::Scalar::random(rand::thread_rng())).to_affine(),
         );
@@ -238,11 +220,37 @@ mod tests {
         let a_deserialized = bincode::deserialize(&a_serialized).unwrap();
         assert_eq!(a, a_deserialized);
 
+        // projective point
         let p = ProjectivePoint(
             k256::ProjectivePoint::generator() * k256::Scalar::random(rand::thread_rng()),
         );
         let p_serialized = bincode::serialize(&p).unwrap();
         let p_deserialized = bincode::deserialize(&p_serialized).unwrap();
         assert_eq!(p, p_deserialized);
+    }
+
+    #[test]
+    fn scalar_deserialization_fail() {
+        // test too few bytes
+        let s = Scalar(k256::Scalar::random(rand::thread_rng()));
+        let mut too_few_bytes = bincode::serialize(&s).unwrap();
+        too_few_bytes.pop();
+        bincode::deserialize::<Scalar>(&too_few_bytes).unwrap_err();
+
+        // test too many bytes
+        // TODO bincode ignores extra bytes by default
+
+        let mut modulus: [u8; 32] = [
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xff, 0xfe, 0xba, 0xae, 0xdc, 0xe6, 0xaf, 0x48, 0xa0, 0x3b, 0xbf, 0xd2, 0x5e, 0x8c,
+            0xd0, 0x36, 0x41, 0x41,
+        ]; // secp256k1 modulus
+
+        // test edge case: integer too large
+        bincode::deserialize::<Scalar>(&modulus).unwrap_err();
+
+        // test edge case: integer not too large
+        modulus[31] -= 1;
+        bincode::deserialize::<Scalar>(&modulus).unwrap();
     }
 }
