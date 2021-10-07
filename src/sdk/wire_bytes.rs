@@ -3,7 +3,13 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use tracing::{error, warn};
 
 use super::api::{BytesVec, TofnResult};
-use bincode::{DefaultOptions, Options};
+use bincode::{
+    config::{
+        BigEndian, Bounded, RejectTrailing, VarintEncoding, WithOtherEndian, WithOtherIntEncoding,
+        WithOtherLimit, WithOtherTrailing,
+    },
+    DefaultOptions, Options,
+};
 
 /// Max message length allowed to be (de)serialized
 const MAX_MSG_LEN: u64 = 1000 * 1000; // 1 MB
@@ -38,16 +44,9 @@ pub fn serialize<T: ?Sized>(value: &T) -> TofnResult<BytesVec>
 where
     T: serde::Serialize,
 {
-    // Create serialization options for bincode.
-    // The default options don't bound pre-allocation size,
-    // use little-endian and varint encoding, and reject trailing bytes.
-    let options = DefaultOptions::new()
-        .with_limit(MAX_MSG_LEN)
-        .with_big_endian() // do not ignore extra bytes at the end of the buffer
-        .with_varint_encoding() // saves a lot of space in smaller messages
-        .reject_trailing_bytes(); // do not ignore extra bytes at the end of the buffer
+    let bincode = bincoder();
 
-    options.serialize(value).map_err(|err| {
+    bincode.serialize(value).map_err(|err| {
         error!("serialization failure: {}", err.to_string());
         TofnFatal
     })
@@ -57,13 +56,9 @@ where
 /// Return an Option type since deserialization isn't treated as a Fatal error
 /// in tofn (for the purposes of fault identification).
 pub fn deserialize<T: DeserializeOwned>(bytes: &[u8]) -> Option<T> {
-    let options = DefaultOptions::new()
-        .with_limit(MAX_MSG_LEN)
-        .with_big_endian()
-        .with_varint_encoding()
-        .reject_trailing_bytes();
+    let bincode = bincoder();
 
-    options
+    bincode
         .deserialize(bytes)
         .map_err(|err| {
             warn!("deserialization failure: {}", err.to_string());
@@ -95,6 +90,23 @@ pub fn decode<T: DeserializeOwned>(bytes: &[u8]) -> Option<T> {
 
 pub fn decode_message<K>(bytes: &[u8]) -> Option<WireBytes<K>> {
     decode(bytes)
+}
+
+/// Prepare a `bincode` serde backend with our preferred config
+/// (wow, that return type is ugly)
+#[allow(clippy::type_complexity)]
+fn bincoder() -> WithOtherTrailing<
+    WithOtherIntEncoding<
+        WithOtherEndian<WithOtherLimit<DefaultOptions, Bounded>, BigEndian>,
+        VarintEncoding,
+    >,
+    RejectTrailing,
+> {
+    DefaultOptions::new()
+        .with_limit(MAX_MSG_LEN)
+        .with_big_endian() // do not ignore extra bytes at the end of the buffer
+        .with_varint_encoding() // saves a lot of space in smaller messages
+        .reject_trailing_bytes() // do not ignore extra bytes at the end of the buffer
 }
 
 #[derive(Serialize, Deserialize)]
