@@ -5,10 +5,8 @@ use crate::{
             constants, k256_serde,
             paillier::{
                 secp256k1_modulus, to_bigint, to_scalar,
-                zk::{
-                    utils::{member_of_mod, member_of_mul_group},
-                    ZkSetup,
-                },
+                utils::{member_of_mod, member_of_mul_group},
+                zk::ZkSetup,
                 Ciphertext, EncryptionKey, Plaintext, Randomness,
             },
         },

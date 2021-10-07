@@ -62,16 +62,16 @@ impl TryFrom<&[u8]> for SecretRecoveryKey {
 #[derive(Debug, Clone, Zeroize)]
 #[zeroize(drop)]
 pub struct PartyKeyPair {
-    pub(crate) ek: EncryptionKey,
-    pub(crate) dk: DecryptionKey,
+    pub(super) ek: EncryptionKey,
+    pub(super) dk: DecryptionKey,
 }
 
 #[derive(Debug, Clone)]
 pub struct PartyKeygenData {
-    pub(crate) encryption_keypair: PartyKeyPair,
-    pub(crate) encryption_keypair_proof: EncryptionKeyProof,
-    pub(crate) zk_setup: ZkSetup,
-    pub(crate) zk_setup_proof: ZkSetupProof,
+    pub(super) encryption_keypair: PartyKeyPair,
+    pub(super) encryption_keypair_proof: EncryptionKeyProof,
+    pub(super) zk_setup: ZkSetup,
+    pub(super) zk_setup_proof: ZkSetupProof,
 }
 
 // Since safe prime generation is expensive, a party is expected to generate

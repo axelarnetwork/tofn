@@ -103,6 +103,37 @@ impl Executer for R8Type7 {
                 .get(peer_keygen_id)?
                 .ek();
 
+            // validate k_i_randomness
+            if !peer_ek.validate_randomness(&bcast.k_i_randomness) {
+                warn!(
+                    "peer {} says: invalid k_i_randomness from peer {}",
+                    my_sign_id, peer_sign_id
+                );
+                faulters.set(peer_sign_id, ProtocolFault)?;
+                continue;
+            }
+
+            // validate mu_plaintext and mu_randomness
+            for (receiver_sign_id, mta_plaintext) in peer_p2ps.iter() {
+                if !peer_ek.validate_plaintext(&mta_plaintext.mu_plaintext) {
+                    warn!(
+                        "peer {} says: invalid mu_plaintext from peer {} to peer {}",
+                        my_sign_id, peer_sign_id, receiver_sign_id
+                    );
+                    faulters.set(peer_sign_id, ProtocolFault)?;
+                    continue;
+                }
+
+                if !peer_ek.validate_randomness(&mta_plaintext.mu_randomness) {
+                    warn!(
+                        "peer {} says: invalid mu_randomness from peer {} to peer {}",
+                        my_sign_id, peer_sign_id, receiver_sign_id
+                    );
+                    faulters.set(peer_sign_id, ProtocolFault)?;
+                    continue;
+                }
+            }
+
             // k_i
             let k_i_ciphertext = peer_ek
                 .encrypt_with_randomness(&(bcast.k_i.as_ref()).into(), &bcast.k_i_randomness);

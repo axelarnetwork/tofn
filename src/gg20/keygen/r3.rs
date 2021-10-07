@@ -8,7 +8,7 @@ use crate::{
         keygen::{r4, SecretKeyShare},
     },
     sdk::{
-        api::{Fault::ProtocolFault, TofnResult},
+        api::{Fault::ProtocolFault, TofnFatal, TofnResult},
         implementer_api::{
             log_accuse_warn, serialize, Executer, ProtocolBuilder, ProtocolInfo, RoundBuilder,
         },
@@ -134,6 +134,25 @@ impl Executer for R3 {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
+        // validate u_i_share_ciphertexts
+        let ek = &self.r1bcasts.get(my_keygen_id)?.ek;
+        p2ps_in.map_to_me2(my_keygen_id, |(peer_keygen_id, p2p)| {
+            if !ek.validate_ciphertext(&p2p.u_i_share_ciphertext) {
+                warn!(
+                    "peer {} says: invalid u_i_share_ciphertext from peer {}",
+                    my_keygen_id, peer_keygen_id
+                );
+
+                faulters.set(peer_keygen_id, ProtocolFault)?;
+            }
+
+            Ok::<(), TofnFatal>(())
+        })?;
+
+        if !faulters.is_empty() {
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
+        }
+
         // decrypt shares
         let share_infos = p2ps_in.map_to_me(my_keygen_id, |p2p| {
             let (u_i_share_plaintext, u_i_share_randomness) =
@@ -157,10 +176,7 @@ impl Executer for R3 {
                     .validate_share(&share_info.share)
                 {
                     log_accuse_warn(my_keygen_id, peer_keygen_id, "invalid vss share");
-                    Some(ShareInfo {
-                        share: share_info.share.clone(),
-                        randomness: share_info.randomness.clone(),
-                    })
+                    Some(share_info.clone())
                 } else {
                     None
                 },

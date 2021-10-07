@@ -21,9 +21,9 @@ use sha2::{Digest, Sha256};
 use tracing::warn;
 use zeroize::Zeroize;
 
-use crate::gg20::crypto_tools::constants;
+use crate::gg20::crypto_tools::{constants, paillier::Randomness};
 
-use super::{member_of_mul_group, NIZKStatement};
+use super::{super::utils::member_of_mul_group, NIZKStatement};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Zeroize)]
 pub struct CompositeDLogStmt {
@@ -86,7 +86,7 @@ impl CompositeDLogStmt {
         n: &BigNumber,
         p: &BigNumber,
         q: &BigNumber,
-    ) -> (Self, BigNumber) {
+    ) -> (Self, Randomness) {
         // Sample an asymmetric basis g
         let g = loop {
             let g = BigNumber::random_with_rng(rng, n);
@@ -98,17 +98,18 @@ impl CompositeDLogStmt {
         };
 
         let S = BigNumber::one() << WITNESS_SIZE;
-        let s = BigNumber::random_with_rng(rng, &S);
+        let s = Randomness::generate_with_rng(rng, &S);
+        let neg_s = Randomness(-&s.0);
 
         // v = g^(-s) mod N
-        let v = g.modpow(&(-&s), n);
+        let v = g.modpow(&neg_s.0, n);
 
         (Self { n: n.clone(), g, v }, s)
     }
 }
 
 impl NIZKStatement for CompositeDLogStmt {
-    type Witness = BigNumber;
+    type Witness = Randomness;
     type Proof = CompositeDLogProof;
 
     #[allow(non_snake_case)]
@@ -123,7 +124,7 @@ impl NIZKStatement for CompositeDLogStmt {
 
         // y = r + e s
         // This operation is performed over the integers (not modulo anything)
-        let y = r + e * wit;
+        let y = r + e * &wit.0;
 
         Self::Proof { x, y }
     }
@@ -196,7 +197,7 @@ mod tests {
         let (stmt, witness) =
             CompositeDLogStmt::setup(&mut rand::thread_rng(), ek.0.n(), dk.0.p(), dk.0.q());
 
-        assert!(witness.bit_length() <= WITNESS_SIZE);
+        assert!(witness.0.bit_length() <= WITNESS_SIZE);
 
         let domain = &1_u32.to_be_bytes();
         let proof = stmt.prove(&witness, domain);

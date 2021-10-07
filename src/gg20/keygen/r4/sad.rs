@@ -85,8 +85,17 @@ impl Executer for R4Sad {
             for (accused_keygen_id, accusation) in accusation_iter {
                 debug_assert_ne!(accused_keygen_id, accuser_keygen_id); // self accusation is impossible
 
-                // verify encryption
                 let accuser_ek = &self.r1bcasts.get(accuser_keygen_id)?.ek;
+
+                // validate randomness provided by the accuser
+                if !accuser_ek.validate_randomness(&accusation.randomness) {
+                    log_fault_info(my_keygen_id, accuser_keygen_id, "bad randomness");
+
+                    faulters.set(accuser_keygen_id, ProtocolFault)?;
+                    continue;
+                }
+
+                // verify encryption
                 let share_ciphertext = accuser_ek.encrypt_with_randomness(
                     &accusation.share.get_scalar().into(),
                     &accusation.randomness,

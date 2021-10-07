@@ -14,10 +14,10 @@ use zeroize::Zeroize;
 
 use crate::gg20::crypto_tools::{
     constants::{MODULUS_MAX_SIZE, MODULUS_MIN_SIZE, PAILLIER_KEY_PROOF_TAG},
-    paillier::{DecryptionKey, EncryptionKey},
+    paillier::{utils::member_of_mul_group, DecryptionKey, EncryptionKey},
 };
 
-use super::{member_of_mul_group, NIZKStatement};
+use super::NIZKStatement;
 
 /// The product of all primes less than alpha = 6370
 const ALPHA_PRIMORIAL_BYTES: &[u8] = &[

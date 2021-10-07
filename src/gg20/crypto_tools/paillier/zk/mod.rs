@@ -14,9 +14,6 @@ mod paillier_key;
 mod traits;
 pub use traits::*;
 
-mod utils;
-use utils::*;
-
 mod composite_dlog;
 use composite_dlog::{CompositeDLogProof, CompositeDLogStmt};
 
@@ -59,12 +56,10 @@ impl ZkSetup {
         (ek_tilde, dk_tilde): (EncryptionKey, DecryptionKey),
         domain: &[u8],
     ) -> (ZkSetup, ZkSetupProof) {
-        let (dlog_stmt, mut witness) =
+        let (dlog_stmt, witness) =
             CompositeDLogStmt::setup(rng, ek_tilde.0.n(), dk_tilde.0.p(), dk_tilde.0.q());
 
         let dlog_proof = dlog_stmt.prove(&witness, domain);
-
-        witness.zeroize();
 
         (Self { dlog_stmt }, dlog_proof)
     }
