@@ -200,45 +200,52 @@ impl<'de> Deserialize<'de> for ProjectivePoint {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bincode::Options;
     use ecdsa::elliptic_curve::group::prime::PrimeCurveAffine;
     use k256::elliptic_curve::Field;
 
     #[test]
     fn basic_round_trip() {
+        let bincode = bincode::DefaultOptions::new();
+
         // scalar
         let s = Scalar(k256::Scalar::random(rand::thread_rng()));
-        let s_serialized = bincode::serialize(&s).unwrap();
+        let s_serialized = bincode.serialize(&s).unwrap();
         assert_eq!(s_serialized.len(), 32);
-        let s_deserialized = bincode::deserialize(&s_serialized).unwrap();
+        let s_deserialized = bincode.deserialize(&s_serialized).unwrap();
         assert_eq!(s, s_deserialized);
 
         // affine point
         let a = AffinePoint(
             (k256::AffinePoint::generator() * k256::Scalar::random(rand::thread_rng())).to_affine(),
         );
-        let a_serialized = bincode::serialize(&a).unwrap();
-        let a_deserialized = bincode::deserialize(&a_serialized).unwrap();
+        let a_serialized = bincode.serialize(&a).unwrap();
+        let a_deserialized = bincode.deserialize(&a_serialized).unwrap();
         assert_eq!(a, a_deserialized);
 
         // projective point
         let p = ProjectivePoint(
             k256::ProjectivePoint::generator() * k256::Scalar::random(rand::thread_rng()),
         );
-        let p_serialized = bincode::serialize(&p).unwrap();
-        let p_deserialized = bincode::deserialize(&p_serialized).unwrap();
+        let p_serialized = bincode.serialize(&p).unwrap();
+        let p_deserialized = bincode.deserialize(&p_serialized).unwrap();
         assert_eq!(p, p_deserialized);
     }
 
     #[test]
     fn scalar_deserialization_fail() {
-        // test too few bytes
+        let bincode = bincode::DefaultOptions::new();
         let s = Scalar(k256::Scalar::random(rand::thread_rng()));
-        let mut too_few_bytes = bincode::serialize(&s).unwrap();
+
+        // test too few bytes
+        let mut too_few_bytes = bincode.serialize(&s).unwrap();
         too_few_bytes.pop();
-        bincode::deserialize::<Scalar>(&too_few_bytes).unwrap_err();
+        bincode.deserialize::<Scalar>(&too_few_bytes).unwrap_err();
 
         // test too many bytes
-        // TODO bincode ignores extra bytes by default
+        let mut too_many_bytes = bincode.serialize(&s).unwrap();
+        too_many_bytes.push(42);
+        bincode.deserialize::<Scalar>(&too_many_bytes).unwrap_err();
 
         let mut modulus: [u8; 32] = [
             0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -247,10 +254,10 @@ mod tests {
         ]; // secp256k1 modulus
 
         // test edge case: integer too large
-        bincode::deserialize::<Scalar>(&modulus).unwrap_err();
+        bincode.deserialize::<Scalar>(&modulus).unwrap_err();
 
         // test edge case: integer not too large
         modulus[31] -= 1;
-        bincode::deserialize::<Scalar>(&modulus).unwrap();
+        bincode.deserialize::<Scalar>(&modulus).unwrap();
     }
 }
