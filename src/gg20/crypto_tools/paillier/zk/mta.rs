@@ -238,7 +238,7 @@ impl ZkSetup {
         let s2 = Randomness(e * &rho.0 + &rho_prime.0);
 
         // t1 = e y + gamma
-        let t1 = Plaintext(e * &wit.msg.0 + &gamma.0); // TODO: This exceeds the modulus N
+        let t1 = Plaintext(e * &wit.msg.0 + &gamma.0);
 
         // t2 = e sigma + tau
         let t2 = Randomness(e * &sigma.0 + &tau.0);
