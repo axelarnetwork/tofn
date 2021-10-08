@@ -51,9 +51,19 @@ pub struct CompositeDLogWitness {
 // the challenge hash which is 256 bits long.
 const CHALLENGE_K: usize = 256;
 const SECURITY_PARAM_K_PRIME: usize = 128;
-const WITNESS_SIZE: usize = 256;
-/// The max witness size is `max(witness_size, modulus_max_size) = modulus_max_size`
-const MAX_R_SIZE: usize = CHALLENGE_K + SECURITY_PARAM_K_PRIME + MODULUS_MAX_SIZE;
+const S_WITNESS_SIZE: usize = 256;
+
+/// s^-1 is the inverse of the S_WITNESS_SIZE-bit number s modulo a MODULUS_MAX_SIZE-bit modulus,
+/// so the size of s^-1 is MODULUS_MAX_SIZE
+const S_INV_WITNESS_SIZE: usize = MODULUS_MAX_SIZE;
+
+/// `r` masks a witness `s`.  `MAX_R_MASK_SIZE` is the size of the largest possible such mask.
+const MAX_R_MASK_SIZE: usize = r_mask_size(max(S_WITNESS_SIZE, S_INV_WITNESS_SIZE));
+
+/// The bit length of a mask required to hide a witness whose bit length is `witness_size`.
+const fn r_mask_size(witness_size: usize) -> usize {
+    CHALLENGE_K + SECURITY_PARAM_K_PRIME + witness_size
+}
 
 /// Compute the challenge for the NIZKProof
 fn compute_challenge(stmt: &CompositeDLogStmt, domain: &[u8], x: &BigNumber) -> BigNumber {
@@ -98,7 +108,7 @@ impl CompositeDLogStmt {
         q: &BigNumber,
         totient: &BigNumber,
     ) -> (Self, CompositeDLogWitness, CompositeDLogWitness) {
-        let S = BigNumber::one() << WITNESS_SIZE;
+        let S = BigNumber::one() << S_WITNESS_SIZE;
 
         loop {
             // Sample an asymmetric basis g
@@ -126,7 +136,7 @@ impl CompositeDLogStmt {
                 // and needs to be masked using an appropriately long `r`
                 CompositeDLogWitness {
                     s: Randomness(x),
-                    size: MODULUS_MAX_SIZE,
+                    size: S_INV_WITNESS_SIZE,
                 }
             } else {
                 continue;
@@ -134,7 +144,7 @@ impl CompositeDLogStmt {
 
             let s = CompositeDLogWitness {
                 s,
-                size: WITNESS_SIZE,
+                size: S_WITNESS_SIZE,
             };
 
             return (Self { n: n.clone(), g, v }, s, s_inv);
@@ -151,7 +161,7 @@ impl NIZKStatement for CompositeDLogStmt {
         // Assume that v = g^(-s) mod N~
         debug_assert!(self.v == self.g.modpow(&(-&wit.s.0), &self.n));
 
-        let r_size = SECURITY_PARAM_K_PRIME + CHALLENGE_K + wit.size;
+        let r_size = r_mask_size(wit.size);
         let R = BigNumber::one() << r_size;
         let r = Randomness::generate(&R);
 
@@ -198,7 +208,7 @@ impl NIZKStatement for CompositeDLogStmt {
             return false;
         }
 
-        if proof.y < BigNumber::zero() || proof.y.bit_length() > MAX_R_SIZE {
+        if proof.y < BigNumber::zero() || proof.y.bit_length() > MAX_R_MASK_SIZE {
             warn!("composite dlog proof: y out of allowed bounds");
             return false;
         }
@@ -220,6 +230,12 @@ impl NIZKStatement for CompositeDLogStmt {
     }
 }
 
+/// Apparently I need to roll my own const max fn :(
+/// <https://stackoverflow.com/questions/53619695/calculating-maximum-value-of-a-set-of-constant-expressions-at-compile-time>
+const fn max(a: usize, b: usize) -> usize {
+    [a, b][(a < b) as usize]
+}
+
 #[cfg(feature = "malicious")]
 pub mod malicious {
     use libpaillier::unknown_order::BigNumber;
@@ -234,12 +250,8 @@ pub mod malicious {
 
 #[cfg(test)]
 mod tests {
-    use crate::gg20::crypto_tools::{
-        constants::MODULUS_MAX_SIZE,
-        paillier::{keygen_unsafe, zk::NIZKStatement},
-    };
-
-    use super::{CompositeDLogStmt, WITNESS_SIZE};
+    use super::{CompositeDLogStmt, NIZKStatement, S_INV_WITNESS_SIZE, S_WITNESS_SIZE};
+    use crate::gg20::crypto_tools::paillier::keygen_unsafe;
 
     #[test]
     fn basic_correctness() {
@@ -261,8 +273,8 @@ mod tests {
             v: stmt1.g.clone(),
         };
 
-        assert!(witness1.s.0.bit_length() <= WITNESS_SIZE);
-        assert!(witness2.s.0.bit_length() <= MODULUS_MAX_SIZE);
+        assert!(witness1.s.0.bit_length() <= S_WITNESS_SIZE);
+        assert!(witness2.s.0.bit_length() <= S_INV_WITNESS_SIZE);
 
         let domain = &1_u32.to_be_bytes();
         let proof1 = stmt1.prove(&witness1, domain);
