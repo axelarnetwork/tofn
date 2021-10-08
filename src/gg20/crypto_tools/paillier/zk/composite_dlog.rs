@@ -54,11 +54,12 @@ const CHALLENGE_K: usize = 256;
 const SECURITY_PARAM_K_PRIME: usize = 128;
 const S_WITNESS_SIZE: usize = 256;
 
-/// s^-1 is the inverse of the S_WITNESS_SIZE-bit number s modulo a MODULUS_MAX_SIZE-bit modulus,
-/// so the size of s^-1 is MODULUS_MAX_SIZE
+/// s^-1 is the inverse of the S_WITNESS_SIZE-bit number
+/// s modulo phi(N) which is bounded by MODULUS_MAX_SIZE bits,
+/// so the size of s^-1 is upto MODULUS_MAX_SIZE bits.
 const S_INV_WITNESS_SIZE: usize = MODULUS_MAX_SIZE;
 
-/// `r` masks a witness `s`.  `MAX_R_MASK_SIZE` is the size of the largest possible such mask.
+/// `r` masks a witness `s`. `MAX_R_MASK_SIZE` is the size of the largest possible such mask.
 const MAX_R_MASK_SIZE: usize = r_mask_size(max(S_WITNESS_SIZE, S_INV_WITNESS_SIZE));
 
 /// The bit length of a mask required to hide a witness whose bit length is `witness_size`.
@@ -84,8 +85,8 @@ fn compute_challenge(stmt: &CompositeDLogStmt, domain: &[u8], x: &BigNumber) -> 
 fn legendre_symbol(a: &BigNumber, p: &BigNumber) -> i32 {
     debug_assert!(a.gcd(p).is_one());
 
-    let e = (p - 1) >> 1;
-    if a.modpow(&e, p).is_one() {
+    let e = Randomness((p - 1) >> 1);
+    if a.modpow(&e.0, p).is_one() {
         1
     } else {
         -1
@@ -102,13 +103,15 @@ impl CompositeDLogStmt {
     /// Setup the statement for Composite Dlog proof using the modulus `N = pq`.
     /// This will generate an asymmetric basis `g` and a witness `s` such that
     /// g^(-s) is also asymmetric basis.
+    /// The first statement returned is for `v = g^(-s)` with witness `s`,
+    /// and the second statment returned is for `g = v^(-s^(-1))` with witness `s^(-1)`.
     pub fn setup(
         rng: &mut (impl CryptoRng + RngCore),
         n: &BigNumber,
         p: &BigNumber,
         q: &BigNumber,
         totient: &BigNumber,
-    ) -> (Self, CompositeDLogWitness, CompositeDLogWitness) {
+    ) -> (Self, CompositeDLogWitness, Self, CompositeDLogWitness) {
         let S = BigNumber::one() << S_WITNESS_SIZE;
 
         loop {
@@ -120,11 +123,11 @@ impl CompositeDLogStmt {
                 continue;
             }
 
-            // Sample s from {0,..,S-1} which is in Z*_N with high probability
+            // Sample s from {0,..,S-1} which is in Z*_phi(N) with high probability
             let s = Randomness::generate_with_rng(rng, &S);
-            debug_assert!(member_of_mul_group(&s.0, n));
-            if !member_of_mul_group(&s.0, n) {
-                warn!("cryptographically unreachable: random `s` not in multiplicative group mod n. trying again");
+            debug_assert!(member_of_mul_group(&s.0, totient));
+            if !member_of_mul_group(&s.0, totient) {
+                warn!("cryptographically unreachable: random `s` not in multiplicative group `mod phi(n)`. trying again...");
                 continue;
             }
 
@@ -133,13 +136,13 @@ impl CompositeDLogStmt {
             // v = g^(-s) mod N
             let v = g.modpow(&neg_s.0, n);
 
-            // Check if v is asymmetric
+            // Check if v is also asymmetric
             if jacobi_symbol(&v, p, q) != -1 {
                 continue;
             }
 
             let s_inv = if let Some(x) = s.0.invert(totient) {
-                // s^-1 mod phi(N) is treated as being sampled from {0,..,2^MAX_N_SIZE}
+                // s^-1 mod phi(N) is treated as being sampled from {0,..,2^S_INV_WITNESS_SIZE}
                 // and needs to be masked using an appropriately long `r`
                 CompositeDLogWitness {
                     s: Randomness(x),
@@ -154,7 +157,21 @@ impl CompositeDLogStmt {
                 size: S_WITNESS_SIZE,
             };
 
-            return (Self { n: n.clone(), g, v }, s, s_inv);
+            let stmt1 = Self { n: n.clone(), g, v };
+            let stmt2 = stmt1.get_inverse_statement();
+
+            return (stmt1, s, stmt2, s_inv);
+        }
+    }
+
+    /// If the current statement is for `v = g^(-s)` for witness `s`,
+    /// return the inverse statement for `g = v^(-s^(-1))` for witness `s^(-1)`.
+    /// This is useful to prove that `g` and `v` have the same order.
+    pub fn get_inverse_statement(&self) -> Self {
+        Self {
+            n: self.n.clone(),
+            g: self.v.clone(),
+            v: self.g.clone(),
         }
     }
 }
@@ -266,19 +283,13 @@ mod tests {
 
         let (ek, dk) = keygen_unsafe(&mut rng).unwrap();
 
-        let (stmt1, witness1, witness2) = CompositeDLogStmt::setup(
+        let (stmt1, witness1, stmt2, witness2) = CompositeDLogStmt::setup(
             &mut rand::thread_rng(),
             ek.0.n(),
             dk.0.p(),
             dk.0.q(),
             dk.0.totient(),
         );
-
-        let stmt2 = CompositeDLogStmt {
-            n: stmt1.n.clone(),
-            g: stmt1.v.clone(),
-            v: stmt1.g.clone(),
-        };
 
         assert!(witness1.s.0.bit_length() <= S_WITNESS_SIZE);
         assert!(witness2.s.0.bit_length() <= S_INV_WITNESS_SIZE);

@@ -71,19 +71,13 @@ impl ZkSetup {
         (ek_tilde, dk_tilde): (EncryptionKey, DecryptionKey),
         domain: &[u8],
     ) -> (ZkSetup, ZkSetupProof) {
-        let (dlog_stmt1, witness1, witness2) = CompositeDLogStmt::setup(
+        let (dlog_stmt1, witness1, dlog_stmt2, witness2) = CompositeDLogStmt::setup(
             rng,
             ek_tilde.0.n(),
             dk_tilde.0.p(),
             dk_tilde.0.q(),
             dk_tilde.0.totient(),
         );
-
-        let dlog_stmt2 = CompositeDLogStmt {
-            n: dlog_stmt1.n.clone(),
-            g: dlog_stmt1.v.clone(),
-            v: dlog_stmt1.g.clone(),
-        };
 
         let (domain1, domain2) = Self::compute_domain(domain);
 
@@ -122,11 +116,7 @@ impl ZkSetup {
     }
 
     pub fn verify(&self, proof: &ZkSetupProof, domain: &[u8]) -> bool {
-        let dlog_stmt2 = CompositeDLogStmt {
-            n: self.dlog_stmt.n.clone(),
-            g: self.dlog_stmt.v.clone(),
-            v: self.dlog_stmt.g.clone(),
-        };
+        let dlog_stmt2 = self.dlog_stmt.get_inverse_statement();
 
         let (domain1, domain2) = Self::compute_domain(domain);
 
@@ -197,12 +187,6 @@ mod tests {
 
 #[cfg(feature = "malicious")]
 pub mod malicious {
-    use super::*;
-
     pub use super::composite_dlog::malicious::corrupt_zksetup_proof;
-
-    pub fn corrupt_ek_proof(mut proof: EncryptionKeyProof) -> EncryptionKeyProof {
-        proof.sigmas[0] += BigNumber::one();
-        proof
-    }
+    pub use super::paillier_key::malicious::corrupt_ek_proof;
 }
