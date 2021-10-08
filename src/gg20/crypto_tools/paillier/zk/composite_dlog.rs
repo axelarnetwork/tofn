@@ -112,7 +112,8 @@ impl CompositeDLogStmt {
         q: &BigNumber,
         totient: &BigNumber,
     ) -> (Self, CompositeDLogWitness, Self, CompositeDLogWitness) {
-        let S = BigNumber::one() << S_WITNESS_SIZE;
+        // We sample from S_WITNESS_SIZE - 1 and add a bit at the end to get an invertible element quickly
+        let S_div_2 = BigNumber::one() << (S_WITNESS_SIZE - 1);
 
         loop {
             // Sample an asymmetric basis g
@@ -123,13 +124,22 @@ impl CompositeDLogStmt {
                 continue;
             }
 
-            // Sample s from {0,..,S-1} which is in Z*_phi(N) with high probability
-            let s = Randomness::generate_with_rng(rng, &S);
-            debug_assert!(member_of_mul_group(&s.0, totient));
-            if !member_of_mul_group(&s.0, totient) {
-                warn!("cryptographically unreachable: random `s` not in multiplicative group `mod phi(n)`. trying again...");
-                continue;
-            }
+            // Sample s from {0,..,S-1} such that it is in Z*_phi(N)
+            // If p and q are safe primes, then any odd number `s` is invertible with very high probability.
+            // If p and q are not safe primes, then this can occur often, and we need to resample.
+            let (s, s_inv) = loop {
+                let s = Randomness((BigNumber::random_with_rng(rng, &S_div_2) << 1) + 1);
+
+                // Inversion will fail if s is not co-prime to phi(N)
+                match s.0.invert(totient) {
+                    None => {
+                        warn!("cryptographically unreachable (except for unsafe primes): random `s` not in `Z*_phi(n)`. trying again...");
+                    }
+                    Some(x) => {
+                        break (s, Randomness(x));
+                    }
+                };
+            };
 
             let neg_s = Randomness(-&s.0);
 
@@ -141,20 +151,16 @@ impl CompositeDLogStmt {
                 continue;
             }
 
-            let s_inv = if let Some(x) = s.0.invert(totient) {
-                // s^-1 mod phi(N) is treated as being sampled from {0,..,2^S_INV_WITNESS_SIZE}
-                // and needs to be masked using an appropriately long `r`
-                CompositeDLogWitness {
-                    s: Randomness(x),
-                    size: S_INV_WITNESS_SIZE,
-                }
-            } else {
-                continue;
-            };
-
             let s = CompositeDLogWitness {
                 s,
                 size: S_WITNESS_SIZE,
+            };
+
+            // s^-1 mod phi(N) is treated as being sampled from {0,..,2^S_INV_WITNESS_SIZE}
+            // and needs to be masked using an appropriately long `r`
+            let s_inv = CompositeDLogWitness {
+                s: s_inv,
+                size: S_INV_WITNESS_SIZE,
             };
 
             let stmt1 = Self { n: n.clone(), g, v };
