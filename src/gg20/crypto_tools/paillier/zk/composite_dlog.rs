@@ -120,8 +120,14 @@ impl CompositeDLogStmt {
                 continue;
             }
 
-            // Sample s from {0,..,S-1} which is in Z*_N~ with high probability
+            // Sample s from {0,..,S-1} which is in Z*_N with high probability
             let s = Randomness::generate_with_rng(rng, &S);
+            debug_assert!(member_of_mul_group(&s.0, &n));
+            if !member_of_mul_group(&s.0, &n) {
+                warn!("cryptographically unreachable: random `s` not in multiplicative group mod n. trying again");
+                continue;
+            }
+
             let neg_s = Randomness(-&s.0);
 
             // v = g^(-s) mod N
