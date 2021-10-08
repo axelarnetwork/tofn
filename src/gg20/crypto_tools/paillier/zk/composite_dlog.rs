@@ -30,6 +30,7 @@ use super::{super::utils::member_of_mul_group, NIZKStatement};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Zeroize)]
 pub struct CompositeDLogStmt {
+    // TODO no need for `pub` if we move things around a bit
     pub n: BigNumber,
     pub g: BigNumber,
     pub v: BigNumber,
@@ -42,8 +43,8 @@ pub struct CompositeDLogProof {
 }
 
 pub struct CompositeDLogWitness {
-    pub(crate) s: Randomness,
-    pub(crate) size: usize,
+    s: Randomness,
+    size: usize,
 }
 
 // The challenge size is likely a conservative choice as opposed to 128.
