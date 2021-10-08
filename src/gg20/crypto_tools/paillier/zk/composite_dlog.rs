@@ -37,8 +37,8 @@ pub struct CompositeDLogStmt {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Zeroize)]
 pub struct CompositeDLogProof {
-    pub(crate) x: BigNumber,
-    pub(crate) y: BigNumber,
+    x: BigNumber,
+    y: BigNumber,
 }
 
 pub struct CompositeDLogWitness {
@@ -217,6 +217,18 @@ impl NIZKStatement for CompositeDLogStmt {
             warn!("composite dlog proof: failed to verify");
             false
         }
+    }
+}
+
+#[cfg(feature = "malicious")]
+pub mod malicious {
+    use libpaillier::unknown_order::BigNumber;
+
+    use crate::gg20::crypto_tools::paillier::zk::ZkSetupProof;
+
+    pub fn corrupt_zksetup_proof(mut proof: ZkSetupProof) -> ZkSetupProof {
+        proof.dlog_proof1.x += BigNumber::one();
+        proof
     }
 }
 

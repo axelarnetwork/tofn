@@ -199,10 +199,7 @@ mod tests {
 pub mod malicious {
     use super::*;
 
-    pub fn corrupt_zksetup_proof(mut proof: ZkSetupProof) -> ZkSetupProof {
-        proof.dlog_proof1.x += BigNumber::one();
-        proof
-    }
+    pub use super::composite_dlog::malicious::corrupt_zksetup_proof;
 
     pub fn corrupt_ek_proof(mut proof: EncryptionKeyProof) -> EncryptionKeyProof {
         proof.sigmas[0] += BigNumber::one();
