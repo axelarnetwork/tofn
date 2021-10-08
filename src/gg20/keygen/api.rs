@@ -29,11 +29,11 @@ use super::malicious;
 /// Maximum byte length of messages exchanged during keygen.
 /// The sender of a message larger than this maximum will be accused as a faulter.
 /// View all message sizes in the logs of the integration test `single_thred::basic_correctness`.
-/// The largest keygen message is r1::Bcast with size ~4267 bytes on the wire.
+/// The largest keygen message is r1::Bcast with size ~4833 bytes on the wire.
 /// There is also a variable-sized message in r2::Bcast that depends on the
 /// threshold: 34t + 73. For t = 100, this is still smaller than the limit.
 /// See https://github.com/axelarnetwork/tofn/issues/171
-pub const MAX_MSG_LEN: usize = 5000;
+pub const MAX_MSG_LEN: usize = 5500;
 
 pub use super::secret_key_share::*;
 

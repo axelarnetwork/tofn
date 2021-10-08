@@ -21,7 +21,10 @@ use sha2::{Digest, Sha256};
 use tracing::warn;
 use zeroize::Zeroize;
 
-use crate::gg20::crypto_tools::{constants, paillier::Randomness};
+use crate::gg20::crypto_tools::{
+    constants::{self, MODULUS_MAX_SIZE},
+    paillier::Randomness,
+};
 
 use super::{super::utils::member_of_mul_group, NIZKStatement};
 
@@ -38,13 +41,19 @@ pub struct CompositeDLogProof {
     pub(crate) y: BigNumber,
 }
 
+pub struct CompositeDLogWitness {
+    pub(crate) s: Randomness,
+    pub(crate) size: usize,
+}
+
 // The challenge size is likely a conservative choice as opposed to 128.
 // This was chosen since we used SHA256 to compute
 // the challenge hash which is 256 bits long.
 const CHALLENGE_K: usize = 256;
 const SECURITY_PARAM_K_PRIME: usize = 128;
 const WITNESS_SIZE: usize = 256;
-const R_SIZE: usize = CHALLENGE_K + SECURITY_PARAM_K_PRIME + WITNESS_SIZE;
+/// The max witness size is `max(witness_size, modulus_max_size) = modulus_max_size`
+const MAX_R_SIZE: usize = CHALLENGE_K + SECURITY_PARAM_K_PRIME + MODULUS_MAX_SIZE;
 
 /// Compute the challenge for the NIZKProof
 fn compute_challenge(stmt: &CompositeDLogStmt, domain: &[u8], x: &BigNumber) -> BigNumber {
@@ -80,51 +89,80 @@ fn jacobi_symbol(a: &BigNumber, p: &BigNumber, q: &BigNumber) -> i32 {
 impl CompositeDLogStmt {
     #[allow(clippy::many_single_char_names, non_snake_case)]
     /// Setup the statement for Composite Dlog proof using the modulus `N = pq`.
-    /// This will generate an asymmetric basis `g` and a witness `s`.
+    /// This will generate an asymmetric basis `g` and a witness `s` such that
+    /// g^(-s) is also asymmetric basis.
     pub fn setup(
         rng: &mut (impl CryptoRng + RngCore),
         n: &BigNumber,
         p: &BigNumber,
         q: &BigNumber,
-    ) -> (Self, Randomness) {
-        // Sample an asymmetric basis g
-        let g = loop {
+        totient: &BigNumber,
+    ) -> (Self, CompositeDLogWitness, CompositeDLogWitness) {
+        let S = BigNumber::one() << WITNESS_SIZE;
+
+        loop {
+            // Sample an asymmetric basis g
             let g = BigNumber::random_with_rng(rng, n);
 
             // g is asymmetric when Jacobi symbol (g | n) = -1
-            if jacobi_symbol(&g, p, q) == -1 {
-                break g;
+            if jacobi_symbol(&g, p, q) != -1 {
+                continue;
             }
-        };
 
-        let S = BigNumber::one() << WITNESS_SIZE;
-        let s = Randomness::generate_with_rng(rng, &S);
-        let neg_s = Randomness(-&s.0);
+            // Sample s from {0,..,S-1} which is in Z*_N~ with high probability
+            let s = Randomness::generate_with_rng(rng, &S);
+            let neg_s = Randomness(-&s.0);
 
-        // v = g^(-s) mod N
-        let v = g.modpow(&neg_s.0, n);
+            // v = g^(-s) mod N
+            let v = g.modpow(&neg_s.0, n);
 
-        (Self { n: n.clone(), g, v }, s)
+            // Check if v is asymmetric
+            if jacobi_symbol(&v, p, q) != -1 {
+                continue;
+            }
+
+            let s_inv = if let Some(x) = s.0.invert(totient) {
+                // s^-1 mod phi(N) is treated as being sampled from {0,..,2^MAX_N_SIZE}
+                // and needs to be masked using an appropriately long `r`
+                CompositeDLogWitness {
+                    s: Randomness(x),
+                    size: MODULUS_MAX_SIZE,
+                }
+            } else {
+                continue;
+            };
+
+            let s = CompositeDLogWitness {
+                s,
+                size: WITNESS_SIZE,
+            };
+
+            return (Self { n: n.clone(), g, v }, s, s_inv);
+        }
     }
 }
 
 impl NIZKStatement for CompositeDLogStmt {
-    type Witness = Randomness;
+    type Witness = CompositeDLogWitness;
     type Proof = CompositeDLogProof;
 
     #[allow(non_snake_case)]
     fn prove(&self, wit: &Self::Witness, domain: &[u8]) -> Self::Proof {
-        let R = BigNumber::one() << R_SIZE;
-        let r = BigNumber::random(&R);
+        // Assume that v = g^(-s) mod N~
+        debug_assert!(self.v == self.g.modpow(&(-&wit.s.0), &self.n));
+
+        let r_size = SECURITY_PARAM_K_PRIME + CHALLENGE_K + wit.size;
+        let R = BigNumber::one() << r_size;
+        let r = Randomness::generate(&R);
 
         // x = g^r mod N
-        let x = self.g.modpow(&r, &self.n);
+        let x = self.g.modpow(&r.0, &self.n);
 
         let e = compute_challenge(self, domain, &x);
 
         // y = r + e s
         // This operation is performed over the integers (not modulo anything)
-        let y = r + e * &wit.0;
+        let y = &r.0 + e * &wit.s.0;
 
         Self::Proof { x, y }
     }
@@ -160,7 +198,7 @@ impl NIZKStatement for CompositeDLogStmt {
             return false;
         }
 
-        if proof.y < BigNumber::zero() || proof.y.bit_length() > R_SIZE + 1 {
+        if proof.y < BigNumber::zero() || proof.y.bit_length() > MAX_R_SIZE {
             warn!("composite dlog proof: y out of allowed bounds");
             return false;
         }
@@ -184,7 +222,10 @@ impl NIZKStatement for CompositeDLogStmt {
 
 #[cfg(test)]
 mod tests {
-    use crate::gg20::crypto_tools::paillier::{keygen_unsafe, zk::NIZKStatement};
+    use crate::gg20::crypto_tools::{
+        constants::MODULUS_MAX_SIZE,
+        paillier::{keygen_unsafe, zk::NIZKStatement},
+    };
 
     use super::{CompositeDLogStmt, WITNESS_SIZE};
 
@@ -194,23 +235,41 @@ mod tests {
 
         let (ek, dk) = keygen_unsafe(&mut rng).unwrap();
 
-        let (stmt, witness) =
-            CompositeDLogStmt::setup(&mut rand::thread_rng(), ek.0.n(), dk.0.p(), dk.0.q());
+        let (stmt1, witness1, witness2) = CompositeDLogStmt::setup(
+            &mut rand::thread_rng(),
+            ek.0.n(),
+            dk.0.p(),
+            dk.0.q(),
+            dk.0.totient(),
+        );
 
-        assert!(witness.0.bit_length() <= WITNESS_SIZE);
+        let stmt2 = CompositeDLogStmt {
+            n: stmt1.n.clone(),
+            g: stmt1.v.clone(),
+            v: stmt1.g.clone(),
+        };
+
+        assert!(witness1.s.0.bit_length() <= WITNESS_SIZE);
+        assert!(witness2.s.0.bit_length() <= MODULUS_MAX_SIZE);
 
         let domain = &1_u32.to_be_bytes();
-        let proof = stmt.prove(&witness, domain);
+        let proof1 = stmt1.prove(&witness1, domain);
+        let proof2 = stmt2.prove(&witness2, domain);
 
-        assert!(stmt.verify(&proof, domain));
+        assert!(stmt1.verify(&proof1, domain));
+        assert!(stmt2.verify(&proof2, domain));
 
         // Fail to verify a proof with the incorrect domain
-        assert!(!stmt.verify(&proof, &10_u32.to_be_bytes()));
+        assert!(!stmt1.verify(&proof1, &10_u32.to_be_bytes()));
+        assert!(!stmt2.verify(&proof2, &10_u32.to_be_bytes()));
 
-        let mut proof = proof;
-        proof.y -= 1;
+        let mut proof1 = proof1;
+        proof1.y -= 1;
+        let mut proof2 = proof2;
+        proof2.y -= 1;
 
         // Fail to verify using an invalid proof
-        assert!(!stmt.verify(&proof, domain));
+        assert!(!stmt1.verify(&proof1, domain));
+        assert!(!stmt2.verify(&proof2, domain));
     }
 }
