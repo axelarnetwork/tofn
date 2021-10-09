@@ -243,3 +243,13 @@ mod tests {
         assert_eq!(primorial, primorial_from_bytes);
     }
 }
+
+#[cfg(feature = "malicious")]
+pub mod malicious {
+    use super::*;
+
+    pub fn corrupt_ek_proof(mut proof: PaillierKeyProof) -> PaillierKeyProof {
+        proof.sigmas[0] += BigNumber::one();
+        proof
+    }
+}

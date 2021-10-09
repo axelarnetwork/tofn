@@ -20,3 +20,7 @@ pub const MODULUS_MAX_SIZE: usize = 2048;
 
 /// The min size of each prime is 1023 bits.
 pub const MODULUS_MIN_SIZE: usize = 2046;
+
+// Doamin separation for composite dlog proofs
+pub const COMPOSITE_DLOG_PROOF1: u8 = 0x00;
+pub const COMPOSITE_DLOG_PROOF2: u8 = 0x01;

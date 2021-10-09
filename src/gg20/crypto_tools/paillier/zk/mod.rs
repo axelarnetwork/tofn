@@ -1,5 +1,5 @@
 //! Minimize direct use of paillier, zk_paillier crates
-use crate::sdk::api::TofnResult;
+use crate::{gg20::crypto_tools::constants, sdk::api::TofnResult};
 
 use super::{keygen, keygen_unsafe, DecryptionKey, EncryptionKey, Plaintext, Randomness};
 use libpaillier::unknown_order::BigNumber;
@@ -15,16 +15,20 @@ mod traits;
 pub use traits::*;
 
 mod composite_dlog;
-use composite_dlog::{CompositeDLogProof, CompositeDLogStmt};
+use composite_dlog::{CompositeDLogProof, CompositeDLogStmtBase};
 
 pub type EncryptionKeyProof = paillier_key::PaillierKeyProof;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Zeroize)]
 pub struct ZkSetup {
-    dlog_stmt: CompositeDLogStmt,
+    dlog_stmt: CompositeDLogStmtBase,
 }
 
-pub type ZkSetupProof = CompositeDLogProof;
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ZkSetupProof {
+    dlog_proof: CompositeDLogProof, // This proves existence of dlog of h2 w.r.t h1
+    dlog_proof_inv: CompositeDLogProof, // This proves existence of dlog of h1 w.r.t h2
+}
 
 /// As per the Appendix, Pg. 25 of GG18 (2019/114) and Pg. 13 of GG20, a different RSA modulus is needed for
 /// the ZK proofs used in the protocol. While we don't need a Paillier keypair
@@ -51,17 +55,39 @@ impl ZkSetup {
         Ok(Self::from_keypair(rng, keypair, domain))
     }
 
+    /// Add a layer of domain separation on the two composite dlog proofs
+    fn compute_domain(domain: &[u8]) -> (Vec<u8>, Vec<u8>) {
+        let mut domain1: Vec<u8> = domain.into();
+        let mut domain2: Vec<u8> = domain.into();
+
+        domain1.push(constants::COMPOSITE_DLOG_PROOF1);
+        domain2.push(constants::COMPOSITE_DLOG_PROOF2);
+
+        (domain1, domain2)
+    }
+
     fn from_keypair(
         rng: &mut (impl CryptoRng + RngCore),
         (ek_tilde, dk_tilde): (EncryptionKey, DecryptionKey),
         domain: &[u8],
     ) -> (ZkSetup, ZkSetupProof) {
-        let (dlog_stmt, witness) =
-            CompositeDLogStmt::setup(rng, ek_tilde.0.n(), dk_tilde.0.p(), dk_tilde.0.q());
+        let (dlog_stmt, witness, dlog_stmt_inv, witness_inv) = CompositeDLogStmtBase::setup(
+            rng,
+            ek_tilde.0.n(),
+            dk_tilde.0.p(),
+            dk_tilde.0.q(),
+            dk_tilde.0.totient(),
+        );
 
-        let dlog_proof = dlog_stmt.prove(&witness, domain);
+        let (domain, domain_inv) = Self::compute_domain(domain);
 
-        (Self { dlog_stmt }, dlog_proof)
+        // Prove the existence of a dlog for h1 and h2 w.r.t each other
+        let zk_setup_proof = ZkSetupProof {
+            dlog_proof: dlog_stmt.prove(&witness, &domain[..]),
+            dlog_proof_inv: dlog_stmt_inv.prove(&witness_inv, &domain_inv[..]),
+        };
+
+        (Self { dlog_stmt }, zk_setup_proof)
     }
 
     fn h1(&self) -> &BigNumber {
@@ -85,7 +111,12 @@ impl ZkSetup {
     }
 
     pub fn verify(&self, proof: &ZkSetupProof, domain: &[u8]) -> bool {
-        self.dlog_stmt.verify(proof, domain)
+        let dlog_stmt_inv = self.dlog_stmt.get_inverse_statement();
+
+        let (domain, domain_inv) = Self::compute_domain(domain);
+
+        self.dlog_stmt.verify(&proof.dlog_proof, &domain[..])
+            && dlog_stmt_inv.verify(&proof.dlog_proof_inv, &domain_inv[..])
     }
 }
 
@@ -151,15 +182,6 @@ mod tests {
 
 #[cfg(feature = "malicious")]
 pub mod malicious {
-    use super::*;
-
-    pub fn corrupt_zksetup_proof(mut proof: ZkSetupProof) -> ZkSetupProof {
-        proof.x += BigNumber::one();
-        proof
-    }
-
-    pub fn corrupt_ek_proof(mut proof: EncryptionKeyProof) -> EncryptionKeyProof {
-        proof.sigmas[0] += BigNumber::one();
-        proof
-    }
+    pub use super::composite_dlog::malicious::corrupt_zksetup_proof;
+    pub use super::paillier_key::malicious::corrupt_ek_proof;
 }
