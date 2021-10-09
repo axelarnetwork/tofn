@@ -267,7 +267,7 @@ pub mod malicious {
     use crate::gg20::crypto_tools::paillier::zk::ZkSetupProof;
 
     pub fn corrupt_zksetup_proof(mut proof: ZkSetupProof) -> ZkSetupProof {
-        proof.dlog_proof1.x += BigNumber::one();
+        proof.dlog_proof.x += BigNumber::one();
         proof
     }
 }

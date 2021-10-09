@@ -26,8 +26,8 @@ pub struct ZkSetup {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ZkSetupProof {
-    dlog_proof1: CompositeDLogProof, // This proves existence of dlog of h2 w.r.t h1
-    dlog_proof2: CompositeDLogProof, // This proves existence of dlog of h1 w.r.t h2
+    dlog_proof: CompositeDLogProof, // This proves existence of dlog of h2 w.r.t h1
+    dlog_proof_inv: CompositeDLogProof, // This proves existence of dlog of h1 w.r.t h2
 }
 
 /// As per the Appendix, Pg. 25 of GG18 (2019/114) and Pg. 13 of GG20, a different RSA modulus is needed for
@@ -71,7 +71,7 @@ impl ZkSetup {
         (ek_tilde, dk_tilde): (EncryptionKey, DecryptionKey),
         domain: &[u8],
     ) -> (ZkSetup, ZkSetupProof) {
-        let (dlog_stmt1, witness1, dlog_stmt2, witness2) = CompositeDLogStmtBase::setup(
+        let (dlog_stmt, witness, dlog_stmt_inv, witness_inv) = CompositeDLogStmtBase::setup(
             rng,
             ek_tilde.0.n(),
             dk_tilde.0.p(),
@@ -79,20 +79,15 @@ impl ZkSetup {
             dk_tilde.0.totient(),
         );
 
-        let (domain1, domain2) = Self::compute_domain(domain);
+        let (domain, domain_inv) = Self::compute_domain(domain);
 
         // Prove the existence of a dlog for h1 and h2 w.r.t each other
-        let dlog_proof = ZkSetupProof {
-            dlog_proof1: dlog_stmt1.prove(&witness1, &domain1[..]),
-            dlog_proof2: dlog_stmt2.prove(&witness2, &domain2[..]),
+        let zk_setup_proof = ZkSetupProof {
+            dlog_proof: dlog_stmt.prove(&witness, &domain[..]),
+            dlog_proof_inv: dlog_stmt_inv.prove(&witness_inv, &domain_inv[..]),
         };
 
-        (
-            Self {
-                dlog_stmt: dlog_stmt1,
-            },
-            dlog_proof,
-        )
+        (Self { dlog_stmt }, zk_setup_proof)
     }
 
     fn h1(&self) -> &BigNumber {
@@ -116,12 +111,12 @@ impl ZkSetup {
     }
 
     pub fn verify(&self, proof: &ZkSetupProof, domain: &[u8]) -> bool {
-        let dlog_stmt2 = self.dlog_stmt.get_inverse_statement();
+        let dlog_stmt_inv = self.dlog_stmt.get_inverse_statement();
 
-        let (domain1, domain2) = Self::compute_domain(domain);
+        let (domain, domain_inv) = Self::compute_domain(domain);
 
-        self.dlog_stmt.verify(&proof.dlog_proof1, &domain1[..])
-            && dlog_stmt2.verify(&proof.dlog_proof2, &domain2[..])
+        self.dlog_stmt.verify(&proof.dlog_proof, &domain[..])
+            && dlog_stmt_inv.verify(&proof.dlog_proof_inv, &domain_inv[..])
     }
 }
 
