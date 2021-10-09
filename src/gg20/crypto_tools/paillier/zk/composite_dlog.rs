@@ -23,28 +23,26 @@ use zeroize::Zeroize;
 
 use crate::gg20::crypto_tools::{
     constants::{self, MODULUS_MAX_SIZE},
-    paillier::Randomness,
+    paillier::{Randomness, SecretNumber},
 };
 
 use super::{super::utils::member_of_mul_group, NIZKStatement};
 
+/// Composite Dlog proof statement for `v = g^(-s) mod N`
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Zeroize)]
-pub struct CompositeDLogStmt {
-    // TODO no need for `pub` if we move things around a bit
+pub struct CompositeDLogStmt<const WITNESS_SIZE: usize> {
     pub n: BigNumber,
     pub g: BigNumber,
     pub v: BigNumber,
 }
 
+/// The base composite dlog statement that states that `v = g^(-s)`
+pub type CompositeDLogStmtBase = CompositeDLogStmt<S_WITNESS_SIZE>;
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Zeroize)]
 pub struct CompositeDLogProof {
     x: BigNumber,
     y: BigNumber,
-}
-
-pub struct CompositeDLogWitness {
-    s: Randomness,
-    size: usize,
 }
 
 // The challenge size is likely a conservative choice as opposed to 128.
@@ -59,16 +57,17 @@ const S_WITNESS_SIZE: usize = 256;
 /// so the size of s^-1 is upto MODULUS_MAX_SIZE bits.
 const S_INV_WITNESS_SIZE: usize = MODULUS_MAX_SIZE;
 
-/// `r` masks a witness `s`. `MAX_R_MASK_SIZE` is the size of the largest possible such mask.
-const MAX_R_MASK_SIZE: usize = r_mask_size(max(S_WITNESS_SIZE, S_INV_WITNESS_SIZE));
-
-/// The bit length of a mask required to hide a witness whose bit length is `witness_size`.
+/// The bit length of a mask `r` required to hide a witness whose bit length is `witness_size`.
 const fn r_mask_size(witness_size: usize) -> usize {
     CHALLENGE_K + SECURITY_PARAM_K_PRIME + witness_size
 }
 
 /// Compute the challenge for the NIZKProof
-fn compute_challenge(stmt: &CompositeDLogStmt, domain: &[u8], x: &BigNumber) -> BigNumber {
+fn compute_challenge<const WITNESS_SIZE: usize>(
+    stmt: &CompositeDLogStmt<WITNESS_SIZE>,
+    domain: &[u8],
+    x: &BigNumber,
+) -> BigNumber {
     BigNumber::from_slice(
         Sha256::new()
             .chain(constants::COMPOSITE_DLOG_PROOF_TAG.to_be_bytes())
@@ -85,7 +84,7 @@ fn compute_challenge(stmt: &CompositeDLogStmt, domain: &[u8], x: &BigNumber) -> 
 fn legendre_symbol(a: &BigNumber, p: &BigNumber) -> i32 {
     debug_assert!(a.gcd(p).is_one());
 
-    let e = Randomness((p - 1) >> 1);
+    let e = SecretNumber((p - 1) >> 1);
     if a.modpow(&e.0, p).is_one() {
         1
     } else {
@@ -98,7 +97,7 @@ fn jacobi_symbol(a: &BigNumber, p: &BigNumber, q: &BigNumber) -> i32 {
     legendre_symbol(a, p) * legendre_symbol(a, q)
 }
 
-impl CompositeDLogStmt {
+impl CompositeDLogStmt<S_WITNESS_SIZE> {
     #[allow(clippy::many_single_char_names, non_snake_case)]
     /// Setup the statement for Composite Dlog proof using the modulus `N = pq`.
     /// This will generate an asymmetric basis `g` and a witness `s` such that
@@ -111,7 +110,12 @@ impl CompositeDLogStmt {
         p: &BigNumber,
         q: &BigNumber,
         totient: &BigNumber,
-    ) -> (Self, CompositeDLogWitness, Self, CompositeDLogWitness) {
+    ) -> (
+        Self,
+        SecretNumber,
+        CompositeDLogStmt<S_INV_WITNESS_SIZE>,
+        SecretNumber,
+    ) {
         // We sample from S_WITNESS_SIZE - 1 and add a bit at the end to get an invertible element quickly
         let S_div_2 = BigNumber::one() << (S_WITNESS_SIZE - 1);
 
@@ -128,7 +132,7 @@ impl CompositeDLogStmt {
             // If p and q are safe primes, then any odd number `s` is invertible with very high probability.
             // If p and q are not safe primes, then this can occur often, and we need to resample.
             let (s, s_inv) = loop {
-                let s = Randomness((BigNumber::random_with_rng(rng, &S_div_2) << 1) + 1);
+                let s = SecretNumber((BigNumber::random_with_rng(rng, &S_div_2) << 1) + 1);
 
                 // Inversion will fail if s is not co-prime to phi(N)
                 match s.0.invert(totient) {
@@ -136,12 +140,12 @@ impl CompositeDLogStmt {
                         warn!("cryptographically unreachable (except for unsafe primes): random `s` not in `Z*_phi(n)`. trying again...");
                     }
                     Some(x) => {
-                        break (s, Randomness(x));
+                        break (s, SecretNumber(x));
                     }
                 };
             };
 
-            let neg_s = Randomness(-&s.0);
+            let neg_s = SecretNumber(-&s.0);
 
             // v = g^(-s) mod N
             let v = g.modpow(&neg_s.0, n);
@@ -151,30 +155,21 @@ impl CompositeDLogStmt {
                 continue;
             }
 
-            let s = CompositeDLogWitness {
-                s,
-                size: S_WITNESS_SIZE,
-            };
+            let stmt = Self { n: n.clone(), g, v };
 
             // s^-1 mod phi(N) is treated as being sampled from {0,..,2^S_INV_WITNESS_SIZE}
             // and needs to be masked using an appropriately long `r`
-            let s_inv = CompositeDLogWitness {
-                s: s_inv,
-                size: S_INV_WITNESS_SIZE,
-            };
+            let stmt_inv = stmt.get_inverse_statement();
 
-            let stmt1 = Self { n: n.clone(), g, v };
-            let stmt2 = stmt1.get_inverse_statement();
-
-            return (stmt1, s, stmt2, s_inv);
+            return (stmt, s, stmt_inv, s_inv);
         }
     }
 
     /// If the current statement is for `v = g^(-s)` for witness `s`,
     /// return the inverse statement for `g = v^(-s^(-1))` for witness `s^(-1)`.
     /// This is useful to prove that `g` and `v` have the same order.
-    pub fn get_inverse_statement(&self) -> Self {
-        Self {
+    pub fn get_inverse_statement(&self) -> CompositeDLogStmt<S_INV_WITNESS_SIZE> {
+        CompositeDLogStmt::<S_INV_WITNESS_SIZE> {
             n: self.n.clone(),
             g: self.v.clone(),
             v: self.g.clone(),
@@ -182,16 +177,17 @@ impl CompositeDLogStmt {
     }
 }
 
-impl NIZKStatement for CompositeDLogStmt {
-    type Witness = CompositeDLogWitness;
+impl<const WITNESS_SIZE: usize> NIZKStatement for CompositeDLogStmt<WITNESS_SIZE> {
+    type Witness = SecretNumber;
     type Proof = CompositeDLogProof;
 
     #[allow(non_snake_case)]
     fn prove(&self, wit: &Self::Witness, domain: &[u8]) -> Self::Proof {
         // Assume that v = g^(-s) mod N~
-        debug_assert!(self.v == self.g.modpow(&(-&wit.s.0), &self.n));
+        debug_assert!(self.v == self.g.modpow(&(-&wit.0), &self.n));
 
-        let r_size = r_mask_size(wit.size);
+        let r_size = r_mask_size(WITNESS_SIZE);
+        println!("prove: r size: {}", r_size);
         let R = BigNumber::one() << r_size;
         let r = Randomness::generate(&R);
 
@@ -202,7 +198,7 @@ impl NIZKStatement for CompositeDLogStmt {
 
         // y = r + e s
         // This operation is performed over the integers (not modulo anything)
-        let y = &r.0 + e * &wit.s.0;
+        let y = &r.0 + e * &wit.0;
 
         Self::Proof { x, y }
     }
@@ -212,6 +208,8 @@ impl NIZKStatement for CompositeDLogStmt {
         // since in GG20, a malicious peer who sent a bad statement/ZkSetup
         // is only harming herself as the Zk proofs that use this modulus
         // won't guarantee anything.
+        // So, we don't have a proof for `n` not being smooth,
+        // or check if g has a large order or is an asymmetric basis.
         if self.n <= BigNumber::zero()
             || self.n.bit_length() < constants::MODULUS_MIN_SIZE
             || self.n.bit_length() > constants::MODULUS_MAX_SIZE
@@ -223,8 +221,6 @@ impl NIZKStatement for CompositeDLogStmt {
             return false;
         }
 
-        // Note that we don't perform the sanity check that
-        // g is an asymmetric basis
         if !member_of_mul_group(&self.g, &self.n) {
             return false;
         }
@@ -238,8 +234,12 @@ impl NIZKStatement for CompositeDLogStmt {
             return false;
         }
 
-        if proof.y < BigNumber::zero() || proof.y.bit_length() > MAX_R_MASK_SIZE {
-            warn!("composite dlog proof: y out of allowed bounds");
+        if proof.y < BigNumber::zero() || proof.y.bit_length() > r_mask_size(WITNESS_SIZE) {
+            warn!(
+                "composite dlog proof: y ({} bits) is not in range {}",
+                proof.y.bit_length(),
+                r_mask_size(WITNESS_SIZE)
+            );
             return false;
         }
 
@@ -260,12 +260,6 @@ impl NIZKStatement for CompositeDLogStmt {
     }
 }
 
-/// Apparently I need to roll my own const max fn :(
-/// <https://stackoverflow.com/questions/53619695/calculating-maximum-value-of-a-set-of-constant-expressions-at-compile-time>
-const fn max(a: usize, b: usize) -> usize {
-    [a, b][(a < b) as usize]
-}
-
 #[cfg(feature = "malicious")]
 pub mod malicious {
     use libpaillier::unknown_order::BigNumber;
@@ -281,7 +275,10 @@ pub mod malicious {
 #[cfg(test)]
 mod tests {
     use super::{CompositeDLogStmt, NIZKStatement, S_INV_WITNESS_SIZE, S_WITNESS_SIZE};
-    use crate::gg20::crypto_tools::paillier::keygen_unsafe;
+    use crate::gg20::crypto_tools::paillier::{
+        keygen_unsafe,
+        zk::composite_dlog::{CHALLENGE_K, SECURITY_PARAM_K_PRIME},
+    };
 
     #[test]
     fn basic_correctness() {
@@ -297,8 +294,10 @@ mod tests {
             dk.0.totient(),
         );
 
-        assert!(witness1.s.0.bit_length() <= S_WITNESS_SIZE);
-        assert!(witness2.s.0.bit_length() <= S_INV_WITNESS_SIZE);
+        assert!(witness1.0.bit_length() <= S_WITNESS_SIZE);
+        assert!(witness1.0.bit_length() >= S_WITNESS_SIZE / 2);
+        assert!(witness2.0.bit_length() <= S_INV_WITNESS_SIZE);
+        assert!(witness2.0.bit_length() >= S_INV_WITNESS_SIZE / 2);
 
         let domain = &1_u32.to_be_bytes();
         let proof1 = stmt1.prove(&witness1, domain);
@@ -311,13 +310,20 @@ mod tests {
         assert!(!stmt1.verify(&proof1, &10_u32.to_be_bytes()));
         assert!(!stmt2.verify(&proof2, &10_u32.to_be_bytes()));
 
-        let mut proof1 = proof1;
-        proof1.y -= 1;
-        let mut proof2 = proof2;
-        proof2.y -= 1;
-
         // Fail to verify using an invalid proof
-        assert!(!stmt1.verify(&proof1, domain));
-        assert!(!stmt2.verify(&proof2, domain));
+        let mut bad_proof1 = proof1.clone();
+        bad_proof1.y -= 1;
+        let mut bad_proof2 = proof2.clone();
+        bad_proof2.y -= 1;
+
+        assert!(!stmt1.verify(&bad_proof1, domain));
+        assert!(!stmt2.verify(&bad_proof2, domain));
+
+        // Fail if a proof is very long
+        bad_proof1.y = &proof1.y + dk.0.totient();
+        bad_proof2.y = &proof2.y + (dk.0.totient() << (CHALLENGE_K + SECURITY_PARAM_K_PRIME + 1));
+
+        assert!(!stmt1.verify(&bad_proof1, domain));
+        assert!(!stmt2.verify(&bad_proof2, domain));
     }
 }

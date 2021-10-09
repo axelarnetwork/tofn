@@ -15,13 +15,13 @@ mod traits;
 pub use traits::*;
 
 mod composite_dlog;
-use composite_dlog::{CompositeDLogProof, CompositeDLogStmt};
+use composite_dlog::{CompositeDLogProof, CompositeDLogStmtBase};
 
 pub type EncryptionKeyProof = paillier_key::PaillierKeyProof;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Zeroize)]
 pub struct ZkSetup {
-    dlog_stmt: CompositeDLogStmt,
+    dlog_stmt: CompositeDLogStmtBase,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -71,7 +71,7 @@ impl ZkSetup {
         (ek_tilde, dk_tilde): (EncryptionKey, DecryptionKey),
         domain: &[u8],
     ) -> (ZkSetup, ZkSetupProof) {
-        let (dlog_stmt1, witness1, dlog_stmt2, witness2) = CompositeDLogStmt::setup(
+        let (dlog_stmt1, witness1, dlog_stmt2, witness2) = CompositeDLogStmtBase::setup(
             rng,
             ek_tilde.0.n(),
             dk_tilde.0.p(),

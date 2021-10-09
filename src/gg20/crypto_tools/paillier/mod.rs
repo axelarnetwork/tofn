@@ -36,6 +36,11 @@ pub fn keygen(rng: &mut (impl CryptoRng + RngCore)) -> TofnResult<(EncryptionKey
     Ok((EncryptionKey(ek), DecryptionKey(dk)))
 }
 
+/// Wrapper for a `BigNumber` that is zeroized on drop
+#[derive(Debug, Zeroize)]
+#[zeroize(drop)]
+pub struct SecretNumber(BigNumber);
+
 /// Wrapper for Paillier encryption key
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Zeroize)]
 pub struct EncryptionKey(libpaillier::EncryptionKey);
