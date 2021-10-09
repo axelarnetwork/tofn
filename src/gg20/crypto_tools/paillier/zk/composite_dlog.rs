@@ -97,7 +97,7 @@ fn jacobi_symbol(a: &BigNumber, p: &BigNumber, q: &BigNumber) -> i32 {
     legendre_symbol(a, p) * legendre_symbol(a, q)
 }
 
-impl CompositeDLogStmt<S_WITNESS_SIZE> {
+impl CompositeDLogStmtBase {
     #[allow(clippy::many_single_char_names, non_snake_case)]
     /// Setup the statement for Composite Dlog proof using the modulus `N = pq`.
     /// This will generate an asymmetric basis `g` and a witness `s` such that
