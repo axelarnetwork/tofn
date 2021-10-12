@@ -6,10 +6,7 @@
 //! [Implementing Deserialize · Serde](https://serde.rs/impl-deserialize.html)
 
 use ecdsa::elliptic_curve::Field;
-use k256::{
-    elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint},
-    EncodedPoint,
-};
+use k256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
 use serde::{de, de::Error, de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 use zeroize::Zeroize;
 
@@ -85,30 +82,30 @@ impl<'de> Deserialize<'de> for Scalar {
 }
 
 #[derive(Clone, Debug, PartialEq, Zeroize)]
-struct AffinePoint(k256::AffinePoint);
+struct EncodedPoint(k256::EncodedPoint);
 
-impl Serialize for AffinePoint {
+impl Serialize for EncodedPoint {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        serializer.serialize_bytes(k256::EncodedPoint::from(self.0).as_bytes())
+        serializer.serialize_bytes(self.0.as_bytes())
     }
 }
 
-impl<'de> Deserialize<'de> for AffinePoint {
+impl<'de> Deserialize<'de> for EncodedPoint {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_bytes(AffinePointVisitor)
+        deserializer.deserialize_bytes(EncodedPointVisitor)
     }
 }
 
-struct AffinePointVisitor;
+struct EncodedPointVisitor;
 
-impl<'de> Visitor<'de> for AffinePointVisitor {
-    type Value = AffinePoint;
+impl<'de> Visitor<'de> for EncodedPointVisitor {
+    type Value = EncodedPoint;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str("SEC1-encoded secp256k1 (K-256) curve point")
@@ -118,11 +115,8 @@ impl<'de> Visitor<'de> for AffinePointVisitor {
     where
         E: de::Error,
     {
-        Ok(AffinePoint(
-            k256::AffinePoint::from_encoded_point(
-                &k256::EncodedPoint::from_bytes(v).map_err(E::custom)?,
-            )
-            .ok_or_else(|| E::custom("SEC1-encoded point is not on curve secp256k (K-256)"))?,
+        Ok(EncodedPoint(
+            k256::EncodedPoint::from_bytes(v).map_err(E::custom)?,
         ))
     }
 }
@@ -130,6 +124,7 @@ impl<'de> Visitor<'de> for AffinePointVisitor {
 #[derive(Clone, Debug, PartialEq)]
 pub struct ProjectivePoint(k256::ProjectivePoint);
 
+// TODO delete bytes, from_bytes and prefer our bincode wrapper
 impl ProjectivePoint {
     /// Trying to make this look like a method of k256::ProjectivePoint
     /// Unfortunately, `p.into().bytes()` needs type annotations
@@ -143,7 +138,7 @@ impl ProjectivePoint {
 
     pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
         Some(Self(k256::ProjectivePoint::from_encoded_point(
-            &EncodedPoint::from_bytes(bytes).ok()?,
+            &k256::EncodedPoint::from_bytes(bytes).ok()?,
         )?))
     }
 }
@@ -182,7 +177,7 @@ impl Serialize for ProjectivePoint {
     where
         S: Serializer,
     {
-        AffinePoint(self.0.to_affine()).serialize(serializer)
+        EncodedPoint(self.0.to_encoded_point(true)).serialize(serializer)
     }
 }
 
@@ -192,7 +187,10 @@ impl<'de> Deserialize<'de> for ProjectivePoint {
         D: Deserializer<'de>,
     {
         Ok(ProjectivePoint(
-            AffinePoint::deserialize(deserializer)?.0.into(),
+            k256::ProjectivePoint::from_encoded_point(&EncodedPoint::deserialize(deserializer)?.0)
+                .ok_or_else(|| {
+                    D::Error::custom("SEC1-encoded point is not on curve secp256k (K-256)")
+                })?,
         ))
     }
 }
@@ -200,20 +198,23 @@ impl<'de> Deserialize<'de> for ProjectivePoint {
 #[derive(Clone, Debug, PartialEq)]
 pub struct VerifyingKey(k256::ecdsa::VerifyingKey);
 
-impl VerifyingKey {
-    /// Trying to make this look like a method of k256::ProjectivePoint
-    /// Unfortunately, `p.into().bytes()` needs type annotations
-    pub fn bytes(&self) -> BytesVec {
-        self.0.to_encoded_point(true).as_bytes().to_vec()
-    }
+// TODO delete this code
+// impl VerifyingKey {
+//     /// Trying to make this look like a method of k256::ProjectivePoint
+//     /// Unfortunately, `p.into().bytes()` needs type annotations
+//     pub fn bytes(&self) -> BytesVec {
+//         self.0.to_encoded_point(true).as_bytes().to_vec()
+//     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
-        Some(Self(
-            k256::ecdsa::VerifyingKey::from_encoded_point(&EncodedPoint::from_bytes(bytes).ok()?)
-                .ok()?,
-        ))
-    }
-}
+//     pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
+//         Some(Self(
+//             k256::ecdsa::VerifyingKey::from_encoded_point(
+//                 &k256::EncodedPoint::from_bytes(bytes).ok()?,
+//             )
+//             .ok()?,
+//         ))
+//     }
+// }
 
 impl AsRef<k256::ecdsa::VerifyingKey> for VerifyingKey {
     fn as_ref(&self) -> &k256::ecdsa::VerifyingKey {
@@ -238,7 +239,7 @@ impl Serialize for VerifyingKey {
     where
         S: Serializer,
     {
-        serializer.serialize_bytes(self.0.to_encoded_point(true).as_bytes())
+        EncodedPoint(self.0.to_encoded_point(true)).serialize(serializer)
     }
 }
 
@@ -247,12 +248,9 @@ impl<'de> Deserialize<'de> for VerifyingKey {
     where
         D: Deserializer<'de>,
     {
-        // TODO this is a mess.  need to go through AffinePoint to check curve equation (I think?).
         Ok(VerifyingKey(
             k256::ecdsa::VerifyingKey::from_encoded_point(
-                &AffinePoint::deserialize(deserializer)?
-                    .0
-                    .to_encoded_point(false),
+                &EncodedPoint::deserialize(deserializer)?.0,
             )
             .map_err(D::Error::custom)?,
         ))
@@ -263,7 +261,6 @@ impl<'de> Deserialize<'de> for VerifyingKey {
 mod tests {
     use super::*;
     use bincode::Options;
-    use ecdsa::elliptic_curve::group::prime::PrimeCurveAffine;
     use k256::elliptic_curve::Field;
 
     #[test]
@@ -276,14 +273,6 @@ mod tests {
         assert_eq!(s_serialized.len(), 32);
         let s_deserialized = bincode.deserialize(&s_serialized).unwrap();
         assert_eq!(s, s_deserialized);
-
-        // affine point
-        let a = AffinePoint(
-            (k256::AffinePoint::generator() * k256::Scalar::random(rand::thread_rng())).to_affine(),
-        );
-        let a_serialized = bincode.serialize(&a).unwrap();
-        let a_deserialized = bincode.deserialize(&a_serialized).unwrap();
-        assert_eq!(a, a_deserialized);
 
         // projective point
         let p = ProjectivePoint(
