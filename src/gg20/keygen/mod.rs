@@ -5,7 +5,6 @@ mod r1;
 mod r2;
 mod r3;
 mod r4;
-mod rng;
 mod secret_key_share;
 
 #[cfg(test)]

@@ -1,15 +1,13 @@
-use std::{
-    array::TryFromSliceError,
-    convert::{TryFrom, TryInto},
-};
-
-use super::{r1, rng};
+use super::r1;
 use crate::{
     collections::TypedUsize,
-    crypto_tools::paillier::{
-        self,
-        zk::{EncryptionKeyProof, ZkSetup, ZkSetupProof},
-        DecryptionKey, EncryptionKey,
+    crypto_tools::{
+        paillier::{
+            self,
+            zk::{EncryptionKeyProof, ZkSetup, ZkSetupProof},
+            DecryptionKey, EncryptionKey,
+        },
+        rng,
     },
     gg20::constants::{KEYPAIR_TAG, ZKSETUP_TAG},
     sdk::{
@@ -34,6 +32,7 @@ use super::malicious;
 pub const MAX_MSG_LEN: usize = 5500;
 
 pub use super::secret_key_share::*;
+pub use rng::SecretRecoveryKey;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct KeygenShareId;
@@ -44,18 +43,6 @@ pub struct KeygenPartyId;
 pub type KeygenProtocol = Protocol<SecretKeyShare, KeygenShareId, KeygenPartyId, MAX_MSG_LEN>;
 pub type KeygenProtocolBuilder = ProtocolBuilder<SecretKeyShare, KeygenShareId>;
 pub type KeygenPartyShareCounts = PartyShareCounts<KeygenPartyId>;
-
-#[derive(Debug, Clone, Zeroize)]
-#[zeroize(drop)]
-pub struct SecretRecoveryKey(pub(crate) [u8; 64]);
-
-impl TryFrom<&[u8]> for SecretRecoveryKey {
-    type Error = TryFromSliceError;
-
-    fn try_from(v: &[u8]) -> Result<Self, Self::Error> {
-        Ok(Self(v.try_into()?))
-    }
-}
 
 #[derive(Debug, Clone, Zeroize)]
 #[zeroize(drop)]
