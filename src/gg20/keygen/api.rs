@@ -6,14 +6,12 @@ use std::{
 use super::{r1, rng};
 use crate::{
     collections::TypedUsize,
-    gg20::{
-        constants::{KEYPAIR_TAG, ZKSETUP_TAG},
-        crypto_tools::paillier::{
-            self,
-            zk::{EncryptionKeyProof, ZkSetup, ZkSetupProof},
-            DecryptionKey, EncryptionKey,
-        },
+    crypto_tools::paillier::{
+        self,
+        zk::{EncryptionKeyProof, ZkSetup, ZkSetupProof},
+        DecryptionKey, EncryptionKey,
     },
+    gg20::constants::{KEYPAIR_TAG, ZKSETUP_TAG},
     sdk::{
         api::{PartyShareCounts, Protocol, TofnFatal, TofnResult},
         implementer_api::{new_protocol, ProtocolBuilder},

@@ -1,5 +1,4 @@
 mod constants;
-mod crypto_tools;
 
 /// corrupt! should be visible only within modules [keygen], [sign]
 /// Thus, we must define it here in accordance with the bizarre rules for macro visibility:

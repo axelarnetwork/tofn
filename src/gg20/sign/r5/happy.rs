@@ -1,13 +1,13 @@
 use crate::{
     collections::{FillVecMap, FullP2ps, HoleVecMap, P2ps, TypedUsize, VecMap},
+    crypto_tools::{
+        constants,
+        hash::{self},
+        k256_serde,
+        mta::Secret,
+        paillier::{self, zk},
+    },
     gg20::{
-        crypto_tools::{
-            constants,
-            hash::{self},
-            k256_serde,
-            mta::Secret,
-            paillier::{self, zk},
-        },
         keygen::{KeygenShareId, SecretKeyShare},
         sign::{r5::common::R5Path, type5_common},
     },
@@ -223,12 +223,10 @@ mod malicious {
     use super::R5;
     use crate::{
         collections::TypedUsize,
-        gg20::{
-            crypto_tools::paillier::zk::range,
-            sign::{
-                malicious::{log_confess_info, Behaviour::*},
-                SignShareId,
-            },
+        crypto_tools::paillier::zk::range,
+        gg20::sign::{
+            malicious::{log_confess_info, Behaviour::*},
+            SignShareId,
         },
     };
 

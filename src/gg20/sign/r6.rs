@@ -1,13 +1,11 @@
 use crate::{
     collections::{FillVecMap, FullP2ps, HoleVecMap, P2ps, TypedUsize, VecMap},
-    gg20::{
-        crypto_tools::{
-            k256_serde, mta,
-            paillier::{self, zk},
-            zkp::pedersen,
-        },
-        keygen::{KeygenShareId, SecretKeyShare},
+    crypto_tools::{
+        k256_serde, mta,
+        paillier::{self, zk},
+        zkp::pedersen,
     },
+    gg20::keygen::{KeygenShareId, SecretKeyShare},
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnResult},
         implementer_api::{serialize, Executer, ProtocolBuilder, ProtocolInfo, RoundBuilder},
@@ -322,12 +320,10 @@ mod malicious {
     use super::R6;
     use crate::{
         collections::{HoleVecMap, TypedUsize},
-        gg20::{
-            crypto_tools::{mta::Secret, paillier::Plaintext, zkp::pedersen},
-            sign::{
-                malicious::{log_confess_info, Behaviour::*},
-                SignShareId,
-            },
+        crypto_tools::{mta::Secret, paillier::Plaintext, zkp::pedersen},
+        gg20::sign::{
+            malicious::{log_confess_info, Behaviour::*},
+            SignShareId,
         },
         sdk::api::TofnResult,
     };

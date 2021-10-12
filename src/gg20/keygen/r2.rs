@@ -3,10 +3,8 @@ use tracing::warn;
 
 use crate::{
     collections::{FillVecMap, P2ps, VecMap},
-    gg20::{
-        crypto_tools::{hash, paillier, vss},
-        keygen::{r3, SecretKeyShare},
-    },
+    crypto_tools::{hash, paillier, vss},
+    gg20::keygen::{r3, SecretKeyShare},
     sdk::{
         api::{Fault::ProtocolFault, TofnResult},
         implementer_api::{serialize, Executer, ProtocolBuilder, ProtocolInfo, RoundBuilder},
@@ -177,10 +175,8 @@ impl Executer for R2 {
 mod malicious {
     use crate::{
         collections::{HoleVecMap, TypedUsize},
-        gg20::{
-            crypto_tools::{paillier::Ciphertext, vss::Share},
-            keygen::{malicious::Behaviour, KeygenShareId},
-        },
+        crypto_tools::{paillier::Ciphertext, vss::Share},
+        gg20::keygen::{malicious::Behaviour, KeygenShareId},
         sdk::api::TofnResult,
     };
 

@@ -1,9 +1,7 @@
 use crate::{
     collections::TypedUsize,
-    gg20::{
-        crypto_tools::{constants, hash, k256_serde::to_bytes, paillier, vss},
-        keygen::SecretKeyShare,
-    },
+    crypto_tools::{constants, hash, k256_serde::to_bytes, paillier, vss},
+    gg20::keygen::SecretKeyShare,
     sdk::{
         api::TofnResult,
         implementer_api::{serialize, RoundBuilder},
@@ -141,12 +139,10 @@ pub(super) fn start(
 mod malicious {
     use crate::{
         collections::TypedUsize,
-        gg20::{
-            crypto_tools::paillier::{self, zk::range},
-            sign::{
-                malicious::{log_confess_info, Behaviour},
-                SignShareId,
-            },
+        crypto_tools::paillier::{self, zk::range},
+        gg20::sign::{
+            malicious::{log_confess_info, Behaviour},
+            SignShareId,
         },
     };
 

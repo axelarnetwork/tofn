@@ -1,7 +1,7 @@
 use crate::{
     collections::{zip2, FillVecMap, FullP2ps, HoleVecMap, P2ps, TypedUsize, VecMap},
+    crypto_tools::{hash::Randomness, k256_serde, mta::Secret, paillier, zkp::pedersen},
     gg20::{
-        crypto_tools::{hash::Randomness, k256_serde, mta::Secret, paillier, zkp::pedersen},
         keygen::{KeygenShareId, SecretKeyShare},
         sign::{
             r4::{self, Bcast},
@@ -231,12 +231,10 @@ mod malicious {
     use super::R4Happy;
     use crate::{
         collections::TypedUsize,
-        gg20::{
-            crypto_tools::hash::Randomness,
-            sign::{
-                malicious::{log_confess_info, Behaviour::*},
-                SignShareId,
-            },
+        crypto_tools::hash::Randomness,
+        gg20::sign::{
+            malicious::{log_confess_info, Behaviour::*},
+            SignShareId,
         },
     };
 

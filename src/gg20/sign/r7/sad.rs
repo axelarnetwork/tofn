@@ -1,7 +1,7 @@
 use crate::{
     collections::{zip2, FillVecMap, FullP2ps, P2ps, VecMap},
+    crypto_tools::paillier,
     gg20::{
-        crypto_tools::paillier,
         keygen::SecretKeyShare,
         sign::{r7::common::R7Path, KeygenShareIds, SignShareId},
     },

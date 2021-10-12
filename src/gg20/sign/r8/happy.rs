@@ -1,6 +1,7 @@
 use crate::{
     collections::{FillVecMap, P2ps, VecMap},
-    gg20::{crypto_tools::k256_serde, keygen::SecretKeyShare, sign::r8::common::R8Path},
+    crypto_tools::k256_serde,
+    gg20::{keygen::SecretKeyShare, sign::r8::common::R8Path},
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
         implementer_api::{Executer, ProtocolBuilder, ProtocolInfo},

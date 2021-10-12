@@ -1,10 +1,7 @@
 use crate::{
     collections::{zip2, FillVecMap, FullP2ps, P2ps, VecMap},
-    gg20::{
-        crypto_tools::{paillier, vss},
-        keygen::SecretKeyShare,
-        sign::KeygenShareIds,
-    },
+    crypto_tools::{paillier, vss},
+    gg20::{keygen::SecretKeyShare, sign::KeygenShareIds},
     sdk::{
         api::{BytesVec, Fault::ProtocolFault, TofnFatal, TofnResult},
         implementer_api::{log_fault_info, Executer, ProtocolBuilder, ProtocolInfo},

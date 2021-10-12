@@ -4,10 +4,8 @@ use tracing::warn;
 
 use crate::{
     collections::{zip2, FillVecMap, FullP2ps, TypedUsize, VecMap},
-    gg20::{
-        crypto_tools::{constants, hash, k256_serde, mta, paillier},
-        keygen::{KeygenShareId, SharePublicInfo},
-    },
+    crypto_tools::{constants, hash, k256_serde, mta, paillier},
+    gg20::keygen::{KeygenShareId, SharePublicInfo},
     sdk::api::{
         Fault::{self, ProtocolFault},
         TofnResult,
