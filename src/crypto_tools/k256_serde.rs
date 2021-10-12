@@ -197,6 +197,68 @@ impl<'de> Deserialize<'de> for ProjectivePoint {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct VerifyingKey(k256::ecdsa::VerifyingKey);
+
+impl VerifyingKey {
+    /// Trying to make this look like a method of k256::ProjectivePoint
+    /// Unfortunately, `p.into().bytes()` needs type annotations
+    pub fn bytes(&self) -> BytesVec {
+        self.0.to_encoded_point(true).as_bytes().to_vec()
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
+        Some(Self(
+            k256::ecdsa::VerifyingKey::from_encoded_point(&EncodedPoint::from_bytes(bytes).ok()?)
+                .ok()?,
+        ))
+    }
+}
+
+impl AsRef<k256::ecdsa::VerifyingKey> for VerifyingKey {
+    fn as_ref(&self) -> &k256::ecdsa::VerifyingKey {
+        &self.0
+    }
+}
+
+impl From<k256::ecdsa::VerifyingKey> for VerifyingKey {
+    fn from(p: k256::ecdsa::VerifyingKey) -> Self {
+        VerifyingKey(p)
+    }
+}
+
+impl From<&k256::ecdsa::VerifyingKey> for VerifyingKey {
+    fn from(p: &k256::ecdsa::VerifyingKey) -> Self {
+        VerifyingKey(*p)
+    }
+}
+
+impl Serialize for VerifyingKey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_bytes(self.0.to_encoded_point(true).as_bytes())
+    }
+}
+
+impl<'de> Deserialize<'de> for VerifyingKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        // TODO this is a mess.  need to go through AffinePoint to check curve equation (I think?).
+        Ok(VerifyingKey(
+            k256::ecdsa::VerifyingKey::from_encoded_point(
+                &AffinePoint::deserialize(deserializer)?
+                    .0
+                    .to_encoded_point(false),
+            )
+            .map_err(D::Error::custom)?,
+        ))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -230,6 +292,13 @@ mod tests {
         let p_serialized = bincode.serialize(&p).unwrap();
         let p_deserialized = bincode.deserialize(&p_serialized).unwrap();
         assert_eq!(p, p_deserialized);
+
+        // verifying key
+        let s = k256::ecdsa::SigningKey::random(rand::thread_rng());
+        let v = VerifyingKey(k256::ecdsa::VerifyingKey::from(s));
+        let v_serialized = bincode.serialize(&v).unwrap();
+        let v_deserialized = bincode.deserialize(&v_serialized).unwrap();
+        assert_eq!(v, v_deserialized);
     }
 
     #[test]
