@@ -1,15 +1,13 @@
 use crate::{
     collections::TypedUsize,
-    gg20::{
-        crypto_tools::{
-            k256_serde,
-            paillier::{
-                zk::{mta, ZkSetup},
-                Ciphertext, EncryptionKey, Plaintext, Randomness,
-            },
+    crypto_tools::{
+        k256_serde,
+        paillier::{
+            zk::{mta, ZkSetup},
+            Ciphertext, EncryptionKey, Plaintext, Randomness,
         },
-        sign::SignShareId,
     },
+    gg20::sign::SignShareId,
     sdk::api::TofnResult,
 };
 use serde::{Deserialize, Serialize};
@@ -138,7 +136,7 @@ mod tests {
     use super::{mta_response_with_proof_wc, verify_mta_response};
     use crate::{
         collections::TypedUsize,
-        gg20::crypto_tools::paillier::{
+        crypto_tools::paillier::{
             keygen_unsafe,
             zk::{mta, range, ZkSetup},
         },

@@ -1,10 +1,10 @@
 use crate::{
     collections::{FillVecMap, FullP2ps, P2ps, TypedUsize, VecMap},
+    crypto_tools::{
+        paillier,
+        zkp::{chaum_pedersen, pedersen},
+    },
     gg20::{
-        crypto_tools::{
-            paillier,
-            zkp::{chaum_pedersen, pedersen},
-        },
         keygen::{KeygenShareId, SecretKeyShare},
         sign::{
             r7::{

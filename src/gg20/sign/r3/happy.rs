@@ -1,7 +1,7 @@
 use crate::{
     collections::{FillVecMap, FullP2ps, HoleVecMap, P2ps, TypedUsize, VecMap},
+    crypto_tools::{hash::Randomness, k256_serde, mta::Secret, paillier, vss, zkp::pedersen},
     gg20::{
-        crypto_tools::{hash::Randomness, k256_serde, mta::Secret, paillier, vss, zkp::pedersen},
         keygen::{KeygenShareId, SecretKeyShare},
         sign::{
             r3::{
@@ -328,7 +328,8 @@ mod malicious {
     use super::{Accusation, R3Happy};
     use crate::{
         collections::{HoleVecMap, TypedUsize},
-        gg20::{crypto_tools::zkp::pedersen, sign::SignShareId},
+        crypto_tools::zkp::pedersen,
+        gg20::sign::SignShareId,
         sdk::api::TofnResult,
     };
     use k256::Scalar;

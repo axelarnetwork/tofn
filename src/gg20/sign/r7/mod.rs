@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::gg20::crypto_tools::{k256_serde, paillier, zkp::chaum_pedersen};
+use crate::crypto_tools::{k256_serde, paillier, zkp::chaum_pedersen};
 
 mod happy;
 pub(super) use happy::R7Happy;

@@ -1,7 +1,7 @@
 use super::{KeygenPartyId, KeygenPartyShareCounts, KeygenShareId, PartyKeyPair};
 use crate::{
     collections::{TypedUsize, VecMap},
-    gg20::crypto_tools::{k256_serde, paillier, vss},
+    crypto_tools::{k256_serde, paillier, vss},
     sdk::{
         api::{BytesVec, TofnFatal, TofnResult},
         implementer_api::{decode, encode},

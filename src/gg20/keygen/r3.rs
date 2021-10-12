@@ -3,10 +3,8 @@ use tracing::warn;
 
 use crate::{
     collections::{FillVecMap, P2ps, VecMap},
-    gg20::{
-        crypto_tools::{constants, hash, k256_serde::to_bytes, paillier, vss, zkp::schnorr},
-        keygen::{r4, SecretKeyShare},
-    },
+    crypto_tools::{constants, hash, k256_serde::to_bytes, paillier, vss, zkp::schnorr},
+    gg20::keygen::{r4, SecretKeyShare},
     sdk::{
         api::{Fault::ProtocolFault, TofnFatal, TofnResult},
         implementer_api::{

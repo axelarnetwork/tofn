@@ -1,7 +1,7 @@
 use crate::{
     collections::{zip2, FillVecMap, FullP2ps, P2ps, TypedUsize, VecMap},
+    crypto_tools::{k256_serde, vss, zkp::chaum_pedersen},
     gg20::{
-        crypto_tools::{k256_serde, vss, zkp::chaum_pedersen},
         keygen::{KeygenShareId, SecretKeyShare},
         sign::{r2, r8::common::R8Path, KeygenShareIds},
     },

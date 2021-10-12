@@ -2,12 +2,10 @@ use tracing::warn;
 
 use crate::{
     collections::{zip2, FillVecMap, FullP2ps, P2ps, VecMap},
-    gg20::{
-        crypto_tools::{paillier, zkp::schnorr},
-        keygen::{
-            r1, r2, r3, r4::sad::R4Sad, GroupPublicInfo, KeygenPartyShareCounts, KeygenShareId,
-            SecretKeyShare, SharePublicInfo, ShareSecretInfo,
-        },
+    crypto_tools::{paillier, zkp::schnorr},
+    gg20::keygen::{
+        r1, r2, r3, r4::sad::R4Sad, GroupPublicInfo, KeygenPartyShareCounts, KeygenShareId,
+        SecretKeyShare, SharePublicInfo, ShareSecretInfo,
     },
     sdk::{
         api::{Fault::ProtocolFault, TofnResult},

@@ -1,12 +1,10 @@
 use crate::{
     collections::TypedUsize,
-    gg20::{
-        crypto_tools::{
-            constants,
-            k256_serde::{self, RandomScalar},
-        },
-        sign::SignShareId,
+    crypto_tools::{
+        constants,
+        k256_serde::{self, RandomScalar},
     },
+    gg20::sign::SignShareId,
 };
 use ecdsa::hazmat::FromDigest;
 use serde::{Deserialize, Serialize};

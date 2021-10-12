@@ -1,6 +1,6 @@
 //! Helpers for verifiable secret sharing
 use crate::{
-    gg20::crypto_tools::k256_serde,
+    crypto_tools::k256_serde,
     sdk::api::{TofnFatal, TofnResult},
 };
 use k256::elliptic_curve::Field;

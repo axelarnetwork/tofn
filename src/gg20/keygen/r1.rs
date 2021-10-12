@@ -1,6 +1,6 @@
 use crate::{
     collections::TypedUsize,
-    gg20::crypto_tools::{constants, hash, k256_serde, paillier, vss},
+    crypto_tools::{constants, hash, k256_serde, paillier, vss},
     sdk::{
         api::TofnResult,
         implementer_api::{serialize, ProtocolBuilder, RoundBuilder},
@@ -80,14 +80,12 @@ pub(super) fn start(
 mod malicious {
     use crate::{
         collections::TypedUsize,
-        gg20::{
-            crypto_tools::{
-                hash::Output,
-                paillier,
-                paillier::zk::{EncryptionKeyProof, ZkSetupProof},
-            },
-            keygen::{malicious::Behaviour, KeygenShareId},
+        crypto_tools::{
+            hash::Output,
+            paillier,
+            paillier::zk::{EncryptionKeyProof, ZkSetupProof},
         },
+        gg20::keygen::{malicious::Behaviour, KeygenShareId},
     };
     use tracing::info;
 

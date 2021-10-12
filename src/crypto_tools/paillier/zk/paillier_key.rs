@@ -12,7 +12,7 @@ use sha3::Shake128;
 use tracing::warn;
 use zeroize::Zeroize;
 
-use crate::gg20::crypto_tools::{
+use crate::crypto_tools::{
     constants::{MODULUS_MAX_SIZE, MODULUS_MIN_SIZE, PAILLIER_KEY_PROOF_TAG},
     paillier::{utils::member_of_mul_group, DecryptionKey, EncryptionKey},
 };
@@ -197,7 +197,7 @@ impl NIZKStatement for PaillierKeyStmt {
 mod tests {
     use libpaillier::unknown_order::BigNumber;
 
-    use crate::gg20::crypto_tools::paillier::{keygen_unsafe, zk::NIZKStatement};
+    use crate::crypto_tools::paillier::{keygen_unsafe, zk::NIZKStatement};
 
     use super::ALPHA_PRIMORIAL_BYTES;
 

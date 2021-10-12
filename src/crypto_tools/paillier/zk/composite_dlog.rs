@@ -21,7 +21,7 @@ use sha2::{Digest, Sha256};
 use tracing::warn;
 use zeroize::Zeroize;
 
-use crate::gg20::crypto_tools::{
+use crate::crypto_tools::{
     constants::{self, MODULUS_MAX_SIZE},
     paillier::{Randomness, SecretNumber},
 };
@@ -264,7 +264,7 @@ impl<const WITNESS_SIZE: usize> NIZKStatement for CompositeDLogStmt<WITNESS_SIZE
 pub mod malicious {
     use libpaillier::unknown_order::BigNumber;
 
-    use crate::gg20::crypto_tools::paillier::zk::ZkSetupProof;
+    use crate::crypto_tools::paillier::zk::ZkSetupProof;
 
     pub fn corrupt_zksetup_proof(mut proof: ZkSetupProof) -> ZkSetupProof {
         proof.dlog_proof.x += BigNumber::one();
@@ -275,7 +275,7 @@ pub mod malicious {
 #[cfg(test)]
 mod tests {
     use super::{CompositeDLogStmt, NIZKStatement, S_INV_WITNESS_SIZE, S_WITNESS_SIZE};
-    use crate::gg20::crypto_tools::paillier::{
+    use crate::crypto_tools::paillier::{
         keygen_unsafe,
         zk::composite_dlog::{CHALLENGE_K, SECURITY_PARAM_K_PRIME},
     };

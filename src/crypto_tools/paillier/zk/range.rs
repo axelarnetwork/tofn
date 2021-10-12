@@ -2,18 +2,16 @@ use std::ops::Neg;
 
 use crate::{
     collections::TypedUsize,
-    gg20::{
-        crypto_tools::{
-            constants, k256_serde,
-            paillier::{
-                secp256k1_modulus, to_bigint, to_scalar,
-                utils::{member_of_mod, member_of_mul_group},
-                zk::ZkSetup,
-                Ciphertext, EncryptionKey, Plaintext, Randomness,
-            },
+    crypto_tools::{
+        constants, k256_serde,
+        paillier::{
+            secp256k1_modulus, to_bigint, to_scalar,
+            utils::{member_of_mod, member_of_mul_group},
+            zk::ZkSetup,
+            Ciphertext, EncryptionKey, Plaintext, Randomness,
         },
-        sign::SignShareId,
     },
+    gg20::sign::SignShareId,
     sdk::api::{TofnFatal, TofnResult},
 };
 use ecdsa::hazmat::FromDigest;
@@ -325,7 +323,7 @@ impl ZkSetup {
 // in non-malicious test build to avoid code-duplication for malicious tests.
 #[cfg(any(test, feature = "malicious"))]
 pub mod malicious {
-    use crate::gg20::crypto_tools::k256_serde::ProjectivePoint;
+    use crate::crypto_tools::k256_serde::ProjectivePoint;
 
     use super::*;
 
@@ -347,7 +345,7 @@ pub mod malicious {
 }
 #[cfg(test)]
 mod tests {
-    use crate::{collections::TypedUsize, gg20::crypto_tools::paillier::keygen_unsafe};
+    use crate::{collections::TypedUsize, crypto_tools::paillier::keygen_unsafe};
 
     use super::{
         ZkSetup,

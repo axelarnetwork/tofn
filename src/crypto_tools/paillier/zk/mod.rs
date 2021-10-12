@@ -1,5 +1,5 @@
 //! Minimize direct use of paillier, zk_paillier crates
-use crate::{gg20::crypto_tools::constants, sdk::api::TofnResult};
+use crate::{crypto_tools::constants, sdk::api::TofnResult};
 
 use super::{keygen, keygen_unsafe, DecryptionKey, EncryptionKey, Plaintext, Randomness};
 use libpaillier::unknown_order::BigNumber;
@@ -161,7 +161,7 @@ fn secp256k1_modulus_squared() -> BigNumber {
 #[cfg(test)]
 mod tests {
     use super::secp256k1_modulus_cubed;
-    use crate::gg20::crypto_tools::paillier::{secp256k1_modulus, zk::secp256k1_modulus_squared};
+    use crate::crypto_tools::paillier::{secp256k1_modulus, zk::secp256k1_modulus_squared};
 
     #[test]
     fn q_cubed() {
