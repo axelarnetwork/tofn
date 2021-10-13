@@ -82,6 +82,7 @@ impl<'de> Deserialize<'de> for Scalar {
     }
 }
 
+/// SingingKey does not impl Zeroize and so cannot have #[zeroize(drop)] so we need to roll our own
 #[derive(Clone, Debug, PartialEq)]
 pub struct SigningKey(k256::ecdsa::SigningKey);
 
@@ -97,15 +98,22 @@ impl From<k256::ecdsa::SigningKey> for SigningKey {
     }
 }
 
-/// SingingKey does not impl Zeroize so we need to impl our own zeroize-on-drop
-impl Drop for SigningKey {
-    fn drop(&mut self) {
+/// SingingKey does not impl Zeroize so we need to roll our own
+impl Zeroize for SigningKey {
+    fn zeroize(&mut self) {
         // SigningKey is a NonZeroScalar under the hood
         // NonZeroScalar impls Zeroize, so use that
         let zeroizable = unsafe {
             &mut *(&mut self.0 as *mut k256::ecdsa::SigningKey as *mut k256::NonZeroScalar)
         };
         zeroizable.zeroize()
+    }
+}
+
+/// SingingKey does not impl Zeroize and so cannot have #[zeroize(drop)] so we need to roll our own
+impl Drop for SigningKey {
+    fn drop(&mut self) {
+        self.zeroize()
     }
 }
 

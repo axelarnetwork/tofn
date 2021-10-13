@@ -5,6 +5,7 @@ use crate::{
     sdk::api::{BytesVec, TofnResult},
 };
 use serde::{Deserialize, Serialize};
+use zeroize::Zeroize;
 
 /// final output of keygen: store this struct in tofnd kvstore
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -14,7 +15,6 @@ pub struct SecretKeyShare {
 }
 
 /// `GroupPublicInfo` is the same for all shares
-/// TODO: use `k256::ecdsa::VerifyingKey` instead of `k256_serde::ProjectivePoint`, but can't derive serde or zeroize
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GroupPublicInfo {
     party_share_counts: KeygenPartyShareCounts,
@@ -26,10 +26,11 @@ pub struct GroupPublicInfo {
 /// `index` is not secret but it's stored here anyway
 /// because it's an essential part of secret data
 /// and parties need a way to know their own index
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Zeroize)]
+#[zeroize(drop)]
 pub struct ShareSecretInfo {
     index: TypedUsize<KeygenShareId>,
-    signing_key: k256_serde::SigningKey, // automatically zeroize on drop
+    signing_key: k256_serde::SigningKey,
 }
 
 impl GroupPublicInfo {
