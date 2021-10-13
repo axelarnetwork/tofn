@@ -6,16 +6,14 @@
 //! [Implementing Deserialize · Serde](https://serde.rs/impl-deserialize.html)
 
 use ecdsa::elliptic_curve::Field;
-use k256::{
-    elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint},
-    EncodedPoint,
-};
+use k256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
 use serde::{de, de::Error, de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 use zeroize::Zeroize;
 
 use crate::sdk::api::BytesVec;
 
 /// A wrapper for a random scalar value that is zeroized on drop
+/// TODO why not just do this for Scalar below?
 #[derive(Debug, Zeroize)]
 #[zeroize(drop)]
 pub struct RandomScalar(k256::Scalar);
@@ -84,31 +82,88 @@ impl<'de> Deserialize<'de> for Scalar {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Zeroize)]
-struct AffinePoint(k256::AffinePoint);
+/// SingingKey does not impl Zeroize and so cannot have #[zeroize(drop)] so we need to roll our own
+#[derive(Clone, Debug, PartialEq)]
+pub struct SigningKey(k256::ecdsa::SigningKey);
 
-impl Serialize for AffinePoint {
+impl AsRef<k256::ecdsa::SigningKey> for SigningKey {
+    fn as_ref(&self) -> &k256::ecdsa::SigningKey {
+        &self.0
+    }
+}
+
+impl From<k256::ecdsa::SigningKey> for SigningKey {
+    fn from(s: k256::ecdsa::SigningKey) -> Self {
+        SigningKey(s)
+    }
+}
+
+/// SingingKey does not impl Zeroize so we need to roll our own
+impl Zeroize for SigningKey {
+    fn zeroize(&mut self) {
+        // SigningKey is a NonZeroScalar under the hood
+        // NonZeroScalar impls Zeroize, so use that
+        let zeroizable = unsafe {
+            &mut *(&mut self.0 as *mut k256::ecdsa::SigningKey as *mut k256::NonZeroScalar)
+        };
+        zeroizable.zeroize()
+    }
+}
+
+/// SingingKey does not impl Zeroize and so cannot have #[zeroize(drop)] so we need to roll our own
+impl Drop for SigningKey {
+    fn drop(&mut self) {
+        self.zeroize()
+    }
+}
+
+impl Serialize for SigningKey {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        serializer.serialize_bytes(k256::EncodedPoint::from(self.0).as_bytes())
+        let bytes: [u8; 32] = self.0.to_bytes().into();
+        bytes.serialize(serializer)
     }
 }
 
-impl<'de> Deserialize<'de> for AffinePoint {
+impl<'de> Deserialize<'de> for SigningKey {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_bytes(AffinePointVisitor)
+        let bytes: [u8; 32] = Deserialize::deserialize(deserializer)?;
+        Ok(SigningKey(
+            k256::ecdsa::SigningKey::from_bytes(&bytes).map_err(D::Error::custom)?,
+        ))
     }
 }
 
-struct AffinePointVisitor;
+#[derive(Clone, Debug, PartialEq, Zeroize)]
+struct EncodedPoint(k256::EncodedPoint);
 
-impl<'de> Visitor<'de> for AffinePointVisitor {
-    type Value = AffinePoint;
+impl Serialize for EncodedPoint {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_bytes(self.0.as_bytes())
+    }
+}
+
+impl<'de> Deserialize<'de> for EncodedPoint {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_bytes(EncodedPointVisitor)
+    }
+}
+
+struct EncodedPointVisitor;
+
+impl<'de> Visitor<'de> for EncodedPointVisitor {
+    type Value = EncodedPoint;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str("SEC1-encoded secp256k1 (K-256) curve point")
@@ -118,11 +173,8 @@ impl<'de> Visitor<'de> for AffinePointVisitor {
     where
         E: de::Error,
     {
-        Ok(AffinePoint(
-            k256::AffinePoint::from_encoded_point(
-                &k256::EncodedPoint::from_bytes(v).map_err(E::custom)?,
-            )
-            .ok_or_else(|| E::custom("SEC1-encoded point is not on curve secp256k (K-256)"))?,
+        Ok(EncodedPoint(
+            k256::EncodedPoint::from_bytes(v).map_err(E::custom)?,
         ))
     }
 }
@@ -130,6 +182,7 @@ impl<'de> Visitor<'de> for AffinePointVisitor {
 #[derive(Clone, Debug, PartialEq)]
 pub struct ProjectivePoint(k256::ProjectivePoint);
 
+// TODO delete bytes, from_bytes and prefer our bincode wrapper
 impl ProjectivePoint {
     /// Trying to make this look like a method of k256::ProjectivePoint
     /// Unfortunately, `p.into().bytes()` needs type annotations
@@ -143,7 +196,7 @@ impl ProjectivePoint {
 
     pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
         Some(Self(k256::ProjectivePoint::from_encoded_point(
-            &EncodedPoint::from_bytes(bytes).ok()?,
+            &k256::EncodedPoint::from_bytes(bytes).ok()?,
         )?))
     }
 }
@@ -182,7 +235,7 @@ impl Serialize for ProjectivePoint {
     where
         S: Serializer,
     {
-        AffinePoint(self.0.to_affine()).serialize(serializer)
+        EncodedPoint(self.0.to_encoded_point(true)).serialize(serializer)
     }
 }
 
@@ -192,60 +245,121 @@ impl<'de> Deserialize<'de> for ProjectivePoint {
         D: Deserializer<'de>,
     {
         Ok(ProjectivePoint(
-            AffinePoint::deserialize(deserializer)?.0.into(),
+            k256::ProjectivePoint::from_encoded_point(&EncodedPoint::deserialize(deserializer)?.0)
+                .ok_or_else(|| {
+                    D::Error::custom("SEC1-encoded point is not on curve secp256k (K-256)")
+                })?,
+        ))
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct VerifyingKey(k256::ecdsa::VerifyingKey);
+
+impl AsRef<k256::ecdsa::VerifyingKey> for VerifyingKey {
+    fn as_ref(&self) -> &k256::ecdsa::VerifyingKey {
+        &self.0
+    }
+}
+
+impl From<k256::ecdsa::VerifyingKey> for VerifyingKey {
+    fn from(p: k256::ecdsa::VerifyingKey) -> Self {
+        VerifyingKey(p)
+    }
+}
+
+impl From<&k256::ecdsa::VerifyingKey> for VerifyingKey {
+    fn from(p: &k256::ecdsa::VerifyingKey) -> Self {
+        VerifyingKey(*p)
+    }
+}
+
+impl Serialize for VerifyingKey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        EncodedPoint(self.0.to_encoded_point(true)).serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for VerifyingKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(VerifyingKey(
+            k256::ecdsa::VerifyingKey::from_encoded_point(
+                &EncodedPoint::deserialize(deserializer)?.0,
+            )
+            .map_err(D::Error::custom)?,
         ))
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::fmt::Debug;
+
     use super::*;
     use bincode::Options;
-    use ecdsa::elliptic_curve::group::prime::PrimeCurveAffine;
     use k256::elliptic_curve::Field;
+    use serde::de::DeserializeOwned;
 
     #[test]
     fn basic_round_trip() {
+        let s = k256::Scalar::random(rand::thread_rng());
+        basic_round_trip_impl::<_, Scalar>(s, Some(32));
+
+        let p = k256::ProjectivePoint::generator() * s;
+        basic_round_trip_impl::<_, ProjectivePoint>(p, None);
+
+        let k = k256::ecdsa::SigningKey::random(rand::thread_rng());
+        basic_round_trip_impl::<_, SigningKey>(k.clone(), Some(32));
+
+        let v = k.verifying_key();
+        basic_round_trip_impl::<_, VerifyingKey>(v, None);
+    }
+
+    fn basic_round_trip_impl<T, U>(val: T, size: Option<usize>)
+    where
+        U: From<T> + Serialize + DeserializeOwned + PartialEq + Debug,
+    {
         let bincode = bincode::DefaultOptions::new();
 
-        // scalar
-        let s = Scalar(k256::Scalar::random(rand::thread_rng()));
-        let s_serialized = bincode.serialize(&s).unwrap();
-        assert_eq!(s_serialized.len(), 32);
-        let s_deserialized = bincode.deserialize(&s_serialized).unwrap();
-        assert_eq!(s, s_deserialized);
-
-        // affine point
-        let a = AffinePoint(
-            (k256::AffinePoint::generator() * k256::Scalar::random(rand::thread_rng())).to_affine(),
-        );
-        let a_serialized = bincode.serialize(&a).unwrap();
-        let a_deserialized = bincode.deserialize(&a_serialized).unwrap();
-        assert_eq!(a, a_deserialized);
-
-        // projective point
-        let p = ProjectivePoint(
-            k256::ProjectivePoint::generator() * k256::Scalar::random(rand::thread_rng()),
-        );
-        let p_serialized = bincode.serialize(&p).unwrap();
-        let p_deserialized = bincode.deserialize(&p_serialized).unwrap();
-        assert_eq!(p, p_deserialized);
+        let v = U::from(val);
+        let v_serialized = bincode.serialize(&v).unwrap();
+        if let Some(size) = size {
+            assert_eq!(v_serialized.len(), size);
+        }
+        let v_deserialized = bincode.deserialize(&v_serialized).unwrap();
+        assert_eq!(v, v_deserialized);
     }
 
     #[test]
     fn scalar_deserialization_fail() {
-        let bincode = bincode::DefaultOptions::new();
         let s = Scalar(k256::Scalar::random(rand::thread_rng()));
+        scalar_deserialization_fail_impl(s);
+
+        let k = SigningKey(k256::ecdsa::SigningKey::random(rand::thread_rng()));
+        scalar_deserialization_fail_impl(k);
+    }
+
+    fn scalar_deserialization_fail_impl<S>(scalar: S)
+    where
+        S: Serialize + DeserializeOwned + Debug,
+    {
+        let bincode = bincode::DefaultOptions::new();
 
         // test too few bytes
-        let mut too_few_bytes = bincode.serialize(&s).unwrap();
+        let mut too_few_bytes = bincode.serialize(&scalar).unwrap();
         too_few_bytes.pop();
-        bincode.deserialize::<Scalar>(&too_few_bytes).unwrap_err();
+        bincode.deserialize::<S>(&too_few_bytes).unwrap_err();
 
         // test too many bytes
-        let mut too_many_bytes = bincode.serialize(&s).unwrap();
+        let mut too_many_bytes = bincode.serialize(&scalar).unwrap();
         too_many_bytes.push(42);
-        bincode.deserialize::<Scalar>(&too_many_bytes).unwrap_err();
+        bincode.deserialize::<S>(&too_many_bytes).unwrap_err();
 
         let mut modulus: [u8; 32] = [
             0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -254,10 +368,10 @@ mod tests {
         ]; // secp256k1 modulus
 
         // test edge case: integer too large
-        bincode.deserialize::<Scalar>(&modulus).unwrap_err();
+        bincode.deserialize::<S>(&modulus).unwrap_err();
 
         // test edge case: integer not too large
         modulus[31] -= 1;
-        bincode.deserialize::<Scalar>(&modulus).unwrap();
+        bincode.deserialize::<S>(&modulus).unwrap();
     }
 }

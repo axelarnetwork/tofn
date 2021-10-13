@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
     collections::{zip2, HoleVecMap, TypedUsize, VecMap},
-    crypto_tools::vss,
+    crypto_tools::{rng, vss},
     sdk::api::{BytesVec, Protocol},
 };
 use tracing_test::traced_test;
@@ -44,7 +44,7 @@ pub fn execute_keygen(
 
 pub struct KeySharesWithRecovery {
     pub shares: VecMap<KeygenShareId, SecretKeyShare>,
-    pub secret_recovery_keys: VecMap<KeygenPartyId, SecretRecoveryKey>,
+    pub secret_recovery_keys: VecMap<KeygenPartyId, rng::SecretRecoveryKey>,
     pub session_nonce: Vec<u8>,
 }
 
@@ -74,7 +74,7 @@ fn execute_keygen_with_recovery(
 fn execute_keygen_from_recovery(
     party_share_counts: &KeygenPartyShareCounts,
     threshold: usize,
-    secret_recovery_keys: &VecMap<KeygenPartyId, SecretRecoveryKey>,
+    secret_recovery_keys: &VecMap<KeygenPartyId, rng::SecretRecoveryKey>,
     session_nonce: &[u8],
 ) -> VecMap<KeygenShareId, SecretKeyShare> {
     assert_eq!(secret_recovery_keys.len(), party_share_counts.party_count());
@@ -285,7 +285,7 @@ fn execute_keygen_from_recovery(
 fn share_recovery(
     party_share_counts: &KeygenPartyShareCounts,
     threshold: usize,
-    secret_recovery_keys: &VecMap<KeygenPartyId, SecretRecoveryKey>,
+    secret_recovery_keys: &VecMap<KeygenPartyId, rng::SecretRecoveryKey>,
     session_nonce: &[u8],
     shares: &VecMap<KeygenShareId, SecretKeyShare>,
 ) {
@@ -349,11 +349,11 @@ fn share_recovery(
 }
 
 /// return the all-zero array with the first bytes set to the bytes of `index`
-pub fn dummy_secret_recovery_key(index: usize) -> SecretRecoveryKey {
+pub fn dummy_secret_recovery_key(index: usize) -> rng::SecretRecoveryKey {
     let index_bytes = index.to_be_bytes();
     let mut result = [0; 64];
     for (i, &b) in index_bytes.iter().enumerate() {
         result[i] = b;
     }
-    SecretRecoveryKey(result)
+    rng::SecretRecoveryKey(result)
 }

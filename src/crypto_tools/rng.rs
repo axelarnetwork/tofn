@@ -1,22 +1,38 @@
+use std::{
+    array::TryFromSliceError,
+    convert::{TryFrom, TryInto},
+};
+
 use hmac::{Hmac, Mac, NewMac};
 use rand::{CryptoRng, RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use sha2::Sha256;
 use tracing::error;
+use zeroize::Zeroize;
 
 use crate::{
     collections::TypedUsize,
     sdk::api::{TofnFatal, TofnResult},
 };
 
-use super::{KeygenPartyId, SecretRecoveryKey};
+#[derive(Debug, Clone, Zeroize)]
+#[zeroize(drop)]
+pub struct SecretRecoveryKey(pub(crate) [u8; 64]);
+
+impl TryFrom<&[u8]> for SecretRecoveryKey {
+    type Error = TryFromSliceError;
+
+    fn try_from(v: &[u8]) -> Result<Self, Self::Error> {
+        Ok(Self(v.try_into()?))
+    }
+}
 
 const SESSION_NONCE_LENGTH_MIN: usize = 4;
 const SESSION_NONCE_LENGTH_MAX: usize = 256;
 
-pub(crate) fn rng_seed(
+pub(crate) fn rng_seed<K>(
     tag: u8,
-    party_id: TypedUsize<KeygenPartyId>,
+    party_id: TypedUsize<K>,
     secret_recovery_key: &SecretRecoveryKey,
     session_nonce: &[u8],
 ) -> TofnResult<impl CryptoRng + RngCore> {
