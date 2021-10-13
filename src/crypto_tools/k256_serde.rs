@@ -13,6 +13,7 @@ use zeroize::Zeroize;
 use crate::sdk::api::BytesVec;
 
 /// A wrapper for a random scalar value that is zeroized on drop
+/// TODO why not just do this for Scalar below?
 #[derive(Debug, Zeroize)]
 #[zeroize(drop)]
 pub struct RandomScalar(k256::Scalar);
@@ -78,6 +79,46 @@ impl<'de> Deserialize<'de> for Scalar {
         }
 
         Ok(Scalar(scalar))
+    }
+}
+
+// TODO zeroize
+// #[derive(Clone, Debug, PartialEq, Zeroize)]
+// #[zeroize(drop)]
+#[derive(Clone, Debug, PartialEq)]
+pub struct SigningKey(k256::ecdsa::SigningKey);
+
+impl AsRef<k256::ecdsa::SigningKey> for SigningKey {
+    fn as_ref(&self) -> &k256::ecdsa::SigningKey {
+        &self.0
+    }
+}
+
+impl From<k256::ecdsa::SigningKey> for SigningKey {
+    fn from(s: k256::ecdsa::SigningKey) -> Self {
+        SigningKey(s)
+    }
+}
+
+impl Serialize for SigningKey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let bytes: [u8; 32] = self.0.to_bytes().into();
+        bytes.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for SigningKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let bytes: [u8; 32] = Deserialize::deserialize(deserializer)?;
+        Ok(SigningKey(
+            k256::ecdsa::SigningKey::from_bytes(&bytes).map_err(D::Error::custom)?,
+        ))
     }
 }
 
@@ -259,9 +300,12 @@ impl<'de> Deserialize<'de> for VerifyingKey {
 
 #[cfg(test)]
 mod tests {
+    use std::fmt::Debug;
+
     use super::*;
     use bincode::Options;
     use k256::elliptic_curve::Field;
+    use serde::de::DeserializeOwned;
 
     #[test]
     fn basic_round_trip() {
@@ -292,18 +336,28 @@ mod tests {
 
     #[test]
     fn scalar_deserialization_fail() {
-        let bincode = bincode::DefaultOptions::new();
         let s = Scalar(k256::Scalar::random(rand::thread_rng()));
+        scalar_deserialization_fail_impl(s);
+
+        let k = SigningKey(k256::ecdsa::SigningKey::random(rand::thread_rng()));
+        scalar_deserialization_fail_impl(k);
+    }
+
+    fn scalar_deserialization_fail_impl<S>(scalar: S)
+    where
+        S: Serialize + DeserializeOwned + Debug,
+    {
+        let bincode = bincode::DefaultOptions::new();
 
         // test too few bytes
-        let mut too_few_bytes = bincode.serialize(&s).unwrap();
+        let mut too_few_bytes = bincode.serialize(&scalar).unwrap();
         too_few_bytes.pop();
-        bincode.deserialize::<Scalar>(&too_few_bytes).unwrap_err();
+        bincode.deserialize::<S>(&too_few_bytes).unwrap_err();
 
         // test too many bytes
-        let mut too_many_bytes = bincode.serialize(&s).unwrap();
+        let mut too_many_bytes = bincode.serialize(&scalar).unwrap();
         too_many_bytes.push(42);
-        bincode.deserialize::<Scalar>(&too_many_bytes).unwrap_err();
+        bincode.deserialize::<S>(&too_many_bytes).unwrap_err();
 
         let mut modulus: [u8; 32] = [
             0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -312,10 +366,10 @@ mod tests {
         ]; // secp256k1 modulus
 
         // test edge case: integer too large
-        bincode.deserialize::<Scalar>(&modulus).unwrap_err();
+        bincode.deserialize::<S>(&modulus).unwrap_err();
 
         // test edge case: integer not too large
         modulus[31] -= 1;
-        bincode.deserialize::<Scalar>(&modulus).unwrap();
+        bincode.deserialize::<S>(&modulus).unwrap();
     }
 }
