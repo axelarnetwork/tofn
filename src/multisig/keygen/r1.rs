@@ -12,11 +12,11 @@ use serde::{Deserialize, Serialize};
 use super::{r2, KeygenPartyShareCounts, KeygenProtocolBuilder, KeygenShareId};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct Bcast {
+pub struct Bcast {
     pub(super) verifying_key: k256_serde::VerifyingKey,
 }
 
-pub(super) fn start(
+pub fn start(
     my_keygen_id: TypedUsize<KeygenShareId>,
     threshold: usize,
     party_share_counts: KeygenPartyShareCounts,

@@ -84,7 +84,6 @@ impl ShareSecretInfo {
         Self { index, signing_key }
     }
 
-    #[cfg(test)]
     pub(crate) fn signing_key(&self) -> &k256_serde::SigningKey {
         &self.signing_key
     }

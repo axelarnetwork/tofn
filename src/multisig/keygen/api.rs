@@ -9,11 +9,12 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use tracing::error;
 
-use super::{r1, secret_key_share::SecretKeyShare};
+use super::r1;
 
 /// Maximum byte length of messages exchanged during keygen.
 pub const MAX_MSG_LEN: usize = 5000;
 
+pub use super::secret_key_share::*;
 pub use rng::SecretRecoveryKey;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]

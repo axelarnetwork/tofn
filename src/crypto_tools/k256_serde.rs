@@ -139,6 +139,44 @@ impl<'de> Deserialize<'de> for SigningKey {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct Signature(k256::ecdsa::Signature);
+
+impl AsRef<k256::ecdsa::Signature> for Signature {
+    fn as_ref(&self) -> &k256::ecdsa::Signature {
+        &self.0
+    }
+}
+
+impl From<k256::ecdsa::Signature> for Signature {
+    fn from(s: k256::ecdsa::Signature) -> Self {
+        Signature(s)
+    }
+}
+
+impl Serialize for Signature {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.0.as_ref().serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for Signature {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(Signature(
+            <k256::ecdsa::Signature as ecdsa::signature::Signature>::from_bytes(
+                Deserialize::deserialize(deserializer)?,
+            )
+            .map_err(D::Error::custom)?,
+        ))
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Zeroize)]
 struct EncodedPoint(k256::EncodedPoint);
 
