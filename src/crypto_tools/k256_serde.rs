@@ -82,9 +82,6 @@ impl<'de> Deserialize<'de> for Scalar {
     }
 }
 
-// TODO zeroize
-// #[derive(Clone, Debug, PartialEq, Zeroize)]
-// #[zeroize(drop)]
 #[derive(Clone, Debug, PartialEq)]
 pub struct SigningKey(k256::ecdsa::SigningKey);
 
@@ -97,6 +94,18 @@ impl AsRef<k256::ecdsa::SigningKey> for SigningKey {
 impl From<k256::ecdsa::SigningKey> for SigningKey {
     fn from(s: k256::ecdsa::SigningKey) -> Self {
         SigningKey(s)
+    }
+}
+
+/// SingingKey does not impl Zeroize so we need to impl our own zeroize-on-drop
+impl Drop for SigningKey {
+    fn drop(&mut self) {
+        // SigningKey is a NonZeroScalar under the hood
+        // NonZeroScalar impls Zeroize, so use that
+        let zeroizable = unsafe {
+            &mut *(&mut self.0 as *mut k256::ecdsa::SigningKey as *mut k256::NonZeroScalar)
+        };
+        zeroizable.zeroize()
     }
 }
 
@@ -239,24 +248,6 @@ impl<'de> Deserialize<'de> for ProjectivePoint {
 #[derive(Clone, Debug, PartialEq)]
 pub struct VerifyingKey(k256::ecdsa::VerifyingKey);
 
-// TODO delete this code
-// impl VerifyingKey {
-//     /// Trying to make this look like a method of k256::ProjectivePoint
-//     /// Unfortunately, `p.into().bytes()` needs type annotations
-//     pub fn bytes(&self) -> BytesVec {
-//         self.0.to_encoded_point(true).as_bytes().to_vec()
-//     }
-
-//     pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
-//         Some(Self(
-//             k256::ecdsa::VerifyingKey::from_encoded_point(
-//                 &k256::EncodedPoint::from_bytes(bytes).ok()?,
-//             )
-//             .ok()?,
-//         ))
-//     }
-// }
-
 impl AsRef<k256::ecdsa::VerifyingKey> for VerifyingKey {
     fn as_ref(&self) -> &k256::ecdsa::VerifyingKey {
         &self.0
@@ -309,27 +300,30 @@ mod tests {
 
     #[test]
     fn basic_round_trip() {
+        let s = k256::Scalar::random(rand::thread_rng());
+        basic_round_trip_impl::<_, Scalar>(s, Some(32));
+
+        let p = k256::ProjectivePoint::generator() * s;
+        basic_round_trip_impl::<_, ProjectivePoint>(p, None);
+
+        let k = k256::ecdsa::SigningKey::random(rand::thread_rng());
+        basic_round_trip_impl::<_, SigningKey>(k.clone(), Some(32));
+
+        let v = k.verifying_key();
+        basic_round_trip_impl::<_, VerifyingKey>(v, None);
+    }
+
+    fn basic_round_trip_impl<T, U>(val: T, size: Option<usize>)
+    where
+        U: From<T> + Serialize + DeserializeOwned + PartialEq + Debug,
+    {
         let bincode = bincode::DefaultOptions::new();
 
-        // scalar
-        let s = Scalar(k256::Scalar::random(rand::thread_rng()));
-        let s_serialized = bincode.serialize(&s).unwrap();
-        assert_eq!(s_serialized.len(), 32);
-        let s_deserialized = bincode.deserialize(&s_serialized).unwrap();
-        assert_eq!(s, s_deserialized);
-
-        // projective point
-        let p = ProjectivePoint(
-            k256::ProjectivePoint::generator() * k256::Scalar::random(rand::thread_rng()),
-        );
-        let p_serialized = bincode.serialize(&p).unwrap();
-        let p_deserialized = bincode.deserialize(&p_serialized).unwrap();
-        assert_eq!(p, p_deserialized);
-
-        // verifying key
-        let s = k256::ecdsa::SigningKey::random(rand::thread_rng());
-        let v = VerifyingKey(k256::ecdsa::VerifyingKey::from(s));
+        let v = U::from(val);
         let v_serialized = bincode.serialize(&v).unwrap();
+        if let Some(size) = size {
+            assert_eq!(v_serialized.len(), size);
+        }
         let v_deserialized = bincode.deserialize(&v_serialized).unwrap();
         assert_eq!(v, v_deserialized);
     }
