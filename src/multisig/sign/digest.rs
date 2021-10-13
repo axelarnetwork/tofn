@@ -37,3 +37,19 @@ impl Reset for DigestWrapper {
         unimplemented!()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use ecdsa::signature::{DigestSigner, DigestVerifier};
+
+    use super::DigestWrapper;
+
+    #[test]
+    fn basic_correctness() {
+        let digest = DigestWrapper { output: [42u8; 32] };
+        let signing_key = k256::ecdsa::SigningKey::random(rand::thread_rng());
+        let signature: k256::ecdsa::Signature = signing_key.sign_digest(digest.clone());
+        let verifying_key = signing_key.verifying_key();
+        verifying_key.verify_digest(digest, &signature).unwrap();
+    }
+}
