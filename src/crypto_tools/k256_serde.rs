@@ -236,12 +236,12 @@ impl<'de> Deserialize<'de> for ProjectivePoint {
 
 #[cfg(test)]
 mod tests {
-    use std::fmt::Debug;
-
     use super::*;
     use bincode::Options;
+    use ecdsa::hazmat::{RecoverableSignPrimitive, VerifyPrimitive};
     use k256::elliptic_curve::Field;
     use serde::de::DeserializeOwned;
+    use std::fmt::Debug;
 
     #[test]
     fn basic_round_trip() {
@@ -250,6 +250,16 @@ mod tests {
 
         let p = k256::ProjectivePoint::generator() * s;
         basic_round_trip_impl::<_, ProjectivePoint>(p, None);
+
+        let hashed_msg = k256::Scalar::random(rand::thread_rng());
+        let ephemeral_scalar = k256::Scalar::random(rand::thread_rng());
+        let (signature, _) = s
+            .try_sign_recoverable_prehashed(&ephemeral_scalar, &hashed_msg)
+            .unwrap();
+        p.to_affine()
+            .verify_prehashed(&hashed_msg, &signature)
+            .unwrap();
+        basic_round_trip_impl::<_, Signature>(signature, None);
     }
 
     fn basic_round_trip_impl<T, U>(val: T, size: Option<usize>)
