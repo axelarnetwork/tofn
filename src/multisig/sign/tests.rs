@@ -157,7 +157,7 @@ fn execute_sign(
         .1
         .group()
         .all_verifying_keys();
-    let all_signatures = results.iter().next().unwrap().as_ref().unwrap();
+    let all_signatures = results.get(0).unwrap().as_ref().unwrap();
     let hashed_msg = k256::Scalar::from(msg_to_sign);
 
     for (sign_id, keygen_id) in sign_parties_share_ids {
