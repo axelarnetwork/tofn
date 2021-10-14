@@ -1,11 +1,7 @@
-use std::{
-    array::TryFromSliceError,
-    convert::{TryFrom, TryInto},
-};
-
-use super::{digest::DigestWrapper, r1};
+use super::r1;
 use crate::{
     collections::{HoleVecMap, Subset, TypedUsize, VecMap},
+    gg20::sign::MessageDigest,
     multisig::keygen::{
         GroupPublicInfo, KeygenPartyId, KeygenShareId, SecretKeyShare, ShareSecretInfo,
     },
@@ -15,8 +11,6 @@ use crate::{
     },
 };
 
-use ecdsa::hazmat::DigestPrimitive;
-use k256::ecdsa::digest::{Digest, Output};
 use serde::{Deserialize, Serialize};
 use tracing::error;
 
@@ -44,15 +38,15 @@ pub struct SignPartyId;
 
 /// sign only 32-byte hash digests
 /// TODO refactor copied code from gg20
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MessageDigest([u8; 32]);
+// #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+// pub struct MessageDigest([u8; 32]);
 
-impl TryFrom<&[u8]> for MessageDigest {
-    type Error = TryFromSliceError;
-    fn try_from(v: &[u8]) -> Result<Self, Self::Error> {
-        Ok(Self(v.try_into()?))
-    }
-}
+// impl TryFrom<&[u8]> for MessageDigest {
+//     type Error = TryFromSliceError;
+//     fn try_from(v: &[u8]) -> Result<Self, Self::Error> {
+//         Ok(Self(v.try_into()?))
+//     }
+// }
 
 // TODO: Implement the hash-to-field draft to produce an even less biased sample.
 // impl From<&MessageDigest> for k256::Scalar {
@@ -60,13 +54,6 @@ impl TryFrom<&[u8]> for MessageDigest {
 //         k256::Scalar::from_bytes_reduced(k256::FieldBytes::from_slice(&v.0[..]))
 //     }
 // }
-
-impl From<&MessageDigest> for DigestWrapper {
-    fn from(v: &MessageDigest) -> Self {
-        // k256::Scalar::from_bytes_reduced(k256::FieldBytes::from_slice(&v.0[..]))
-        todo!()
-    }
-}
 
 /// Initialize a new sign protocol
 /// Assume `group`, `share` are valid and check `sign_parties` against it.
@@ -103,10 +90,6 @@ pub fn new_sign(
     let sign_party_share_counts =
         PartyShareCounts::from_vec(group.party_share_counts().subset(sign_parties)?)?;
 
-    // let msg_to_sign =
-    //     <<k256::Secp256k1 as DigestPrimitive>::Digest as Digest>::Output::from(msg_to_sign);
-    // let msg_to_sign = Output::from(msg_to_sign.0);
-
     let round2 = r1::start(
         my_sign_id,
         SecretKeyShare::new(group.clone(), share.clone()),
@@ -115,4 +98,26 @@ pub fn new_sign(
     )?;
 
     new_protocol(sign_party_share_counts, my_sign_id, round2)
+}
+
+#[cfg(test)]
+mod tests {
+    use ecdsa::{
+        elliptic_curve::Field,
+        hazmat::{RecoverableSignPrimitive, VerifyPrimitive},
+    };
+
+    #[test]
+    fn sign_verify() {
+        let signing_key = k256::Scalar::random(rand::thread_rng());
+        let hashed_msg = k256::Scalar::random(rand::thread_rng());
+        let ephemeral_scalar = k256::Scalar::random(rand::thread_rng());
+        let (signature, _) = signing_key
+            .try_sign_recoverable_prehashed(&ephemeral_scalar, &hashed_msg)
+            .unwrap();
+        let verifying_key = (k256::ProjectivePoint::generator() * signing_key).to_affine();
+        verifying_key
+            .verify_prehashed(&hashed_msg, &signature)
+            .unwrap();
+    }
 }

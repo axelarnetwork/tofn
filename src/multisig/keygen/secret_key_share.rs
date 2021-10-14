@@ -19,7 +19,7 @@ pub struct SecretKeyShare {
 pub struct GroupPublicInfo {
     party_share_counts: KeygenPartyShareCounts,
     threshold: usize,
-    all_verifying_keys: VecMap<KeygenShareId, k256_serde::VerifyingKey>,
+    all_verifying_keys: VecMap<KeygenShareId, k256_serde::ProjectivePoint>,
 }
 
 /// `ShareSecretInfo` secret info unique to each share
@@ -30,7 +30,7 @@ pub struct GroupPublicInfo {
 #[zeroize(drop)]
 pub struct ShareSecretInfo {
     index: TypedUsize<KeygenShareId>,
-    signing_key: k256_serde::SigningKey,
+    signing_key: k256_serde::Scalar,
 }
 
 impl GroupPublicInfo {
@@ -55,14 +55,14 @@ impl GroupPublicInfo {
         todo!()
     }
 
-    pub fn all_verifying_keys(&self) -> &VecMap<KeygenShareId, k256_serde::VerifyingKey> {
+    pub fn all_verifying_keys(&self) -> &VecMap<KeygenShareId, k256_serde::ProjectivePoint> {
         &self.all_verifying_keys
     }
 
     pub(super) fn new(
         party_share_counts: KeygenPartyShareCounts,
         threshold: usize,
-        all_verifying_keys: VecMap<KeygenShareId, k256_serde::VerifyingKey>,
+        all_verifying_keys: VecMap<KeygenShareId, k256_serde::ProjectivePoint>,
     ) -> Self {
         Self {
             party_share_counts,
@@ -77,14 +77,11 @@ impl ShareSecretInfo {
         self.index
     }
 
-    pub(super) fn new(
-        index: TypedUsize<KeygenShareId>,
-        signing_key: k256_serde::SigningKey,
-    ) -> Self {
+    pub(super) fn new(index: TypedUsize<KeygenShareId>, signing_key: k256_serde::Scalar) -> Self {
         Self { index, signing_key }
     }
 
-    pub(crate) fn signing_key(&self) -> &k256_serde::SigningKey {
+    pub(crate) fn signing_key(&self) -> &k256_serde::Scalar {
         &self.signing_key
     }
 }

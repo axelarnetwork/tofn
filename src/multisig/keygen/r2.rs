@@ -17,7 +17,7 @@ use super::{
 pub(super) struct R2 {
     pub(super) threshold: usize,
     pub(super) party_share_counts: KeygenPartyShareCounts,
-    pub(super) signing_key: k256::ecdsa::SigningKey,
+    pub(super) signing_key: k256::Scalar,
 }
 
 impl Executer for R2 {
