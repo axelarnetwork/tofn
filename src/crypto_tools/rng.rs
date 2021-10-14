@@ -58,3 +58,26 @@ pub(crate) fn rng_seed<K>(
 
     Ok(ChaCha20Rng::from_seed(seed))
 }
+
+pub(crate) fn rng_seed_sign<K>(
+    tag: u8,
+    party_id: TypedUsize<K>,
+    signing_key: &k256::Scalar,
+    msg_to_sign: &k256::Scalar,
+) -> TofnResult<impl CryptoRng + RngCore> {
+    let mut signing_key_bytes = signing_key.to_bytes();
+    let msg_to_sign_bytes = msg_to_sign.to_bytes();
+
+    let mut prf = Hmac::<Sha256>::new(&Default::default());
+
+    prf.update(&tag.to_be_bytes());
+    prf.update(&party_id.to_bytes());
+    prf.update(&signing_key_bytes);
+    prf.update(&msg_to_sign_bytes);
+
+    signing_key_bytes.zeroize();
+
+    let seed = prf.finalize().into_bytes().into();
+
+    Ok(ChaCha20Rng::from_seed(seed))
+}

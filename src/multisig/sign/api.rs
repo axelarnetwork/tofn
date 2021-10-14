@@ -1,12 +1,13 @@
 use super::r1;
 use crate::{
     collections::{HoleVecMap, Subset, TypedUsize, VecMap},
+    crypto_tools::k256_serde,
     gg20::sign::MessageDigest,
     multisig::keygen::{
         GroupPublicInfo, KeygenPartyId, KeygenShareId, SecretKeyShare, ShareSecretInfo,
     },
     sdk::{
-        api::{BytesVec, PartyShareCounts, Protocol, TofnFatal, TofnResult},
+        api::{PartyShareCounts, Protocol, TofnFatal, TofnResult},
         implementer_api::{new_protocol, ProtocolBuilder},
     },
 };
@@ -20,8 +21,11 @@ use tracing::error;
 /// The largest sign message is r2::P2pHappy with size ~6828 bytes on the wire.
 pub const MAX_MSG_LEN: usize = 7500;
 
-pub type SignProtocol = Protocol<BytesVec, SignShareId, SignPartyId, MAX_MSG_LEN>;
-pub type SignProtocolBuilder = ProtocolBuilder<BytesVec, SignShareId>;
+// TODO what should be the final output type?
+pub type SignProtocol =
+    Protocol<VecMap<SignShareId, k256_serde::Signature>, SignShareId, SignPartyId, MAX_MSG_LEN>;
+pub type SignProtocolBuilder =
+    ProtocolBuilder<VecMap<SignShareId, k256_serde::Signature>, SignShareId>;
 
 // This includes all shares participating in the current signing protocol
 pub type KeygenShareIds = VecMap<SignShareId, TypedUsize<KeygenShareId>>;
@@ -35,25 +39,6 @@ pub struct SignShareId;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SignPartyId;
-
-/// sign only 32-byte hash digests
-/// TODO refactor copied code from gg20
-// #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-// pub struct MessageDigest([u8; 32]);
-
-// impl TryFrom<&[u8]> for MessageDigest {
-//     type Error = TryFromSliceError;
-//     fn try_from(v: &[u8]) -> Result<Self, Self::Error> {
-//         Ok(Self(v.try_into()?))
-//     }
-// }
-
-// TODO: Implement the hash-to-field draft to produce an even less biased sample.
-// impl From<&MessageDigest> for k256::Scalar {
-//     fn from(v: &MessageDigest) -> Self {
-//         k256::Scalar::from_bytes_reduced(k256::FieldBytes::from_slice(&v.0[..]))
-//     }
-// }
 
 /// Initialize a new sign protocol
 /// Assume `group`, `share` are valid and check `sign_parties` against it.
