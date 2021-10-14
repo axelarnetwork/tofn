@@ -82,63 +82,6 @@ impl<'de> Deserialize<'de> for Scalar {
     }
 }
 
-/// SingingKey does not impl Zeroize and so cannot have #[zeroize(drop)] so we need to roll our own
-#[derive(Clone, Debug, PartialEq)]
-pub struct SigningKey(k256::ecdsa::SigningKey);
-
-impl AsRef<k256::ecdsa::SigningKey> for SigningKey {
-    fn as_ref(&self) -> &k256::ecdsa::SigningKey {
-        &self.0
-    }
-}
-
-impl From<k256::ecdsa::SigningKey> for SigningKey {
-    fn from(s: k256::ecdsa::SigningKey) -> Self {
-        SigningKey(s)
-    }
-}
-
-/// SingingKey does not impl Zeroize so we need to roll our own
-impl Zeroize for SigningKey {
-    fn zeroize(&mut self) {
-        // SigningKey is a NonZeroScalar under the hood
-        // NonZeroScalar impls Zeroize, so use that
-        let zeroizable = unsafe {
-            &mut *(&mut self.0 as *mut k256::ecdsa::SigningKey as *mut k256::NonZeroScalar)
-        };
-        zeroizable.zeroize()
-    }
-}
-
-/// SingingKey does not impl Zeroize and so cannot have #[zeroize(drop)] so we need to roll our own
-impl Drop for SigningKey {
-    fn drop(&mut self) {
-        self.zeroize()
-    }
-}
-
-impl Serialize for SigningKey {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let bytes: [u8; 32] = self.0.to_bytes().into();
-        bytes.serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for SigningKey {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let bytes: [u8; 32] = Deserialize::deserialize(deserializer)?;
-        Ok(SigningKey(
-            k256::ecdsa::SigningKey::from_bytes(&bytes).map_err(D::Error::custom)?,
-        ))
-    }
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct Signature(k256::ecdsa::Signature);
 
@@ -291,50 +234,6 @@ impl<'de> Deserialize<'de> for ProjectivePoint {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct VerifyingKey(k256::ecdsa::VerifyingKey);
-
-impl AsRef<k256::ecdsa::VerifyingKey> for VerifyingKey {
-    fn as_ref(&self) -> &k256::ecdsa::VerifyingKey {
-        &self.0
-    }
-}
-
-impl From<k256::ecdsa::VerifyingKey> for VerifyingKey {
-    fn from(p: k256::ecdsa::VerifyingKey) -> Self {
-        VerifyingKey(p)
-    }
-}
-
-impl From<&k256::ecdsa::VerifyingKey> for VerifyingKey {
-    fn from(p: &k256::ecdsa::VerifyingKey) -> Self {
-        VerifyingKey(*p)
-    }
-}
-
-impl Serialize for VerifyingKey {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        EncodedPoint(self.0.to_encoded_point(true)).serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for VerifyingKey {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        Ok(VerifyingKey(
-            k256::ecdsa::VerifyingKey::from_encoded_point(
-                &EncodedPoint::deserialize(deserializer)?.0,
-            )
-            .map_err(D::Error::custom)?,
-        ))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::fmt::Debug;
@@ -351,12 +250,6 @@ mod tests {
 
         let p = k256::ProjectivePoint::generator() * s;
         basic_round_trip_impl::<_, ProjectivePoint>(p, None);
-
-        let k = k256::ecdsa::SigningKey::random(rand::thread_rng());
-        basic_round_trip_impl::<_, SigningKey>(k.clone(), Some(32));
-
-        let v = k.verifying_key();
-        basic_round_trip_impl::<_, VerifyingKey>(v, None);
     }
 
     fn basic_round_trip_impl<T, U>(val: T, size: Option<usize>)
@@ -378,9 +271,6 @@ mod tests {
     fn scalar_deserialization_fail() {
         let s = Scalar(k256::Scalar::random(rand::thread_rng()));
         scalar_deserialization_fail_impl(s);
-
-        let k = SigningKey(k256::ecdsa::SigningKey::random(rand::thread_rng()));
-        scalar_deserialization_fail_impl(k);
     }
 
     fn scalar_deserialization_fail_impl<S>(scalar: S)
