@@ -26,8 +26,12 @@ pub(super) fn start(
     let msg_to_sign = k256::Scalar::from(msg_to_sign);
     let signing_key = secret_key_share.share().signing_key().as_ref();
 
-    // TODO how best to sample ephemeral_scalar?
-    let rng = rng::rng_seed_sign(multisig::SIGN_TAG, my_sign_id, signing_key, &msg_to_sign)?;
+    let rng = rng::rng_seed_ecdsa_ephemeral_scalar(
+        multisig::SIGN_TAG,
+        my_sign_id,
+        signing_key,
+        &msg_to_sign,
+    )?;
     let ephemeral_scalar = k256::Scalar::random(rng);
 
     let (signature, _) = signing_key

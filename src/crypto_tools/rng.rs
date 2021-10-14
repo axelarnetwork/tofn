@@ -59,7 +59,11 @@ pub(crate) fn rng_seed<K>(
     Ok(ChaCha20Rng::from_seed(seed))
 }
 
-pub(crate) fn rng_seed_sign<K>(
+/// Initialize a RNG by hashing the arguments.
+/// Intended for use generating an ephemeral scalar for ECDSA signatures in the spirit of RFC 6979,
+/// except this implementation does not conform to RFC 6979.
+/// Compare with k256: <https://github.com/RustCrypto/elliptic-curves/blob/139ef38f3bd35bde6d96c5e496ccf9d3f6132209/k256/src/ecdsa/sign.rs#L115>
+pub(crate) fn rng_seed_ecdsa_ephemeral_scalar<K>(
     tag: u8,
     party_id: TypedUsize<K>,
     signing_key: &k256::Scalar,
