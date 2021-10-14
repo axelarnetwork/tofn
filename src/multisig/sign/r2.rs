@@ -35,6 +35,8 @@ impl Executer for R2 {
         let mut faulters = info.new_fillvecmap();
 
         // TODO support robustness
+        // TODO check number of valid sigs against threshold
+
         // anyone who did not send a bcast is a faulter
         for (peer_sign_id, bcast) in bcasts_in.iter() {
             if bcast.is_none() {
