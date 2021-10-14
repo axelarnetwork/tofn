@@ -2,7 +2,6 @@ use super::r1;
 use crate::{
     collections::{HoleVecMap, Subset, TypedUsize, VecMap},
     crypto_tools::k256_serde,
-    gg20::sign::MessageDigest,
     multisig::keygen::{
         GroupPublicInfo, KeygenPartyId, KeygenShareId, SecretKeyShare, ShareSecretInfo,
     },
@@ -14,6 +13,8 @@ use crate::{
 
 use serde::{Deserialize, Serialize};
 use tracing::error;
+
+pub use crate::crypto_tools::message_digest::MessageDigest;
 
 /// SignProtocol output for a single share in happy path
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

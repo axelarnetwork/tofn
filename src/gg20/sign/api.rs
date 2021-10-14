@@ -1,8 +1,3 @@
-use std::{
-    array::TryFromSliceError,
-    convert::{TryFrom, TryInto},
-};
-
 use crate::{
     collections::{HoleVecMap, Subset, TypedUsize, VecMap},
     gg20::keygen::{
@@ -20,6 +15,8 @@ use super::r1;
 
 #[cfg(feature = "malicious")]
 use super::malicious;
+
+pub use crate::crypto_tools::message_digest::MessageDigest;
 
 /// Maximum byte length of messages exchanged during sign.
 /// The sender of a message larger than this maximum will be accused as a faulter.
@@ -42,24 +39,6 @@ pub struct SignShareId;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SignPartyId;
-
-/// sign only 32-byte hash digests
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MessageDigest([u8; 32]);
-
-impl TryFrom<&[u8]> for MessageDigest {
-    type Error = TryFromSliceError;
-    fn try_from(v: &[u8]) -> Result<Self, Self::Error> {
-        Ok(Self(v.try_into()?))
-    }
-}
-
-// TODO: Implement the hash-to-field draft to produce an even less biased sample.
-impl From<&MessageDigest> for k256::Scalar {
-    fn from(v: &MessageDigest) -> Self {
-        k256::Scalar::from_bytes_reduced(k256::FieldBytes::from_slice(&v.0[..]))
-    }
-}
 
 /// Initialize a new sign protocol
 /// Assume `group`, `share` are valid and check `sign_parties` against it.

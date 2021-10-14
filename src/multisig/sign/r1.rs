@@ -1,7 +1,6 @@
 use crate::{
     collections::TypedUsize,
     crypto_tools::{k256_serde, rng},
-    gg20::sign::MessageDigest, // TODO put MessageDigest somewhere else
     multisig::{self, keygen::SecretKeyShare},
     sdk::{
         api::{TofnFatal, TofnResult},
@@ -11,7 +10,7 @@ use crate::{
 use ecdsa::{elliptic_curve::Field, hazmat::RecoverableSignPrimitive};
 use serde::{Deserialize, Serialize};
 
-use super::{r2, KeygenShareIds, SignProtocolBuilder, SignShareId};
+use super::{r2, KeygenShareIds, MessageDigest, SignProtocolBuilder, SignShareId};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bcast {

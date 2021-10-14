@@ -3,7 +3,6 @@ use std::convert::TryFrom;
 use super::*;
 use crate::{
     collections::{FillVecMap, HoleVecMap, Subset, TypedUsize, VecMap},
-    gg20::sign::MessageDigest,
     multisig::{
         keygen::{tests::execute_keygen, KeygenPartyShareCounts, KeygenShareId, SecretKeyShare},
         sign::api::{new_sign, SignShareId},
@@ -66,10 +65,7 @@ fn test_case_list() -> Vec<TestCase> {
 }
 
 fn msg_to_sign() -> MessageDigest {
-    let msg: &[u8] = &[
-        42, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0,
-    ];
+    let msg: &[u8] = &[42; 32];
     MessageDigest::try_from(msg).expect("could not convert msg to MessageDigest")
 }
 
