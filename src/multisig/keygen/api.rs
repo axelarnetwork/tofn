@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use tracing::error;
 
 use super::r1;
+pub use super::secret_key_share::*;
 
 /// Maximum byte length of messages exchanged during keygen.
 pub const MAX_MSG_LEN: usize = 5000;
