@@ -3,7 +3,6 @@ use std::convert::TryFrom;
 use super::*;
 use crate::{
     collections::{FillVecMap, HoleVecMap, Subset, TypedUsize, VecMap},
-    crypto_tools::k256_serde,
     gg20::sign::MessageDigest,
     multisig::{
         keygen::{tests::execute_keygen, KeygenPartyShareCounts, KeygenShareId, SecretKeyShare},
@@ -15,13 +14,11 @@ use ecdsa::hazmat::VerifyPrimitive;
 use tracing::debug;
 use tracing_test::traced_test;
 
-type Party =
-    Round<VecMap<SignShareId, k256_serde::Signature>, SignShareId, SignPartyId, MAX_MSG_LEN>;
+type Party = Round<SignProtocolOutput, SignShareId, SignPartyId, MAX_MSG_LEN>;
 type Parties = Vec<Party>;
 type PartyBcast = Result<VecMap<SignShareId, BytesVec>, ()>;
 type PartyP2p = Result<VecMap<SignShareId, HoleVecMap<SignShareId, BytesVec>>, ()>;
-type PartyResult =
-    Result<VecMap<SignShareId, k256_serde::Signature>, FillVecMap<SignPartyId, Fault>>;
+type PartyResult = Result<SignProtocolOutput, FillVecMap<SignPartyId, Fault>>;
 struct TestCase {
     party_share_counts: KeygenPartyShareCounts,
     threshold: usize,
@@ -140,13 +137,13 @@ fn execute_sign(
         .collect();
 
     let results = execute_final_round(r1_parties, 2, true, false);
-    // let results = results.into_iter().map(Result::unwrap).collect();
+    let results: VecMap<SignShareId, _> = results.into_iter().map(Result::unwrap).collect();
 
     // test: consensus on sigs
-    let mut sigs_iter = results.iter().map(|r| r.as_ref().unwrap());
-    let first_sigs = sigs_iter.next().unwrap();
-    for sigs in sigs_iter {
-        assert_eq!(sigs, first_sigs);
+    let all_sig_shares = results.get(TypedUsize::from_usize(0)).unwrap();
+    assert_eq!(all_sig_shares.len(), test_case.threshold + 1);
+    for (_, sigs) in results.iter().skip(1) {
+        assert_eq!(sigs, all_sig_shares);
     }
 
     // TEST: verify all sigs
@@ -157,19 +154,20 @@ fn execute_sign(
         .1
         .group()
         .all_verifying_keys();
-    let all_signatures = results.get(0).unwrap().as_ref().unwrap();
     let hashed_msg = k256::Scalar::from(msg_to_sign);
 
-    for (sign_id, keygen_id) in sign_parties_share_ids {
+    for sig_share in all_sig_shares {
+        let keygen_id = test_case
+            .party_share_counts
+            .party_to_share_id(sig_share.party_id, sig_share.subshare_id)
+            .unwrap();
         let verifying_key = all_verifying_keys
             .get(keygen_id)
             .unwrap()
             .as_ref()
             .to_affine();
-        let signature = all_signatures.get(sign_id).unwrap().as_ref();
-
         verifying_key
-            .verify_prehashed(&hashed_msg, signature)
+            .verify_prehashed(&hashed_msg, sig_share.signature.as_ref())
             .unwrap();
     }
 }

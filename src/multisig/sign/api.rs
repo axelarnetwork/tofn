@@ -15,17 +15,25 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use tracing::error;
 
+/// SignProtocol output for a single share in happy path
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SignatureShare {
+    pub signature: k256_serde::Signature,
+    pub party_id: TypedUsize<KeygenPartyId>,
+    pub subshare_id: usize,
+}
+
+/// Exactly threshold + 1 valid signatures
+pub type SignProtocolOutput = Vec<SignatureShare>;
+
 /// Maximum byte length of messages exchanged during sign.
 /// The sender of a message larger than this maximum will be accused as a faulter.
 /// View all message sizes in the logs of the integration test `single_thred::basic_correctness`.
 /// The largest sign message is r2::P2pHappy with size ~6828 bytes on the wire.
 pub const MAX_MSG_LEN: usize = 7500;
 
-// TODO what should be the final output type?
-pub type SignProtocol =
-    Protocol<VecMap<SignShareId, k256_serde::Signature>, SignShareId, SignPartyId, MAX_MSG_LEN>;
-pub type SignProtocolBuilder =
-    ProtocolBuilder<VecMap<SignShareId, k256_serde::Signature>, SignShareId>;
+pub type SignProtocol = Protocol<SignProtocolOutput, SignShareId, SignPartyId, MAX_MSG_LEN>;
+pub type SignProtocolBuilder = ProtocolBuilder<SignProtocolOutput, SignShareId>;
 
 // This includes all shares participating in the current signing protocol
 pub type KeygenShareIds = VecMap<SignShareId, TypedUsize<KeygenShareId>>;
