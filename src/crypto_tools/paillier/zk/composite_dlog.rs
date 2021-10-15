@@ -274,9 +274,12 @@ pub mod malicious {
 #[cfg(test)]
 mod tests {
     use super::{CompositeDLogStmt, NIZKStatement, S_INV_WITNESS_SIZE, S_WITNESS_SIZE};
-    use crate::crypto_tools::paillier::{
-        keygen_unsafe,
-        zk::composite_dlog::{CHALLENGE_K, SECURITY_PARAM_K_PRIME},
+    use crate::crypto_tools::{
+        constants::{MODULUS_MAX_SIZE, MODULUS_MIN_SIZE},
+        paillier::{
+            keygen_unsafe,
+            zk::composite_dlog::{CHALLENGE_K, SECURITY_PARAM_K_PRIME},
+        },
     };
 
     #[test]
@@ -320,7 +323,13 @@ mod tests {
 
         // Fail if a proof is very long
         bad_proof1.y = &proof1.y + dk.0.totient();
-        bad_proof2.y = &proof2.y + (dk.0.totient() << (CHALLENGE_K + SECURITY_PARAM_K_PRIME + 1));
+        // phi(N) is at least `MODULUS_MIN_SIZE` - 1
+        bad_proof2.y = &proof2.y
+            + (dk.0.totient()
+                << (CHALLENGE_K
+                    + SECURITY_PARAM_K_PRIME
+                    + (MODULUS_MAX_SIZE - MODULUS_MIN_SIZE)
+                    + 1));
 
         assert!(!stmt1.verify(&bad_proof1, domain));
         assert!(!stmt2.verify(&bad_proof2, domain));
