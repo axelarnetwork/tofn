@@ -1,4 +1,4 @@
-use super::{KeygenPartyShareCounts, KeygenShareId};
+use super::{KeygenPartyId, KeygenPartyShareCounts, KeygenShareId};
 use crate::{
     collections::{TypedUsize, VecMap},
     crypto_tools::k256_serde,
@@ -7,6 +7,13 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
+/// Keygen share output to be sent over the wire
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct KeygenShare {
+    pub verifying_key_bytes: BytesVec, // SEC1-encoded secp256k1 curve point
+    pub party_id: TypedUsize<KeygenPartyId>,
+    pub subshare_id: usize,
+}
 /// final output of keygen: store this struct in tofnd kvstore
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SecretKeyShare {
@@ -46,17 +53,25 @@ impl GroupPublicInfo {
         self.threshold
     }
 
-    pub fn pubkey_bytes(&self) -> BytesVec {
-        todo!()
-    }
-
-    pub fn all_shares_bytes(&self) -> TofnResult<BytesVec> {
-        // encode(&self.all_shares)
-        todo!()
-    }
-
     pub fn all_verifying_keys(&self) -> &VecMap<KeygenShareId, k256_serde::ProjectivePoint> {
         &self.all_verifying_keys
+    }
+
+    /// tofnd can send this data through grpc
+    pub fn all_verifying_keys_bytes(&self) -> TofnResult<Vec<KeygenShare>> {
+        self.all_verifying_keys
+            .iter()
+            .map(|(share_id, verifying_key)| {
+                let (party_id, subshare_id) = self
+                    .party_share_counts
+                    .share_to_party_subshare_ids(share_id)?;
+                Ok(KeygenShare {
+                    verifying_key_bytes: verifying_key.bytes(),
+                    party_id,
+                    subshare_id,
+                })
+            })
+            .collect()
     }
 
     pub(super) fn new(
