@@ -275,11 +275,8 @@ pub mod malicious {
 mod tests {
     use super::{CompositeDLogStmt, NIZKStatement, S_INV_WITNESS_SIZE, S_WITNESS_SIZE};
     use crate::crypto_tools::{
-        constants::{MODULUS_MAX_SIZE, MODULUS_MIN_SIZE},
-        paillier::{
-            keygen_unsafe,
-            zk::composite_dlog::{CHALLENGE_K, SECURITY_PARAM_K_PRIME},
-        },
+        constants::MODULUS_MIN_SIZE,
+        paillier::{keygen_unsafe, zk::composite_dlog::r_mask_size},
     };
 
     #[test]
@@ -321,15 +318,18 @@ mod tests {
         assert!(!stmt1.verify(&bad_proof1, domain));
         assert!(!stmt2.verify(&bad_proof2, domain));
 
-        // Fail if a proof is very long
+        // Fail if a proof is very long.
+        // Since the verifier computes `g^y`, we can instead provide
+        // another larger `y' = y + a phi(N)` for any integer `a`
+        // such that `g^y' = g^y`. But such a long `y'` should fail our bounds check.
+
+        // For the proof of `s`, adding the totient should always exceed the bounds
         bad_proof1.y = &proof1.y + dk.0.totient();
-        // phi(N) is at least `MODULUS_MIN_SIZE` - 1
-        bad_proof2.y = &proof2.y
-            + (dk.0.totient()
-                << (CHALLENGE_K
-                    + SECURITY_PARAM_K_PRIME
-                    + (MODULUS_MAX_SIZE - MODULUS_MIN_SIZE)
-                    + 1));
+
+        // For the proof of `s^(-1)`, compute the appropriate shift such that `a phi(N)` exceeds the bound
+        let totient_min_size = MODULUS_MIN_SIZE - 1; // phi(N) is at least `MODULUS_MIN_SIZE` - 1
+        let shift = r_mask_size(S_INV_WITNESS_SIZE) - totient_min_size;
+        bad_proof2.y = &proof2.y + (dk.0.totient() << shift);
 
         assert!(!stmt1.verify(&bad_proof1, domain));
         assert!(!stmt2.verify(&bad_proof2, domain));
