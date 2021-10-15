@@ -45,8 +45,8 @@ fn compute_challenge(
             .chain(k256_serde::to_bytes(stmt.base2))
             .chain(k256_serde::to_bytes(stmt.target1))
             .chain(k256_serde::to_bytes(stmt.target2))
-            .chain(alpha1.bytes())
-            .chain(alpha2.bytes()),
+            .chain(alpha1.to_bytes())
+            .chain(alpha2.to_bytes()),
     )
 }
 

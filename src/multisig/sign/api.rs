@@ -1,6 +1,7 @@
+use super::r1;
 use crate::{
     collections::{HoleVecMap, Subset, TypedUsize, VecMap},
-    gg20::keygen::{
+    multisig::keygen::{
         GroupPublicInfo, KeygenPartyId, KeygenShareId, SecretKeyShare, ShareSecretInfo,
     },
     sdk::{
@@ -8,24 +9,28 @@ use crate::{
         implementer_api::{new_protocol, ProtocolBuilder},
     },
 };
+
 use serde::{Deserialize, Serialize};
 use tracing::error;
 
-use super::r1;
-
-#[cfg(feature = "malicious")]
-use super::malicious;
-
 pub use crate::crypto_tools::message_digest::MessageDigest;
 
-/// Maximum byte length of messages exchanged during sign.
-/// The sender of a message larger than this maximum will be accused as a faulter.
-/// View all message sizes in the logs of the integration test `single_thred::basic_correctness`.
-/// The largest sign message is r2::P2pHappy with size ~6828 bytes on the wire.
-pub const MAX_MSG_LEN: usize = 7500;
+/// SignProtocol output for a single share in happy path
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SignatureShare {
+    pub signature_bytes: BytesVec, // ASN1/DER (Bitcoin) encoding
+    pub party_id: TypedUsize<KeygenPartyId>,
+    pub subshare_id: usize,
+}
 
-pub type SignProtocol = Protocol<BytesVec, SignShareId, SignPartyId, MAX_MSG_LEN>;
-pub type SignProtocolBuilder = ProtocolBuilder<BytesVec, SignShareId>;
+/// Exactly threshold + 1 valid signatures
+pub type SignProtocolOutput = Vec<SignatureShare>;
+
+/// Maximum byte length of messages exchanged during sign.
+pub const MAX_MSG_LEN: usize = 100;
+
+pub type SignProtocol = Protocol<SignProtocolOutput, SignShareId, SignPartyId, MAX_MSG_LEN>;
+pub type SignProtocolBuilder = ProtocolBuilder<SignProtocolOutput, SignShareId>;
 
 // This includes all shares participating in the current signing protocol
 pub type KeygenShareIds = VecMap<SignShareId, TypedUsize<KeygenShareId>>;
@@ -47,8 +52,8 @@ pub fn new_sign(
     share: &ShareSecretInfo,
     sign_parties: &SignParties,
     msg_to_sign: &MessageDigest,
-    #[cfg(feature = "malicious")] behaviour: malicious::Behaviour,
 ) -> TofnResult<SignProtocol> {
+    // TODO refactor copied code from gg20
     let all_keygen_ids =
         VecMap::from_vec(group.party_share_counts().share_id_subset(sign_parties)?);
 
@@ -78,11 +83,31 @@ pub fn new_sign(
     let round2 = r1::start(
         my_sign_id,
         SecretKeyShare::new(group.clone(), share.clone()),
-        msg_to_sign.into(),
+        msg_to_sign,
         all_keygen_ids,
-        #[cfg(feature = "malicious")]
-        behaviour,
     )?;
 
     new_protocol(sign_party_share_counts, my_sign_id, round2)
+}
+
+#[cfg(test)]
+mod tests {
+    use ecdsa::{
+        elliptic_curve::Field,
+        hazmat::{SignPrimitive, VerifyPrimitive},
+    };
+
+    #[test]
+    fn sign_verify() {
+        let signing_key = k256::Scalar::random(rand::thread_rng());
+        let hashed_msg = k256::Scalar::random(rand::thread_rng());
+        let ephemeral_scalar = k256::Scalar::random(rand::thread_rng());
+        let signature = signing_key
+            .try_sign_prehashed(&ephemeral_scalar, &hashed_msg)
+            .unwrap();
+        let verifying_key = (k256::ProjectivePoint::generator() * signing_key).to_affine();
+        verifying_key
+            .verify_prehashed(&hashed_msg, &signature)
+            .unwrap();
+    }
 }

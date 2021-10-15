@@ -112,7 +112,7 @@ impl Executer for R5 {
             let peer_Gamma_i_commit = hash::commit_with_randomness(
                 constants::GAMMA_I_COMMIT_TAG,
                 peer_sign_id,
-                bcast.Gamma_i.bytes(),
+                bcast.Gamma_i.to_bytes(),
                 &bcast.Gamma_i_reveal,
             );
 

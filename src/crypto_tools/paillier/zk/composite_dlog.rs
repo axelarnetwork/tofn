@@ -137,7 +137,7 @@ impl CompositeDLogStmtBase {
                 // Inversion will fail if s is not co-prime to phi(N)
                 match s.0.invert(totient) {
                     None => {
-                        warn!("cryptographically unreachable (except for unsafe primes): random `s` not in `Z*_phi(n)`. trying again...");
+                        warn!("are you using unsafe primes? random `s` not in `Z*_phi(n)`, which is cryptographically unreachable with safe primes. (tests use unsafe primes, so ignore this warning if you see it in a test.) trying again...");
                     }
                     Some(x) => {
                         break (s, SecretNumber(x));
@@ -187,7 +187,6 @@ impl<const WITNESS_SIZE: usize> NIZKStatement for CompositeDLogStmt<WITNESS_SIZE
         debug_assert!(self.v == self.g.modpow(&(-&wit.0), &self.n));
 
         let r_size = r_mask_size(WITNESS_SIZE);
-        println!("prove: r size: {}", r_size);
         let R = BigNumber::one() << r_size;
         let r = Randomness::generate(&R);
 

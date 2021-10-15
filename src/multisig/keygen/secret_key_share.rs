@@ -1,4 +1,4 @@
-use super::{KeygenPartyShareCounts, KeygenShareId};
+use super::{KeygenPartyId, KeygenPartyShareCounts, KeygenShareId};
 use crate::{
     collections::{TypedUsize, VecMap},
     crypto_tools::k256_serde,
@@ -7,6 +7,13 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
+/// Keygen share output to be sent over the wire
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct KeygenShare {
+    pub encoded_pubkey: BytesVec, // SEC1-encoded secp256k1 curve point
+    pub party_id: TypedUsize<KeygenPartyId>,
+    pub subshare_id: usize,
+}
 /// final output of keygen: store this struct in tofnd kvstore
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SecretKeyShare {
@@ -19,7 +26,7 @@ pub struct SecretKeyShare {
 pub struct GroupPublicInfo {
     party_share_counts: KeygenPartyShareCounts,
     threshold: usize,
-    all_verifying_keys: VecMap<KeygenShareId, k256_serde::VerifyingKey>,
+    all_pubkeys: VecMap<KeygenShareId, k256_serde::ProjectivePoint>,
 }
 
 /// `ShareSecretInfo` secret info unique to each share
@@ -30,7 +37,7 @@ pub struct GroupPublicInfo {
 #[zeroize(drop)]
 pub struct ShareSecretInfo {
     index: TypedUsize<KeygenShareId>,
-    signing_key: k256_serde::SigningKey,
+    signing_key: k256_serde::Scalar,
 }
 
 impl GroupPublicInfo {
@@ -39,35 +46,44 @@ impl GroupPublicInfo {
     }
 
     pub fn share_count(&self) -> usize {
-        self.all_verifying_keys.len()
+        self.all_pubkeys.len()
     }
 
     pub fn threshold(&self) -> usize {
         self.threshold
     }
 
-    pub fn pubkey_bytes(&self) -> BytesVec {
-        todo!()
+    pub fn all_pubkeys(&self) -> &VecMap<KeygenShareId, k256_serde::ProjectivePoint> {
+        &self.all_pubkeys
     }
 
-    pub fn all_shares_bytes(&self) -> TofnResult<BytesVec> {
-        // encode(&self.all_shares)
-        todo!()
-    }
-
-    pub fn all_verifying_keys(&self) -> &VecMap<KeygenShareId, k256_serde::VerifyingKey> {
-        &self.all_verifying_keys
+    /// SEC1-encoded curve points
+    /// tofnd can send this data through grpc
+    pub fn all_encoded_pubkeys(&self) -> TofnResult<Vec<KeygenShare>> {
+        self.all_pubkeys
+            .iter()
+            .map(|(share_id, pubkey)| {
+                let (party_id, subshare_id) = self
+                    .party_share_counts
+                    .share_to_party_subshare_ids(share_id)?;
+                Ok(KeygenShare {
+                    encoded_pubkey: pubkey.to_bytes(),
+                    party_id,
+                    subshare_id,
+                })
+            })
+            .collect()
     }
 
     pub(super) fn new(
         party_share_counts: KeygenPartyShareCounts,
         threshold: usize,
-        all_verifying_keys: VecMap<KeygenShareId, k256_serde::VerifyingKey>,
+        all_pubkeys: VecMap<KeygenShareId, k256_serde::ProjectivePoint>,
     ) -> Self {
         Self {
             party_share_counts,
             threshold,
-            all_verifying_keys,
+            all_pubkeys,
         }
     }
 }
@@ -77,15 +93,11 @@ impl ShareSecretInfo {
         self.index
     }
 
-    pub(super) fn new(
-        index: TypedUsize<KeygenShareId>,
-        signing_key: k256_serde::SigningKey,
-    ) -> Self {
+    pub(super) fn new(index: TypedUsize<KeygenShareId>, signing_key: k256_serde::Scalar) -> Self {
         Self { index, signing_key }
     }
 
-    #[cfg(test)]
-    pub(crate) fn signing_key(&self) -> &k256_serde::SigningKey {
+    pub(crate) fn signing_key(&self) -> &k256_serde::Scalar {
         &self.signing_key
     }
 }

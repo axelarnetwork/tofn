@@ -121,7 +121,7 @@ fn basic_correctness() {
         .get(TypedUsize::from_usize(0))
         .unwrap()
         .group()
-        .pubkey_bytes();
+        .encoded_pubkey();
 
     // verify a signature
     let pubkey = k256::AffinePoint::from_encoded_point(

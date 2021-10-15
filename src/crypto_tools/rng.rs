@@ -58,3 +58,30 @@ pub(crate) fn rng_seed<K>(
 
     Ok(ChaCha20Rng::from_seed(seed))
 }
+
+/// Initialize a RNG by hashing the arguments.
+/// Intended for use generating an ephemeral scalar for ECDSA signatures in the spirit of RFC 6979,
+/// except this implementation does not conform to RFC 6979.
+/// Compare with RustCrypto: <https://github.com/RustCrypto/signatures/blob/54925be85d4eeb0540bf7c687ab08152a858871a/ecdsa/src/rfc6979.rs#L16-L40>
+pub(crate) fn rng_seed_ecdsa_ephemeral_scalar<K>(
+    tag: u8,
+    party_id: TypedUsize<K>,
+    signing_key: &k256::Scalar,
+    msg_to_sign: &k256::Scalar,
+) -> TofnResult<impl CryptoRng + RngCore> {
+    let mut signing_key_bytes = signing_key.to_bytes();
+    let msg_to_sign_bytes = msg_to_sign.to_bytes();
+
+    let mut prf = Hmac::<Sha256>::new(&Default::default());
+
+    prf.update(&tag.to_be_bytes());
+    prf.update(&party_id.to_bytes());
+    prf.update(&signing_key_bytes);
+    prf.update(&msg_to_sign_bytes);
+
+    signing_key_bytes.zeroize();
+
+    let seed = prf.finalize().into_bytes().into();
+
+    Ok(ChaCha20Rng::from_seed(seed))
+}

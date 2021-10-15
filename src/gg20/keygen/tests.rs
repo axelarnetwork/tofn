@@ -298,7 +298,7 @@ fn share_recovery(
     let first_share_id = TypedUsize::from_usize(0);
     let group_info = shares.get(first_share_id).unwrap().group();
     let group_info_bytes = group_info.all_shares_bytes().unwrap();
-    let pubkey_bytes = group_info.pubkey_bytes();
+    let pubkey_bytes = group_info.encoded_pubkey();
 
     let recovered_party_keypairs: VecMap<KeygenPartyId, PartyKeyPair> = (0..party_share_counts
         .party_count())
