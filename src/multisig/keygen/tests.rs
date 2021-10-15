@@ -146,7 +146,7 @@ fn execute_keygen_from_recovery(
             &verifying_key,
             secret_key_share
                 .group()
-                .all_verifying_keys()
+                .all_pubkeys()
                 .get(share_id)
                 .unwrap()
                 .as_ref()

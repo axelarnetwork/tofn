@@ -143,13 +143,7 @@ fn execute_sign(
     }
 
     // TEST: verify all sigs
-    let all_verifying_keys = key_shares
-        .iter()
-        .next()
-        .unwrap()
-        .1
-        .group()
-        .all_verifying_keys();
+    let all_verifying_keys = key_shares.iter().next().unwrap().1.group().all_pubkeys();
     let hashed_msg = k256::Scalar::from(msg_to_sign);
 
     for sig_share in all_sig_shares {

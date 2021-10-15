@@ -63,7 +63,7 @@ impl Executer for R2 {
             let verifying_key = self
                 .secret_key_share
                 .group()
-                .all_verifying_keys()
+                .all_pubkeys()
                 .get(peer_keygen_id)?
                 .as_ref()
                 .to_affine();

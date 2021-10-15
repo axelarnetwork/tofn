@@ -10,7 +10,7 @@ use zeroize::Zeroize;
 /// Keygen share output to be sent over the wire
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct KeygenShare {
-    pub verifying_key_bytes: BytesVec, // SEC1-encoded secp256k1 curve point
+    pub encoded_pubkey: BytesVec, // SEC1-encoded secp256k1 curve point
     pub party_id: TypedUsize<KeygenPartyId>,
     pub subshare_id: usize,
 }
@@ -26,7 +26,7 @@ pub struct SecretKeyShare {
 pub struct GroupPublicInfo {
     party_share_counts: KeygenPartyShareCounts,
     threshold: usize,
-    all_verifying_keys: VecMap<KeygenShareId, k256_serde::ProjectivePoint>,
+    all_pubkeys: VecMap<KeygenShareId, k256_serde::ProjectivePoint>,
 }
 
 /// `ShareSecretInfo` secret info unique to each share
@@ -46,27 +46,28 @@ impl GroupPublicInfo {
     }
 
     pub fn share_count(&self) -> usize {
-        self.all_verifying_keys.len()
+        self.all_pubkeys.len()
     }
 
     pub fn threshold(&self) -> usize {
         self.threshold
     }
 
-    pub fn all_verifying_keys(&self) -> &VecMap<KeygenShareId, k256_serde::ProjectivePoint> {
-        &self.all_verifying_keys
+    pub fn all_pubkeys(&self) -> &VecMap<KeygenShareId, k256_serde::ProjectivePoint> {
+        &self.all_pubkeys
     }
 
+    /// SEC1-encoded curve points
     /// tofnd can send this data through grpc
-    pub fn all_verifying_keys_bytes(&self) -> TofnResult<Vec<KeygenShare>> {
-        self.all_verifying_keys
+    pub fn all_encoded_pubkeys(&self) -> TofnResult<Vec<KeygenShare>> {
+        self.all_pubkeys
             .iter()
-            .map(|(share_id, verifying_key)| {
+            .map(|(share_id, pubkey)| {
                 let (party_id, subshare_id) = self
                     .party_share_counts
                     .share_to_party_subshare_ids(share_id)?;
                 Ok(KeygenShare {
-                    verifying_key_bytes: verifying_key.to_bytes(),
+                    encoded_pubkey: pubkey.to_bytes(),
                     party_id,
                     subshare_id,
                 })
@@ -77,12 +78,12 @@ impl GroupPublicInfo {
     pub(super) fn new(
         party_share_counts: KeygenPartyShareCounts,
         threshold: usize,
-        all_verifying_keys: VecMap<KeygenShareId, k256_serde::ProjectivePoint>,
+        all_pubkeys: VecMap<KeygenShareId, k256_serde::ProjectivePoint>,
     ) -> Self {
         Self {
             party_share_counts,
             threshold,
-            all_verifying_keys,
+            all_pubkeys,
         }
     }
 }

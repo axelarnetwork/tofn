@@ -72,7 +72,9 @@ impl GroupPublicInfo {
         self.threshold
     }
 
-    pub fn pubkey_bytes(&self) -> BytesVec {
+    /// SEC1-encoded curve point
+    /// tofnd can send this data through grpc
+    pub fn encoded_pubkey(&self) -> BytesVec {
         self.y.to_bytes()
     }
 
