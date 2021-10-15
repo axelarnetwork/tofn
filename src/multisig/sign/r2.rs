@@ -88,7 +88,7 @@ impl Executer for R2 {
                 .share_to_party_subshare_ids(peer_keygen_id)?;
 
             valid_signatures.push(SignatureShare {
-                signature,
+                signature_bytes: signature.as_ref().to_der().as_bytes().to_vec(),
                 party_id,
                 subshare_id,
             });

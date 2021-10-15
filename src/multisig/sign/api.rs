@@ -1,12 +1,11 @@
 use super::r1;
 use crate::{
     collections::{HoleVecMap, Subset, TypedUsize, VecMap},
-    crypto_tools::k256_serde,
     multisig::keygen::{
         GroupPublicInfo, KeygenPartyId, KeygenShareId, SecretKeyShare, ShareSecretInfo,
     },
     sdk::{
-        api::{PartyShareCounts, Protocol, TofnFatal, TofnResult},
+        api::{BytesVec, PartyShareCounts, Protocol, TofnFatal, TofnResult},
         implementer_api::{new_protocol, ProtocolBuilder},
     },
 };
@@ -19,7 +18,7 @@ pub use crate::crypto_tools::message_digest::MessageDigest;
 /// SignProtocol output for a single share in happy path
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SignatureShare {
-    pub signature: k256_serde::Signature,
+    pub signature_bytes: BytesVec, // ASN1/DER (Bitcoin) encoding
     pub party_id: TypedUsize<KeygenPartyId>,
     pub subshare_id: usize,
 }
