@@ -327,8 +327,8 @@ mod tests {
         bad_proof1.y = &proof1.y + dk.0.totient();
 
         // For the proof of `s^(-1)`, compute the appropriate shift such that `a phi(N)` exceeds the bound
-        let totient_min_size = MODULUS_MIN_SIZE - 1; // phi(N) is at least `MODULUS_MIN_SIZE` - 1
-        let shift = r_mask_size(S_INV_WITNESS_SIZE) - totient_min_size;
+        let totient_min_size = MODULUS_MIN_SIZE; // phi(N) = (p - 1)(q - 1) is at least MODULUS_MIN_SIZE w.h.p.
+        let shift = r_mask_size(S_INV_WITNESS_SIZE) - totient_min_size + 1;
         bad_proof2.y = &proof2.y + (dk.0.totient() << shift);
 
         assert!(!stmt1.verify(&bad_proof1, domain));
