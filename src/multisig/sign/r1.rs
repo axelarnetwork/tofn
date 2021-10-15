@@ -7,7 +7,7 @@ use crate::{
         implementer_api::{serialize, RoundBuilder},
     },
 };
-use ecdsa::{elliptic_curve::Field, hazmat::RecoverableSignPrimitive};
+use ecdsa::{elliptic_curve::Field, hazmat::SignPrimitive};
 use serde::{Deserialize, Serialize};
 
 use super::{r2, KeygenShareIds, MessageDigest, SignProtocolBuilder, SignShareId};
@@ -34,8 +34,8 @@ pub(super) fn start(
     )?;
     let ephemeral_scalar = k256::Scalar::random(rng);
 
-    let (signature, _) = signing_key
-        .try_sign_recoverable_prehashed(&ephemeral_scalar, &msg_to_sign)
+    let signature = signing_key
+        .try_sign_prehashed(&ephemeral_scalar, &msg_to_sign)
         .map_err(|_| TofnFatal)?;
 
     let bcast_out = Some(serialize(&Bcast {

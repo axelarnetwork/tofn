@@ -28,10 +28,7 @@ pub struct SignatureShare {
 pub type SignProtocolOutput = Vec<SignatureShare>;
 
 /// Maximum byte length of messages exchanged during sign.
-/// The sender of a message larger than this maximum will be accused as a faulter.
-/// View all message sizes in the logs of the integration test `single_thred::basic_correctness`.
-/// The largest sign message is r2::P2pHappy with size ~6828 bytes on the wire.
-pub const MAX_MSG_LEN: usize = 7500;
+pub const MAX_MSG_LEN: usize = 100;
 
 pub type SignProtocol = Protocol<SignProtocolOutput, SignShareId, SignPartyId, MAX_MSG_LEN>;
 pub type SignProtocolBuilder = ProtocolBuilder<SignProtocolOutput, SignShareId>;
@@ -98,7 +95,7 @@ pub fn new_sign(
 mod tests {
     use ecdsa::{
         elliptic_curve::Field,
-        hazmat::{RecoverableSignPrimitive, VerifyPrimitive},
+        hazmat::{SignPrimitive, VerifyPrimitive},
     };
 
     #[test]
@@ -106,8 +103,8 @@ mod tests {
         let signing_key = k256::Scalar::random(rand::thread_rng());
         let hashed_msg = k256::Scalar::random(rand::thread_rng());
         let ephemeral_scalar = k256::Scalar::random(rand::thread_rng());
-        let (signature, _) = signing_key
-            .try_sign_recoverable_prehashed(&ephemeral_scalar, &hashed_msg)
+        let signature = signing_key
+            .try_sign_prehashed(&ephemeral_scalar, &hashed_msg)
             .unwrap();
         let verifying_key = (k256::ProjectivePoint::generator() * signing_key).to_affine();
         verifying_key

@@ -238,7 +238,7 @@ impl<'de> Deserialize<'de> for ProjectivePoint {
 mod tests {
     use super::*;
     use bincode::Options;
-    use ecdsa::hazmat::{RecoverableSignPrimitive, VerifyPrimitive};
+    use ecdsa::hazmat::{SignPrimitive, VerifyPrimitive};
     use k256::elliptic_curve::Field;
     use serde::de::DeserializeOwned;
     use std::fmt::Debug;
@@ -253,8 +253,8 @@ mod tests {
 
         let hashed_msg = k256::Scalar::random(rand::thread_rng());
         let ephemeral_scalar = k256::Scalar::random(rand::thread_rng());
-        let (signature, _) = s
-            .try_sign_recoverable_prehashed(&ephemeral_scalar, &hashed_msg)
+        let signature = s
+            .try_sign_prehashed(&ephemeral_scalar, &hashed_msg)
             .unwrap();
         p.to_affine()
             .verify_prehashed(&hashed_msg, &signature)
