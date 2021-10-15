@@ -85,6 +85,16 @@ impl<'de> Deserialize<'de> for Scalar {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Signature(k256::ecdsa::Signature);
 
+impl Signature {
+    pub fn to_bytes(&self) -> BytesVec {
+        self.0.to_der().as_bytes().to_vec()
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
+        Some(Self(k256::ecdsa::Signature::from_der(bytes).ok()?))
+    }
+}
+
 impl AsRef<k256::ecdsa::Signature> for Signature {
     fn as_ref(&self) -> &k256::ecdsa::Signature {
         &self.0
@@ -102,7 +112,7 @@ impl Serialize for Signature {
     where
         S: Serializer,
     {
-        self.0.as_ref().serialize(serializer)
+        self.to_bytes().serialize(serializer)
     }
 }
 
@@ -111,12 +121,8 @@ impl<'de> Deserialize<'de> for Signature {
     where
         D: Deserializer<'de>,
     {
-        Ok(Signature(
-            <k256::ecdsa::Signature as ecdsa::signature::Signature>::from_bytes(
-                Deserialize::deserialize(deserializer)?,
-            )
-            .map_err(D::Error::custom)?,
-        ))
+        Signature::from_bytes(Deserialize::deserialize(deserializer)?)
+            .ok_or_else(|| D::Error::custom("signature DER decoding failure"))
     }
 }
 
@@ -163,16 +169,9 @@ impl<'de> Visitor<'de> for EncodedPointVisitor {
 #[derive(Clone, Debug, PartialEq)]
 pub struct ProjectivePoint(k256::ProjectivePoint);
 
-// TODO delete bytes, from_bytes and prefer our bincode wrapper
 impl ProjectivePoint {
-    /// Trying to make this look like a method of k256::ProjectivePoint
-    /// Unfortunately, `p.into().bytes()` needs type annotations
-    pub fn bytes(&self) -> BytesVec {
-        self.0
-            .to_affine()
-            .to_encoded_point(true)
-            .as_bytes()
-            .to_vec()
+    pub fn to_bytes(&self) -> BytesVec {
+        to_bytes(&self.0)
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
@@ -195,6 +194,9 @@ impl AsMut<k256::ProjectivePoint> for ProjectivePoint {
     }
 }
 
+/// Use [to_bytes] when you have a [k256::ProjectivePoint] but not a [k256_serde::ProjectivePoint].
+/// If you have a [k256_serde::ProjectivePoint] then it might be convenient to use the `to_bytes` method.
+/// TODO delete this function and prefer [ProjectivePoint::to_bytes].
 pub fn to_bytes(p: &k256::ProjectivePoint) -> BytesVec {
     p.to_affine().to_encoded_point(true).as_bytes().to_vec()
 }

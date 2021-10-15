@@ -143,7 +143,7 @@ pub fn type5_checks(
         let Gamma_i_commit = hash::commit_with_randomness(
             constants::GAMMA_I_COMMIT_TAG,
             peer_sign_id,
-            bcast_happy.Gamma_i.bytes(),
+            bcast_happy.Gamma_i.to_bytes(),
             &bcast_happy.Gamma_i_reveal,
         );
         if Gamma_i_commit != all_r1_bcasts.get(peer_sign_id)?.Gamma_i_commit {

@@ -73,7 +73,7 @@ impl GroupPublicInfo {
     }
 
     pub fn pubkey_bytes(&self) -> BytesVec {
-        self.y.bytes()
+        self.y.to_bytes()
     }
 
     pub fn all_shares_bytes(&self) -> TofnResult<BytesVec> {

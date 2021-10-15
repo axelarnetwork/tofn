@@ -66,7 +66,7 @@ impl GroupPublicInfo {
                     .party_share_counts
                     .share_to_party_subshare_ids(share_id)?;
                 Ok(KeygenShare {
-                    verifying_key_bytes: verifying_key.bytes(),
+                    verifying_key_bytes: verifying_key.to_bytes(),
                     party_id,
                     subshare_id,
                 })
