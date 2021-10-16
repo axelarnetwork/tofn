@@ -19,7 +19,8 @@ pub const PAILLIER_KEY_PROOF_TAG: u8 = 0x0B;
 pub const MODULUS_MAX_SIZE: usize = 2048;
 
 /// The min size of each prime is 1023 bits.
-pub const MODULUS_MIN_SIZE: usize = 2046;
+/// So, the product can be 2045 bits at a minimum.
+pub const MODULUS_MIN_SIZE: usize = 2045;
 
 // Doamin separation for composite dlog proofs
 pub const COMPOSITE_DLOG_PROOF1: u8 = 0x00;
