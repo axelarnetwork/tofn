@@ -38,18 +38,19 @@ fn single_faults_keygen() {
 pub fn single_fault_test_case_list<K, P>() -> Vec<SingleFaulterTestCase<K, P>> {
     let zero = TypedUsize::from_usize(0);
     vec![
-        single_fault_test_case(Bcast, Timeout),
-        single_fault_test_case(P2p { to: zero }, Timeout),
-        single_fault_test_case(Bcast, Corruption),
-        single_fault_test_case(P2p { to: zero }, Corruption),
-        single_fault_test_case(Bcast, Duplicate),
-        single_fault_test_case(P2p { to: zero }, Duplicate),
+        single_fault_test_case(Bcast, Timeout, false),
+        single_fault_test_case(P2p { to: zero }, Timeout, false),
+        single_fault_test_case(Bcast, Corruption, false),
+        single_fault_test_case(P2p { to: zero }, Corruption, false),
+        single_fault_test_case(Bcast, Duplicate, true),
+        single_fault_test_case(P2p { to: zero }, Duplicate, true),
     ]
 }
 
 fn single_fault_test_case<K, P>(
     msg: MsgType<K>,
     fault_type: FaultType,
+    expect_success: bool,
 ) -> SingleFaulterTestCase<K, P> {
     // 2 parties, 2 shares per party
     // share 3 (party 1) is malicious
@@ -71,6 +72,7 @@ fn single_fault_test_case<K, P>(
         msg,
         fault_type,
         expected_honest_output: faulters,
+        expect_success,
     }
 }
 
@@ -83,6 +85,7 @@ pub struct SingleFaulterTestCase<K, P> {
     pub msg: MsgType<K>,       // which message is faulty
     pub fault_type: FaultType, // missing or corrupted message
     pub expected_honest_output: ProtocolFaulters<P>,
+    pub expect_success: bool,
 }
 
 #[derive(Debug)]
@@ -110,8 +113,9 @@ fn execute_test_case<F, K, P, const MAX_MSG_IN_LEN: usize>(
                 Protocol::Done(result) => result,
             };
             match result {
-                Ok(_) => panic!("expect failure, got success"),
+                Ok(_) => assert_eq!(test_case.expect_success, true),
                 Err(got_faulters) => {
+                    assert_eq!(test_case.expect_success, false);
                     assert_eq!(*got_faulters, test_case.expected_honest_output);
                 }
             }
