@@ -3,6 +3,7 @@ use std::{
     convert::{TryFrom, TryInto},
 };
 
+use ecdsa::elliptic_curve::generic_array::GenericArray;
 use hmac::{Hmac, Mac, NewMac};
 use rand::{CryptoRng, RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
@@ -78,7 +79,12 @@ pub(crate) fn rng_seed_ecdsa_signing_key(
         return Err(TofnFatal);
     }
 
-    let mut prf = Hmac::<Sha256>::new(secret_recovery_key.0[..].into());
+    // Take care not to copy [secret_recovery_key]
+    // This explicit declaration ensures that we use the following reference-to-reference conversion:
+    // https://docs.rs/generic-array/0.14.4/src/generic_array/lib.rs.html#553-563
+    let hmac_key: &GenericArray<_, _> = (&secret_recovery_key.0[..]).into();
+
+    let mut prf = Hmac::<Sha256>::new(hmac_key);
 
     prf.update(&tag.to_be_bytes());
     prf.update(session_nonce);
