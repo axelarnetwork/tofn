@@ -35,9 +35,9 @@ fn compute_challenge(stmt: &Statement, alpha: &k256::ProjectivePoint) -> k256::S
         Sha256::new()
             .chain(constants::SCHNORR_PROOF_TAG.to_be_bytes())
             .chain(stmt.prover_id.to_bytes())
-            .chain(k256_serde::to_bytes(stmt.base))
-            .chain(k256_serde::to_bytes(stmt.target))
-            .chain(k256_serde::to_bytes(alpha)),
+            .chain(k256_serde::point_to_bytes(stmt.base))
+            .chain(k256_serde::point_to_bytes(stmt.target))
+            .chain(k256_serde::point_to_bytes(alpha)),
     )
 }
 

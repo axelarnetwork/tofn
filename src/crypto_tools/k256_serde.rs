@@ -90,10 +90,14 @@ impl<'de> Deserialize<'de> for Scalar {
 pub struct Signature(k256::ecdsa::Signature);
 
 impl Signature {
+    /// Returns a ASN.1 DER-encoded ECDSA signature.
+    /// ASN.1 DER encodings have variable byte length so we can't return a `[u8]` array.
+    /// Must return a `BytesVec` instead of `&[u8]` to avoid returning a reference to temporary data.
     pub fn to_bytes(&self) -> BytesVec {
         self.0.to_der().as_bytes().to_vec()
     }
 
+    /// Decode from a ASN.1 DER-encoded ECDSA signature.
     pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
         Some(Self(k256::ecdsa::Signature::from_der(bytes).ok()?))
     }
@@ -174,10 +178,18 @@ impl<'de> Visitor<'de> for EncodedPointVisitor {
 pub struct ProjectivePoint(k256::ProjectivePoint);
 
 impl ProjectivePoint {
+    /// Returns a SEC1-encoded compressed curve point.
+    /// SEC1 encodings have variable byte length so we can't return a `[u8]` array.
+    /// Must return a `BytesVec` instead of `&[u8]` to avoid returning a reference to temporary data.
     pub fn to_bytes(&self) -> BytesVec {
-        to_bytes(&self.0)
+        self.0
+            .to_affine()
+            .to_encoded_point(true)
+            .as_bytes()
+            .to_vec()
     }
 
+    /// Decode from a SEC1-encoded curve point.
     pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
         Some(Self(k256::ProjectivePoint::from_encoded_point(
             &k256::EncodedPoint::from_bytes(bytes).ok()?,
@@ -198,11 +210,10 @@ impl AsMut<k256::ProjectivePoint> for ProjectivePoint {
     }
 }
 
-/// Use [to_bytes] when you have a [k256::ProjectivePoint] but not a [k256_serde::ProjectivePoint].
-/// If you have a [k256_serde::ProjectivePoint] then it might be convenient to use the `to_bytes` method.
-/// TODO delete this function and prefer [ProjectivePoint::to_bytes].
-pub fn to_bytes(p: &k256::ProjectivePoint) -> BytesVec {
-    p.to_affine().to_encoded_point(true).as_bytes().to_vec()
+/// Use [to_bytes] when you have a [k256::ProjectivePoint] but not a [ProjectivePoint].
+/// Otherwise prefer [ProjectivePoint::to_bytes].
+pub fn point_to_bytes(p: &k256::ProjectivePoint) -> BytesVec {
+    ProjectivePoint(*p).to_bytes()
 }
 
 impl From<k256::ProjectivePoint> for ProjectivePoint {

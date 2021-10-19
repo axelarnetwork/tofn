@@ -3,7 +3,7 @@ use tracing::warn;
 
 use crate::{
     collections::{FillVecMap, P2ps, VecMap},
-    crypto_tools::{constants, hash, k256_serde::to_bytes, paillier, vss, zkp::schnorr},
+    crypto_tools::{constants, hash, k256_serde::point_to_bytes, paillier, vss, zkp::schnorr},
     gg20::keygen::{r4, SecretKeyShare},
     sdk::{
         api::{Fault::ProtocolFault, TofnFatal, TofnResult},
@@ -114,7 +114,7 @@ impl Executer for R3 {
             let peer_y_i_commit = hash::commit_with_randomness(
                 constants::Y_I_COMMIT_TAG,
                 peer_keygen_id,
-                to_bytes(peer_y_i),
+                point_to_bytes(peer_y_i),
                 &bcast.y_i_reveal,
             );
 
