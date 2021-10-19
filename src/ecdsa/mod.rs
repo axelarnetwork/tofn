@@ -21,7 +21,7 @@ pub struct KeyPair {
 
 impl KeyPair {
     /// SEC1-encoded compressed curve point
-    pub fn encoded_verifying_key(&self) -> TofnResult<[u8; 32]> {
+    pub fn encoded_verifying_key(&self) -> TofnResult<[u8; 33]> {
         // TODO make this work with k256_serde::ProjectivePoint::to_bytes
         self.verifying_key
             .as_ref()
@@ -33,6 +33,10 @@ impl KeyPair {
                 error!("failure to convert ecdsa verifying key to 33-byte array");
                 TofnFatal
             })
+    }
+
+    pub fn signing_key(&self) -> &k256_serde::SecretScalar {
+        &self.signing_key
     }
 }
 
@@ -81,27 +85,43 @@ const SIGN_TAG: u8 = 0x01;
 
 #[cfg(test)]
 mod tests {
-    use ecdsa::{
-        elliptic_curve::Field,
-        hazmat::{SignPrimitive, VerifyPrimitive},
+    use std::convert::TryFrom;
+
+    use ecdsa::hazmat::VerifyPrimitive;
+
+    use crate::{
+        crypto_tools::{k256_serde, rng::dummy_secret_recovery_key},
+        multisig::sign::MessageDigest,
     };
 
-    use crate::crypto_tools::k256_serde;
+    use super::{keygen, sign};
 
     #[test]
-    fn sign_verify() {
-        let signing_key = k256_serde::SecretScalar::random(rand::thread_rng());
-        let hashed_msg = k256::Scalar::random(rand::thread_rng());
-        let ephemeral_scalar = k256::Scalar::random(rand::thread_rng());
-        let signature = signing_key
-            .as_ref()
-            .try_sign_prehashed(&ephemeral_scalar, &hashed_msg)
-            .unwrap();
-        let verifying_key = k256_serde::ProjectivePoint::from(&signing_key);
-        verifying_key
+    fn keygen_sign_decode_verify() {
+        let message_digest = MessageDigest::try_from(&[42; 32][..]).unwrap();
+
+        let key_pair = keygen(&dummy_secret_recovery_key(42), b"tofn nonce").unwrap();
+        let signature_bytes = sign(key_pair.signing_key(), &message_digest).unwrap();
+
+        // decode signature
+        let signature = k256::ecdsa::Signature::from_der(&signature_bytes).unwrap();
+
+        // verify signature
+        let hashed_msg = k256::Scalar::from(&message_digest);
+        key_pair
+            .verifying_key
             .as_ref()
             .to_affine()
             .verify_prehashed(&hashed_msg, &signature)
             .unwrap();
+    }
+
+    #[test]
+    fn verifying_key_decode() {
+        let key_pair = keygen(&dummy_secret_recovery_key(42), b"tofn nonce").unwrap();
+        let encoded_verifying_key = key_pair.encoded_verifying_key().unwrap();
+        let decoded_verifying_key =
+            k256_serde::ProjectivePoint::from_bytes(&encoded_verifying_key[..]).unwrap();
+        assert_eq!(decoded_verifying_key, key_pair.verifying_key);
     }
 }

@@ -1,7 +1,7 @@
 use super::{secret_key_share::SecretKeyShare, *};
 use crate::{
     collections::VecMap,
-    crypto_tools::rng::SecretRecoveryKey,
+    crypto_tools::rng::{dummy_secret_recovery_key, SecretRecoveryKey},
     sdk::api::{BytesVec, Protocol},
 };
 use tracing_test::traced_test;
@@ -163,14 +163,4 @@ fn execute_keygen_from_recovery(
     // );
 
     all_secret_key_shares
-}
-
-/// return the all-zero array with the first bytes set to the bytes of `index`
-pub fn dummy_secret_recovery_key(index: usize) -> SecretRecoveryKey {
-    let index_bytes = index.to_be_bytes();
-    let mut result = [0; 64];
-    for (i, &b) in index_bytes.iter().enumerate() {
-        result[i] = b;
-    }
-    SecretRecoveryKey(result)
 }
