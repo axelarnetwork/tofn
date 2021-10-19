@@ -2,7 +2,7 @@ use crate::{
     collections::TypedUsize,
     crypto_tools::{
         constants,
-        k256_serde::{self, RandomScalar},
+        k256_serde::{self, SecretScalar},
     },
     gg20::keygen::KeygenShareId,
 };
@@ -35,16 +35,16 @@ fn compute_challenge(stmt: &Statement, alpha: &k256::ProjectivePoint) -> k256::S
         Sha256::new()
             .chain(constants::SCHNORR_PROOF_TAG.to_be_bytes())
             .chain(stmt.prover_id.to_bytes())
-            .chain(k256_serde::to_bytes(stmt.base))
-            .chain(k256_serde::to_bytes(stmt.target))
-            .chain(k256_serde::to_bytes(alpha)),
+            .chain(k256_serde::point_to_bytes(stmt.base))
+            .chain(k256_serde::point_to_bytes(stmt.target))
+            .chain(k256_serde::point_to_bytes(alpha)),
     )
 }
 
 // statement (base, target), witness (scalar)
 //   such that target == scalar * base
 pub fn prove(stmt: &Statement, wit: &Witness) -> Proof {
-    let a = RandomScalar::generate();
+    let a = SecretScalar::random_with_thread_rng();
     let alpha = stmt.base * a.as_ref();
     let c = compute_challenge(stmt, &alpha);
     let t = a.as_ref() - &(c * wit.scalar);

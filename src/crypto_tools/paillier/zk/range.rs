@@ -120,11 +120,11 @@ impl ZkSetup {
                 .chain(stmt.verifier_id.to_bytes())
                 .chain(stmt.ek.0.n().to_bytes())
                 .chain(stmt.ciphertext.0.to_bytes())
-                .chain(msg_g_g.map_or(Vec::new(), |(msg_g, _)| k256_serde::to_bytes(msg_g)))
-                .chain(msg_g_g.map_or(Vec::new(), |(_, g)| k256_serde::to_bytes(g)))
+                .chain(msg_g_g.map_or([0; 33], |(msg_g, _)| k256_serde::point_to_bytes(msg_g)))
+                .chain(msg_g_g.map_or([0; 33], |(_, g)| k256_serde::point_to_bytes(g)))
                 .chain(z.to_bytes())
                 .chain(u.0.to_bytes())
-                .chain(u1.map_or(Vec::new(), |u1| k256_serde::to_bytes(u1)))
+                .chain(u1.map_or([0; 33], |u1| k256_serde::point_to_bytes(u1)))
                 .chain(w.to_bytes()),
         );
 

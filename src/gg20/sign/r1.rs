@@ -1,6 +1,6 @@
 use crate::{
     collections::TypedUsize,
-    crypto_tools::{constants, hash, k256_serde::to_bytes, paillier, vss},
+    crypto_tools::{constants, hash, k256_serde::point_to_bytes, paillier, vss},
     gg20::keygen::SecretKeyShare,
     sdk::{
         api::TofnResult,
@@ -56,7 +56,7 @@ pub(super) fn start(
     let (Gamma_i_commit, Gamma_i_reveal) = hash::commit(
         constants::GAMMA_I_COMMIT_TAG,
         my_sign_id,
-        to_bytes(&Gamma_i),
+        point_to_bytes(&Gamma_i),
     );
 
     corrupt!(

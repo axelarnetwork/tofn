@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
 /// Keygen share output to be sent over the wire
+/// TODO [encoded_pubkey] should be a `[u8; 33]` except `serde` doesn't support length-33 arrays
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct KeygenShare {
     pub encoded_pubkey: BytesVec, // SEC1-encoded secp256k1 curve point
@@ -67,7 +68,7 @@ impl GroupPublicInfo {
                     .party_share_counts
                     .share_to_party_subshare_ids(share_id)?;
                 Ok(KeygenShare {
-                    encoded_pubkey: pubkey.to_bytes(),
+                    encoded_pubkey: pubkey.to_bytes().to_vec(),
                     party_id,
                     subshare_id,
                 })

@@ -2,7 +2,7 @@ use crate::{
     collections::TypedUsize,
     crypto_tools::{
         constants,
-        k256_serde::{self, RandomScalar},
+        k256_serde::{self, SecretScalar},
     },
     gg20::sign::SignShareId,
     sdk::api::{TofnFatal, TofnResult},
@@ -129,11 +129,11 @@ fn compute_challenge(
         Sha256::new()
             .chain(constants::PEDERSEN_PROOF_TAG.to_be_bytes())
             .chain(stmt.prover_id.to_bytes())
-            .chain(k256_serde::to_bytes(stmt.commit))
-            .chain(&msg_g_g.map_or(Vec::new(), |(msg_g, _)| k256_serde::to_bytes(msg_g)))
-            .chain(&msg_g_g.map_or(Vec::new(), |(_, g)| k256_serde::to_bytes(g)))
-            .chain(k256_serde::to_bytes(alpha))
-            .chain(&beta.map_or(Vec::new(), |beta| k256_serde::to_bytes(beta))),
+            .chain(k256_serde::point_to_bytes(stmt.commit))
+            .chain(&msg_g_g.map_or([0; 33], |(msg_g, _)| k256_serde::point_to_bytes(msg_g)))
+            .chain(&msg_g_g.map_or([0; 33], |(_, g)| k256_serde::point_to_bytes(g)))
+            .chain(k256_serde::point_to_bytes(alpha))
+            .chain(&beta.map_or([0; 33], |beta| k256_serde::point_to_bytes(beta))),
     )
 }
 
@@ -143,8 +143,8 @@ fn prove_inner(
     msg_g_g: Option<(&k256::ProjectivePoint, &k256::ProjectivePoint)>, // (msg_g, g)
     wit: &Witness,
 ) -> (Proof, Option<k256::ProjectivePoint>) {
-    let a = RandomScalar::generate();
-    let b = RandomScalar::generate();
+    let a = SecretScalar::random_with_thread_rng();
+    let b = SecretScalar::random_with_thread_rng();
 
     // alpha = g^a h^b
     let alpha = commit_with_randomness(a.as_ref(), b.as_ref());

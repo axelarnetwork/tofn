@@ -2,7 +2,7 @@ use crate::{
     collections::TypedUsize,
     crypto_tools::{
         constants,
-        k256_serde::{self, RandomScalar},
+        k256_serde::{self, SecretScalar},
     },
     gg20::sign::SignShareId,
 };
@@ -41,10 +41,10 @@ fn compute_challenge(
         Sha256::new()
             .chain(constants::CHAUM_PEDERSEN_PROOF_TAG.to_be_bytes())
             .chain(stmt.prover_id.to_bytes())
-            .chain(k256_serde::to_bytes(stmt.base1))
-            .chain(k256_serde::to_bytes(stmt.base2))
-            .chain(k256_serde::to_bytes(stmt.target1))
-            .chain(k256_serde::to_bytes(stmt.target2))
+            .chain(k256_serde::point_to_bytes(stmt.base1))
+            .chain(k256_serde::point_to_bytes(stmt.base2))
+            .chain(k256_serde::point_to_bytes(stmt.target1))
+            .chain(k256_serde::point_to_bytes(stmt.target2))
             .chain(alpha1.to_bytes())
             .chain(alpha2.to_bytes()),
     )
@@ -55,7 +55,7 @@ fn compute_challenge(
 // notation based on section 4.3 of GG20 https://eprint.iacr.org/2020/540.pdf
 // except: (g, R, Sigma, S, alpha, beta) ->  (base1, base2, target1, target2, alpha1, alpha2)
 pub fn prove(stmt: &Statement, wit: &Witness) -> Proof {
-    let a = RandomScalar::generate();
+    let a = SecretScalar::random_with_thread_rng();
 
     // alpha = g^a
     let alpha1 = k256_serde::ProjectivePoint::from(stmt.base1 * a.as_ref());

@@ -74,8 +74,9 @@ impl GroupPublicInfo {
 
     /// SEC1-encoded curve point
     /// tofnd can send this data through grpc
+    /// TODO change return type to `[u8; 33]`?
     pub fn encoded_pubkey(&self) -> BytesVec {
-        self.y.to_bytes()
+        self.y.to_bytes().to_vec()
     }
 
     pub fn all_shares_bytes(&self) -> TofnResult<BytesVec> {

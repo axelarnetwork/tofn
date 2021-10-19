@@ -5,8 +5,11 @@
 //! [Implementing Serialize · Serde](https://serde.rs/impl-serialize.html)
 //! [Implementing Deserialize · Serde](https://serde.rs/impl-deserialize.html)
 
-use ecdsa::elliptic_curve::Field;
+use ecdsa::elliptic_curve::{
+    consts::U33, generic_array::GenericArray, group::GroupEncoding, Field,
+};
 use k256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
+use rand::{CryptoRng, RngCore};
 use serde::{de, de::Error, de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 use zeroize::Zeroize;
 
@@ -14,20 +17,23 @@ use crate::sdk::api::BytesVec;
 
 /// A wrapper for a random scalar value that is zeroized on drop
 /// TODO why not just do this for Scalar below?
-#[derive(Debug, Zeroize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Zeroize)]
 #[zeroize(drop)]
-pub struct RandomScalar(k256::Scalar);
+pub struct SecretScalar(Scalar);
 
-impl AsRef<k256::Scalar> for RandomScalar {
+impl AsRef<k256::Scalar> for SecretScalar {
     fn as_ref(&self) -> &k256::Scalar {
-        &self.0
+        &self.0 .0
     }
 }
 
-impl RandomScalar {
-    /// Generate a random k256 Scalar
-    pub fn generate() -> Self {
-        Self(k256::Scalar::random(rand::thread_rng()))
+impl SecretScalar {
+    pub fn random_with_thread_rng() -> Self {
+        Self(Scalar(k256::Scalar::random(rand::thread_rng())))
+    }
+
+    pub fn random(rng: impl CryptoRng + RngCore) -> Self {
+        Self(Scalar(k256::Scalar::random(rng)))
     }
 }
 
@@ -86,10 +92,14 @@ impl<'de> Deserialize<'de> for Scalar {
 pub struct Signature(k256::ecdsa::Signature);
 
 impl Signature {
+    /// Returns a ASN.1 DER-encoded ECDSA signature.
+    /// ASN.1 DER encodings have variable byte length so we can't return a `[u8]` array.
+    /// Must return a `BytesVec` instead of `&[u8]` to avoid returning a reference to temporary data.
     pub fn to_bytes(&self) -> BytesVec {
         self.0.to_der().as_bytes().to_vec()
     }
 
+    /// Decode from a ASN.1 DER-encoded ECDSA signature.
     pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
         Some(Self(k256::ecdsa::Signature::from_der(bytes).ok()?))
     }
@@ -170,10 +180,12 @@ impl<'de> Visitor<'de> for EncodedPointVisitor {
 pub struct ProjectivePoint(k256::ProjectivePoint);
 
 impl ProjectivePoint {
-    pub fn to_bytes(&self) -> BytesVec {
-        to_bytes(&self.0)
+    /// Returns a SEC1-encoded compressed curve point.
+    pub fn to_bytes(&self) -> [u8; 33] {
+        to_array33(self.0.to_affine().to_bytes())
     }
 
+    /// Decode from a SEC1-encoded curve point.
     pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
         Some(Self(k256::ProjectivePoint::from_encoded_point(
             &k256::EncodedPoint::from_bytes(bytes).ok()?,
@@ -194,11 +206,10 @@ impl AsMut<k256::ProjectivePoint> for ProjectivePoint {
     }
 }
 
-/// Use [to_bytes] when you have a [k256::ProjectivePoint] but not a [k256_serde::ProjectivePoint].
-/// If you have a [k256_serde::ProjectivePoint] then it might be convenient to use the `to_bytes` method.
-/// TODO delete this function and prefer [ProjectivePoint::to_bytes].
-pub fn to_bytes(p: &k256::ProjectivePoint) -> BytesVec {
-    p.to_affine().to_encoded_point(true).as_bytes().to_vec()
+/// Use [to_bytes] when you have a [k256::ProjectivePoint] but not a [ProjectivePoint].
+/// Otherwise prefer [ProjectivePoint::to_bytes].
+pub fn point_to_bytes(p: &k256::ProjectivePoint) -> [u8; 33] {
+    ProjectivePoint(*p).to_bytes()
 }
 
 impl From<k256::ProjectivePoint> for ProjectivePoint {
@@ -210,6 +221,12 @@ impl From<k256::ProjectivePoint> for ProjectivePoint {
 impl From<&k256::ProjectivePoint> for ProjectivePoint {
     fn from(p: &k256::ProjectivePoint) -> Self {
         ProjectivePoint(*p)
+    }
+}
+
+impl From<&SecretScalar> for ProjectivePoint {
+    fn from(s: &SecretScalar) -> Self {
+        ProjectivePoint(k256::ProjectivePoint::generator() * s.0 .0)
     }
 }
 
@@ -234,6 +251,16 @@ impl<'de> Deserialize<'de> for ProjectivePoint {
                 })?,
         ))
     }
+}
+
+/// [GenericArray] does not impl `From` for arrays of length exceeding 32.
+/// Hence, this helper function.
+fn to_array33(g: GenericArray<u8, U33>) -> [u8; 33] {
+    [
+        g[0], g[1], g[2], g[3], g[4], g[5], g[6], g[7], g[8], g[9], g[10], g[11], g[12], g[13],
+        g[14], g[15], g[16], g[17], g[18], g[19], g[20], g[21], g[22], g[23], g[24], g[25], g[26],
+        g[27], g[28], g[29], g[30], g[31], g[32],
+    ]
 }
 
 #[cfg(test)]
@@ -262,6 +289,10 @@ mod tests {
             .verify_prehashed(&hashed_msg, &signature)
             .unwrap();
         basic_round_trip_impl::<_, Signature>(signature, None);
+
+        let p_bytes = ProjectivePoint(p).to_bytes();
+        let p_decoded = ProjectivePoint::from_bytes(&p_bytes).unwrap();
+        assert_eq!(ProjectivePoint(p), p_decoded);
     }
 
     fn basic_round_trip_impl<T, U>(val: T, size: Option<usize>)
