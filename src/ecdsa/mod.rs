@@ -5,7 +5,6 @@ use ecdsa::{
     hazmat::SignPrimitive,
 };
 use message_digest::MessageDigest;
-use serde::{Deserialize, Serialize};
 use tracing::error;
 
 use crate::{
@@ -13,28 +12,20 @@ use crate::{
     sdk::api::{BytesVec, TofnFatal, TofnResult},
 };
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug)]
 pub struct KeyPair {
     signing_key: k256_serde::SecretScalar,
-    verifying_key: k256_serde::ProjectivePoint,
+    encoded_verifying_key: [u8; 33], // SEC1-encoded compressed curve point
 }
 
 impl KeyPair {
-    /// SEC1-encoded compressed curve point
-    pub fn encoded_verifying_key(&self) -> TofnResult<[u8; 33]> {
-        // TODO make this work with k256_serde::ProjectivePoint::to_bytes
-        self.verifying_key
-            .as_ref()
-            .to_affine()
-            .to_encoded_point(true)
-            .as_bytes()
-            .try_into()
-            .map_err(|_| {
-                error!("failure to convert ecdsa verifying key to 33-byte array");
-                TofnFatal
-            })
+    /// SEC1-encoded compressed curve point.
+    /// tofnd needs to return this to axelar-core.
+    pub fn encoded_verifying_key(&self) -> &[u8; 33] {
+        &self.encoded_verifying_key
     }
 
+    /// tofnd needs to store this in the kv store.
     pub fn signing_key(&self) -> &k256_serde::SecretScalar {
         &self.signing_key
     }
@@ -47,11 +38,22 @@ pub fn keygen(
     let rng = rng::rng_seed_ecdsa_signing_key(KEYGEN_TAG, secret_recovery_key, session_nonce)?;
 
     let signing_key = k256_serde::SecretScalar::random(rng);
-    let verifying_key = k256_serde::ProjectivePoint::from(&signing_key);
+
+    // TODO make this work with k256_serde::ProjectivePoint::to_bytes
+    let encoded_verifying_key = k256_serde::ProjectivePoint::from(&signing_key)
+        .as_ref()
+        .to_affine()
+        .to_encoded_point(true)
+        .as_bytes()
+        .try_into()
+        .map_err(|_| {
+            error!("failure to convert ecdsa verifying key to 33-byte array");
+            TofnFatal
+        })?;
 
     Ok(KeyPair {
         signing_key,
-        verifying_key,
+        encoded_verifying_key,
     })
 }
 
@@ -103,25 +105,17 @@ mod tests {
         let key_pair = keygen(&dummy_secret_recovery_key(42), b"tofn nonce").unwrap();
         let signature_bytes = sign(key_pair.signing_key(), &message_digest).unwrap();
 
-        // decode signature
+        // decode verifying_key and signature
+        let verifying_key =
+            k256_serde::ProjectivePoint::from_bytes(key_pair.encoded_verifying_key()).unwrap();
         let signature = k256::ecdsa::Signature::from_der(&signature_bytes).unwrap();
 
         // verify signature
         let hashed_msg = k256::Scalar::from(&message_digest);
-        key_pair
-            .verifying_key
+        verifying_key
             .as_ref()
             .to_affine()
             .verify_prehashed(&hashed_msg, &signature)
             .unwrap();
-    }
-
-    #[test]
-    fn verifying_key_decode() {
-        let key_pair = keygen(&dummy_secret_recovery_key(42), b"tofn nonce").unwrap();
-        let encoded_verifying_key = key_pair.encoded_verifying_key().unwrap();
-        let decoded_verifying_key =
-            k256_serde::ProjectivePoint::from_bytes(&encoded_verifying_key[..]).unwrap();
-        assert_eq!(decoded_verifying_key, key_pair.verifying_key);
     }
 }
