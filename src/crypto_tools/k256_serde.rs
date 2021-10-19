@@ -26,8 +26,7 @@ impl AsRef<k256::Scalar> for SecretScalar {
 }
 
 impl SecretScalar {
-    /// Generate a random k256 Scalar
-    pub fn generate() -> Self {
+    pub fn random_with_thread_rng() -> Self {
         Self(Scalar(k256::Scalar::random(rand::thread_rng())))
     }
 

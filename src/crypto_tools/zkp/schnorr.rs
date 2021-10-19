@@ -44,7 +44,7 @@ fn compute_challenge(stmt: &Statement, alpha: &k256::ProjectivePoint) -> k256::S
 // statement (base, target), witness (scalar)
 //   such that target == scalar * base
 pub fn prove(stmt: &Statement, wit: &Witness) -> Proof {
-    let a = SecretScalar::generate();
+    let a = SecretScalar::random_with_thread_rng();
     let alpha = stmt.base * a.as_ref();
     let c = compute_challenge(stmt, &alpha);
     let t = a.as_ref() - &(c * wit.scalar);

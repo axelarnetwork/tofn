@@ -55,7 +55,7 @@ fn compute_challenge(
 // notation based on section 4.3 of GG20 https://eprint.iacr.org/2020/540.pdf
 // except: (g, R, Sigma, S, alpha, beta) ->  (base1, base2, target1, target2, alpha1, alpha2)
 pub fn prove(stmt: &Statement, wit: &Witness) -> Proof {
-    let a = SecretScalar::generate();
+    let a = SecretScalar::random_with_thread_rng();
 
     // alpha = g^a
     let alpha1 = k256_serde::ProjectivePoint::from(stmt.base1 * a.as_ref());

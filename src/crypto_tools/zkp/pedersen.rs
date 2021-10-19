@@ -143,8 +143,8 @@ fn prove_inner(
     msg_g_g: Option<(&k256::ProjectivePoint, &k256::ProjectivePoint)>, // (msg_g, g)
     wit: &Witness,
 ) -> (Proof, Option<k256::ProjectivePoint>) {
-    let a = SecretScalar::generate();
-    let b = SecretScalar::generate();
+    let a = SecretScalar::random_with_thread_rng();
+    let b = SecretScalar::random_with_thread_rng();
 
     // alpha = g^a h^b
     let alpha = commit_with_randomness(a.as_ref(), b.as_ref());
