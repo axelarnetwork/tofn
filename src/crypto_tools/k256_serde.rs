@@ -5,7 +5,9 @@
 //! [Implementing Serialize · Serde](https://serde.rs/impl-serialize.html)
 //! [Implementing Deserialize · Serde](https://serde.rs/impl-deserialize.html)
 
-use ecdsa::elliptic_curve::Field;
+use ecdsa::elliptic_curve::{
+    consts::U33, generic_array::GenericArray, group::GroupEncoding, Field,
+};
 use k256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
 use rand::{CryptoRng, RngCore};
 use serde::{de, de::Error, de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
@@ -179,14 +181,8 @@ pub struct ProjectivePoint(k256::ProjectivePoint);
 
 impl ProjectivePoint {
     /// Returns a SEC1-encoded compressed curve point.
-    /// SEC1 encodings have variable byte length so we can't return a `[u8]` array.
-    /// Must return a `BytesVec` instead of `&[u8]` to avoid returning a reference to temporary data.
-    pub fn to_bytes(&self) -> BytesVec {
-        self.0
-            .to_affine()
-            .to_encoded_point(true)
-            .as_bytes()
-            .to_vec()
+    pub fn to_bytes(&self) -> [u8; 33] {
+        to_array33(self.0.to_affine().to_bytes())
     }
 
     /// Decode from a SEC1-encoded curve point.
@@ -212,7 +208,7 @@ impl AsMut<k256::ProjectivePoint> for ProjectivePoint {
 
 /// Use [to_bytes] when you have a [k256::ProjectivePoint] but not a [ProjectivePoint].
 /// Otherwise prefer [ProjectivePoint::to_bytes].
-pub fn point_to_bytes(p: &k256::ProjectivePoint) -> BytesVec {
+pub fn point_to_bytes(p: &k256::ProjectivePoint) -> [u8; 33] {
     ProjectivePoint(*p).to_bytes()
 }
 
@@ -257,6 +253,16 @@ impl<'de> Deserialize<'de> for ProjectivePoint {
     }
 }
 
+/// [GenericArray] does not impl `From` for arrays of length exceeding 32.
+/// Hence, this helper function.
+fn to_array33(g: GenericArray<u8, U33>) -> [u8; 33] {
+    [
+        g[0], g[1], g[2], g[3], g[4], g[5], g[6], g[7], g[8], g[9], g[10], g[11], g[12], g[13],
+        g[14], g[15], g[16], g[17], g[18], g[19], g[20], g[21], g[22], g[23], g[24], g[25], g[26],
+        g[27], g[28], g[29], g[30], g[31], g[32],
+    ]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -283,6 +289,10 @@ mod tests {
             .verify_prehashed(&hashed_msg, &signature)
             .unwrap();
         basic_round_trip_impl::<_, Signature>(signature, None);
+
+        let p_bytes = ProjectivePoint(p).to_bytes();
+        let p_decoded = ProjectivePoint::from_bytes(&p_bytes).unwrap();
+        assert_eq!(ProjectivePoint(p), p_decoded);
     }
 
     fn basic_round_trip_impl<T, U>(val: T, size: Option<usize>)
