@@ -7,6 +7,7 @@
 
 use ecdsa::elliptic_curve::Field;
 use k256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
+use rand::{CryptoRng, RngCore};
 use serde::{de, de::Error, de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 use zeroize::Zeroize;
 
@@ -14,20 +15,24 @@ use crate::sdk::api::BytesVec;
 
 /// A wrapper for a random scalar value that is zeroized on drop
 /// TODO why not just do this for Scalar below?
-#[derive(Debug, Zeroize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Zeroize)]
 #[zeroize(drop)]
-pub struct RandomScalar(k256::Scalar);
+pub struct SecretScalar(Scalar);
 
-impl AsRef<k256::Scalar> for RandomScalar {
+impl AsRef<k256::Scalar> for SecretScalar {
     fn as_ref(&self) -> &k256::Scalar {
-        &self.0
+        &self.0 .0
     }
 }
 
-impl RandomScalar {
+impl SecretScalar {
     /// Generate a random k256 Scalar
     pub fn generate() -> Self {
-        Self(k256::Scalar::random(rand::thread_rng()))
+        Self(Scalar(k256::Scalar::random(rand::thread_rng())))
+    }
+
+    pub fn random(rng: impl CryptoRng + RngCore) -> Self {
+        Self(Scalar(k256::Scalar::random(rng)))
     }
 }
 
@@ -210,6 +215,12 @@ impl From<k256::ProjectivePoint> for ProjectivePoint {
 impl From<&k256::ProjectivePoint> for ProjectivePoint {
     fn from(p: &k256::ProjectivePoint) -> Self {
         ProjectivePoint(*p)
+    }
+}
+
+impl From<&SecretScalar> for ProjectivePoint {
+    fn from(s: &SecretScalar) -> Self {
+        ProjectivePoint(k256::ProjectivePoint::generator() * s.0 .0)
     }
 }
 

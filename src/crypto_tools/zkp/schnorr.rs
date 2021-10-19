@@ -2,7 +2,7 @@ use crate::{
     collections::TypedUsize,
     crypto_tools::{
         constants,
-        k256_serde::{self, RandomScalar},
+        k256_serde::{self, SecretScalar},
     },
     gg20::keygen::KeygenShareId,
 };
@@ -44,7 +44,7 @@ fn compute_challenge(stmt: &Statement, alpha: &k256::ProjectivePoint) -> k256::S
 // statement (base, target), witness (scalar)
 //   such that target == scalar * base
 pub fn prove(stmt: &Statement, wit: &Witness) -> Proof {
-    let a = RandomScalar::generate();
+    let a = SecretScalar::generate();
     let alpha = stmt.base * a.as_ref();
     let c = compute_challenge(stmt, &alpha);
     let t = a.as_ref() - &(c * wit.scalar);

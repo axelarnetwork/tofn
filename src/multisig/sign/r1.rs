@@ -26,7 +26,7 @@ pub(super) fn start(
     let msg_to_sign = k256::Scalar::from(msg_to_sign);
     let signing_key = secret_key_share.share().signing_key().as_ref();
 
-    let rng = rng::rng_seed_ecdsa_ephemeral_scalar(
+    let rng = rng::rng_seed_ecdsa_ephemeral_scalar_with_party_id(
         multisig::SIGN_TAG,
         my_sign_id,
         signing_key,

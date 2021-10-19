@@ -2,7 +2,7 @@ use crate::{
     collections::TypedUsize,
     crypto_tools::{
         constants,
-        k256_serde::{self, RandomScalar},
+        k256_serde::{self, SecretScalar},
     },
     gg20::sign::SignShareId,
     sdk::api::{TofnFatal, TofnResult},
@@ -143,8 +143,8 @@ fn prove_inner(
     msg_g_g: Option<(&k256::ProjectivePoint, &k256::ProjectivePoint)>, // (msg_g, g)
     wit: &Witness,
 ) -> (Proof, Option<k256::ProjectivePoint>) {
-    let a = RandomScalar::generate();
-    let b = RandomScalar::generate();
+    let a = SecretScalar::generate();
+    let b = SecretScalar::generate();
 
     // alpha = g^a h^b
     let alpha = commit_with_randomness(a.as_ref(), b.as_ref());
