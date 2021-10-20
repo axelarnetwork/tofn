@@ -2,7 +2,7 @@ use std::convert::TryInto;
 
 use ecdsa::{
     elliptic_curve::{sec1::ToEncodedPoint, Field},
-    hazmat::SignPrimitive,
+    hazmat::{SignPrimitive, VerifyPrimitive},
 };
 use message_digest::MessageDigest;
 use tracing::error;
@@ -81,41 +81,47 @@ pub fn sign(
     Ok(signature.to_bytes())
 }
 
+pub fn verify(
+    encoded_verifying_key: &[u8; 33],
+    message_digest: &MessageDigest,
+    encoded_signature: &[u8],
+) -> TofnResult<bool> {
+    // TODO decode failure should not be `TofnFatal`?
+    let verifying_key =
+        k256_serde::ProjectivePoint::from_bytes(encoded_verifying_key).ok_or(TofnFatal)?;
+    let signature = k256::ecdsa::Signature::from_der(encoded_signature).map_err(|_| TofnFatal)?;
+    let hashed_msg = k256::Scalar::from(message_digest);
+
+    Ok(verifying_key
+        .as_ref()
+        .to_affine()
+        .verify_prehashed(&hashed_msg, &signature)
+        .is_ok())
+}
+
 /// Domain separation for seeding the RNG
 const KEYGEN_TAG: u8 = 0x00;
 const SIGN_TAG: u8 = 0x01;
 
 #[cfg(test)]
 mod tests {
+    use super::{keygen, sign, verify};
+    use crate::{crypto_tools::rng::dummy_secret_recovery_key, multisig::sign::MessageDigest};
     use std::convert::TryFrom;
-
-    use ecdsa::hazmat::VerifyPrimitive;
-
-    use crate::{
-        crypto_tools::{k256_serde, rng::dummy_secret_recovery_key},
-        multisig::sign::MessageDigest,
-    };
-
-    use super::{keygen, sign};
 
     #[test]
     fn keygen_sign_decode_verify() {
         let message_digest = MessageDigest::try_from(&[42; 32][..]).unwrap();
 
         let key_pair = keygen(&dummy_secret_recovery_key(42), b"tofn nonce").unwrap();
-        let signature_bytes = sign(key_pair.signing_key(), &message_digest).unwrap();
+        let encoded_signature = sign(key_pair.signing_key(), &message_digest).unwrap();
+        let success = verify(
+            key_pair.encoded_verifying_key(),
+            &message_digest,
+            &encoded_signature,
+        )
+        .unwrap();
 
-        // decode verifying_key and signature
-        let verifying_key =
-            k256_serde::ProjectivePoint::from_bytes(key_pair.encoded_verifying_key()).unwrap();
-        let signature = k256::ecdsa::Signature::from_der(&signature_bytes).unwrap();
-
-        // verify signature
-        let hashed_msg = k256::Scalar::from(&message_digest);
-        verifying_key
-            .as_ref()
-            .to_affine()
-            .verify_prehashed(&hashed_msg, &signature)
-            .unwrap();
+        assert_eq!(success, true);
     }
 }
