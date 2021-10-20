@@ -122,6 +122,6 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(success, true);
+        assert!(success);
     }
 }
