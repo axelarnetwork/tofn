@@ -4,7 +4,7 @@ use tracing::error;
 
 use crate::sdk::api::{TofnFatal, TofnResult};
 
-use super::{vecmap_iter::VecMapIter, TypedUsize, VecMap};
+use super::{vecmap_iter::VecMapIter, Subset, TypedUsize, VecMap};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FillVecMap<K, V> {
@@ -33,6 +33,16 @@ impl<K, V> FillVecMap<K, V> {
         *stored = Some(value);
         Ok(())
     }
+
+    pub fn unset(&mut self, index: TypedUsize<K>) -> TofnResult<()> {
+        let stored = self.vec.get_mut(index)?;
+        if stored.is_some() {
+            self.some_count -= 1;
+        }
+        *stored = None;
+        Ok(())
+    }
+
     pub fn is_none(&self, index: TypedUsize<K>) -> TofnResult<bool> {
         Ok(self.vec.get(index)?.is_none())
     }
@@ -83,6 +93,17 @@ impl<K, V> FillVecMap<K, V> {
             vec: self.vec.map(|val_option| val_option.map(f.clone())),
             some_count: self.some_count,
         }
+    }
+
+    /// Return a [Subset] containing only those indices set to [Some]
+    pub fn as_subset(&self) -> TofnResult<Subset<K>> {
+        let mut subset = Subset::with_max_size(self.size());
+        for (index, option) in self {
+            if option.is_some() {
+                subset.add(index)?
+            }
+        }
+        Ok(subset)
     }
 }
 

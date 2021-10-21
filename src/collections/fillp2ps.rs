@@ -12,6 +12,7 @@ impl<K, V> FillP2ps<K, V> {
         Self(
             (0..len)
                 .map(|hole| {
+                    // don't use FillHoleVecMap::with_size because we can't return a TofnResult
                     FillHoleVecMap::from_holevecmap(HoleVecMap::from_vecmap(
                         VecMap::from_vec((0..len - 1).map(|_| None).collect()),
                         TypedUsize::from_usize(hole),
@@ -26,6 +27,13 @@ impl<K, V> FillP2ps<K, V> {
     pub fn set(&mut self, from: TypedUsize<K>, to: TypedUsize<K>, value: V) -> TofnResult<()> {
         self.0.get_mut(from)?.set(to, value)
     }
+
+    /// Unset all items associated with `from`
+    pub fn unset_all(&mut self, from: TypedUsize<K>) -> TofnResult<()> {
+        *self.0.get_mut(from)? = FillHoleVecMap::with_size(self.size(), from)?;
+        Ok(())
+    }
+
     pub fn is_none(&self, from: TypedUsize<K>, to: TypedUsize<K>) -> TofnResult<bool> {
         self.0.get(from)?.is_none(to)
     }
@@ -36,7 +44,7 @@ impl<K, V> FillP2ps<K, V> {
         Ok(self.0.get(from)?.is_full())
     }
 
-    // if size = 1 then return `None` and not an empty size-1 `HoleVecMap`
+    /// if size = 1 then return `None` and not an empty size-1 `HoleVecMap`
     pub fn map_to_p2ps<W, F>(self, f: F) -> TofnResult<P2ps<K, W>>
     where
         F: FnMut(V) -> W + Clone,

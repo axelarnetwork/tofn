@@ -33,6 +33,14 @@ impl<K, V> FillHoleVecMap<K, V> {
         *stored = Some(value);
         Ok(())
     }
+    pub fn unset(&mut self, index: TypedUsize<K>) -> TofnResult<()> {
+        let stored = self.hole_vec.get_mut(index)?;
+        if stored.is_some() {
+            self.some_count -= 1;
+        }
+        *stored = None;
+        Ok(())
+    }
     pub fn is_none(&self, index: TypedUsize<K>) -> TofnResult<bool> {
         Ok(self.hole_vec.get(index)?.is_none())
     }

@@ -200,6 +200,14 @@ impl<F, K, P, const MAX_MSG_IN_LEN: usize> Round<F, K, P, MAX_MSG_IN_LEN> {
     }
 
     /// Execute the next round.
+    ///
+    /// Before executing the next round do:
+    /// For each [msg_in] faulter F: delete all messages received from F.
+    /// Why? We want protocol implementations to be aware of all faults when they decide whether to go to happy/sad path.
+    /// Otherwise it's possible that [msg_in] faulters could be completely hidden from the protocol.
+    /// (eg. If the only [msg_in] faults are duplicate messages then it will appear to the protocol that there were no faults).
+    ///
+    /// After executing the next round do:
     /// If there were [msg_in] faulters then:
     /// - If next round is [NotDone] then ignore [msg_in] faulters
     /// - If next round is [Done] and [Ok] then ignore [msg_in] faulters
@@ -212,6 +220,18 @@ impl<F, K, P, const MAX_MSG_IN_LEN: usize> Round<F, K, P, MAX_MSG_IN_LEN> {
 
         self.info.advance_round();
 
+        // delete any messages received from msg_in faulters before executing the round
+        let faulter_share_ids = self
+            .info
+            .party_share_counts()
+            .share_id_subset(&self.msg_in_faulters.as_subset()?)?;
+
+        for faulter_share_id in faulter_share_ids {
+            self.bcasts_in.unset(faulter_share_id)?;
+            self.p2ps_in.unset_all(faulter_share_id)?;
+        }
+
+        // execute the round
         let protocol_status = self
             .round
             .execute_raw(
@@ -222,40 +242,42 @@ impl<F, K, P, const MAX_MSG_IN_LEN: usize> Round<F, K, P, MAX_MSG_IN_LEN> {
             )?
             .build(self.info)?;
 
+        // if no faulters then we're done
         if self.msg_in_faulters.is_empty() {
-            Ok(protocol_status)
-        } else {
-            match protocol_status {
-                Protocol::NotDone(ref round) => {
+            return Ok(protocol_status);
+        }
+
+        // msg_in_faulters found; decide how to report them
+        match protocol_status {
+            Protocol::NotDone(ref round) => {
+                warn!(
+                    "peer {} (party {}) says: tofn SDK detected faulters in msg_in round {} but protocol still in progress at round {}",
+                    my_share_id, my_party_id, curr_round_num, round.info.round(),
+                );
+                Ok(protocol_status)
+            }
+            Protocol::Done(Ok(_)) => {
+                if !self.msg_in_faulters.is_empty() {
                     warn!(
-                        "peer {} (party {}) says: tofn SDK detected faulters in msg_in round {} but protocol still in progress at round {}",
-                        my_share_id, my_party_id, curr_round_num, round.info.round(),
-                    );
-                    Ok(protocol_status)
-                }
-                Protocol::Done(Ok(_)) => {
-                    if !self.msg_in_faulters.is_empty() {
-                        warn!(
-                            "peer {} (party {}) says: tofn SDK detected faulters in msg_in round {} but protocol ended in happy path",
-                            my_share_id, my_party_id, curr_round_num,
-                        );
-                    }
-                    Ok(protocol_status)
-                }
-                Protocol::Done(Err(ref faulters)) => {
-                    warn!(
-                        "peer {} (party {}) says: tofn SDK detected faulters in msg_in round {} and protocol ended in sad path; merging faulters lists",
+                        "peer {} (party {}) says: tofn SDK detected faulters in msg_in round {} but protocol ended in happy path",
                         my_share_id, my_party_id, curr_round_num,
                     );
-
-                    // merge faulters into msg_in_faulters and return msg_in_faulters
-                    for (party_id, fault_option) in faulters {
-                        if let Some(fault) = fault_option {
-                            self.msg_in_faulters.set(party_id, fault.clone())?;
-                        }
-                    }
-                    Ok(Protocol::Done(Err(self.msg_in_faulters)))
                 }
+                Ok(protocol_status)
+            }
+            Protocol::Done(Err(ref faulters)) => {
+                info!(
+                    "peer {} (party {}) says: tofn SDK detected faulters in msg_in round {} and protocol ended in sad path; merging faulters lists",
+                    my_share_id, my_party_id, curr_round_num,
+                );
+
+                // merge faulters into msg_in_faulters and return msg_in_faulters
+                for (party_id, fault_option) in faulters {
+                    if let Some(fault) = fault_option {
+                        self.msg_in_faulters.set(party_id, fault.clone())?;
+                    }
+                }
+                Ok(Protocol::Done(Err(self.msg_in_faulters)))
             }
         }
     }
