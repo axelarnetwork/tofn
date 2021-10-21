@@ -95,6 +95,26 @@ impl<K, V> FillVecMap<K, V> {
         }
     }
 
+    pub fn map2_result<W, F>(self, f: F) -> TofnResult<FillVecMap<K, W>>
+    where
+        F: Fn((TypedUsize<K>, V)) -> TofnResult<W>,
+    {
+        Ok(FillVecMap::<K, W> {
+            vec: self
+                .vec
+                .into_iter()
+                .map(|(index, val_option)| {
+                    if let Some(val) = val_option {
+                        f((index, val)).map(Some)
+                    } else {
+                        Ok(None)
+                    }
+                })
+                .collect::<TofnResult<VecMap<K, Option<W>>>>()?,
+            some_count: self.some_count,
+        })
+    }
+
     /// Return a [Subset] containing only those indices set to [Some]
     pub fn as_subset(&self) -> TofnResult<Subset<K>> {
         let mut subset = Subset::with_max_size(self.size());

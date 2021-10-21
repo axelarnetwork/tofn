@@ -4,7 +4,7 @@ use tracing::warn;
 use crate::{
     collections::{FillP2ps, FillVecMap, P2ps, TypedUsize},
     sdk::{
-        api::{BytesVec, Fault, TofnResult},
+        api::{BytesVec, Fault, TofnFatal, TofnResult},
         protocol_info::ProtocolInfo,
         wire_bytes::deserialize,
     },
@@ -99,7 +99,7 @@ impl<T: Executer> ExecuterRaw for T {
 
         // all deserialization succeeded---unwrap deserialized bcasts, p2ps
         // TODO instead of unwrap() make a map2_result() for FillVecMap, FillP2ps
-        let bcasts_in = bcasts_deserialized.map(Option::unwrap);
+        let bcasts_in = bcasts_deserialized.map2_result(|(_, x)| x.ok_or(TofnFatal))?;
         let p2ps_in = p2ps_deserialized.map(Option::unwrap).to_p2ps()?;
 
         // special case: total_share_count == 1: `p2ps_in` is `[None]` by default
