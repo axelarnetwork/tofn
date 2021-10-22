@@ -89,7 +89,7 @@ impl<T: Executer> ExecuterRaw for T {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }
 
-        // all deserialization succeeded---unwrap deserialized bcasts, p2ps
+        // all deserialization succeeded---remove the `Some` wrapper from deserialized bcasts, p2ps
         let bcasts_in = bcasts_deserialized.map_result(|val_option| val_option.ok_or(TofnFatal))?;
         let p2ps_in = p2ps_deserialized
             .map_result(|val_option| val_option.ok_or(TofnFatal))?
@@ -142,16 +142,25 @@ pub fn timeout_faulters<K>(
 
             // if p2ps are expected from party A then _all_ p2ps from A must be present
             if matches!(expected_msg_type, BcastAndP2p | P2pOnly) && !p2ps_in.is_full_from(from)? {
-                // TODO log `to` for missing p2p message?
+                let missing_tos: Vec<TypedUsize<K>> = p2ps_in
+                    .iter_from(from)?
+                    .filter_map(|(peer_id, val_option)| {
+                        if val_option.is_none() {
+                            Some(peer_id)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
                 warn!(
-                    "peer {} says: detected missing p2p from peer {}",
-                    my_id, from
+                    "peer {} says: detected missing p2p from peer {} to peers {:?}",
+                    my_id, from, missing_tos,
                 );
                 faulters.set(from, Fault::MissingMessage)?;
             }
         } else {
             warn!(
-                    "peer {} says: expected_msg_type not set for peer {} (this peer did not send any messages)\nTODO: support expected_msg_type P2pOnly and total_share_count == 1",
+                    "peer {} says: expected_msg_type not set for peer {} (this peer did not send any messages)",
                     my_id,
                     from
                 );

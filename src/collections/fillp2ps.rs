@@ -3,7 +3,7 @@ use crate::{
     sdk::api::TofnResult,
 };
 
-use super::{FullP2ps, P2ps};
+use super::{holevecmap_iter::HoleVecMapIter, FullP2ps, P2ps};
 
 pub struct FillP2ps<K, V>(VecMap<K, FillHoleVecMap<K, V>>);
 
@@ -95,6 +95,13 @@ impl<K, V> FillP2ps<K, V> {
 
     pub fn iter(&self) -> VecMapIter<K, std::slice::Iter<FillHoleVecMap<K, V>>> {
         self.0.iter()
+    }
+
+    pub fn iter_from(
+        &self,
+        from: TypedUsize<K>,
+    ) -> TofnResult<HoleVecMapIter<K, std::slice::Iter<Option<V>>>> {
+        Ok(self.0.get(from)?.iter())
     }
 }
 

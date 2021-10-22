@@ -1,4 +1,4 @@
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::{
     collections::{zip3, FillP2ps, FillVecMap, HoleVecMap, TypedUsize},
@@ -221,14 +221,25 @@ impl<F, K, P, const MAX_MSG_IN_LEN: usize> Round<F, K, P, MAX_MSG_IN_LEN> {
         self.info.advance_round();
 
         // delete any messages received from msg_in faulters before executing the round
-        let faulter_share_ids = self
-            .info
-            .party_share_counts()
-            .share_id_subset(&self.msg_in_faulters.as_subset())?;
+        if !self.msg_in_faulters.is_empty() {
+            let faulter_party_ids = self.msg_in_faulters.as_subset();
 
-        for faulter_share_id in faulter_share_ids {
-            self.bcasts_in.unset(faulter_share_id)?;
-            self.p2ps_in.unset_all(faulter_share_id)?;
+            let pretty_faulter_party_ids: Vec<TypedUsize<P>> = faulter_party_ids.iter().collect();
+            debug!(
+                "peer {} (party {}) says: tofn SDK detected msg_in faulter parties {:?} in round {}; deleting all messages received from these parties",
+                my_share_id, my_party_id, pretty_faulter_party_ids, curr_round_num,
+            );
+
+            let faulter_share_ids = self
+                .info
+                .party_share_counts()
+                .share_id_subset(&faulter_party_ids)?;
+
+            for faulter_share_id in faulter_share_ids {
+                self.expected_msg_types.unset(faulter_share_id)?;
+                self.bcasts_in.unset(faulter_share_id)?;
+                self.p2ps_in.unset_all(faulter_share_id)?;
+            }
         }
 
         // execute the round
@@ -265,7 +276,7 @@ impl<F, K, P, const MAX_MSG_IN_LEN: usize> Round<F, K, P, MAX_MSG_IN_LEN> {
                 }
                 Ok(protocol_status)
             }
-            Protocol::Done(Err(ref faulters)) => {
+            Protocol::Done(Err(faulters)) => {
                 info!(
                     "peer {} (party {}) says: tofn SDK detected faulters in msg_in round {} and protocol ended in sad path; merging faulters lists",
                     my_share_id, my_party_id, curr_round_num,
