@@ -95,6 +95,22 @@ impl<K, V> FillVecMap<K, V> {
         }
     }
 
+    pub fn map_result<W, F>(self, f: F) -> TofnResult<FillVecMap<K, W>>
+    where
+        F: Fn(V) -> TofnResult<W>,
+    {
+        Ok(FillVecMap::<K, W> {
+            vec: self.vec.map_result(|val_option| {
+                if let Some(val) = val_option {
+                    f(val).map(Some)
+                } else {
+                    Ok(None)
+                }
+            })?,
+            some_count: self.some_count,
+        })
+    }
+
     pub fn map2_result<W, F>(self, f: F) -> TofnResult<FillVecMap<K, W>>
     where
         F: Fn((TypedUsize<K>, V)) -> TofnResult<W>,

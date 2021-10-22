@@ -98,8 +98,7 @@ impl<T: Executer> ExecuterRaw for T {
         }
 
         // all deserialization succeeded---unwrap deserialized bcasts, p2ps
-        // TODO instead of unwrap() make a map2_result() for FillVecMap, FillP2ps
-        let bcasts_in = bcasts_deserialized.map2_result(|(_, x)| x.ok_or(TofnFatal))?;
+        let bcasts_in = bcasts_deserialized.map_result(|val_option| val_option.ok_or(TofnFatal))?;
         let p2ps_in = p2ps_deserialized
             .map_result(|val_option| val_option.ok_or(TofnFatal))?
             .to_p2ps()?;
