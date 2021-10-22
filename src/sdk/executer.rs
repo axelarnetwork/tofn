@@ -81,14 +81,6 @@ impl<T: Executer> ExecuterRaw for T {
             &mut faulters,
         )?;
 
-        // exit now if there are faulters
-        if !faulters.is_empty() {
-            return Ok(ProtocolBuilder::Done(Err(faulters)));
-        }
-
-        let expected_msg_types = expected_msg_types.to_vecmap()?;
-
-        // attempt to deserialize bcasts, p2ps
         let bcasts_deserialized = deserialize_bcasts(info.my_id(), bcasts_in, &mut faulters)?;
         let p2ps_deserialized = deserialize_p2ps(info.my_id(), p2ps_in, &mut faulters)?;
 
@@ -104,10 +96,13 @@ impl<T: Executer> ExecuterRaw for T {
             .to_p2ps()?;
 
         // special case: total_share_count == 1: `p2ps_in` is `[None]` by default
-        let expected_msg_type = expected_msg_types.get(TypedUsize::from_usize(0))?;
         let p2ps_in = if info.total_share_count() == 1
-            && matches!(expected_msg_type, BcastAndP2p | P2pOnly)
-        {
+            && matches!(
+                expected_msg_types
+                    .get(TypedUsize::from_usize(0))?
+                    .ok_or(TofnFatal)?,
+                BcastAndP2p | P2pOnly
+            ) {
             P2ps::new_size_1_some()
         } else {
             p2ps_in

@@ -1,5 +1,7 @@
 //! API for protocol implementers, but not for users of protocols
-pub use super::executer::{Executer, ExecuterRaw};
+pub use super::executer::{
+    deserialize_bcasts, deserialize_p2ps, timeout_faulters, Executer, ExecuterRaw,
+};
 pub use super::protocol::new_protocol;
 pub use super::protocol_builder::{ProtocolBuilder, ProtocolBuilderOutput, RoundBuilder};
 pub use super::protocol_info::ProtocolInfo;
