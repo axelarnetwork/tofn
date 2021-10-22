@@ -128,14 +128,15 @@ impl<K, V> FillVecMap<K, V> {
     }
 
     /// Return a [Subset] containing only those indices set to [Some]
-    pub fn as_subset(&self) -> TofnResult<Subset<K>> {
-        let mut subset = Subset::with_max_size(self.size());
-        for (index, option) in self {
-            if option.is_some() {
-                subset.add(index)?
-            }
-        }
-        Ok(subset)
+    pub fn as_subset(&self) -> Subset<K> {
+        Subset::from_fillvecmap(FillVecMap {
+            vec: self
+                .vec
+                .iter()
+                .map(|(_, val_option)| val_option.as_ref().map(|_| ()))
+                .collect(),
+            some_count: self.some_count,
+        })
     }
 }
 

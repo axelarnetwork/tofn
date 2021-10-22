@@ -224,7 +224,7 @@ impl<F, K, P, const MAX_MSG_IN_LEN: usize> Round<F, K, P, MAX_MSG_IN_LEN> {
         let faulter_share_ids = self
             .info
             .party_share_counts()
-            .share_id_subset(&self.msg_in_faulters.as_subset()?)?;
+            .share_id_subset(&self.msg_in_faulters.as_subset())?;
 
         for faulter_share_id in faulter_share_ids {
             self.bcasts_in.unset(faulter_share_id)?;

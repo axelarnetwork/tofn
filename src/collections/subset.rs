@@ -33,6 +33,11 @@ impl<K> Subset<K> {
     pub fn iter(&self) -> impl Iterator<Item = TypedUsize<K>> + '_ {
         self.0.iter_some().map(|(i, _)| i)
     }
+
+    // private constructor; use `with_max_size` instead
+    pub(super) fn from_fillvecmap(v: FillVecMap<K, ()>) -> Self {
+        Self(v)
+    }
 }
 
 // TODO don't know how to impl IntoIterator because don't know `IntoIter` type
