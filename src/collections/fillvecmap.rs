@@ -85,19 +85,19 @@ impl<K, V> FillVecMap<K, V> {
         self.map_to_vecmap(std::convert::identity)
     }
 
-    pub fn map<W, F>(self, f: F) -> FillVecMap<K, W>
+    pub fn map<W, F>(self, mut f: F) -> FillVecMap<K, W>
     where
-        F: FnMut(V) -> W + Clone,
+        F: FnMut(V) -> W,
     {
         FillVecMap::<K, W> {
-            vec: self.vec.map(|val_option| val_option.map(f.clone())),
+            vec: self.vec.map(|val_option| val_option.map(&mut f)),
             some_count: self.some_count,
         }
     }
 
-    pub fn map_result<W, F>(self, f: F) -> TofnResult<FillVecMap<K, W>>
+    pub fn map_result<W, F>(self, mut f: F) -> TofnResult<FillVecMap<K, W>>
     where
-        F: Fn(V) -> TofnResult<W>,
+        F: FnMut(V) -> TofnResult<W>,
     {
         Ok(FillVecMap::<K, W> {
             vec: self.vec.map_result(|val_option| {
@@ -111,22 +111,18 @@ impl<K, V> FillVecMap<K, V> {
         })
     }
 
-    pub fn map2_result<W, F>(self, f: F) -> TofnResult<FillVecMap<K, W>>
+    pub fn map2_result<W, F>(self, mut f: F) -> TofnResult<FillVecMap<K, W>>
     where
-        F: Fn((TypedUsize<K>, V)) -> TofnResult<W>,
+        F: FnMut((TypedUsize<K>, V)) -> TofnResult<W>,
     {
         Ok(FillVecMap::<K, W> {
-            vec: self
-                .vec
-                .into_iter()
-                .map(|(index, val_option)| {
-                    if let Some(val) = val_option {
-                        f((index, val)).map(Some)
-                    } else {
-                        Ok(None)
-                    }
-                })
-                .collect::<TofnResult<VecMap<K, Option<W>>>>()?,
+            vec: self.vec.map2_result(|(index, val_option)| {
+                if let Some(val) = val_option {
+                    f((index, val)).map(Some)
+                } else {
+                    Ok(None)
+                }
+            })?,
             some_count: self.some_count,
         })
     }

@@ -30,19 +30,19 @@ impl<K, V> P2ps<K, V> {
         self.0.iter()
     }
 
-    pub fn map<W, F>(self, f: F) -> P2ps<K, W>
+    pub fn map<W, F>(self, mut f: F) -> P2ps<K, W>
     where
-        F: FnMut(V) -> W + Clone,
+        F: FnMut(V) -> W,
     {
         P2ps::<K, W>(
             self.0
-                .map(|hole_vec_option| hole_vec_option.map(|hole_vec| hole_vec.map(f.clone()))),
+                .map(|hole_vec_option| hole_vec_option.map(|hole_vec| hole_vec.map(&mut f))),
         )
     }
 
-    pub fn map_to_fullp2ps<W, F>(self, f: F) -> TofnResult<FullP2ps<K, W>>
+    pub fn map_to_fullp2ps<W, F>(self, mut f: F) -> TofnResult<FullP2ps<K, W>>
     where
-        F: FnMut(V) -> W + Clone,
+        F: FnMut(V) -> W,
     {
         Ok(FullP2ps::<K, W>::from_vecmap(self.0.map2_result(
             |(from, hole_vec_option)| {
@@ -51,7 +51,7 @@ impl<K, V> P2ps<K, V> {
                         error!("missing HoleVecMap at index {}", from);
                         TofnFatal
                     })?
-                    .map(f.clone()))
+                    .map(&mut f))
             },
         )?))
     }

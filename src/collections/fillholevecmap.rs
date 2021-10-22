@@ -68,19 +68,19 @@ impl<K, V> FillHoleVecMap<K, V> {
         self.map_to_holevec(std::convert::identity)
     }
 
-    pub fn map<W, F>(self, f: F) -> FillHoleVecMap<K, W>
+    pub fn map<W, F>(self, mut f: F) -> FillHoleVecMap<K, W>
     where
-        F: Fn(V) -> W,
+        F: FnMut(V) -> W,
     {
         FillHoleVecMap::<K, W> {
-            hole_vec: self.hole_vec.map(|val_option| val_option.map(&f)),
+            hole_vec: self.hole_vec.map(|val_option| val_option.map(&mut f)),
             some_count: self.some_count,
         }
     }
 
-    pub fn map_result<W, F>(self, f: F) -> TofnResult<FillHoleVecMap<K, W>>
+    pub fn map_result<W, F>(self, mut f: F) -> TofnResult<FillHoleVecMap<K, W>>
     where
-        F: Fn(V) -> TofnResult<W>,
+        F: FnMut(V) -> TofnResult<W>,
     {
         Ok(FillHoleVecMap::<K, W> {
             hole_vec: self.hole_vec.map_result(|val_option| {

@@ -78,7 +78,7 @@ impl<K, V> VecMap<K, V> {
 
     pub fn map_result<W, F>(self, f: F) -> TofnResult<VecMap<K, W>>
     where
-        F: Fn(V) -> TofnResult<W>,
+        F: FnMut(V) -> TofnResult<W>,
     {
         Ok(VecMap::<K, W>::from_vec(
             self.0.into_iter().map(f).collect::<TofnResult<Vec<W>>>()?,

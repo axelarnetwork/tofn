@@ -73,7 +73,7 @@ impl<K, V> HoleVecMap<K, V> {
 
     pub fn clone_map2_result<W, F>(&self, f: F) -> TofnResult<HoleVecMap<K, W>>
     where
-        F: Fn((TypedUsize<K>, &V)) -> TofnResult<W>,
+        F: FnMut((TypedUsize<K>, &V)) -> TofnResult<W>,
     {
         Ok(HoleVecMap::<K, W>::from_vecmap(
             self.iter().map(f).collect::<TofnResult<VecMap<K, W>>>()?,
@@ -93,7 +93,7 @@ impl<K, V> HoleVecMap<K, V> {
 
     pub fn map_result<W, F>(self, f: F) -> TofnResult<HoleVecMap<K, W>>
     where
-        F: Fn(V) -> TofnResult<W>,
+        F: FnMut(V) -> TofnResult<W>,
     {
         let hole = self.hole;
         Ok(HoleVecMap::<K, W>::from_vecmap(
