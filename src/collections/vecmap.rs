@@ -75,6 +75,16 @@ impl<K, V> VecMap<K, V> {
     {
         VecMap::<K, W>::from_vec(self.0.into_iter().map(f).collect())
     }
+
+    pub fn map_result<W, F>(self, f: F) -> TofnResult<VecMap<K, W>>
+    where
+        F: Fn(V) -> TofnResult<W>,
+    {
+        Ok(VecMap::<K, W>::from_vec(
+            self.0.into_iter().map(f).collect::<TofnResult<Vec<W>>>()?,
+        ))
+    }
+
     pub fn map2<W, F>(self, f: F) -> VecMap<K, W>
     where
         F: FnMut((TypedUsize<K>, V)) -> W,

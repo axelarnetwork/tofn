@@ -79,10 +79,18 @@ impl<K, V> FillP2ps<K, V> {
     }
     pub fn map<W, F>(self, f: F) -> FillP2ps<K, W>
     where
-        F: FnMut(V) -> W + Clone,
+        F: Fn(V) -> W,
     {
-        FillP2ps::<K, W>(self.0.map(|h| h.map(f.clone())))
+        FillP2ps::<K, W>(self.0.map(|h| h.map(&f)))
     }
+
+    pub fn map_result<W, F>(self, f: F) -> TofnResult<FillP2ps<K, W>>
+    where
+        F: Fn(V) -> TofnResult<W>,
+    {
+        Ok(FillP2ps::<K, W>(self.0.map_result(|h| h.map_result(&f))?))
+    }
+
     pub fn iter(&self) -> VecMapIter<K, std::slice::Iter<FillHoleVecMap<K, V>>> {
         self.0.iter()
     }

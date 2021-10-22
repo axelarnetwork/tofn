@@ -67,14 +67,31 @@ impl<K, V> FillHoleVecMap<K, V> {
     pub fn to_holevec(self) -> TofnResult<HoleVecMap<K, V>> {
         self.map_to_holevec(std::convert::identity)
     }
+
     pub fn map<W, F>(self, f: F) -> FillHoleVecMap<K, W>
     where
-        F: FnMut(V) -> W + Clone,
+        F: Fn(V) -> W,
     {
         FillHoleVecMap::<K, W> {
-            hole_vec: self.hole_vec.map(|val_option| val_option.map(f.clone())),
+            hole_vec: self.hole_vec.map(|val_option| val_option.map(&f)),
             some_count: self.some_count,
         }
+    }
+
+    pub fn map_result<W, F>(self, f: F) -> TofnResult<FillHoleVecMap<K, W>>
+    where
+        F: Fn(V) -> TofnResult<W>,
+    {
+        Ok(FillHoleVecMap::<K, W> {
+            hole_vec: self.hole_vec.map_result(|val_option| {
+                if let Some(val) = val_option {
+                    f(val).map(Some)
+                } else {
+                    Ok(None)
+                }
+            })?,
+            some_count: self.some_count,
+        })
     }
 
     // private constructor does no checks, does not return TofnResult, cannot panic

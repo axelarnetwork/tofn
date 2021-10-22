@@ -91,6 +91,17 @@ impl<K, V> HoleVecMap<K, V> {
         }
     }
 
+    pub fn map_result<W, F>(self, f: F) -> TofnResult<HoleVecMap<K, W>>
+    where
+        F: Fn(V) -> TofnResult<W>,
+    {
+        let hole = self.hole;
+        Ok(HoleVecMap::<K, W>::from_vecmap(
+            self.vec.map_result(f)?,
+            hole,
+        ))
+    }
+
     pub fn map2_result<W, F>(self, f: F) -> TofnResult<HoleVecMap<K, W>>
     where
         F: FnMut((TypedUsize<K>, V)) -> TofnResult<W>,
