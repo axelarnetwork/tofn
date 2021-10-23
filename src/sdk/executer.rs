@@ -181,7 +181,7 @@ pub fn deserialize_bcasts<K, Bcast>(
 where
     Bcast: DeserializeOwned,
 {
-    Ok(bcasts_in
+    bcasts_in
         .into_iter()
         .map(|(from, bytes_option)| {
             if let Some(bytes) = bytes_option {
@@ -199,7 +199,7 @@ where
                 Ok(None)
             }
         })
-        .collect::<TofnResult<FillVecMap<K, Bcast>>>()?)
+        .collect::<TofnResult<FillVecMap<K, Bcast>>>()
 }
 
 /// Attempt to deserialize p2ps.
