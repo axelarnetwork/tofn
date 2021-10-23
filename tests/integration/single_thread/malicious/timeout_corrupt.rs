@@ -58,8 +58,8 @@ fn single_fault_test_case<K, P>(
     let faulter_party_id = TypedUsize::from_usize(1);
     let mut faulters = FillVecMap::with_size(2);
     let fault = match fault_type {
-        FaultType::Corruption => Fault::CorruptedMessage,
-        _ => Fault::MissingMessage,
+        FaultType::Timeout => Fault::MissingMessage,
+        _ => Fault::CorruptedMessage,
     };
     faulters.set(faulter_party_id, fault).unwrap();
     SingleFaulterTestCase {

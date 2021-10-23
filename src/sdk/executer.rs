@@ -43,6 +43,7 @@ pub trait ExecuterRaw: Send + Sync {
         bcasts_in: FillVecMap<Self::Index, BytesVec>,
         p2ps_in: FillP2ps<Self::Index, BytesVec>,
         expected_msg_types: FillVecMap<Self::Index, ExpectedMsgTypes>,
+        faulters: FillVecMap<Self::Index, Fault>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>>;
 
     #[cfg(test)]
@@ -70,9 +71,8 @@ impl<T: Executer> ExecuterRaw for T {
         bcasts_in: FillVecMap<Self::Index, BytesVec>,
         p2ps_in: FillP2ps<Self::Index, BytesVec>,
         expected_msg_types: FillVecMap<Self::Index, ExpectedMsgTypes>,
+        mut faulters: FillVecMap<Self::Index, Fault>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
-        let mut faulters = info.new_fillvecmap();
-
         timeout_faulters(
             info.my_id(),
             &bcasts_in,
