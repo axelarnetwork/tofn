@@ -1,4 +1,6 @@
 //! A fillable VecMap
+use std::iter::FromIterator;
+
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tracing::error;
 
@@ -165,6 +167,17 @@ impl<'a, K, V> IntoIterator for &'a FillVecMap<K, V> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
+    }
+}
+
+impl<K, V> FromIterator<Option<V>> for FillVecMap<K, V> {
+    fn from_iter<Iter: IntoIterator<Item = Option<V>>>(iter: Iter) -> Self {
+        let vec = Vec::from_iter(iter);
+        let some_count = vec.iter().filter(|val_option| val_option.is_some()).count();
+        Self {
+            vec: VecMap::from_vec(vec),
+            some_count,
+        }
     }
 }
 

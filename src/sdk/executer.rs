@@ -81,7 +81,7 @@ impl<T: Executer> ExecuterRaw for T {
             &mut faulters,
         )?;
 
-        let bcasts_deserialized = deserialize_bcasts(info.my_id(), bcasts_in, &mut faulters)?;
+        let bcasts_in_deserialized = deserialize_bcasts(info.my_id(), bcasts_in, &mut faulters)?;
         let p2ps_deserialized = deserialize_p2ps(info.my_id(), p2ps_in, &mut faulters)?;
 
         // exit now if there are faulters
@@ -90,7 +90,6 @@ impl<T: Executer> ExecuterRaw for T {
         }
 
         // all deserialization succeeded---remove the `Some` wrapper from deserialized bcasts, p2ps
-        let bcasts_in = bcasts_deserialized.map_result(|val_option| val_option.ok_or(TofnFatal))?;
         let p2ps_in = p2ps_deserialized
             .map_result(|val_option| val_option.ok_or(TofnFatal))?
             .to_p2ps()?;
@@ -108,7 +107,7 @@ impl<T: Executer> ExecuterRaw for T {
             p2ps_in
         };
 
-        self.execute(info, bcasts_in, p2ps_in)
+        self.execute(info, bcasts_in_deserialized, p2ps_in)
     }
 
     #[cfg(test)]
@@ -176,24 +175,29 @@ pub fn deserialize_bcasts<K, Bcast>(
     my_id: TypedUsize<K>,
     bcasts_in: FillVecMap<K, BytesVec>,
     faulters: &mut FillVecMap<K, Fault>,
-) -> TofnResult<FillVecMap<K, Option<Bcast>>>
+) -> TofnResult<FillVecMap<K, Bcast>>
 where
     Bcast: DeserializeOwned,
 {
-    let bcasts_deserialized: FillVecMap<K, Option<Bcast>> =
-        bcasts_in.map(|bytes| deserialize(&bytes));
-
-    for (from, bcast) in bcasts_deserialized.iter() {
-        if let Some(None) = bcast {
-            warn!(
-                "peer {} says: detected corrupted bcast from peer {}",
-                my_id, from
-            );
-            faulters.set(from, Fault::CorruptedMessage)?;
-        }
-    }
-
-    Ok(bcasts_deserialized)
+    Ok(bcasts_in
+        .into_iter()
+        .map(|(from, bytes_option)| {
+            if let Some(bytes) = bytes_option {
+                if let Some(val) = deserialize(&bytes) {
+                    Ok(Some(val))
+                } else {
+                    warn!(
+                        "peer {} says: detected corrupted bcast from peer {}",
+                        my_id, from
+                    );
+                    faulters.set(from, Fault::CorruptedMessage)?;
+                    Ok(None)
+                }
+            } else {
+                Ok(None)
+            }
+        })
+        .collect::<TofnResult<FillVecMap<K, Bcast>>>()?)
 }
 
 /// Attempt to deserialize p2ps.
