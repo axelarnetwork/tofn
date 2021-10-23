@@ -10,6 +10,12 @@ impl<K> Subset<K> {
     pub fn with_max_size(len: usize) -> Self {
         Self(FillVecMap::with_size(len))
     }
+
+    // Construct a `Subset<K>` containing those indices of `v` that are `Some`.
+    pub fn from_fillvecmap<V>(v: &FillVecMap<K, V>) -> Self {
+        Self(v.ref_map(|_| ()))
+    }
+
     pub fn max_size(&self) -> usize {
         self.0.size()
     }
@@ -32,11 +38,6 @@ impl<K> Subset<K> {
     /// Iterate only over members of the subset
     pub fn iter(&self) -> impl Iterator<Item = TypedUsize<K>> + '_ {
         self.0.iter_some().map(|(i, _)| i)
-    }
-
-    // private constructor; use `with_max_size` instead
-    pub(super) fn from_fillvecmap(v: FillVecMap<K, ()>) -> Self {
-        Self(v)
     }
 }
 

@@ -95,6 +95,18 @@ impl<K, V> FillVecMap<K, V> {
         }
     }
 
+    pub fn ref_map<W, F>(&self, mut f: F) -> FillVecMap<K, W>
+    where
+        F: FnMut(&V) -> W,
+    {
+        FillVecMap::<K, W> {
+            vec: self
+                .vec
+                .ref_map(|val_option| val_option.as_ref().map(&mut f)),
+            some_count: self.some_count,
+        }
+    }
+
     pub fn map_result<W, F>(self, mut f: F) -> TofnResult<FillVecMap<K, W>>
     where
         F: FnMut(V) -> TofnResult<W>,
@@ -127,16 +139,9 @@ impl<K, V> FillVecMap<K, V> {
         })
     }
 
-    /// Return a [Subset] containing only those indices set to [Some]
+    /// Return a [Subset] containing those indices that are [Some]
     pub fn as_subset(&self) -> Subset<K> {
-        Subset::from_fillvecmap(FillVecMap {
-            vec: self
-                .vec
-                .iter()
-                .map(|(_, val_option)| val_option.as_ref().map(|_| ()))
-                .collect(),
-            some_count: self.some_count,
-        })
+        Subset::from_fillvecmap(self)
     }
 }
 
