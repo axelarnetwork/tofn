@@ -90,6 +90,8 @@ impl<T: Executer> ExecuterRaw for T {
         }
 
         // all deserialization succeeded---remove the `Some` wrapper from deserialized bcasts, p2ps
+        // TODO make deserialize_p2ps() like deserialize_bcasts() so we can delete this line
+        // unfortunately that requires FillP2ps to impl FromIterator, which ain't gonna happen
         let p2ps_in = p2ps_deserialized
             .map_result(|val_option| val_option.ok_or(TofnFatal))?
             .to_p2ps()?;
