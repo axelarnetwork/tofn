@@ -102,7 +102,7 @@ impl Executer for R2 {
         // verify zk proof for first message of MtA
         let zkp_complaints =
             self.peer_keygen_ids
-                .clone_map2_result(|(peer_sign_id, peer_keygen_id)| {
+                .ref_map2_result(|(peer_sign_id, peer_keygen_id)| {
                     let peer_ek = &self
                         .secret_key_share
                         .group()

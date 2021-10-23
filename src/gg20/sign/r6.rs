@@ -118,7 +118,7 @@ impl Executer for R6 {
         // verify proofs
         let zkp_complaints =
             self.peer_keygen_ids
-                .clone_map2_result(|(peer_sign_id, &peer_keygen_id)| {
+                .ref_map2_result(|(peer_sign_id, &peer_keygen_id)| {
                     let bcast = bcasts_in.get(peer_sign_id)?;
                     let zkp = &self
                         .secret_key_share
@@ -199,7 +199,7 @@ impl Executer for R6 {
 
             let mta_plaintexts =
                 self.beta_secrets
-                    .clone_map2_result(|(peer_sign_id, beta_secret)| {
+                    .ref_map2_result(|(peer_sign_id, beta_secret)| {
                         let r2p2p = self.r2p2ps.get(peer_sign_id, my_sign_id)?;
 
                         let (alpha_plaintext, alpha_randomness) = self

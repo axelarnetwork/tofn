@@ -132,7 +132,7 @@ pub fn delta_inverse_r4(
     };
 
     let mut faulter_p2ps_deserialized: HoleVecMap<_, P2pSadType5> = faulter_p2ps
-        .clone_map2_result(|(_, bytes)| {
+        .ref_map2_result(|(_, bytes)| {
             Ok(deserialize(&decode_message::<SignShareId>(bytes).unwrap().payload).unwrap())
         })
         .unwrap();

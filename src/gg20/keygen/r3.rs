@@ -166,7 +166,7 @@ impl Executer for R3 {
         })?;
 
         // validate shares
-        let vss_complaints = share_infos.clone_map2_result(|(peer_keygen_id, share_info)| {
+        let vss_complaints = share_infos.ref_map2_result(|(peer_keygen_id, share_info)| {
             Ok(
                 if !bcasts_in
                     .get(peer_keygen_id)?

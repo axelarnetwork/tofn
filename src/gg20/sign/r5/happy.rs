@@ -152,7 +152,7 @@ impl Executer for R5 {
             randomness: &self.k_i_randomness,
         };
 
-        let p2ps_out = Some(self.peer_keygen_ids.clone_map2_result(
+        let p2ps_out = Some(self.peer_keygen_ids.ref_map2_result(
             |(peer_sign_id, &peer_keygen_id)| {
                 let peer_zkp = &self
                     .secret_key_share

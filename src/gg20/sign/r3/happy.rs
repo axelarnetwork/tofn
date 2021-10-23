@@ -128,7 +128,7 @@ impl Executer for R3Happy {
 
         let mta_complaints =
             self.peer_keygen_ids
-                .clone_map2_result(|(peer_sign_id, &peer_keygen_id)| {
+                .ref_map2_result(|(peer_sign_id, &peer_keygen_id)| {
                     let p2p_in = p2ps_in.get(peer_sign_id, my_sign_id)?;
 
                     let peer_stmt = paillier::zk::mta::Statement {
@@ -217,35 +217,31 @@ impl Executer for R3Happy {
             )));
         }
 
-        let alphas = self
-            .peer_keygen_ids
-            .clone_map2_result(|(peer_sign_id, _)| {
-                let p2p_in = p2ps_in.get(peer_sign_id, my_sign_id)?;
+        let alphas = self.peer_keygen_ids.ref_map2_result(|(peer_sign_id, _)| {
+            let p2p_in = p2ps_in.get(peer_sign_id, my_sign_id)?;
 
-                let alpha = self
-                    .secret_key_share
-                    .share()
-                    .dk()
-                    .decrypt(&p2p_in.alpha_ciphertext)
-                    .to_scalar();
+            let alpha = self
+                .secret_key_share
+                .share()
+                .dk()
+                .decrypt(&p2p_in.alpha_ciphertext)
+                .to_scalar();
 
-                Ok(alpha)
-            })?;
+            Ok(alpha)
+        })?;
 
-        let mus = self
-            .peer_keygen_ids
-            .clone_map2_result(|(peer_sign_id, _)| {
-                let p2p_in = p2ps_in.get(peer_sign_id, my_sign_id)?;
+        let mus = self.peer_keygen_ids.ref_map2_result(|(peer_sign_id, _)| {
+            let p2p_in = p2ps_in.get(peer_sign_id, my_sign_id)?;
 
-                let mu = self
-                    .secret_key_share
-                    .share()
-                    .dk()
-                    .decrypt(&p2p_in.mu_ciphertext)
-                    .to_scalar();
+            let mu = self
+                .secret_key_share
+                .share()
+                .dk()
+                .decrypt(&p2p_in.mu_ciphertext)
+                .to_scalar();
 
-                Ok(mu)
-            })?;
+            Ok(mu)
+        })?;
 
         // compute delta_i = k_i * gamma_i + sum_{j != i} alpha_ij + beta_ji
         let delta_i = alphas
