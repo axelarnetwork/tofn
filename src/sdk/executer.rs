@@ -73,6 +73,10 @@ impl<T: Executer> ExecuterRaw for T {
         expected_msg_types: FillVecMap<Self::Index, ExpectedMsgTypes>,
         mut faulters: FillVecMap<Self::Index, Fault>,
     ) -> TofnResult<ProtocolBuilder<Self::FinalOutput, Self::Index>> {
+        if !faulters.is_empty() {
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
+        }
+
         timeout_faulters(
             info.my_id(),
             &bcasts_in,
@@ -81,10 +85,13 @@ impl<T: Executer> ExecuterRaw for T {
             &mut faulters,
         )?;
 
+        if !faulters.is_empty() {
+            return Ok(ProtocolBuilder::Done(Err(faulters)));
+        }
+
         let bcasts_in_deserialized = deserialize_bcasts(info.my_id(), bcasts_in, &mut faulters)?;
         let p2ps_deserialized = deserialize_p2ps(info.my_id(), p2ps_in, &mut faulters)?;
 
-        // exit now if there are faulters
         if !faulters.is_empty() {
             return Ok(ProtocolBuilder::Done(Err(faulters)));
         }

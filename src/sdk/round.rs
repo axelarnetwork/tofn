@@ -208,13 +208,13 @@ impl<F, K, P, const MAX_MSG_IN_LEN: usize> Round<F, K, P, MAX_MSG_IN_LEN> {
 
         self.info.advance_round();
 
-        // for each msg_in faulter party P, mark all of P's shares as faulter shares
+        // for each msg_in faulter party P: for each share S belonging to P: unset all of S's messages and mark S as a faulter
         if !self.msg_in_faulters.is_empty() {
             let faulter_party_ids = self.msg_in_faulters.as_subset();
 
             let pretty_faulter_party_ids: Vec<TypedUsize<P>> = faulter_party_ids.iter().collect();
             debug!(
-                "peer {} (party {}) says: tofn SDK detected msg_in faulter parties {:?} in round {}",
+                "peer {} (party {}) says: tofn SDK detected msg_in faulter parties {:?} in round {}; deleting all messages received from these parties",
                 my_share_id, my_party_id, pretty_faulter_party_ids, curr_round_num,
             );
 
@@ -224,6 +224,9 @@ impl<F, K, P, const MAX_MSG_IN_LEN: usize> Round<F, K, P, MAX_MSG_IN_LEN> {
                 .share_id_subset(&faulter_party_ids)?;
 
             for faulter_share_id in faulter_share_ids {
+                self.expected_msg_types.unset(faulter_share_id)?;
+                self.bcasts_in.unset(faulter_share_id)?;
+                self.p2ps_in.unset_all(faulter_share_id)?;
                 share_faulters.set(faulter_share_id, Fault::CorruptedMessage)?;
             }
         }
