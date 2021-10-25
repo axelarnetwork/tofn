@@ -75,19 +75,19 @@ impl<K, V> FullP2ps<K, V> {
         VecMap::from_vec(self.to_me(me)?.map(f).collect::<TofnResult<Vec<W>>>()?).remember_hole(me)
     }
 
-    pub fn map<W, F>(self, f: F) -> FullP2ps<K, W>
+    pub fn map<W, F>(self, mut f: F) -> FullP2ps<K, W>
     where
-        F: FnMut(V) -> W + Clone,
+        F: FnMut(V) -> W,
     {
-        FullP2ps::<K, W>(self.0.map(|v| v.map(f.clone())))
+        FullP2ps::<K, W>(self.0.map(|v| v.map(&mut f)))
     }
 
-    pub fn map2_result<W, F>(self, f: F) -> TofnResult<FullP2ps<K, W>>
+    pub fn map2_result<W, F>(self, mut f: F) -> TofnResult<FullP2ps<K, W>>
     where
-        F: FnMut((TypedUsize<K>, V)) -> TofnResult<W> + Clone,
+        F: FnMut((TypedUsize<K>, V)) -> TofnResult<W>,
     {
         Ok(FullP2ps::<K, W>(
-            self.0.map2_result(|(_, v)| v.map2_result(f.clone()))?,
+            self.0.map2_result(|(_, v)| v.map2_result(&mut f))?,
         ))
     }
 

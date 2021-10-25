@@ -10,6 +10,12 @@ impl<K> Subset<K> {
     pub fn with_max_size(len: usize) -> Self {
         Self(FillVecMap::with_size(len))
     }
+
+    // Construct a `Subset<K>` containing those indices of `v` that are `Some`.
+    pub fn from_fillvecmap<V>(v: &FillVecMap<K, V>) -> Self {
+        Self(v.ref_map(|_| ()))
+    }
+
     pub fn max_size(&self) -> usize {
         self.0.size()
     }

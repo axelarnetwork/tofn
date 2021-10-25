@@ -1,10 +1,12 @@
 //! A fillable VecMap
+use std::iter::FromIterator;
+
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tracing::error;
 
 use crate::sdk::api::{TofnFatal, TofnResult};
 
-use super::{vecmap_iter::VecMapIter, TypedUsize, VecMap};
+use super::{vecmap_iter::VecMapIter, Subset, TypedUsize, VecMap};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FillVecMap<K, V> {
@@ -33,6 +35,16 @@ impl<K, V> FillVecMap<K, V> {
         *stored = Some(value);
         Ok(())
     }
+
+    pub fn unset(&mut self, index: TypedUsize<K>) -> TofnResult<()> {
+        let stored = self.vec.get_mut(index)?;
+        if stored.is_some() {
+            self.some_count -= 1;
+        }
+        *stored = None;
+        Ok(())
+    }
+
     pub fn is_none(&self, index: TypedUsize<K>) -> TofnResult<bool> {
         Ok(self.vec.get(index)?.is_none())
     }
@@ -75,14 +87,63 @@ impl<K, V> FillVecMap<K, V> {
         self.map_to_vecmap(std::convert::identity)
     }
 
-    pub fn map<W, F>(self, f: F) -> FillVecMap<K, W>
+    pub fn map<W, F>(self, mut f: F) -> FillVecMap<K, W>
     where
-        F: FnMut(V) -> W + Clone,
+        F: FnMut(V) -> W,
     {
         FillVecMap::<K, W> {
-            vec: self.vec.map(|val_option| val_option.map(f.clone())),
+            vec: self.vec.map(|val_option| val_option.map(&mut f)),
             some_count: self.some_count,
         }
+    }
+
+    pub fn ref_map<W, F>(&self, mut f: F) -> FillVecMap<K, W>
+    where
+        F: FnMut(&V) -> W,
+    {
+        FillVecMap::<K, W> {
+            vec: self
+                .vec
+                .ref_map(|val_option| val_option.as_ref().map(&mut f)),
+            some_count: self.some_count,
+        }
+    }
+
+    pub fn map_result<W, F>(self, mut f: F) -> TofnResult<FillVecMap<K, W>>
+    where
+        F: FnMut(V) -> TofnResult<W>,
+    {
+        Ok(FillVecMap::<K, W> {
+            vec: self.vec.map_result(|val_option| {
+                if let Some(val) = val_option {
+                    f(val).map(Some)
+                } else {
+                    Ok(None)
+                }
+            })?,
+            some_count: self.some_count,
+        })
+    }
+
+    pub fn map2_result<W, F>(self, mut f: F) -> TofnResult<FillVecMap<K, W>>
+    where
+        F: FnMut((TypedUsize<K>, V)) -> TofnResult<W>,
+    {
+        Ok(FillVecMap::<K, W> {
+            vec: self.vec.map2_result(|(index, val_option)| {
+                if let Some(val) = val_option {
+                    f((index, val)).map(Some)
+                } else {
+                    Ok(None)
+                }
+            })?,
+            some_count: self.some_count,
+        })
+    }
+
+    /// Return a [Subset] containing those indices that are [Some]
+    pub fn as_subset(&self) -> Subset<K> {
+        Subset::from_fillvecmap(self)
     }
 }
 
@@ -106,6 +167,17 @@ impl<'a, K, V> IntoIterator for &'a FillVecMap<K, V> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
+    }
+}
+
+impl<K, V> FromIterator<Option<V>> for FillVecMap<K, V> {
+    fn from_iter<Iter: IntoIterator<Item = Option<V>>>(iter: Iter) -> Self {
+        let vec = Vec::from_iter(iter);
+        let some_count = vec.iter().filter(|val_option| val_option.is_some()).count();
+        Self {
+            vec: VecMap::from_vec(vec),
+            some_count,
+        }
     }
 }
 

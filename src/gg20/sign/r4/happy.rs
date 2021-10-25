@@ -151,7 +151,7 @@ impl Executer for R4Happy {
 
             let mta_plaintexts =
                 self.beta_secrets
-                    .clone_map2_result(|(peer_sign_id, beta_secret)| {
+                    .ref_map2_result(|(peer_sign_id, beta_secret)| {
                         let r2p2p = self.r2p2ps.get(peer_sign_id, my_sign_id)?;
                         let (alpha_plaintext, alpha_randomness) = self
                             .secret_key_share

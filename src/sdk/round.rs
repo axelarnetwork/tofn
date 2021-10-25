@@ -1,4 +1,4 @@
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::{
     collections::{zip3, FillP2ps, FillVecMap, HoleVecMap, TypedUsize},
@@ -199,21 +199,37 @@ impl<F, K, P, const MAX_MSG_IN_LEN: usize> Round<F, K, P, MAX_MSG_IN_LEN> {
         false
     }
 
+    /// Execute the next round.
     pub fn execute_next_round(mut self) -> TofnResult<Protocol<F, K, P, MAX_MSG_IN_LEN>> {
         let my_share_id = self.info().share_info().my_id();
         let my_party_id = self.info().party_id();
         let curr_round_num = self.info.round();
-
-        if !self.msg_in_faulters.is_empty() {
-            warn!(
-                "peer {} (party {}) says: faulters detected during msg_in: ending protocol in round {}",
-                my_share_id, my_party_id, curr_round_num,
-            );
-
-            return Ok(Protocol::Done(Err(self.msg_in_faulters)));
-        }
+        let mut share_faulters = self.info().share_info().new_fillvecmap();
 
         self.info.advance_round();
+
+        // for each msg_in faulter party P: for each share S belonging to P: unset all of S's messages and mark S as a faulter
+        if !self.msg_in_faulters.is_empty() {
+            let faulter_party_ids = self.msg_in_faulters.as_subset();
+
+            let pretty_faulter_party_ids: Vec<TypedUsize<P>> = faulter_party_ids.iter().collect();
+            debug!(
+                "peer {} (party {}) says: tofn SDK detected msg_in faulter parties {:?} in round {}; deleting all messages received from these parties",
+                my_share_id, my_party_id, pretty_faulter_party_ids, curr_round_num,
+            );
+
+            let faulter_share_ids = self
+                .info
+                .party_share_counts()
+                .share_id_subset(&faulter_party_ids)?;
+
+            for faulter_share_id in faulter_share_ids {
+                self.expected_msg_types.unset(faulter_share_id)?;
+                self.bcasts_in.unset(faulter_share_id)?;
+                self.p2ps_in.unset_all(faulter_share_id)?;
+                share_faulters.set(faulter_share_id, Fault::CorruptedMessage)?;
+            }
+        }
 
         self.round
             .execute_raw(
@@ -221,6 +237,7 @@ impl<F, K, P, const MAX_MSG_IN_LEN: usize> Round<F, K, P, MAX_MSG_IN_LEN> {
                 self.bcasts_in,
                 self.p2ps_in,
                 self.expected_msg_types,
+                share_faulters,
             )?
             .build(self.info)
     }

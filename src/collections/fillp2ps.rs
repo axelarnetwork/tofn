@@ -3,7 +3,7 @@ use crate::{
     sdk::api::TofnResult,
 };
 
-use super::{FullP2ps, P2ps};
+use super::{holevecmap_iter::HoleVecMapIter, FullP2ps, P2ps};
 
 pub struct FillP2ps<K, V>(VecMap<K, FillHoleVecMap<K, V>>);
 
@@ -12,6 +12,7 @@ impl<K, V> FillP2ps<K, V> {
         Self(
             (0..len)
                 .map(|hole| {
+                    // don't use FillHoleVecMap::with_size because we can't return a TofnResult
                     FillHoleVecMap::from_holevecmap(HoleVecMap::from_vecmap(
                         VecMap::from_vec((0..len - 1).map(|_| None).collect()),
                         TypedUsize::from_usize(hole),
@@ -26,6 +27,13 @@ impl<K, V> FillP2ps<K, V> {
     pub fn set(&mut self, from: TypedUsize<K>, to: TypedUsize<K>, value: V) -> TofnResult<()> {
         self.0.get_mut(from)?.set(to, value)
     }
+
+    /// Unset all items associated with `from`
+    pub fn unset_all(&mut self, from: TypedUsize<K>) -> TofnResult<()> {
+        *self.0.get_mut(from)? = FillHoleVecMap::with_size(self.size(), from)?;
+        Ok(())
+    }
+
     pub fn is_none(&self, from: TypedUsize<K>, to: TypedUsize<K>) -> TofnResult<bool> {
         self.0.get(from)?.is_none(to)
     }
@@ -36,30 +44,30 @@ impl<K, V> FillP2ps<K, V> {
         Ok(self.0.get(from)?.is_full())
     }
 
-    // if size = 1 then return `None` and not an empty size-1 `HoleVecMap`
-    pub fn map_to_p2ps<W, F>(self, f: F) -> TofnResult<P2ps<K, W>>
+    /// if size = 1 then return `None` and not an empty size-1 `HoleVecMap`
+    pub fn map_to_p2ps<W, F>(self, mut f: F) -> TofnResult<P2ps<K, W>>
     where
-        F: FnMut(V) -> W + Clone,
+        F: FnMut(V) -> W,
     {
         Ok(P2ps::<K, W>::from_vecmap(self.0.map2_result(
             |(_, fill_hole_vec)| {
                 if fill_hole_vec.is_empty() {
                     Ok(None)
                 } else {
-                    fill_hole_vec.map_to_holevec(f.clone()).map(Some)
+                    fill_hole_vec.map_to_holevec(&mut f).map(Some)
                 }
             },
         )?))
     }
 
-    pub fn map_to_fullp2ps<W, F>(self, f: F) -> TofnResult<FullP2ps<K, W>>
+    pub fn map_to_fullp2ps<W, F>(self, mut f: F) -> TofnResult<FullP2ps<K, W>>
     where
-        F: FnMut(V) -> W + Clone,
+        F: FnMut(V) -> W,
     {
         Ok(FullP2ps::<K, W>::from_vecmap(
             self.0
                 .into_iter()
-                .map(|(_, v)| v.map_to_holevec(f.clone()))
+                .map(|(_, v)| v.map_to_holevec(&mut f))
                 .collect::<TofnResult<VecMap<_, _>>>()?,
         ))
     }
@@ -69,14 +77,31 @@ impl<K, V> FillP2ps<K, V> {
     pub fn to_p2ps(self) -> TofnResult<P2ps<K, V>> {
         self.map_to_p2ps(std::convert::identity)
     }
-    pub fn map<W, F>(self, f: F) -> FillP2ps<K, W>
+    pub fn map<W, F>(self, mut f: F) -> FillP2ps<K, W>
     where
-        F: FnMut(V) -> W + Clone,
+        F: FnMut(V) -> W,
     {
-        FillP2ps::<K, W>(self.0.map(|h| h.map(f.clone())))
+        FillP2ps::<K, W>(self.0.map(|h| h.map(&mut f)))
     }
+
+    pub fn map_result<W, F>(self, mut f: F) -> TofnResult<FillP2ps<K, W>>
+    where
+        F: FnMut(V) -> TofnResult<W>,
+    {
+        Ok(FillP2ps::<K, W>(
+            self.0.map_result(|h| h.map_result(&mut f))?,
+        ))
+    }
+
     pub fn iter(&self) -> VecMapIter<K, std::slice::Iter<FillHoleVecMap<K, V>>> {
         self.0.iter()
+    }
+
+    pub fn iter_from(
+        &self,
+        from: TypedUsize<K>,
+    ) -> TofnResult<HoleVecMapIter<K, std::slice::Iter<Option<V>>>> {
+        Ok(self.0.get(from)?.iter())
     }
 }
 

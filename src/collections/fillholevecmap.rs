@@ -33,6 +33,14 @@ impl<K, V> FillHoleVecMap<K, V> {
         *stored = Some(value);
         Ok(())
     }
+    pub fn unset(&mut self, index: TypedUsize<K>) -> TofnResult<()> {
+        let stored = self.hole_vec.get_mut(index)?;
+        if stored.is_some() {
+            self.some_count -= 1;
+        }
+        *stored = None;
+        Ok(())
+    }
     pub fn is_none(&self, index: TypedUsize<K>) -> TofnResult<bool> {
         Ok(self.hole_vec.get(index)?.is_none())
     }
@@ -59,14 +67,31 @@ impl<K, V> FillHoleVecMap<K, V> {
     pub fn to_holevec(self) -> TofnResult<HoleVecMap<K, V>> {
         self.map_to_holevec(std::convert::identity)
     }
-    pub fn map<W, F>(self, f: F) -> FillHoleVecMap<K, W>
+
+    pub fn map<W, F>(self, mut f: F) -> FillHoleVecMap<K, W>
     where
-        F: FnMut(V) -> W + Clone,
+        F: FnMut(V) -> W,
     {
         FillHoleVecMap::<K, W> {
-            hole_vec: self.hole_vec.map(|val_option| val_option.map(f.clone())),
+            hole_vec: self.hole_vec.map(|val_option| val_option.map(&mut f)),
             some_count: self.some_count,
         }
+    }
+
+    pub fn map_result<W, F>(self, mut f: F) -> TofnResult<FillHoleVecMap<K, W>>
+    where
+        F: FnMut(V) -> TofnResult<W>,
+    {
+        Ok(FillHoleVecMap::<K, W> {
+            hole_vec: self.hole_vec.map_result(|val_option| {
+                if let Some(val) = val_option {
+                    f(val).map(Some)
+                } else {
+                    Ok(None)
+                }
+            })?,
+            some_count: self.some_count,
+        })
     }
 
     // private constructor does no checks, does not return TofnResult, cannot panic

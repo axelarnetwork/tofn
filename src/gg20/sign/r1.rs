@@ -79,7 +79,7 @@ pub(super) fn start(
     let (k_i_ciphertext, k_i_randomness) = ek.encrypt(&(&k_i).into());
 
     let p2ps_out = Some(
-        peer_keygen_ids.clone_map2_result(|(peer_sign_id, &peer_keygen_id)| {
+        peer_keygen_ids.ref_map2_result(|(peer_sign_id, &peer_keygen_id)| {
             let peer_zkp = secret_key_share
                 .group()
                 .all_shares()
