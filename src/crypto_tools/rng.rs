@@ -51,6 +51,7 @@ pub(crate) fn rng_seed<K>(
 
     let mut prf = Hmac::<Sha256>::new(secret_recovery_key.0[..].into());
 
+    // TODO: Use protocol domain separation: https://github.com/axelarnetwork/tofn/issues/184
     prf.update(&tag.to_be_bytes());
     prf.update(&party_id.to_bytes());
     prf.update(session_nonce);
@@ -63,6 +64,7 @@ pub(crate) fn rng_seed<K>(
 /// Initialize a RNG by hashing the arguments.
 /// Intended for use generating a ECDSA signing key.
 pub(crate) fn rng_seed_ecdsa_signing_key(
+    protocol_tag: u8,
     tag: u8,
     secret_recovery_key: &SecretRecoveryKey,
     session_nonce: &[u8],
@@ -86,6 +88,7 @@ pub(crate) fn rng_seed_ecdsa_signing_key(
 
     let mut prf = Hmac::<Sha256>::new(hmac_key);
 
+    prf.update(&protocol_tag.to_be_bytes());
     prf.update(&tag.to_be_bytes());
     prf.update(session_nonce);
 
@@ -109,6 +112,7 @@ pub(crate) fn rng_seed_ecdsa_ephemeral_scalar_with_party_id<K>(
 
     let mut prf = Hmac::<Sha256>::new(&Default::default());
 
+    // TODO: Use protocol domain separation: https://github.com/axelarnetwork/tofn/issues/184
     prf.update(&tag.to_be_bytes());
     prf.update(&party_id.to_bytes());
     prf.update(&signing_key_bytes);
@@ -126,6 +130,7 @@ pub(crate) fn rng_seed_ecdsa_ephemeral_scalar_with_party_id<K>(
 /// except this implementation does not conform to RFC 6979.
 /// Compare with RustCrypto: <https://github.com/RustCrypto/signatures/blob/54925be85d4eeb0540bf7c687ab08152a858871a/ecdsa/src/rfc6979.rs#L16-L40>
 pub(crate) fn rng_seed_ecdsa_ephemeral_scalar(
+    protocol_tag: u8,
     tag: u8,
     signing_key: &k256::Scalar,
     message_digest: &k256::Scalar,
@@ -135,6 +140,7 @@ pub(crate) fn rng_seed_ecdsa_ephemeral_scalar(
 
     let mut prf = Hmac::<Sha256>::new(&Default::default());
 
+    prf.update(&protocol_tag.to_be_bytes());
     prf.update(&tag.to_be_bytes());
     prf.update(&signing_key_bytes);
     prf.update(&msg_to_sign_bytes);
