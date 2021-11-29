@@ -8,8 +8,9 @@ use message_digest::MessageDigest;
 use tracing::error;
 
 use crate::{
+    constants::ECDSA_TAG,
     crypto_tools::{k256_serde, message_digest, rng},
-    sdk::api::{BytesVec, TofnFatal, TofnResult}, constants::ECDSA_TAG,
+    sdk::api::{BytesVec, TofnFatal, TofnResult},
 };
 
 #[derive(Debug)]
@@ -35,7 +36,8 @@ pub fn keygen(
     secret_recovery_key: &rng::SecretRecoveryKey,
     session_nonce: &[u8],
 ) -> TofnResult<KeyPair> {
-    let rng = rng::rng_seed_ecdsa_signing_key(ECDSA_TAG, KEYGEN_TAG, secret_recovery_key, session_nonce)?;
+    let rng =
+        rng::rng_seed_ecdsa_signing_key(ECDSA_TAG, KEYGEN_TAG, secret_recovery_key, session_nonce)?;
 
     let signing_key = k256_serde::SecretScalar::random(rng);
 
@@ -66,7 +68,8 @@ pub fn sign(
     let signing_key = signing_key.as_ref();
     let message_digest = k256::Scalar::from(message_digest);
 
-    let rng = rng::rng_seed_ecdsa_ephemeral_scalar(ECDSA_TAG, SIGN_TAG, signing_key, &message_digest)?;
+    let rng =
+        rng::rng_seed_ecdsa_ephemeral_scalar(ECDSA_TAG, SIGN_TAG, signing_key, &message_digest)?;
     let ephemeral_scalar = k256::Scalar::random(rng);
 
     let signature = k256_serde::Signature::from(

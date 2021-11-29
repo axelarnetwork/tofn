@@ -1,6 +1,6 @@
 pub mod collections;
-mod crypto_tools;
 mod constants;
+mod crypto_tools;
 pub mod ecdsa;
 pub mod gg20;
 pub mod multisig;
