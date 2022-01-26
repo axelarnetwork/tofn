@@ -144,10 +144,6 @@ pub fn recover_party_keypair_unsafe(
 pub const MAX_TOTAL_SHARE_COUNT: usize = 1000;
 pub const MAX_PARTY_SHARE_COUNT: usize = MAX_TOTAL_SHARE_COUNT;
 
-// BEWARE: This is only made visible for faster integration testing
-// TODO: Use a better way to hide this from the API, while allowing it for integration tests
-// since #[cfg(tests)] only works for unit tests
-
 /// Initialize a new keygen protocol
 #[allow(clippy::too_many_arguments)]
 pub fn new_keygen(
