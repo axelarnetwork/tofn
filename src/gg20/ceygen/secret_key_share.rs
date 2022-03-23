@@ -12,13 +12,6 @@ use serde::{Deserialize, Serialize};
 use tracing::error;
 use zeroize::Zeroize;
 
-
-pub struct KeygenPartyId;
-
-pub type KeygenProtocol = Protocol<SecretKeyShare, KeygenShareId, KeygenPartyId, MAX_MSG_LEN>;
-pub type KeygenProtocolBuilder = ProtocolBuilder<SecretKeyShare, KeygenShareId>;
-pub type KeygenPartyShareCounts = PartyShareCounts<KeygenPartyId>;
-
 /// final output of keygen: store this struct in tofnd kvstore
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SecretKeyShare {

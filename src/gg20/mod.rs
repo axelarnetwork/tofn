@@ -12,3 +12,4 @@ macro_rules! corrupt {
 
 pub mod keygen;
 pub mod sign;
+pub mod ceygen;

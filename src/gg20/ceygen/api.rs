@@ -8,7 +8,6 @@ use crate::{
         },
         rng,
     },
-	
     gg20::constants::{KEYPAIR_TAG, ZKSETUP_TAG},
     sdk::{
         api::{PartyShareCounts, Protocol, TofnFatal, TofnResult},
@@ -148,50 +147,89 @@ pub const MAX_PARTY_SHARE_COUNT: usize = MAX_TOTAL_SHARE_COUNT;
 // TODO: Use a better way to hide this from the API, while allowing it for integration tests
 // since #[cfg(tests)] only works for unit tests
 
-/// Initialize a new keygen protocol
 #[allow(clippy::too_many_arguments)]
-pub fn new_keygen(
+pub fn new_ceygen(
     party_share_counts: KeygenPartyShareCounts,
     threshold: usize,
     my_party_id: TypedUsize<KeygenPartyId>,
-    my_subshare_id: usize, // in 0..party_share_counts[my_party_id]
+    my_subshare_id: usize, 
+    coefficients: todo!(),
     party_keygen_data: &PartyKeygenData,
-    #[cfg(feature = "malicious")] behaviour: malicious::Behaviour,
-) -> TofnResult<KeygenProtocol> {
-    // validate args
-    if party_share_counts
-        .iter()
-        .any(|(_, &c)| c > MAX_PARTY_SHARE_COUNT)
-    {
-        error!(
-            "detected a party with share count exceeding {}",
-            MAX_PARTY_SHARE_COUNT
-        );
-        return Err(TofnFatal);
-    }
-    let total_share_count: usize = party_share_counts.total_share_count();
-    let my_keygen_id = party_share_counts.party_to_share_id(my_party_id, my_subshare_id)?;
+    #[cfg(feature = "malicious")] behavior: malicious::Behavior,
+) -> TofnResult<KeygenProtocol>{
+    if party_share_counts.iter()
+        .any(|(_,&c)| c > MAX_PARTY_SHARE_COUNT)
+        {
+            error!(
+                "detected a party with share count exceeding {}",
+                MAX_PARTY_SHARE_COUNT
+            );
+            return Err(TofnFatal);
+        }
+        let total_share_count:usize = party_share_counts.total_share_count();
+        let my_keygen_id: TypedUsize<KeygenShareId> = party_share_counts.party_to_share_id(my_party_id, my_subshare_id)?;
 
-    #[allow(clippy::suspicious_operation_groupings)]
-    if total_share_count <= threshold
-        || total_share_count > MAX_TOTAL_SHARE_COUNT
-        || my_party_id.as_usize() >= party_share_counts.party_count()
-    {
-        error!(
-            "invalid (total_share_count, threshold, my_party_id, my_subshare_id, max_share_count): ({},{},{},{},{})",
+        #[allow(clippy::suspicious_operation_groupings)]
+        if total_share_count <= threshold 
+            || total_share_count > MAX_TOTAL_SHARE_COUNT
+            || my_party_id.as_usize() >= party_share_counts.party_count()
+        {
+            error!(
+                "invalid (total_share_count, threshold, my_party_id, subshare_id, max_share_count): ({},{},{},{},{})",
             total_share_count, threshold, my_party_id, my_subshare_id, MAX_TOTAL_SHARE_COUNT
-        );
-        return Err(TofnFatal);
-    }
+            );
+            return Err(TofnFatal);
+        }
 
-    let round2 = r1::start(
-        my_keygen_id,
-        threshold,
-        party_share_counts.clone(),
-        party_keygen_data,
-        #[cfg(feature = "malicious")]
-        behaviour,
-    )?;
-
-    new_protocol(party_share_counts, my_keygen_id, round2)
+        // this is where keygen would start r1. We really only need Alice to send secrets to each of the other N share-holders.
+        // r1 would normally comit to some stuff here, and broadcast their commit, and some other things, before finally returning a NotDone
+        // RoundBuidler over a new r2. 
+        todo!();
 }
+// Initialize a new keygen protocol
+// #[allow(clippy::too_many_arguments)]
+// pub fn new_keygen(
+//     party_share_counts: KeygenPartyShareCounts,
+//     threshold: usize,
+//     my_party_id: TypedUsize<KeygenPartyId>,
+//     my_subshare_id: usize, // in 0..party_share_counts[my_party_id]
+//     party_keygen_data: &PartyKeygenData,
+//     #[cfg(feature = "malicious")] behaviour: malicious::Behaviour,
+// ) -> TofnResult<KeygenProtocol> {
+//     // validate args
+//     if party_share_counts
+//         .iter()
+//         .any(|(_, &c)| c > MAX_PARTY_SHARE_COUNT)
+//     {
+//         error!(
+//             "detected a party with share count exceeding {}",
+//             MAX_PARTY_SHARE_COUNT
+//         );
+//         return Err(TofnFatal);
+//     }
+//     let total_share_count: usize = party_share_counts.total_share_count();
+//     let my_keygen_id = party_share_counts.party_to_share_id(my_party_id, my_subshare_id)?;
+
+//     #[allow(clippy::suspicious_operation_groupings)]
+//     if total_share_count <= threshold
+//         || total_share_count > MAX_TOTAL_SHARE_COUNT
+//         || my_party_id.as_usize() >= party_share_counts.party_count()
+//     {
+//         error!(
+//             "invalid (total_share_count, threshold, my_party_id, my_subshare_id, max_share_count): ({},{},{},{},{})",
+//             total_share_count, threshold, my_party_id, my_subshare_id, MAX_TOTAL_SHARE_COUNT
+//         );
+//         return Err(TofnFatal);
+//     }
+
+//     let round2 = r1::start(
+//         my_keygen_id,
+//         threshold,
+//         party_share_counts.clone(),
+//         party_keygen_data,
+//         #[cfg(feature = "malicious")]
+//         behaviour,
+//     )?;
+
+//     new_protocol(party_share_counts, my_keygen_id, round2)
+// }
