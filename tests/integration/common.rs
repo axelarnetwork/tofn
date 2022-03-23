@@ -59,7 +59,7 @@ pub mod integration_ceygen {
         collections::VecMap,
         gg20::ceygen::{
             create_party_keypair_and_zksetup_unsafe, new_ceygen, Coefficients, KeygenPartyId,
-            KeygenProtocol, KeygenShareId,
+            KeygenProtocol, KeygenShareId, SecretKeyShare,
         },
         sdk::api::PartyShareCounts,
     };
@@ -68,10 +68,11 @@ pub mod integration_ceygen {
         party_share_counts: &PartyShareCounts<KeygenPartyId>,
         threshold: usize,
         alice_key: k256::SecretKey,
-    ) -> VecMap<KeygenShareId, KeygenProtocol> {
+    ) -> VecMap<KeygenShareId,SecretKeyShare> {
         let session_nonce = b"foobar";
-        let alice_key: k256::Scalar = alice_key.as_scalar_bytes().to_scalar();
-        let ss = tofn::gg20::ceygen::Ss::new_byok(threshold, alice_key);
+        let shares =
+            tofn::gg20::ceygen::Ss::new_byok(threshold, alice_key.as_scalar_bytes().to_scalar())
+                .shares(party_share_counts.party_count()).into_iter();
 
         party_share_counts
             .iter()
@@ -92,7 +93,7 @@ pub mod integration_ceygen {
                         threshold,
                         party_id,
                         subshare_id,
-                        &ss,
+                        shares.next().expect("{party_id}, {share_id} out of range for ceygen"),
                         &party_keygen_data,
                         #[cfg(feature = "malicious")]
                         Behaviour::Honest,

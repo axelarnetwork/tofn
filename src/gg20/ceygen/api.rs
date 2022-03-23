@@ -40,7 +40,6 @@ pub struct KeygenShareId;
 pub struct KeygenPartyId;
 
 pub type CeygenProtocol = Protocol<SecretKeyShare, KeygenShareId, KeygenPartyId, MAX_MSG_LEN>;
-
 pub type KeygenProtocol = Protocol<SecretKeyShare, KeygenShareId, KeygenPartyId, MAX_MSG_LEN>;
 pub type KeygenProtocolBuilder = ProtocolBuilder<SecretKeyShare, KeygenShareId>;
 pub type KeygenPartyShareCounts = PartyShareCounts<KeygenPartyId>;
@@ -149,19 +148,16 @@ pub const MAX_PARTY_SHARE_COUNT: usize = MAX_TOTAL_SHARE_COUNT;
 // TODO: Use a better way to hide this from the API, while allowing it for integration tests
 // since #[cfg(tests)] only works for unit tests
 
-pub type Coefficient = k256::Scalar;
-pub type Coefficients = Vec<Coefficient>; 
-
 #[allow(clippy::too_many_arguments)]
 pub fn new_ceygen(
     party_share_counts: KeygenPartyShareCounts,
     threshold: usize,
     my_party_id: TypedUsize<KeygenPartyId>,
     my_subshare_id: usize,
-    ss: &Ss,
+    shares: Share,
     party_keygen_data: &PartyKeygenData,
     #[cfg(feature = "malicious")] behavior: malicious::Behavior,
-) -> TofnResult<CeygenProtocol> {
+) -> TofnResult<SecretKeyShare> {
     if party_share_counts
         .iter()
         .any(|(_, &c)| c > MAX_PARTY_SHARE_COUNT)
@@ -187,13 +183,14 @@ pub fn new_ceygen(
             );
         return Err(TofnFatal);
     }
-    // Instead of proceding with rounds 1..4, 
 
-    // this is where keygen would start r1. We really only need Alice to send secrets to each of the other N share-holders.
-    // r1 would normally comit to some stuff here, and broadcast their commit, and some other things, before finally returning a NotDone
-    // RoundBuidler over a new r2.
-    todo!();
+    let round_x = todo!();
+    // Instead of proceding with rounds 1..4, simply finish here
+    new_protocol(party_share_counts,my_keygen_id,round_x)
 }
+
+pub type Coefficient = k256::Scalar;
+pub type Coefficients = Vec<Coefficient>; 
 
 // todo: move this somewhere sensible
 #[derive(Debug, Zeroize)]

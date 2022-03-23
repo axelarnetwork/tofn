@@ -117,13 +117,6 @@ fn basic_ceygen_correctness() {
     // keygen
     let party_share_counts = PartyShareCounts::from_vec(vec![1, 2, 3, 4]).unwrap(); // 10 total shares
     let threshold = 5;
-    let sign_parties = {
-        let mut sign_parties = SignParties::with_max_size(party_share_counts.party_count());
-        sign_parties.add(TypedUsize::from_usize(0)).unwrap();
-        sign_parties.add(TypedUsize::from_usize(1)).unwrap();
-        sign_parties.add(TypedUsize::from_usize(3)).unwrap();
-        sign_parties
-    };
     debug!(
         "total_share_count {}, threshold {}",
         party_share_counts.total_share_count(),
@@ -133,25 +126,19 @@ fn basic_ceygen_correctness() {
     debug!("ceygen...");
     // Create some random key for Alice
     let alice_key = k256::SecretKey::random(rand::thread_rng());
-
-    // generate the parties for the protocol
-    let keygen_shares =
+    // generate the parties, with centralized key generation
+    let secret_key_shares =
         integration_ceygen::initialize_honest_parties(&party_share_counts, threshold, alice_key);
-    // send each party their evaluation of the polynomial
-
-    todo!();
-    // let keygen_share_outputs = execute_protocol(keygen_shares).expect("internal tofn error");
-    // let secret_key_shares: VecMap<ceygen::KeygenShareId, ceygen::SecretKeyShare> =
-    //     keygen_share_outputs.map2(|(keygen_share_id, keygen_share)| match keygen_share {
-    //         Protocol::NotDone(_) => panic!("share_id {} not done yet", keygen_share_id),
-    //         Protocol::Done(result) => result.expect("share finished with error"),
-    //     });
-
-    // todo: convert ceygen secret_key_shares into keygen secret_key_shares
 
     // sign
     debug!("sign...");
-
+    let sign_parties = {
+        let mut sign_parties = SignParties::with_max_size(party_share_counts.party_count());
+        sign_parties.add(TypedUsize::from_usize(0)).unwrap();
+        sign_parties.add(TypedUsize::from_usize(1)).unwrap();
+        sign_parties.add(TypedUsize::from_usize(3)).unwrap();
+        sign_parties
+    };
     let keygen_share_ids = VecMap::<SignShareId, _>::from_vec(
         party_share_counts.share_id_subset(&sign_parties).unwrap(),
     );
