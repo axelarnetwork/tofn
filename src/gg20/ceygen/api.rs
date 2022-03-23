@@ -39,6 +39,8 @@ pub struct KeygenShareId;
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct KeygenPartyId;
 
+pub type CeygenProtocol = Protocol<SecretKeyShare, KeygenShareId, KeygenPartyId, MAX_MSG_LEN>;
+
 pub type KeygenProtocol = Protocol<SecretKeyShare, KeygenShareId, KeygenPartyId, MAX_MSG_LEN>;
 pub type KeygenProtocolBuilder = ProtocolBuilder<SecretKeyShare, KeygenShareId>;
 pub type KeygenPartyShareCounts = PartyShareCounts<KeygenPartyId>;
@@ -147,89 +149,124 @@ pub const MAX_PARTY_SHARE_COUNT: usize = MAX_TOTAL_SHARE_COUNT;
 // TODO: Use a better way to hide this from the API, while allowing it for integration tests
 // since #[cfg(tests)] only works for unit tests
 
+pub type Coefficient = k256::Scalar;
+pub type Coefficients = Vec<Coefficient>; 
+
 #[allow(clippy::too_many_arguments)]
 pub fn new_ceygen(
     party_share_counts: KeygenPartyShareCounts,
     threshold: usize,
     my_party_id: TypedUsize<KeygenPartyId>,
-    my_subshare_id: usize, 
-    coefficients: todo!(),
+    my_subshare_id: usize,
+    ss: &Ss,
     party_keygen_data: &PartyKeygenData,
     #[cfg(feature = "malicious")] behavior: malicious::Behavior,
-) -> TofnResult<KeygenProtocol>{
-    if party_share_counts.iter()
-        .any(|(_,&c)| c > MAX_PARTY_SHARE_COUNT)
-        {
-            error!(
-                "detected a party with share count exceeding {}",
-                MAX_PARTY_SHARE_COUNT
-            );
-            return Err(TofnFatal);
-        }
-        let total_share_count:usize = party_share_counts.total_share_count();
-        let my_keygen_id: TypedUsize<KeygenShareId> = party_share_counts.party_to_share_id(my_party_id, my_subshare_id)?;
+) -> TofnResult<CeygenProtocol> {
+    if party_share_counts
+        .iter()
+        .any(|(_, &c)| c > MAX_PARTY_SHARE_COUNT)
+    {
+        error!(
+            "detected a party with share count exceeding {}",
+            MAX_PARTY_SHARE_COUNT
+        );
+        return Err(TofnFatal);
+    }
+    let total_share_count: usize = party_share_counts.total_share_count();
+    let my_keygen_id: TypedUsize<KeygenShareId> =
+        party_share_counts.party_to_share_id(my_party_id, my_subshare_id)?;
 
-        #[allow(clippy::suspicious_operation_groupings)]
-        if total_share_count <= threshold 
-            || total_share_count > MAX_TOTAL_SHARE_COUNT
-            || my_party_id.as_usize() >= party_share_counts.party_count()
-        {
-            error!(
+    #[allow(clippy::suspicious_operation_groupings)]
+    if total_share_count <= threshold
+        || total_share_count > MAX_TOTAL_SHARE_COUNT
+        || my_party_id.as_usize() >= party_share_counts.party_count()
+    {
+        error!(
                 "invalid (total_share_count, threshold, my_party_id, subshare_id, max_share_count): ({},{},{},{},{})",
             total_share_count, threshold, my_party_id, my_subshare_id, MAX_TOTAL_SHARE_COUNT
             );
-            return Err(TofnFatal);
-        }
+        return Err(TofnFatal);
+    }
+    // Instead of proceding with rounds 1..4, 
 
-        // this is where keygen would start r1. We really only need Alice to send secrets to each of the other N share-holders.
-        // r1 would normally comit to some stuff here, and broadcast their commit, and some other things, before finally returning a NotDone
-        // RoundBuidler over a new r2. 
-        todo!();
+    // this is where keygen would start r1. We really only need Alice to send secrets to each of the other N share-holders.
+    // r1 would normally comit to some stuff here, and broadcast their commit, and some other things, before finally returning a NotDone
+    // RoundBuidler over a new r2.
+    todo!();
 }
-// Initialize a new keygen protocol
-// #[allow(clippy::too_many_arguments)]
-// pub fn new_keygen(
-//     party_share_counts: KeygenPartyShareCounts,
-//     threshold: usize,
-//     my_party_id: TypedUsize<KeygenPartyId>,
-//     my_subshare_id: usize, // in 0..party_share_counts[my_party_id]
-//     party_keygen_data: &PartyKeygenData,
-//     #[cfg(feature = "malicious")] behaviour: malicious::Behaviour,
-// ) -> TofnResult<KeygenProtocol> {
-//     // validate args
-//     if party_share_counts
-//         .iter()
-//         .any(|(_, &c)| c > MAX_PARTY_SHARE_COUNT)
-//     {
-//         error!(
-//             "detected a party with share count exceeding {}",
-//             MAX_PARTY_SHARE_COUNT
-//         );
-//         return Err(TofnFatal);
-//     }
-//     let total_share_count: usize = party_share_counts.total_share_count();
-//     let my_keygen_id = party_share_counts.party_to_share_id(my_party_id, my_subshare_id)?;
 
-//     #[allow(clippy::suspicious_operation_groupings)]
-//     if total_share_count <= threshold
-//         || total_share_count > MAX_TOTAL_SHARE_COUNT
-//         || my_party_id.as_usize() >= party_share_counts.party_count()
-//     {
-//         error!(
-//             "invalid (total_share_count, threshold, my_party_id, my_subshare_id, max_share_count): ({},{},{},{},{})",
-//             total_share_count, threshold, my_party_id, my_subshare_id, MAX_TOTAL_SHARE_COUNT
-//         );
-//         return Err(TofnFatal);
-//     }
+// todo: move this somewhere sensible
+#[derive(Debug, Zeroize)]
+#[zeroize(drop)]
+pub struct Ss {
+    secret_coeffs: Coefficients,
+}
+impl Ss {
+    pub fn new_byok(threshold: usize, alice_key: Coefficient) -> Self {
+        let secret_coeffs: Coefficients = vec![alice_key]
+            .into_iter()
+            .chain(
+                std::iter::repeat_with(|| {
+                    <Coefficient as ecdsa::elliptic_curve::Field>::random(rand::thread_rng())
+                })
+                .take(threshold),
+            )
+            .collect();
+        Self { secret_coeffs }
+    }
 
-//     let round2 = r1::start(
-//         my_keygen_id,
-//         threshold,
-//         party_share_counts.clone(),
-//         party_keygen_data,
-//         #[cfg(feature = "malicious")]
-//         behaviour,
-//     )?;
+    pub fn get_threshold(&self) -> usize {
+        self.secret_coeffs.len() - 1
+    }
 
-//     new_protocol(party_share_counts, my_keygen_id, round2)
-// }
+    pub fn get_secret(&self) -> &Coefficient {
+        &self.secret_coeffs[0]
+    }
+
+    pub fn shares(&self, n: usize) -> Vec<Share> {
+        debug_assert!(self.get_threshold() < n); // also ensures that n > 0
+
+        (0..n)
+            .map(|index| {
+                let index_scalar = Coefficient::from(index as u32 + 1); // vss indices start at 1
+                Share {
+                    // evaluate the polynomial at i using Horner's method
+                    scalar: self
+                        .secret_coeffs
+                        .iter()
+                        .rev()
+                        .fold(Coefficient::zero(), |acc, coeff| {
+                            acc * index_scalar + coeff
+                        })
+                        .into(),
+                    index,
+                }
+            })
+            .collect()
+    }
+}
+
+use crate::crypto_tools::k256_serde;
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Zeroize)]
+#[zeroize(drop)]
+pub struct Share {
+    scalar: k256_serde::Scalar,
+    index: usize,
+}
+
+impl Share {
+    pub fn from_scalar(scalar: Coefficient, index: usize) -> Self {
+        Self {
+            scalar: scalar.into(),
+            index,
+        }
+    }
+
+    pub fn get_scalar(&self) -> &Coefficient {
+        self.scalar.as_ref()
+    }
+
+    pub fn get_index(&self) -> usize {
+        self.index
+    }
+}

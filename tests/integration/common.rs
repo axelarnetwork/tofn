@@ -53,26 +53,25 @@ pub mod integration_keygen {
 }
 
 pub mod integration_ceygen {
+    #[cfg(feature = "malicious")]
+    use tofn::gg20::keygen::malicious::Behaviour;
     use tofn::{
         collections::VecMap,
         gg20::ceygen::{
-            create_party_keypair_and_zksetup_unsafe, new_ceygen, KeygenPartyId, KeygenProtocol,
-            KeygenShareId,
+            create_party_keypair_and_zksetup_unsafe, new_ceygen, Coefficients, KeygenPartyId,
+            KeygenProtocol, KeygenShareId,
         },
         sdk::api::PartyShareCounts,
     };
-    #[cfg(feature = "malicious")]
-    use tofn::gg20::keygen::malicious::Behaviour;
 
     pub fn initialize_honest_parties(
         party_share_counts: &PartyShareCounts<KeygenPartyId>,
         threshold: usize,
+        alice_key: k256::SecretKey,
     ) -> VecMap<KeygenShareId, KeygenProtocol> {
         let session_nonce = b"foobar";
-
-        type Coefficients = usize; // temp
-        let rng = rand::thread_rng();
-        let coefficients : Vec<Coefficients>= std::iter::repeat_with(rand::thread_rng).take(threshold).collect();
+        let alice_key: k256::Scalar = alice_key.as_scalar_bytes().to_scalar();
+        let ss = tofn::gg20::ceygen::Ss::new_byok(threshold, alice_key);
 
         party_share_counts
             .iter()
@@ -93,7 +92,7 @@ pub mod integration_ceygen {
                         threshold,
                         party_id,
                         subshare_id,
-                        coefficients,
+                        &ss,
                         &party_keygen_data,
                         #[cfg(feature = "malicious")]
                         Behaviour::Honest,
@@ -105,8 +104,6 @@ pub mod integration_ceygen {
             .collect()
     }
 }
-
-
 
 /// return the all-zero array with the first bytes set to the bytes of `index`
 pub fn dummy_secret_recovery_key<K>(index: TypedUsize<K>) -> SecretRecoveryKey {

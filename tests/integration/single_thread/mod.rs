@@ -132,8 +132,7 @@ fn basic_ceygen_correctness() {
 
     debug!("ceygen...");
     // Create some random key for Alice
-    let mut rng = rand::thread_rng();
-    let alice_key = k256::SecretKey::random(rng);
+    let alice_key = k256::SecretKey::random(rand::thread_rng());
 
     // generate the parties for the protocol
     let keygen_shares =
