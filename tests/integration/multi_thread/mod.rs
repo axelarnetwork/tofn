@@ -1,4 +1,4 @@
-use crate::common::keygen;
+use crate::common;
 use broadcaster::Broadcaster;
 use ecdsa::{elliptic_curve::sec1::FromEncodedPoint, hazmat::VerifyPrimitive};
 use std::{convert::TryFrom, sync::mpsc, thread};
@@ -24,7 +24,7 @@ fn basic_correctness() {
 
     // keygen
     debug!("start keygen");
-    let keygen_shares = keygen::initialize_honest_parties(&party_share_counts, threshold);
+    let keygen_shares = common::initialize_honest_parties(&party_share_counts, threshold);
     let (keygen_broadcaster, keygen_receivers) =
         Broadcaster::new(party_share_counts.total_share_count());
     let (keygen_result_sender, keygen_result_receiver) = mpsc::channel();

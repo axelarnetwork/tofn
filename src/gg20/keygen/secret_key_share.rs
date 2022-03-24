@@ -91,7 +91,7 @@ impl GroupPublicInfo {
         &self.all_shares
     }
 
-    pub(super) fn new(
+    pub(crate) fn new(
         party_share_counts: KeygenPartyShareCounts,
         threshold: usize,
         y: k256_serde::ProjectivePoint,
@@ -120,7 +120,7 @@ impl SharePublicInfo {
         &self.zkp
     }
 
-    pub(super) fn new(
+    pub(crate) fn new(
         X_i: k256_serde::ProjectivePoint,
         ek: paillier::EncryptionKey,
         zkp: paillier::zk::ZkSetup,
@@ -134,7 +134,7 @@ impl ShareSecretInfo {
         self.index
     }
 
-    pub(super) fn new(
+    pub(crate) fn new(
         index: TypedUsize<KeygenShareId>,
         dk: paillier::DecryptionKey,
         x_i: k256_serde::Scalar,

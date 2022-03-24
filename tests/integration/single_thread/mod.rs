@@ -1,7 +1,6 @@
 use std::convert::TryFrom;
 
-use crate::common::integration_ceygen;
-use crate::common::integration_keygen;
+use crate::common;
 use ecdsa::{elliptic_curve::sec1::FromEncodedPoint, hazmat::VerifyPrimitive};
 use execute::*;
 use tofn::{
@@ -34,7 +33,7 @@ fn set_up_logs() {
         .try_init();
 }
 /// A simple test to illustrate use of the library
-#[test]
+// #[test]
 // #[traced_test]
 fn basic_correctness() {
     set_up_logs();
@@ -57,7 +56,7 @@ fn basic_correctness() {
 
     debug!("keygen...");
     let keygen_shares =
-        integration_keygen::initialize_honest_parties(&party_share_counts, threshold);
+        common::initialize_honest_parties(&party_share_counts, threshold);
     let keygen_share_outputs = execute_protocol(keygen_shares).expect("internal tofn error");
     let secret_key_shares: VecMap<keygen::KeygenShareId, keygen::SecretKeyShare> =
         keygen_share_outputs.map2(|(keygen_share_id, keygen_share)| match keygen_share {
@@ -126,10 +125,10 @@ fn basic_ceygen_correctness() {
     debug!("ceygen...");
     // Create some random key for Alice
     let alice_key = k256::SecretKey::random(rand::thread_rng()).as_scalar_bytes().to_scalar();
-    
+
     // generate the parties, with centralized key generation
     let secret_key_shares =
-        integration_ceygen::initialize_honest_parties(&party_share_counts, threshold, alice_key);
+        tofn::gg20::ceygen::initialize_honest_parties(&party_share_counts, threshold, alice_key);
 
     // sign
     debug!("sign...");
