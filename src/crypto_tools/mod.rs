@@ -7,3 +7,4 @@ pub mod paillier;
 pub mod rng;
 pub mod vss;
 pub mod zkp;
+pub mod ss;

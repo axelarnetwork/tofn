@@ -198,6 +198,14 @@ impl ProjectivePoint {
     }
 }
 
+impl std::ops::Mul<k256::Scalar> for ProjectivePoint {
+    type Output = Self;
+
+    fn mul(self, rhs: k256::Scalar) -> Self::Output {
+        Self(self.0.mul(rhs))
+    }
+}
+
 impl std::ops::Mul<Scalar> for ProjectivePoint{
     type Output = Self;
 

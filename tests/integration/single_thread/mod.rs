@@ -35,7 +35,7 @@ fn set_up_logs() {
 /// A simple test to illustrate use of the library
 // #[test]
 // #[traced_test]
-fn basic_correctness() {
+fn _basic_correctness() {
     set_up_logs();
 
     // keygen
