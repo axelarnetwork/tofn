@@ -59,6 +59,13 @@ struct KeyShareRecoveryInfo {
     x_i_ciphertext: paillier::Ciphertext,
 }
 
+/// Pre-image of `SecretKeyShare` in ceygen.
+#[derive(Debug, Clone)]
+pub struct CeygenShareInfo {
+    share_public_info: SharePublicInfo,
+    share_secret_info: ShareSecretInfo,
+}
+
 impl GroupPublicInfo {
     pub fn party_share_counts(&self) -> &KeygenPartyShareCounts {
         &self.party_share_counts
@@ -288,5 +295,17 @@ impl SecretKeyShare {
     // TODO change file hierarchy so that you need only pub(super)
     pub(in super::super) fn new(group: GroupPublicInfo, share: ShareSecretInfo) -> Self {
         Self { group, share }
+    }
+}
+
+impl CeygenShareInfo {
+    pub(super) fn new(
+        share_public_info: SharePublicInfo,
+        share_secret_info: ShareSecretInfo,
+    ) -> Self {
+        Self {
+            share_public_info,
+            share_secret_info,
+        }
     }
 }

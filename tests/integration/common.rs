@@ -74,7 +74,7 @@ pub mod integration_ceygen {
             tofn::gg20::ceygen::Ss::new_byok(threshold, alice_key.as_scalar_bytes().to_scalar())
                 .shares(party_share_counts.party_count()).into_iter();
 
-        party_share_counts
+        let ceygen_setup = party_share_counts
             .iter()
             .map(|(party_id, &party_share_count)| {
                 // each party use the same secret recovery key for all its subshares
@@ -102,7 +102,11 @@ pub mod integration_ceygen {
                 })
             })
             .flatten()
-            .collect()
+            .collect();
+        
+
+        todo!();
+
     }
 }
 

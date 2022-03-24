@@ -8,7 +8,10 @@ use crate::{
         },
         rng,
     },
-    gg20::constants::{KEYPAIR_TAG, ZKSETUP_TAG},
+    gg20::{
+        ceygen::secret_key_share::{GroupPublicInfo, SecretKeyShare, ShareSecretInfo},
+        constants::{KEYPAIR_TAG, ZKSETUP_TAG},
+    },
     sdk::{
         api::{PartyShareCounts, Protocol, TofnFatal, TofnResult},
         implementer_api::{new_protocol, ProtocolBuilder},
@@ -157,7 +160,7 @@ pub fn new_ceygen(
     shares: Share,
     party_keygen_data: &PartyKeygenData,
     #[cfg(feature = "malicious")] behavior: malicious::Behavior,
-) -> TofnResult<SecretKeyShare> {
+) -> TofnResult<CeygenShareInfo> {
     if party_share_counts
         .iter()
         .any(|(_, &c)| c > MAX_PARTY_SHARE_COUNT)
@@ -184,13 +187,17 @@ pub fn new_ceygen(
         return Err(TofnFatal);
     }
 
-    let round_x = todo!();
+    // return a SharePublicInfo, ShareSecretInfo
+
     // Instead of proceding with rounds 1..4, simply finish here
-    new_protocol(party_share_counts,my_keygen_id,round_x)
+    let share_public_info: SharePublicInfo = SharePublicInfo::new(X_i, party_keygen_data.encryption_keypair.ek, party_keygen_data.zk_setup);
+    let share_secret_info = ShareSecretInfo::new(my_keygen_id, party_keygen_data.encryption_keypair.dk, x_i);
+
+    TofnResult::Ok(CeygenShareInfo::new(share_public_info, share_secret_info))
 }
 
 pub type Coefficient = k256::Scalar;
-pub type Coefficients = Vec<Coefficient>; 
+pub type Coefficients = Vec<Coefficient>;
 
 // todo: move this somewhere sensible
 #[derive(Debug, Zeroize)]
@@ -232,9 +239,7 @@ impl Ss {
                         .secret_coeffs
                         .iter()
                         .rev()
-                        .fold(Coefficient::zero(), |acc, coeff| {
-                            acc * index_scalar + coeff
-                        })
+                        .fold(Coefficient::zero(), |acc, coeff| acc * index_scalar + coeff)
                         .into(),
                     index,
                 }
