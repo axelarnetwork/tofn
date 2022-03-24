@@ -1,3 +1,5 @@
+use std::ops::Mul;
+
 use crate::{
     collections::TypedUsize,
     crypto_tools::{
@@ -187,13 +189,15 @@ pub fn new_ceygen(
         return Err(TofnFatal);
     }
 
-    // return a SharePublicInfo, ShareSecretInfo
+    let share_public_info: SharePublicInfo = SharePublicInfo::new(
+        k256_serde::ProjectivePoint::generator().mul(shares.scalar.clone()),
+        party_keygen_data.encryption_keypair.ek.clone(),
+        party_keygen_data.zk_setup.clone(),
+    );
+    let share_secret_info =
+        ShareSecretInfo::new(my_keygen_id, party_keygen_data.encryption_keypair.dk.clone(), shares.scalar.clone());
 
-    // Instead of proceding with rounds 1..4, simply finish here
-    let share_public_info: SharePublicInfo = SharePublicInfo::new(X_i, party_keygen_data.encryption_keypair.ek, party_keygen_data.zk_setup);
-    let share_secret_info = ShareSecretInfo::new(my_keygen_id, party_keygen_data.encryption_keypair.dk, x_i);
-
-    TofnResult::Ok(CeygenShareInfo::new(share_public_info, share_secret_info))
+    TofnResult::Ok((share_public_info, share_secret_info))
 }
 
 pub type Coefficient = k256::Scalar;

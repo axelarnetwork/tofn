@@ -191,6 +191,19 @@ impl ProjectivePoint {
             &k256::EncodedPoint::from_bytes(bytes).ok()?,
         )?))
     }
+    
+    // wraps `k256::generator()`
+    pub fn generator()-> Self{
+        ProjectivePoint::from(k256::ProjectivePoint::generator())
+    }
+}
+
+impl std::ops::Mul<Scalar> for ProjectivePoint{
+    type Output = Self;
+
+    fn mul(self, rhs: Scalar) -> Self::Output {
+       Self(self.0.mul(rhs.0))
+    }
 }
 
 impl AsRef<k256::ProjectivePoint> for ProjectivePoint {

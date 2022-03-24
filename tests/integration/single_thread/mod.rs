@@ -125,7 +125,8 @@ fn basic_ceygen_correctness() {
 
     debug!("ceygen...");
     // Create some random key for Alice
-    let alice_key = k256::SecretKey::random(rand::thread_rng());
+    let alice_key = k256::SecretKey::random(rand::thread_rng()).as_scalar_bytes().to_scalar();
+    
     // generate the parties, with centralized key generation
     let secret_key_shares =
         integration_ceygen::initialize_honest_parties(&party_share_counts, threshold, alice_key);
