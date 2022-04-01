@@ -85,17 +85,15 @@ impl Executer for R8Happy {
             .fold(Scalar::ZERO, |acc, (_, bcast)| acc + bcast.s_i.as_ref());
 
         let sig = {
-            let mut sig = Signature::from_scalars(self.r, s).map_err(|_| {
+            let sig = Signature::from_scalars(self.r, s).map_err(|_| {
                 error!("scalars to signature conversion failed");
                 TofnFatal
             })?;
 
-            sig.normalize_s().ok_or(|| {
+            sig.normalize_s().ok_or({
                 error!("signature normalization failed");
                 TofnFatal
-            });
-
-            sig
+            })?
         };
 
         let pub_key = &self.secret_key_share.group().y().as_ref().to_affine();

@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 
 use crate::common;
-use ecdsa::{elliptic_curve::sec1::FromEncodedPoint };
+use ecdsa::{elliptic_curve::sec1::FromEncodedPoint, hazmat::VerifyPrimitive };
 use execute::*;
 use tofn::{
     collections::{TypedUsize, VecMap},
@@ -103,7 +103,7 @@ fn basic_correctness() {
     let sig = k256::ecdsa::Signature::from_der(signatures.get(TypedUsize::from_usize(0)).unwrap())
         .unwrap();
     assert!(pubkey
-        .verify_prehashed(&k256::Scalar::from(&msg_to_sign), &sig)
+        .verify_prehashed(k256::Scalar::from(&msg_to_sign), &sig)
         .is_ok());
 }
 

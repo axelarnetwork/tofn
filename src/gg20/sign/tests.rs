@@ -232,9 +232,8 @@ fn execute_sign(
     let s = k * (m + x * r);
 
     let sig = {
-        let mut sig = Signature::from_scalars(r, s).unwrap();
-        sig.normalize_s().unwrap();
-        sig
+        let sig = Signature::from_scalars(r, s).unwrap();
+        sig.normalize_s().unwrap()
     };
     let encoded_sig = sig.to_der().as_bytes().to_vec();
 

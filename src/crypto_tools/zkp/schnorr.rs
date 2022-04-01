@@ -32,7 +32,7 @@ pub struct Proof {
 
 /// Compute the challenge for Schnorr zk proof
 fn compute_challenge(stmt: &Statement, alpha: &k256::ProjectivePoint) -> k256::Scalar {
-    k256::Scalar::from_be_bytes_reduced(
+    <k256::Scalar as Reduce<k256::U256>>::from_be_bytes_reduced(
         Sha256::new()
             .chain(constants::SCHNORR_PROOF_TAG.to_be_bytes())
             .chain(stmt.prover_id.to_bytes())

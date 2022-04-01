@@ -126,7 +126,7 @@ fn compute_challenge(
     alpha: &k256::ProjectivePoint,
     beta: Option<&k256::ProjectivePoint>,
 ) -> k256::Scalar {
-    k256::Scalar::from_be_bytes_reduced(
+    <k256::Scalar as Reduce<k256::U256>>::from_be_bytes_reduced(
         Sha256::new()
             .chain(constants::PEDERSEN_PROOF_TAG.to_be_bytes())
             .chain(stmt.prover_id.to_bytes())

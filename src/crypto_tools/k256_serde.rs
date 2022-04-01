@@ -182,7 +182,7 @@ pub struct ProjectivePoint(k256::ProjectivePoint);
 
 impl ProjectivePoint {
     /// Base point of secp256k1. Wraps k256 `ProjectivePoint` generator.
-    pub const GENERATOR: Self = ProjectivePoint::GENERATOR;
+    pub const GENERATOR: Self = Self(k256::ProjectivePoint::GENERATOR);
 
     /// Returns a SEC1-encoded compressed curve point.
     pub fn to_bytes(&self) -> [u8; 33] {

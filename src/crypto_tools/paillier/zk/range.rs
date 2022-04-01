@@ -116,7 +116,7 @@ impl ZkSetup {
         u1: Option<&k256::ProjectivePoint>,
         w: &BigNumber,
     ) -> k256::Scalar {
-        let e = k256::Scalar::from_be_bytes_reduced(
+        let e = <k256::Scalar as Reduce<k256::U256>>::from_be_bytes_reduced(
             Sha256::new()
                 .chain(tag.to_be_bytes())
                 .chain(stmt.prover_id.to_bytes())

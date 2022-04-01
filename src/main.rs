@@ -1,7 +1,7 @@
 use chrono::{Datelike, Timelike, Utc};
 use clap::{Args, Parser, Result, Subcommand};
-use ecdsa::{elliptic_curve::sec1::FromEncodedPoint};
-use k256::SecretKey;
+use ecdsa::{elliptic_curve::sec1::FromEncodedPoint, hazmat::VerifyPrimitive};
+use k256::{Secp256k1, SecretKey};
 use std::{convert::TryFrom, fs, path::Path};
 use tofn::{
     collections::{TypedUsize, VecMap},
@@ -76,17 +76,17 @@ pub fn main() -> Result<()> {
 
 /// Use `alice_key` to generate `threshold` of `parties` shares, write to directory `dir`.
 fn ceygen(cli: CeygenCli) -> Result<()> {
-    let alice_key = match &cli.alice_key_byte_array {
-        Some(v) => SecretKey::from_bytes(v).expect("bad key"),
+    let alice_key: elliptic_curve::NonZeroScalar<Secp256k1> = match &cli.alice_key_byte_array {
+        Some(v) => SecretKey::from_be_bytes(v).expect("bad key"),
         None => SecretKey::random(rand::thread_rng()),
     }
-    .as_scalar_bytes()
-    .to_scalar();
+    .to_nonzero_scalar();
+
     let party_share_counts =
         PartyShareCounts::from_vec(vec![1; cli.parties]).expect("bad party initialization");
 
     let secret_key_shares =
-        gg20::ceygen::initialize_honest_parties(&party_share_counts, cli.threshold, alice_key);
+        gg20::ceygen::initialize_honest_parties(&party_share_counts, cli.threshold, *alice_key);
 
     let output_dir = if let Some(output_dir) = cli.dir.as_ref() {
         output_dir.clone()
@@ -139,10 +139,10 @@ fn sign(cli: SignCli) -> Result<()> {
         .parties
         .iter()
         .map(|index| {
-            serde_json::from_str(&fs::read_to_string(Path::new(&format!(
-                "{}/{}",
-                cli.dir, index
-            ))).expect("bummer file read"))
+            serde_json::from_str(
+                &fs::read_to_string(Path::new(&format!("{}/{}", cli.dir, index)))
+                    .expect("bummer file read"),
+            )
             .expect("bummer keyshare")
         })
         .collect();
@@ -199,7 +199,7 @@ fn sign(cli: SignCli) -> Result<()> {
     let sig = k256::ecdsa::Signature::from_der(signatures.get(TypedUsize::from_usize(0)).unwrap())
         .unwrap();
     assert!(pubkey
-        .verify_prehashed(&k256::Scalar::from(&msg_to_sign), &sig)
+        .verify_prehashed(k256::Scalar::from(&msg_to_sign.clone()), &sig)
         .is_ok());
 
     info!(
