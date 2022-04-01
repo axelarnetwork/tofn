@@ -1,3 +1,4 @@
+use elliptic_curve::{ PrimeField};
 use serde::{Deserialize, Serialize};
 use std::{
     array::TryFromSliceError,
@@ -21,6 +22,6 @@ impl TryFrom<&[u8]> for MessageDigest {
 /// SEC1 specifies to subtract the secp256k1 modulus when the byte array is larger than the modulus.
 impl From<&MessageDigest> for k256::Scalar {
     fn from(v: &MessageDigest) -> Self {
-        k256::Scalar::from_bytes_reduced(k256::FieldBytes::from_slice(&v.0[..]))
+        k256::Scalar::from_repr(*k256::FieldBytes::from_slice(&v.0[..])).unwrap()
     }
 }

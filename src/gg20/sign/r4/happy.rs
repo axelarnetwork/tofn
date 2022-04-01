@@ -137,7 +137,7 @@ impl Executer for R4Happy {
         // compute delta_inv
         let delta_inv = bcasts_in
             .iter()
-            .fold(Scalar::zero(), |acc, (_, bcast)| {
+            .fold(Scalar::ZERO, |acc, (_, bcast)| {
                 acc + bcast.delta_i.as_ref()
             })
             .invert();

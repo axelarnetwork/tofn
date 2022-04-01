@@ -74,11 +74,11 @@ pub fn sign(
 
     let signature = k256_serde::Signature::from(
         signing_key
-            .try_sign_prehashed(&ephemeral_scalar, &message_digest)
+            .try_sign_prehashed(ephemeral_scalar, message_digest)
             .map_err(|_| {
                 error!("failure to sign");
                 TofnFatal
-            })?,
+            })?.0,
     );
 
     Ok(signature.to_bytes())
@@ -98,7 +98,7 @@ pub fn verify(
     Ok(verifying_key
         .as_ref()
         .to_affine()
-        .verify_prehashed(&hashed_msg, &signature)
+        .verify_prehashed(hashed_msg, &signature)
         .is_ok())
 }
 

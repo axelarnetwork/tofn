@@ -1,3 +1,4 @@
+use super::{r2, KeygenShareIds, MessageDigest, SignProtocolBuilder, SignShareId};
 use crate::{
     collections::TypedUsize,
     crypto_tools::{k256_serde, rng},
@@ -7,10 +8,9 @@ use crate::{
         implementer_api::{serialize, RoundBuilder},
     },
 };
-use ecdsa::{elliptic_curve::Field, hazmat::SignPrimitive};
+use ecdsa::hazmat::SignPrimitive;
+use elliptic_curve::Field;
 use serde::{Deserialize, Serialize};
-
-use super::{r2, KeygenShareIds, MessageDigest, SignProtocolBuilder, SignShareId};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bcast {
@@ -35,11 +35,11 @@ pub(super) fn start(
     let ephemeral_scalar = k256::Scalar::random(rng);
 
     let signature = signing_key
-        .try_sign_prehashed(&ephemeral_scalar, &msg_to_sign)
+        .try_sign_prehashed(ephemeral_scalar.clone(), msg_to_sign.clone())
         .map_err(|_| TofnFatal)?;
 
     let bcast_out = Some(serialize(&Bcast {
-        signature: signature.into(),
+        signature: signature.0.into(),
     })?);
 
     Ok(SignProtocolBuilder::NotDone(RoundBuilder::new(

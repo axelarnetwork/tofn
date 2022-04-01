@@ -126,7 +126,7 @@ pub fn type5_checks(
         }
 
         // gamma_i
-        let Gamma_i = ProjectivePoint::generator() * bcast_type5.gamma_i.as_ref();
+        let Gamma_i = ProjectivePoint::GENERATOR * bcast_type5.gamma_i.as_ref();
         if &Gamma_i != bcast_happy.Gamma_i.as_ref() {
             warn!(
                 "peer {} says: inconsistent (gamma_i, Gamma_i) from peer {}",

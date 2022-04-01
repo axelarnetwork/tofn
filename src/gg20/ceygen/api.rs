@@ -77,7 +77,7 @@ pub fn initialize_honest_parties(
             .flatten()
             .unzip();
 
-    let y = ProjectivePoint::generator().mul(Scalar::from(alice_key));
+    let y = ProjectivePoint::GENERATOR.mul(Scalar::from(alice_key));
 
     let group_public_info = GroupPublicInfo::new(
         party_share_counts.clone(),
@@ -228,7 +228,7 @@ pub fn new_ceygen(
     }
 
     let share_public_info: SharePublicInfo = SharePublicInfo::new(
-        k256_serde::ProjectivePoint::generator().mul(share.get_scalar().clone()),
+        k256_serde::ProjectivePoint::GENERATOR.mul(share.get_scalar().clone()),
         party_keygen_data.encryption_keypair.ek.clone(),
         party_keygen_data.zk_setup.clone(),
     );

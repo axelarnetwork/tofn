@@ -12,7 +12,8 @@ use crate::{
     gg20::sign::SignShareId,
     sdk::api::{TofnFatal, TofnResult},
 };
-use ecdsa::hazmat::FromDigest;
+use elliptic_curve::ops::Reduce;
+use hmac::digest::FixedOutput;
 use libpaillier::unknown_order::BigNumber;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -121,7 +122,7 @@ impl ZkSetup {
         v: &BigNumber,
         w: &BigNumber,
     ) -> k256::Scalar {
-        let e = k256::Scalar::from_digest(
+        let e = k256::Scalar::from_be_bytes_reduced(
             Sha256::new()
                 .chain(tag.to_be_bytes())
                 .chain(stmt.prover_id.to_bytes())
@@ -135,7 +136,7 @@ impl ZkSetup {
                 .chain(t.to_bytes())
                 .chain(u.map_or([0; 33], |u| k256_serde::point_to_bytes(u)))
                 .chain(v.to_bytes())
-                .chain(w.to_bytes()),
+                .chain(w.to_bytes()).finalize_fixed(),
         );
 
         e
@@ -166,7 +167,7 @@ impl ZkSetup {
 
         // Assume: X = g^x
         if let Some(x_g) = x_g {
-            debug_assert!(*x_g == k256::ProjectivePoint::generator() * wit.x);
+            debug_assert!(*x_g == k256::ProjectivePoint::GENERATOR * wit.x);
         }
 
         let alpha = Plaintext::generate(&secp256k1_modulus_cubed());
@@ -196,7 +197,7 @@ impl ZkSetup {
 
         // u = g^alpha
         let u = x_g.map::<k256::ProjectivePoint, _>(|_| {
-            k256::ProjectivePoint::generator() * to_scalar(&alpha.0)
+            k256::ProjectivePoint::GENERATOR * to_scalar(&alpha.0)
         });
 
         // v = c1^alpha Paillier-Enc(gamma, beta) mod N^2
@@ -362,7 +363,7 @@ impl ZkSetup {
         // g^s1 ?= X^e u
         if let Some((x_g, u)) = x_g_u {
             let s1 = to_scalar(&proof.s1.0);
-            let s1_g = k256::ProjectivePoint::generator() * s1;
+            let s1_g = k256::ProjectivePoint::GENERATOR * s1;
             let s1_g_check = x_g * &e + u;
             if s1_g_check != s1_g {
                 warn!("mta proof: 'wc' check failed, invalid (g^x, u, s1)");
@@ -436,7 +437,7 @@ pub mod malicious {
         let proof = proof.clone();
         ProofWc {
             u: k256_serde::ProjectivePoint::from(
-                k256::ProjectivePoint::generator() + proof.u.as_ref(),
+                k256::ProjectivePoint::GENERATOR + proof.u.as_ref(),
             ),
             ..proof
         }
@@ -463,7 +464,7 @@ pub(crate) mod tests {
         let (ek, _dk) = &keygen_unsafe(&mut rand::thread_rng()).unwrap();
         let msg = &Plaintext(ek.sample_randomness().0.clone());
         let x = &k256::Scalar::random(rand::thread_rng());
-        let x_g = &(k256::ProjectivePoint::generator() * x);
+        let x_g = &(k256::ProjectivePoint::GENERATOR * x);
         let randomness = &ek.sample_randomness();
         let ciphertext1 = &Ciphertext(BigNumber::random(ek.0.nn()));
         let ciphertext2 = &ek.add(

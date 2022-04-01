@@ -166,7 +166,7 @@ pub fn delta_inverse_r4(
             *faulter_bcast_deserialized.1.gamma_i.as_mut() -=
                 delta_i_change * faulter_bcast_deserialized.1.k_i.as_ref().invert().unwrap();
             *faulter_bcast_deserialized.0.Gamma_i.as_mut() =
-                k256::ProjectivePoint::generator() * faulter_bcast_deserialized.1.gamma_i.as_ref()
+                k256::ProjectivePoint::GENERATOR * faulter_bcast_deserialized.1.gamma_i.as_ref()
         }
     }
 

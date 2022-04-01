@@ -141,7 +141,7 @@ fn execute_keygen_from_recovery(
     // test: each party's signing key matches her verifying key
     for (share_id, secret_key_share) in all_secret_key_shares.iter() {
         let verifying_key =
-            k256::ProjectivePoint::generator() * secret_key_share.share().signing_key().as_ref();
+            k256::ProjectivePoint::GENERATOR * secret_key_share.share().signing_key().as_ref();
         assert_eq!(
             &verifying_key,
             secret_key_share

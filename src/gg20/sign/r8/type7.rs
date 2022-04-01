@@ -173,7 +173,7 @@ impl Executer for R8Type7 {
         // compute ecdsa nonce k = sum_i k_i
         let k = bcasts_in
             .iter()
-            .fold(Scalar::zero(), |acc, (_, bcast)| acc + bcast.k_i.as_ref());
+            .fold(Scalar::ZERO, |acc, (_, bcast)| acc + bcast.k_i.as_ref());
 
         // verify zkps as per page 19 of https://eprint.iacr.org/2020/540.pdf doc version 20200511:155431
         for (peer_sign_id, bcast, peer_p2ps) in zip2(&bcasts_in, &p2ps_in) {
@@ -193,7 +193,7 @@ impl Executer for R8Type7 {
             let peer_mu_sum =
                 peer_p2ps
                     .iter()
-                    .try_fold(Scalar::zero(), |acc, (j, mta_wc_plaintext)| {
+                    .try_fold(Scalar::ZERO, |acc, (j, mta_wc_plaintext)| {
                         let mu_ij = mta_wc_plaintext.mu_plaintext.to_scalar();
                         let mu_ji = p2ps_in.get(j, peer_sign_id)?.mu_plaintext.to_scalar();
 
@@ -224,12 +224,12 @@ impl Executer for R8Type7 {
                 * peer_lambda_i_S;
 
             // compute sigma_i * G
-            let peer_g_sigma_i = peer_W_i * k + ProjectivePoint::generator() * peer_mu_sum;
+            let peer_g_sigma_i = peer_W_i * k + ProjectivePoint::GENERATOR * peer_mu_sum;
 
             // verify zkp
             let peer_stmt = &chaum_pedersen::Statement {
                 prover_id: peer_sign_id,
-                base1: &k256::ProjectivePoint::generator(),
+                base1: &k256::ProjectivePoint::GENERATOR,
                 base2: &self.R,
                 target1: &peer_g_sigma_i, // sigma_i * G
                 target2: self.r6bcasts.get(peer_sign_id)?.S_i.as_ref(), // sigma_i * R == S_i

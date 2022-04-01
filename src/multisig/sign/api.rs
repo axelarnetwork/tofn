@@ -93,9 +93,9 @@ pub fn new_sign(
 #[cfg(test)]
 mod tests {
     use ecdsa::{
-        elliptic_curve::Field,
         hazmat::{SignPrimitive, VerifyPrimitive},
     };
+    use elliptic_curve::Field;
 
     #[test]
     fn sign_verify() {
@@ -103,11 +103,11 @@ mod tests {
         let hashed_msg = k256::Scalar::random(rand::thread_rng());
         let ephemeral_scalar = k256::Scalar::random(rand::thread_rng());
         let signature = signing_key
-            .try_sign_prehashed(&ephemeral_scalar, &hashed_msg)
+            .try_sign_prehashed(ephemeral_scalar, hashed_msg)
             .unwrap();
-        let verifying_key = (k256::ProjectivePoint::generator() * signing_key).to_affine();
+        let verifying_key = (k256::ProjectivePoint::GENERATOR * signing_key).to_affine();
         verifying_key
-            .verify_prehashed(&hashed_msg, &signature)
+            .verify_prehashed(hashed_msg, &signature.0)
             .unwrap();
     }
 }

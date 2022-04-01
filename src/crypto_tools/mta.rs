@@ -118,7 +118,7 @@ pub fn mta_response_with_proof_wc(
                 ciphertext2: &c_b,
                 ek: a_ek,
             },
-            x_g: &(k256::ProjectivePoint::generator() * b),
+            x_g: &(k256::ProjectivePoint::GENERATOR * b),
         },
         &mta::Witness {
             x: b,
@@ -131,7 +131,7 @@ pub fn mta_response_with_proof_wc(
 
 #[cfg(test)]
 mod tests {
-    use ecdsa::elliptic_curve::Field;
+    use elliptic_curve::Field;
 
     use super::{mta_response_with_proof_wc, verify_mta_response};
     use crate::{
@@ -146,7 +146,7 @@ mod tests {
     fn basic_correctness() {
         let a = k256::Scalar::random(rand::thread_rng());
         let b = k256::Scalar::random(rand::thread_rng());
-        let b_g = k256::ProjectivePoint::generator() * b;
+        let b_g = k256::ProjectivePoint::GENERATOR * b;
         let (a_ek, a_dk) = keygen_unsafe(&mut rand::thread_rng()).unwrap();
         let (a_zkp, _) =
             ZkSetup::new_unsafe(&mut rand::thread_rng(), &0_u32.to_be_bytes()).unwrap();

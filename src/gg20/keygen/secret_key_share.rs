@@ -236,7 +236,7 @@ impl SecretKeyShare {
 
         // verify recovery of x_i using X_i
         #[allow(non_snake_case)]
-        let X_i = &(ProjectivePoint::generator() * x_i);
+        let X_i = &(ProjectivePoint::GENERATOR * x_i);
 
         if X_i != all_shares.get(share_id)?.X_i.as_ref() {
             error!("peer {} says: recovered X_i mismatch", share_id);

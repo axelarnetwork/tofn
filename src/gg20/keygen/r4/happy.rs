@@ -78,7 +78,7 @@ impl Executer for R4Happy {
             if !schnorr::verify(
                 &schnorr::Statement {
                     prover_id: peer_keygen_id,
-                    base: &k256::ProjectivePoint::generator(),
+                    base: &k256::ProjectivePoint::GENERATOR,
                     target: self.all_X_i.get(peer_keygen_id)?,
                 },
                 &bcast.x_i_proof,

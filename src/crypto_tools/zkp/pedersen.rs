@@ -7,10 +7,7 @@ use crate::{
     gg20::sign::SignShareId,
     sdk::api::{TofnFatal, TofnResult},
 };
-use ecdsa::{
-    elliptic_curve::{sec1::FromEncodedPoint, Field},
-    hazmat::FromDigest,
-};
+use elliptic_curve::{ops::Reduce, sec1::FromEncodedPoint};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tracing::{error, warn};
@@ -70,7 +67,7 @@ pub fn alternate_generator() -> k256::ProjectivePoint {
 
 // commit returns (commitment, randomness)
 pub fn commit(msg: &k256::Scalar) -> (k256::ProjectivePoint, k256::Scalar) {
-    let randomness = k256::Scalar::random(rand::thread_rng());
+    let randomness = <k256::Scalar as elliptic_curve::Field>::random(rand::thread_rng());
     (commit_with_randomness(msg, &randomness), randomness)
 }
 
@@ -79,7 +76,7 @@ pub fn commit_with_randomness(
     msg: &k256::Scalar,
     randomness: &k256::Scalar,
 ) -> k256::ProjectivePoint {
-    (k256::ProjectivePoint::generator() * msg) + (alternate_generator() * randomness)
+    (k256::ProjectivePoint::GENERATOR * msg) + (alternate_generator() * randomness)
 }
 
 // statement (commitment), witness (msg, randomness)
@@ -125,7 +122,7 @@ fn compute_challenge(
     alpha: &k256::ProjectivePoint,
     beta: Option<&k256::ProjectivePoint>,
 ) -> k256::Scalar {
-    k256::Scalar::from_digest(
+    k256::Scalar::from_be_bytes_reduced(
         Sha256::new()
             .chain(constants::PEDERSEN_PROOF_TAG.to_be_bytes())
             .chain(stmt.prover_id.to_bytes())
@@ -133,7 +130,8 @@ fn compute_challenge(
             .chain(&msg_g_g.map_or([0; 33], |(msg_g, _)| k256_serde::point_to_bytes(msg_g)))
             .chain(&msg_g_g.map_or([0; 33], |(_, g)| k256_serde::point_to_bytes(g)))
             .chain(k256_serde::point_to_bytes(alpha))
-            .chain(&beta.map_or([0; 33], |beta| k256_serde::point_to_bytes(beta))),
+            .chain(&beta.map_or([0; 33], |beta| k256_serde::point_to_bytes(beta)))
+            .finalize_fixed(),
     )
 }
 
@@ -215,7 +213,7 @@ pub mod malicious {
 
     pub fn corrupt_proof(proof: &Proof) -> Proof {
         Proof {
-            u: k256_serde::Scalar::from(proof.u.as_ref() + k256::Scalar::one()),
+            u: k256_serde::Scalar::from(proof.u.as_ref() + k256::Scalar::ONE),
             ..proof.clone()
         }
     }
@@ -223,7 +221,7 @@ pub mod malicious {
     pub fn corrupt_proof_wc(proof: &ProofWc) -> ProofWc {
         ProofWc {
             beta: k256_serde::ProjectivePoint::from(
-                k256::ProjectivePoint::generator() + proof.beta.as_ref(),
+                k256::ProjectivePoint::GENERATOR + proof.beta.as_ref(),
             ),
             ..proof.clone()
         }
@@ -232,7 +230,7 @@ pub mod malicious {
 
 #[cfg(test)]
 mod tests {
-    use ecdsa::elliptic_curve::group::prime::PrimeCurveAffine;
+    use elliptic_curve::{sec1::FromEncodedPoint, Field};
 
     use super::{
         malicious::{corrupt_proof, corrupt_proof_wc},
@@ -242,7 +240,7 @@ mod tests {
     #[test]
     fn basic_correctness() {
         let msg = &k256::Scalar::random(rand::thread_rng());
-        let g = &k256::ProjectivePoint::generator();
+        let g = &k256::ProjectivePoint::GENERATOR;
         let msg_g = &(g * msg);
         let (commit, randomness) = &commit(msg);
 
@@ -292,7 +290,7 @@ mod tests {
 
         // test: bad witness
         let bad_wit = &Witness {
-            msg: &(*wit.msg + k256::Scalar::one()),
+            msg: &(*wit.msg + k256::Scalar::ONE),
             ..*wit
         };
         let bad_proof = prove(stmt, bad_wit);
@@ -304,13 +302,13 @@ mod tests {
     }
 
     #[test]
-    /// This test proves that the return value of `alternate_generator()`
+    /// This test proves that the return value of `alternate_GENERATOR`
     /// has unknown discrete log with respect to the secp256k1 curve generator
     fn secp256k1_alternate_generator() {
         // prepare a pseudorandom SEC1 encoding of a k256 curve point
         let hash = Sha256::new()
             .chain(constants::PEDERSEN_SECP256K1_ALTERNATE_GENERATOR_TAG.to_be_bytes())
-            .chain(k256::EncodedPoint::from(k256::AffinePoint::generator()).as_bytes())
+            .chain(k256::EncodedPoint::from(k256::AffinePoint::GENERATOR).as_bytes())
             .chain(&[0x01])
             .finalize();
         let mut bytes = vec![0x02]; // use even y-coordinate using SEC1 encoding

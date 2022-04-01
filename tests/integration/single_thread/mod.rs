@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 
-use crate::common::keygen;
-use ecdsa::{elliptic_curve::sec1::FromEncodedPoint, hazmat::VerifyPrimitive};
+use crate::common;
+use ecdsa::{elliptic_curve::sec1::FromEncodedPoint };
 use execute::*;
 use tofn::{
     collections::{TypedUsize, VecMap},

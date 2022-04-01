@@ -21,6 +21,7 @@ use crate::{
     },
 };
 use ecdsa::elliptic_curve::sec1::ToEncodedPoint;
+use elliptic_curve::PrimeField;
 use k256::{ProjectivePoint, Scalar};
 use tracing::{error, warn};
 
@@ -140,7 +141,7 @@ impl Executer for R7Happy {
         // check for failure of type 7 from section 4.2 of https://eprint.iacr.org/2020/540.pdf
         let S_i_sum = bcasts_in
             .iter()
-            .fold(ProjectivePoint::identity(), |acc, (_, bcast)| {
+            .fold(ProjectivePoint::IDENTITY, |acc, (_, bcast)| {
                 acc + bcast.S_i.as_ref()
             });
 
@@ -167,9 +168,9 @@ impl Executer for R7Happy {
             let proof = chaum_pedersen::prove(
                 &chaum_pedersen::Statement {
                     prover_id: my_sign_id,
-                    base1: &k256::ProjectivePoint::generator(),
+                    base1: &k256::ProjectivePoint::GENERATOR,
                     base2: &self.R,
-                    target1: &(k256::ProjectivePoint::generator() * self.sigma_i),
+                    target1: &(k256::ProjectivePoint::GENERATOR * self.sigma_i),
                     target2: bcasts_in.get(my_sign_id)?.S_i.as_ref(),
                 },
                 &chaum_pedersen::Witness {
@@ -201,7 +202,7 @@ impl Executer for R7Happy {
 
         // compute r, s_i
         // reference for r: https://docs.rs/k256/0.8.1/src/k256/ecdsa/sign.rs.html#223-225
-        let r = k256::Scalar::from_bytes_reduced(
+        let r = k256::Scalar::from_repr(
             self.R
                 .to_affine()
                 .to_encoded_point(true)
@@ -209,9 +210,10 @@ impl Executer for R7Happy {
                 .ok_or_else(|| {
                     error!("Invalid R point");
                     TofnFatal
-                })?,
+                })?.clone(),
         );
 
+        let r = r.unwrap();
         let s_i = self.msg_to_sign * self.k_i + r * self.sigma_i;
 
         corrupt!(s_i, self.corrupt_s_i(my_sign_id, s_i));
@@ -270,7 +272,7 @@ mod malicious {
         ) -> k256::ProjectivePoint {
             if let R7FalseType7Claim = self.behaviour {
                 log_confess_info(sign_id, &self.behaviour, "");
-                S_i += k256::ProjectivePoint::generator();
+                S_i += k256::ProjectivePoint::GENERATOR;
             }
             S_i
         }
