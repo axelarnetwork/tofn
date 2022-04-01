@@ -14,11 +14,13 @@ use crate::{
     gg20::sign::SignShareId,
     sdk::api::{TofnFatal, TofnResult},
 };
-use elliptic_curve::ops::Reduce;
-use hmac::digest::FixedOutput;
 use libpaillier::unknown_order::BigNumber;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+use sha2::{
+    digest::{FixedOutput, Update},
+    Digest, Sha256,
+};
+use elliptic_curve::ops::Reduce;
 use tracing::{error, warn};
 
 use super::secp256k1_modulus_cubed;
@@ -126,7 +128,8 @@ impl ZkSetup {
                 .chain(z.to_bytes())
                 .chain(u.0.to_bytes())
                 .chain(u1.map_or([0; 33], |u1| k256_serde::point_to_bytes(u1)))
-                .chain(w.to_bytes()).finalize_fixed()
+                .chain(w.to_bytes())
+                .finalize_fixed(),
         );
 
         e

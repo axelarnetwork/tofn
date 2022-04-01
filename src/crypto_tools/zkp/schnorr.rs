@@ -6,9 +6,10 @@ use crate::{
     },
     gg20::keygen::KeygenShareId,
 };
+use elliptic_curve::ops::Reduce;
 use hmac::digest::FixedOutput;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+use sha2::{digest::Update, Digest, Sha256};
 use tracing::warn;
 
 #[derive(Clone, Debug)]
@@ -37,7 +38,8 @@ fn compute_challenge(stmt: &Statement, alpha: &k256::ProjectivePoint) -> k256::S
             .chain(stmt.prover_id.to_bytes())
             .chain(k256_serde::point_to_bytes(stmt.base))
             .chain(k256_serde::point_to_bytes(stmt.target))
-            .chain(k256_serde::point_to_bytes(alpha)).finalize_fixed()
+            .chain(k256_serde::point_to_bytes(alpha))
+            .finalize_fixed(),
     )
 }
 

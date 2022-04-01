@@ -4,7 +4,7 @@ use std::{
 };
 
 use ecdsa::elliptic_curve::generic_array::GenericArray;
-use hmac::{Hmac, Mac, NewMac};
+use hmac::{Hmac, Mac};
 use rand::{CryptoRng, RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use sha2::Sha256;

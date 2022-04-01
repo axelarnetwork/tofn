@@ -16,7 +16,7 @@ use elliptic_curve::ops::Reduce;
 use hmac::digest::FixedOutput;
 use libpaillier::unknown_order::BigNumber;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+use sha2::{digest::Update, Digest, Sha256};
 use tracing::{error, warn};
 
 use super::{secp256k1_modulus_cubed, secp256k1_modulus_squared};
@@ -136,7 +136,8 @@ impl ZkSetup {
                 .chain(t.to_bytes())
                 .chain(u.map_or([0; 33], |u| k256_serde::point_to_bytes(u)))
                 .chain(v.to_bytes())
-                .chain(w.to_bytes()).finalize_fixed(),
+                .chain(w.to_bytes())
+                .finalize_fixed(),
         );
 
         e

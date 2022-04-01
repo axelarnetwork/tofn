@@ -9,7 +9,11 @@ use crate::{
 };
 use elliptic_curve::{ops::Reduce, sec1::FromEncodedPoint};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+use sha2::{
+    digest::{FixedOutput, Update},
+    Digest, Sha256,
+};
+
 use tracing::{error, warn};
 
 #[derive(Clone, Debug)]

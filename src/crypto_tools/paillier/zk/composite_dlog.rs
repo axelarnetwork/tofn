@@ -17,7 +17,7 @@
 use libpaillier::unknown_order::BigNumber;
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+use sha2::{digest::Update, Digest, Sha256};
 use tracing::warn;
 use zeroize::Zeroize;
 

@@ -6,11 +6,11 @@ use crate::{
     },
     gg20::sign::SignShareId,
 };
-use hmac::digest::FixedOutput;
-use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
-use tracing::warn;
 use elliptic_curve::ops::Reduce;
+use serde::{Deserialize, Serialize};
+use sha2::digest::FixedOutput;
+use sha2::{digest::Update, Digest, Sha256};
+use tracing::warn;
 
 #[derive(Clone, Debug)]
 pub struct Statement<'a> {
@@ -47,7 +47,8 @@ fn compute_challenge(
             .chain(k256_serde::point_to_bytes(stmt.target1))
             .chain(k256_serde::point_to_bytes(stmt.target2))
             .chain(alpha1.to_bytes())
-            .chain(alpha2.to_bytes()).finalize_fixed()
+            .chain(alpha2.to_bytes())
+            .finalize_fixed(),
     )
 }
 
