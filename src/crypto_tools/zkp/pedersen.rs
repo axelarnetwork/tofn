@@ -306,7 +306,7 @@ mod tests {
     }
 
     #[test]
-    /// This test proves that the return value of `alternate_generator`
+    /// This test proves that the return value of `alternate_generator()`
     /// has unknown discrete log with respect to the secp256k1 curve generator
     fn secp256k1_alternate_generator() {
         // prepare a pseudorandom SEC1 encoding of a k256 curve point
