@@ -7,7 +7,7 @@ use crate::{
     gg20::sign::SignShareId,
     sdk::api::{TofnFatal, TofnResult},
 };
-use elliptic_curve::{ops::Reduce, sec1::FromEncodedPoint};
+use elliptic_curve::{ops::Reduce, sec1::FromEncodedPoint, Field};
 use serde::{Deserialize, Serialize};
 use sha2::{
     digest::{FixedOutput, Update},
@@ -71,7 +71,7 @@ pub fn alternate_generator() -> k256::ProjectivePoint {
 
 // commit returns (commitment, randomness)
 pub fn commit(msg: &k256::Scalar) -> (k256::ProjectivePoint, k256::Scalar) {
-    let randomness = <k256::Scalar as elliptic_curve::Field>::random(rand::thread_rng());
+    let randomness = k256::Scalar::random(rand::thread_rng());
     (commit_with_randomness(msg, &randomness), randomness)
 }
 
@@ -306,7 +306,7 @@ mod tests {
     }
 
     #[test]
-    /// This test proves that the return value of `alternate_GENERATOR`
+    /// This test proves that the return value of `alternate_generator`
     /// has unknown discrete log with respect to the secp256k1 curve generator
     fn secp256k1_alternate_generator() {
         // prepare a pseudorandom SEC1 encoding of a k256 curve point
