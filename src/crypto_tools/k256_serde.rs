@@ -6,7 +6,7 @@
 //! [Implementing Deserialize · Serde](https://serde.rs/impl-deserialize.html)
 
 use ecdsa::elliptic_curve::{consts::U33, generic_array::GenericArray};
-use elliptic_curve::{PrimeField, Field, ops::Reduce};
+use elliptic_curve::{ops::Reduce, Field};
 use k256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
 use rand::{CryptoRng, RngCore};
 use serde::{de, de::Error, de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
@@ -28,9 +28,7 @@ impl AsRef<k256::Scalar> for SecretScalar {
 
 impl SecretScalar {
     pub fn random_with_thread_rng() -> Self {
-        Self(Scalar(k256::Scalar::random(
-            rand::thread_rng(),
-        )))
+        Self(Scalar(k256::Scalar::random(rand::thread_rng())))
     }
 
     pub fn random(rng: impl CryptoRng + RngCore) -> Self {
