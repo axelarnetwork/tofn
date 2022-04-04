@@ -6,7 +6,7 @@
 //! [Implementing Deserialize · Serde](https://serde.rs/impl-deserialize.html)
 
 use ecdsa::elliptic_curve::{consts::U33, generic_array::GenericArray};
-use elliptic_curve::PrimeField;
+use elliptic_curve::{PrimeField, Field, ops::Reduce};
 use k256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
 use rand::{CryptoRng, RngCore};
 use serde::{de, de::Error, de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
@@ -28,13 +28,13 @@ impl AsRef<k256::Scalar> for SecretScalar {
 
 impl SecretScalar {
     pub fn random_with_thread_rng() -> Self {
-        Self(Scalar(<k256::Scalar as elliptic_curve::Field>::random(
+        Self(Scalar(k256::Scalar::random(
             rand::thread_rng(),
         )))
     }
 
     pub fn random(rng: impl CryptoRng + RngCore) -> Self {
-        Self(Scalar(<k256::Scalar as elliptic_curve::Field>::random(rng)))
+        Self(Scalar(k256::Scalar::random(rng)))
     }
 }
 
@@ -77,7 +77,7 @@ impl<'de> Deserialize<'de> for Scalar {
     {
         let bytes: [u8; 32] = Deserialize::deserialize(deserializer)?;
         let field_bytes = k256::FieldBytes::from(bytes);
-        let scalar = k256::Scalar::from_repr(field_bytes).unwrap();
+        let scalar = <k256::Scalar as Reduce<k256::U256>>::from_be_bytes_reduced(field_bytes);
 
         // ensure bytes encodes an integer less than the secp256k1 modulus
         // if not then scalar.to_bytes() will differ from bytes
