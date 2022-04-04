@@ -21,7 +21,7 @@ use crate::{
     },
 };
 use ecdsa::elliptic_curve::sec1::ToEncodedPoint;
-use elliptic_curve::PrimeField;
+use elliptic_curve::ops::Reduce;
 use k256::{ProjectivePoint, Scalar};
 use tracing::{error, warn};
 
@@ -202,7 +202,7 @@ impl Executer for R7Happy {
 
         // compute r, s_i
         // reference for r: https://docs.rs/k256/0.8.1/src/k256/ecdsa/sign.rs.html#223-225
-        let r = k256::Scalar::from_repr(
+        let r = <k256::Scalar as Reduce<k256::U256>>::from_be_bytes_reduced(
             self.R
                 .to_affine()
                 .to_encoded_point(true)
@@ -213,7 +213,6 @@ impl Executer for R7Happy {
                 })?.clone(),
         );
 
-        let r = r.unwrap();
         let s_i = self.msg_to_sign * self.k_i + r * self.sigma_i;
 
         corrupt!(s_i, self.corrupt_s_i(my_sign_id, s_i));

@@ -3,7 +3,7 @@
 //! * provide an ergonomic API
 //! * facilitate easy swap-out of Paillier back-end
 
-use elliptic_curve::PrimeField;
+use elliptic_curve::{ ops::Reduce};
 use libpaillier::unknown_order::BigNumber;
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
@@ -176,7 +176,7 @@ fn to_scalar(bigint: &BigNumber) -> k256::Scalar {
     let s_vec = to_vec(&s);
     let s_pad = pad32(s_vec);
     let s_bytes = *k256::FieldBytes::from_slice(&s_pad);
-    k256::Scalar::from_repr(s_bytes).unwrap()
+    <k256::Scalar as Reduce<k256::U256>>::from_be_bytes_reduced(s_bytes)
 }
 
 fn to_vec(bigint: &BigNumber) -> Vec<u8> {

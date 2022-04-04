@@ -14,7 +14,7 @@ use crate::{
     },
 };
 use ecdsa::{elliptic_curve::sec1::ToEncodedPoint, hazmat::VerifyPrimitive};
-use elliptic_curve::PrimeField;
+use elliptic_curve::ops::Reduce;
 use k256::{ecdsa::Signature, ProjectivePoint};
 use tracing::debug;
 use tracing_test::traced_test;
@@ -228,7 +228,9 @@ fn execute_sign(
 
     // TEST: everyone correctly computed the signature using non-threshold ECDSA sign
     let m: k256::Scalar = msg_to_sign.into();
-    let r = k256::Scalar::from_repr(*R.to_affine().to_encoded_point(true).x().unwrap()).unwrap();
+    let r = <k256::Scalar as Reduce<k256::U256>>::from_be_bytes_reduced(
+        *R.to_affine().to_encoded_point(true).x().unwrap(),
+    );
     let s = k * (m + x * r);
 
     let sig = {
@@ -250,8 +252,6 @@ fn execute_sign(
     let pub_key = y.to_affine();
     assert!(pub_key.verify_prehashed(m, &sig).is_ok());
 }
-
-
 
 #[test]
 #[traced_test]
