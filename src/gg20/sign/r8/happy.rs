@@ -90,11 +90,11 @@ impl Executer for R8Happy {
                 TofnFatal
             })?;
 
-            sig.normalize_s().ok_or_else(||{
+            sig.normalize_s().ok_or_else(|| {
                 error!("signature normalization failed");
                 TofnFatal
             })?;
-            
+
             sig
         };
 

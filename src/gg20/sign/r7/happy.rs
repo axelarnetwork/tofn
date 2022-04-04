@@ -210,7 +210,8 @@ impl Executer for R7Happy {
                 .ok_or_else(|| {
                     error!("Invalid R point");
                     TofnFatal
-                })?.clone(),
+                })?
+                .clone(),
         );
 
         let s_i = self.msg_to_sign * self.k_i + r * self.sigma_i;

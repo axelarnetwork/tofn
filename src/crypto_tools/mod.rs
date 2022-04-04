@@ -5,5 +5,6 @@ pub mod message_digest;
 pub mod mta;
 pub mod paillier;
 pub mod rng;
+pub mod ss;
 pub mod vss;
 pub mod zkp;

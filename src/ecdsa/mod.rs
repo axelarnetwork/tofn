@@ -78,7 +78,8 @@ pub fn sign(
             .map_err(|_| {
                 error!("failure to sign");
                 TofnFatal
-            })?.0,
+            })?
+            .0,
     );
 
     Ok(signature.to_bytes())

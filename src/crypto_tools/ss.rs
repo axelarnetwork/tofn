@@ -37,7 +37,7 @@ impl Ss {
     }
 
     #[allow(dead_code)]
-    pub fn get_secret(&self) -> &k256::Scalar{
+    pub fn get_secret(&self) -> &k256::Scalar {
         &self.secret_coeffs[0]
     }
 
@@ -53,7 +53,9 @@ impl Ss {
                         .secret_coeffs
                         .iter()
                         .rev()
-                        .fold(k256::Scalar::zero(), |acc, coeff| acc * index_scalar + coeff)
+                        .fold(k256::Scalar::zero(), |acc, coeff| {
+                            acc * index_scalar + coeff
+                        })
                         .into(),
                     index,
                 }

@@ -14,13 +14,13 @@ use crate::{
     gg20::sign::SignShareId,
     sdk::api::{TofnFatal, TofnResult},
 };
+use elliptic_curve::ops::Reduce;
 use libpaillier::unknown_order::BigNumber;
 use serde::{Deserialize, Serialize};
 use sha2::{
     digest::{FixedOutput, Update},
     Digest, Sha256,
 };
-use elliptic_curve::ops::Reduce;
 use tracing::{error, warn};
 
 use super::secp256k1_modulus_cubed;

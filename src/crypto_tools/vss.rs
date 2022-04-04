@@ -15,6 +15,8 @@ pub struct Vss {
 }
 
 impl Vss {
+    /// Recall that a t-of-n sharing requires t+1 points of a degree t polynomial to recover the secret.
+    /// Therefore, select t random coefficients.
     pub fn new(threshold: usize) -> Self {
         let secret_coeffs: Vec<k256::Scalar> = (0..=threshold)
             .map(|_| k256::Scalar::random(rand::thread_rng()))

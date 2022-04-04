@@ -10,5 +10,6 @@ macro_rules! corrupt {
     };
 }
 
+pub mod ceygen;
 pub mod keygen;
 pub mod sign;
