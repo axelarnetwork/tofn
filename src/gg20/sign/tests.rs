@@ -235,7 +235,7 @@ fn execute_sign(
 
     let sig = {
         let sig = Signature::from_scalars(r, s).unwrap();
-        sig.normalize_s().unwrap();
+        let sig = sig.normalize_s().unwrap();
         sig
     };
     let encoded_sig = sig.to_der().as_bytes().to_vec();
