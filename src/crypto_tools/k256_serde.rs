@@ -6,7 +6,7 @@
 //! [Implementing Deserialize · Serde](https://serde.rs/impl-deserialize.html)
 
 use ecdsa::elliptic_curve::{consts::U33, generic_array::GenericArray};
-use elliptic_curve::{ops::Reduce, Field};
+use elliptic_curve::{group::GroupEncoding, ops::Reduce, Field};
 use k256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
 use rand::{CryptoRng, RngCore};
 use serde::{de, de::Error, de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
@@ -184,9 +184,7 @@ impl ProjectivePoint {
 
     /// Returns a SEC1-encoded compressed curve point.
     pub fn to_bytes(&self) -> [u8; 33] {
-        to_array33(elliptic_curve::group::GroupEncoding::to_bytes(
-            &self.0.to_affine(),
-        ))
+        to_array33(self.0.to_affine().to_bytes())
     }
 
     /// Decode from a SEC1-encoded curve point.

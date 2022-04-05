@@ -7,7 +7,6 @@ use crate::{
     },
 };
 use ecdsa::hazmat::VerifyPrimitive;
-
 use tracing::{error, warn};
 
 use super::{r1, KeygenShareIds, SignProtocolOutput, SignShareId, SignatureShare};

@@ -131,8 +131,6 @@ pub fn mta_response_with_proof_wc(
 
 #[cfg(test)]
 mod tests {
-    use elliptic_curve::Field;
-
     use super::{mta_response_with_proof_wc, verify_mta_response};
     use crate::{
         collections::TypedUsize,
@@ -141,6 +139,7 @@ mod tests {
             zk::{mta, range, ZkSetup},
         },
     };
+    use elliptic_curve::Field;
 
     #[test]
     fn basic_correctness() {
