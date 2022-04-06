@@ -89,10 +89,7 @@ impl Executer for R8Happy {
                 error!("scalars to signature conversion failed");
                 TofnFatal
             })?;
-            sig.normalize_s().ok_or_else(|| {
-                error!("signature normalization failed");
-                TofnFatal
-            })?
+            sig.normalize_s().unwrap_or(sig)
         };
 
         let pub_key = &self.secret_key_share.group().y().as_ref().to_affine();
