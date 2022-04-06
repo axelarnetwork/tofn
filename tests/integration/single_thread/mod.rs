@@ -55,11 +55,7 @@ fn basic_correctness() {
     );
 
     debug!("keygen...");
-<<<<<<< HEAD
-    let keygen_shares = keygen::initialize_honest_parties(&party_share_counts, threshold);
-=======
-    let keygen_shares = common::initialize_honest_parties(&party_share_counts, threshold);
->>>>>>> 4873082 (cargo fmt)
+    let keygen_shares = common::keygen::initialize_honest_parties(&party_share_counts, threshold);
     let keygen_share_outputs = execute_protocol(keygen_shares).expect("internal tofn error");
     let secret_key_shares: VecMap<KeygenShareId, SecretKeyShare> =
         keygen_share_outputs.map2(|(keygen_share_id, keygen_share)| match keygen_share {
