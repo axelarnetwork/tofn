@@ -5,8 +5,9 @@
 //! [Implementing Serialize · Serde](https://serde.rs/impl-serialize.html)
 //! [Implementing Deserialize · Serde](https://serde.rs/impl-deserialize.html)
 
-use ecdsa::elliptic_curve::{consts::U33, generic_array::GenericArray, Field, ops::Reduce, group::GroupEncoding};
-// use elliptic_curve::{group::GroupEncoding, ops::Reduce, Field};
+use ecdsa::elliptic_curve::{
+    consts::U33, generic_array::GenericArray, group::GroupEncoding, ops::Reduce, Field,
+};
 use k256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
 use rand::{CryptoRng, RngCore};
 use serde::{de, de::Error, de::Visitor, Deserialize, Deserializer, Serialize, Serializer};

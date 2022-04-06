@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use crate::{
     collections::TypedUsize,
     crypto_tools::{constants, hash, k256_serde::point_to_bytes, paillier, vss},
@@ -76,8 +78,8 @@ pub(super) fn start(
         .all_shares()
         .get(my_keygen_id)?
         .ek();
-    let (k_i_ciphertext, k_i_randomness) = ek.encrypt(&(&k_i).into());
 
+    let (k_i_ciphertext, k_i_randomness) = ek.encrypt(&k_i.borrow().into());
     let p2ps_out = Some(
         peer_keygen_ids.ref_map2_result(|(peer_sign_id, &peer_keygen_id)| {
             let peer_zkp = secret_key_share

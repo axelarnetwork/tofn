@@ -13,7 +13,10 @@ use crate::{
         implementer_api::{serialize, ExpectedMsgTypes, MsgType},
     },
 };
-use ecdsa::{elliptic_curve::{sec1::ToEncodedPoint, ops::Reduce}, hazmat::VerifyPrimitive};
+use ecdsa::{
+    elliptic_curve::{ops::Reduce, sec1::ToEncodedPoint},
+    hazmat::VerifyPrimitive,
+};
 use k256::{ecdsa::Signature, ProjectivePoint};
 use tracing::debug;
 use tracing_test::traced_test;

@@ -47,6 +47,7 @@ pub(super) struct R6 {
     pub(super) behaviour: Behaviour,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Bcast {
     Happy(BcastHappy),

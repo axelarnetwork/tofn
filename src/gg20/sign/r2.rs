@@ -37,6 +37,7 @@ pub(super) struct R2 {
     pub(super) behaviour: Behaviour,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum P2p {
     Happy(P2pHappy),

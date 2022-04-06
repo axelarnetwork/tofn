@@ -84,7 +84,7 @@ pub(crate) fn rng_seed_ecdsa_signing_key(
     // Take care not to copy [secret_recovery_key]
     // This explicit declaration ensures that we use the following reference-to-reference conversion:
     // https://docs.rs/generic-array/0.14.4/src/generic_array/lib.rs.html#553-563
-    let hmac_key: &GenericArray<_, _> = (&secret_recovery_key.0[..]).into();
+    let hmac_key: &GenericArray<_, _> = (secret_recovery_key.0[..]).into();
 
     let mut prf = Hmac::<Sha256>::new(hmac_key);
 

@@ -20,7 +20,7 @@ use crate::{
         implementer_api::{serialize, Executer, ProtocolBuilder, ProtocolInfo, RoundBuilder},
     },
 };
-use ecdsa::elliptic_curve::{sec1::ToEncodedPoint, ops::Reduce};
+use ecdsa::elliptic_curve::{ops::Reduce, sec1::ToEncodedPoint};
 use k256::{ProjectivePoint, Scalar};
 use tracing::{error, warn};
 
@@ -202,15 +202,15 @@ impl Executer for R7Happy {
         // compute r, s_i
         // reference for r: https://docs.rs/k256/0.8.1/src/k256/ecdsa/sign.rs.html#223-225
         let r = <k256::Scalar as Reduce<k256::U256>>::from_be_bytes_reduced(
-            self.R
+            *self
+                .R
                 .to_affine()
                 .to_encoded_point(true)
                 .x()
                 .ok_or_else(|| {
                     error!("Invalid R point");
                     TofnFatal
-                })?
-                .clone(),
+                })?,
         );
 
         let s_i = self.msg_to_sign * self.k_i + r * self.sigma_i;
