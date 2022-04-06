@@ -1,7 +1,7 @@
 [package]
 name = "tofn"
 version = "0.1.0"
-authors = ["Gus Gutoski <gus@axelar.network>", "Milap Sheth <milap@axelar.network>", "Thor Kamphefner <thor@entropy.xyz>"]
+authors = ["Gus Gutoski <gus@axelar.network>", "Milap Sheth <milap@axelar.network>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
 
@@ -16,7 +16,6 @@ hmac = "0.12.1"
 zeroize = { version = "1.4", features = ["zeroize_derive"] }
 
 # k256 baggage
-# elliptic-curve = {version = "0.11.12", features = ["digest","arithmetic"]}
 k256 = { version = "0.10.4", features = ["ecdsa", "ecdsa-core", "serde"]}
 ecdsa = { version = "0.13.4", features = ["digest", "arithmetic", "hazmat"]} # needed only for FromDigest trait
 rand = "0.8"
