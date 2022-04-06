@@ -16,7 +16,7 @@ hmac = "0.12.1"
 zeroize = { version = "1.4", features = ["zeroize_derive"] }
 
 # k256 baggage
-elliptic-curve = {version = "0.11.12", features = ["digest","arithmetic"]}
+# elliptic-curve = {version = "0.11.12", features = ["digest","arithmetic"]}
 k256 = { version = "0.10.4", features = ["ecdsa", "ecdsa-core", "serde"]}
 ecdsa = { version = "0.13.4", features = ["digest", "arithmetic", "hazmat"]} # needed only for FromDigest trait
 rand = "0.8"

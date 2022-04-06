@@ -12,7 +12,7 @@ use crate::{
     gg20::sign::SignShareId,
     sdk::api::{TofnFatal, TofnResult},
 };
-use elliptic_curve::ops::Reduce;
+use ecdsa::elliptic_curve::ops::Reduce;
 use hmac::digest::FixedOutput;
 use libpaillier::unknown_order::BigNumber;
 use serde::{Deserialize, Serialize};

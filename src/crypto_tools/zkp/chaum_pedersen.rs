@@ -6,7 +6,8 @@ use crate::{
     },
     gg20::sign::SignShareId,
 };
-use elliptic_curve::ops::Reduce;
+
+use ecdsa::elliptic_curve::ops::Reduce;
 use serde::{Deserialize, Serialize};
 use sha2::digest::FixedOutput;
 use sha2::{digest::Update, Digest, Sha256};

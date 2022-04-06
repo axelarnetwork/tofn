@@ -3,7 +3,7 @@
 //! * provide an ergonomic API
 //! * facilitate easy swap-out of Paillier back-end
 
-use elliptic_curve::ops::Reduce;
+use ecdsa::elliptic_curve::ops::Reduce;
 use libpaillier::unknown_order::BigNumber;
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};

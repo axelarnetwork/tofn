@@ -14,7 +14,7 @@ use crate::{
     gg20::sign::SignShareId,
     sdk::api::{TofnFatal, TofnResult},
 };
-use elliptic_curve::ops::Reduce;
+use ecdsa::elliptic_curve::ops::Reduce;
 use libpaillier::unknown_order::BigNumber;
 use serde::{Deserialize, Serialize};
 use sha2::{

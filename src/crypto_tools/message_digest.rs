@@ -1,4 +1,4 @@
-use elliptic_curve::ops::Reduce;
+use ecdsa::elliptic_curve::ops::Reduce;
 use serde::{Deserialize, Serialize};
 use std::{
     array::TryFromSliceError,

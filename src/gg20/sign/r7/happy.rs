@@ -20,8 +20,7 @@ use crate::{
         implementer_api::{serialize, Executer, ProtocolBuilder, ProtocolInfo, RoundBuilder},
     },
 };
-use ecdsa::elliptic_curve::sec1::ToEncodedPoint;
-use elliptic_curve::ops::Reduce;
+use ecdsa::elliptic_curve::{sec1::ToEncodedPoint, ops::Reduce};
 use k256::{ProjectivePoint, Scalar};
 use tracing::{error, warn};
 

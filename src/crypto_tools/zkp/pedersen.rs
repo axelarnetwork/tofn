@@ -7,7 +7,7 @@ use crate::{
     gg20::sign::SignShareId,
     sdk::api::{TofnFatal, TofnResult},
 };
-use elliptic_curve::{ops::Reduce, sec1::FromEncodedPoint, Field};
+use ecdsa::elliptic_curve::{ops::Reduce, sec1::FromEncodedPoint, Field};
 use serde::{Deserialize, Serialize};
 use sha2::{
     digest::{FixedOutput, Update},
@@ -234,7 +234,7 @@ pub mod malicious {
 
 #[cfg(test)]
 mod tests {
-    use elliptic_curve::{sec1::FromEncodedPoint, Field};
+    use ecdsa::elliptic_curve::{sec1::FromEncodedPoint, Field};
 
     use super::{
         malicious::{corrupt_proof, corrupt_proof_wc},

@@ -6,7 +6,8 @@ use crate::{
     },
     gg20::keygen::KeygenShareId,
 };
-use elliptic_curve::ops::Reduce;
+use ecdsa::elliptic_curve::ops::Reduce;
+
 use hmac::digest::FixedOutput;
 use serde::{Deserialize, Serialize};
 use sha2::{digest::Update, Digest, Sha256};
