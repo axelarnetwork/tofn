@@ -69,7 +69,7 @@ impl Executer for R2 {
                 .to_affine();
 
             if verifying_key
-                .verify_prehashed(&self.msg_to_sign, signature.as_ref())
+                .verify_prehashed(self.msg_to_sign, signature.as_ref())
                 .is_err()
             {
                 warn!(

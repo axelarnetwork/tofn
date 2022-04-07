@@ -12,15 +12,15 @@ crate-type = ["lib"]
 serde = { version = "1.0", features = ["derive"] }
 bincode = "1.3.3"
 rand_chacha = "0.3"
-hmac = "0.11"
+hmac = "0.12.1"
 zeroize = { version = "1.4", features = ["zeroize_derive"] }
 
 # k256 baggage
-k256 = { version = "0.9", features = ["ecdsa", "zeroize"], default-features = false }
-ecdsa = { version = "0.12", features = ["digest"], default-features = false } # needed only for FromDigest trait
+k256 = "0.10.4"
+ecdsa = "0.13.4"
 rand = "0.8"
-sha2 = { version = "0.9", features = ["std", "asm"], default-features = false }
-sha3 = { version = "0.9", default-features = false }
+sha2 = { version = "0.10.2", features = ["std", "asm"], default-features = false }
+sha3 = { version = "0.10.1", default-features = false }
 
 # logging
 tracing = {version = "0.1", default-features = false}

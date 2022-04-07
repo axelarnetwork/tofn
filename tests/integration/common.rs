@@ -1,55 +1,51 @@
 use std::convert::TryInto;
 
 use tofn::{collections::TypedUsize, gg20::keygen::SecretRecoveryKey};
+use tofn::{
+    collections::VecMap,
+    gg20::keygen::{
+        create_party_keypair_and_zksetup_unsafe, new_keygen, KeygenPartyId, KeygenProtocol,
+        KeygenShareId,
+    },
+    sdk::api::PartyShareCounts,
+};
 
-pub mod keygen {
-    use tofn::{
-        collections::VecMap,
-        gg20::keygen::{
-            create_party_keypair_and_zksetup_unsafe, new_keygen, KeygenPartyId, KeygenProtocol,
-            KeygenShareId,
-        },
-        sdk::api::PartyShareCounts,
-    };
+#[cfg(feature = "malicious")]
+use tofn::gg20::keygen::malicious::Behaviour;
 
-    #[cfg(feature = "malicious")]
-    use tofn::gg20::keygen::malicious::Behaviour;
+pub fn initialize_honest_parties(
+    party_share_counts: &PartyShareCounts<KeygenPartyId>,
+    threshold: usize,
+) -> VecMap<KeygenShareId, KeygenProtocol> {
+    let session_nonce = b"foobar";
 
-    pub fn initialize_honest_parties(
-        party_share_counts: &PartyShareCounts<KeygenPartyId>,
-        threshold: usize,
-    ) -> VecMap<KeygenShareId, KeygenProtocol> {
-        let session_nonce = b"foobar";
+    party_share_counts
+        .iter()
+        .flat_map(|(party_id, &party_share_count)| {
+            // each party use the same secret recovery key for all its subshares
+            let secret_recovery_key = dummy_secret_recovery_key(party_id);
 
-        party_share_counts
-            .iter()
-            .map(|(party_id, &party_share_count)| {
-                // each party use the same secret recovery key for all its subshares
-                let secret_recovery_key = super::dummy_secret_recovery_key(party_id);
+            let party_keygen_data = create_party_keypair_and_zksetup_unsafe(
+                party_id,
+                &secret_recovery_key,
+                session_nonce,
+            )
+            .unwrap();
 
-                let party_keygen_data = create_party_keypair_and_zksetup_unsafe(
+            (0..party_share_count).map(move |subshare_id| {
+                new_keygen(
+                    party_share_counts.clone(),
+                    threshold,
                     party_id,
-                    &secret_recovery_key,
-                    session_nonce,
+                    subshare_id,
+                    &party_keygen_data,
+                    #[cfg(feature = "malicious")]
+                    Behaviour::Honest,
                 )
-                .unwrap();
-
-                (0..party_share_count).map(move |subshare_id| {
-                    new_keygen(
-                        party_share_counts.clone(),
-                        threshold,
-                        party_id,
-                        subshare_id,
-                        &party_keygen_data,
-                        #[cfg(feature = "malicious")]
-                        Behaviour::Honest,
-                    )
-                    .unwrap()
-                })
+                .unwrap()
             })
-            .flatten()
-            .collect()
-    }
+        })
+        .collect()
 }
 
 /// return the all-zero array with the first bytes set to the bytes of `index`

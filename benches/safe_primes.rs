@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use criterion::{criterion_group, criterion_main, Criterion};
 use libpaillier::{unknown_order::BigNumber, DecryptionKey, EncryptionKey};
 use rand::{CryptoRng, RngCore, SeedableRng};
@@ -16,7 +18,7 @@ pub fn safe_primes(c: &mut Criterion) {
 
             let dk = DecryptionKey::with_safe_primes_unchecked(&p, &q).unwrap();
 
-            let ek: EncryptionKey = (&dk).into();
+            let ek: EncryptionKey = dk.borrow().into();
 
             (ek, dk)
         })
@@ -28,7 +30,7 @@ pub fn safe_primes(c: &mut Criterion) {
         b.iter(|| {
             let dk = DecryptionKey::with_rng(&mut rng).unwrap();
 
-            let ek: EncryptionKey = (&dk).into();
+            let ek: EncryptionKey = dk.borrow().into();
 
             (ek, dk)
         })

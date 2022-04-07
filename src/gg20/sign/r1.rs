@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use crate::{
     collections::TypedUsize,
     crypto_tools::{constants, hash, k256_serde::point_to_bytes, paillier, vss},
@@ -52,7 +54,7 @@ pub(super) fn start(
 
     let k_i = k256::Scalar::random(rand::thread_rng());
     let gamma_i = k256::Scalar::random(rand::thread_rng());
-    let Gamma_i = k256::ProjectivePoint::generator() * gamma_i;
+    let Gamma_i = k256::ProjectivePoint::GENERATOR * gamma_i;
     let (Gamma_i_commit, Gamma_i_reveal) = hash::commit(
         constants::GAMMA_I_COMMIT_TAG,
         my_sign_id,
@@ -76,8 +78,8 @@ pub(super) fn start(
         .all_shares()
         .get(my_keygen_id)?
         .ek();
-    let (k_i_ciphertext, k_i_randomness) = ek.encrypt(&(&k_i).into());
 
+    let (k_i_ciphertext, k_i_randomness) = ek.encrypt(&k_i.borrow().into());
     let p2ps_out = Some(
         peer_keygen_ids.ref_map2_result(|(peer_sign_id, &peer_keygen_id)| {
             let peer_zkp = secret_key_share

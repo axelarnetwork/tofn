@@ -13,7 +13,10 @@ use crate::{
         implementer_api::{serialize, ExpectedMsgTypes, MsgType},
     },
 };
-use ecdsa::{elliptic_curve::sec1::ToEncodedPoint, hazmat::VerifyPrimitive};
+use ecdsa::{
+    elliptic_curve::{ops::Reduce, sec1::ToEncodedPoint},
+    hazmat::VerifyPrimitive,
+};
 use k256::{ecdsa::Signature, ProjectivePoint};
 use tracing::debug;
 use tracing_test::traced_test;
@@ -150,9 +153,9 @@ fn execute_sign(
     let x = r1_parties
         .iter()
         .map(|party| round_cast::<r2::R2>(party).w_i)
-        .fold(k256::Scalar::zero(), |acc, w_i| acc + w_i);
+        .fold(k256::Scalar::ZERO, |acc, w_i| acc + w_i);
 
-    let y = ProjectivePoint::generator() * x;
+    let y = ProjectivePoint::GENERATOR * x;
 
     for (keygen_id, key_share) in &key_shares {
         assert_eq!(
@@ -166,12 +169,12 @@ fn execute_sign(
     let k = r1_parties
         .iter()
         .map(|party| round_cast::<r2::R2>(party).k_i)
-        .fold(k256::Scalar::zero(), |acc, k_i| acc + k_i);
+        .fold(k256::Scalar::ZERO, |acc, k_i| acc + k_i);
 
     let gamma = r1_parties
         .iter()
         .map(|party| round_cast::<r2::R2>(party).gamma_i)
-        .fold(k256::Scalar::zero(), |acc, gamma_i| acc + gamma_i);
+        .fold(k256::Scalar::ZERO, |acc, gamma_i| acc + gamma_i);
 
     let (r2_parties, ..) = execute_round(r1_parties, 2, true, true);
 
@@ -189,14 +192,14 @@ fn execute_sign(
             .unwrap();
             *r3_bcast.delta_i.as_ref()
         })
-        .fold(k256::Scalar::zero(), |acc, delta_i| acc + delta_i);
+        .fold(k256::Scalar::ZERO, |acc, delta_i| acc + delta_i);
 
     assert_eq!(k_gamma, k * gamma);
 
     let k_x = r3_parties
         .iter()
         .map(|party| round_cast::<r4::R4Happy>(party).sigma_i)
-        .fold(k256::Scalar::zero(), |acc, sigma_i| acc + sigma_i);
+        .fold(k256::Scalar::ZERO, |acc, sigma_i| acc + sigma_i);
 
     assert_eq!(k_x, k * x);
 
@@ -206,13 +209,13 @@ fn execute_sign(
     for party in &r4_parties {
         let delta_inv = round_cast::<r5::R5>(party).delta_inv;
 
-        assert_eq!(delta_inv * k_gamma, k256::Scalar::one());
+        assert_eq!(delta_inv * k_gamma, k256::Scalar::ONE);
     }
 
     let (r5_parties, ..) = execute_round(r4_parties, 5, true, false);
 
     // TEST: everyone correctly computed R
-    let R = k256::ProjectivePoint::generator() * k.invert().unwrap();
+    let R = k256::ProjectivePoint::GENERATOR * k.invert().unwrap();
     for party in &r5_parties {
         let party_R = round_cast::<r6::R6>(party).R;
 
@@ -227,13 +230,14 @@ fn execute_sign(
 
     // TEST: everyone correctly computed the signature using non-threshold ECDSA sign
     let m: k256::Scalar = msg_to_sign.into();
-    let r = k256::Scalar::from_bytes_reduced(R.to_affine().to_encoded_point(true).x().unwrap());
+    let r = <k256::Scalar as Reduce<k256::U256>>::from_be_bytes_reduced(
+        *R.to_affine().to_encoded_point(true).x().unwrap(),
+    );
     let s = k * (m + x * r);
 
     let sig = {
-        let mut sig = Signature::from_scalars(r, s).unwrap();
-        sig.normalize_s().unwrap();
-        sig
+        let sig = Signature::from_scalars(r, s).unwrap();
+        sig.normalize_s().unwrap_or(sig)
     };
     let encoded_sig = sig.to_der().as_bytes().to_vec();
 
@@ -248,7 +252,7 @@ fn execute_sign(
 
     // TEST: signature verification
     let pub_key = y.to_affine();
-    assert!(pub_key.verify_prehashed(&m, &sig).is_ok());
+    assert!(pub_key.verify_prehashed(m, &sig).is_ok());
 }
 
 #[test]
@@ -325,7 +329,7 @@ fn malicious_delta_inverse() {
             .unwrap();
             *r3_bcast.delta_i.as_ref()
         })
-        .fold(k256::Scalar::zero(), |acc, delta_i| acc + delta_i);
+        .fold(k256::Scalar::ZERO, |acc, delta_i| acc + delta_i);
 
     let share_0_bcast_out: r3::BcastHappy = deserialize(
         &decode_message::<SignShareId>(r3_shares[0].bcast_out().unwrap())
@@ -361,8 +365,8 @@ fn malicious_delta_inverse() {
                 .unwrap();
                 *r3_bcast.delta_i.as_ref()
             })
-            .fold(k256::Scalar::zero(), |acc, delta_i| acc + delta_i),
-        k256::Scalar::zero()
+            .fold(k256::Scalar::ZERO, |acc, delta_i| acc + delta_i),
+        k256::Scalar::ZERO
     );
 
     let (r4_shares, ..) = execute_round(r3_shares, 4, true, false);

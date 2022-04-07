@@ -158,7 +158,7 @@ fn execute_sign(
             .to_affine();
         let signature = k256::ecdsa::Signature::from_der(&sig_share.signature_bytes).unwrap();
         verifying_key
-            .verify_prehashed(&hashed_msg, &signature)
+            .verify_prehashed(hashed_msg, &signature)
             .unwrap();
     }
 }

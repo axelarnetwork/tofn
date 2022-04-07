@@ -14,10 +14,13 @@ use crate::{
     gg20::sign::SignShareId,
     sdk::api::{TofnFatal, TofnResult},
 };
-use ecdsa::hazmat::FromDigest;
+use ecdsa::elliptic_curve::ops::Reduce;
 use libpaillier::unknown_order::BigNumber;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+use sha2::{
+    digest::{FixedOutput, Update},
+    Digest, Sha256,
+};
 use tracing::{error, warn};
 
 use super::secp256k1_modulus_cubed;
@@ -113,7 +116,7 @@ impl ZkSetup {
         u1: Option<&k256::ProjectivePoint>,
         w: &BigNumber,
     ) -> k256::Scalar {
-        let e = k256::Scalar::from_digest(
+        let e = <k256::Scalar as Reduce<k256::U256>>::from_be_bytes_reduced(
             Sha256::new()
                 .chain(tag.to_be_bytes())
                 .chain(stmt.prover_id.to_bytes())
@@ -124,8 +127,9 @@ impl ZkSetup {
                 .chain(msg_g_g.map_or([0; 33], |(_, g)| k256_serde::point_to_bytes(g)))
                 .chain(z.to_bytes())
                 .chain(u.0.to_bytes())
-                .chain(u1.map_or([0; 33], |u1| k256_serde::point_to_bytes(u1)))
-                .chain(w.to_bytes()),
+                .chain(u1.map_or([0; 33], k256_serde::point_to_bytes))
+                .chain(w.to_bytes())
+                .finalize_fixed(),
         );
 
         e
@@ -338,7 +342,7 @@ pub mod malicious {
     pub fn corrupt_proof_wc(proof_wc: &ProofWc) -> ProofWc {
         let proof_wc = proof_wc.clone();
         ProofWc {
-            u1: ProjectivePoint::from(k256::ProjectivePoint::generator() + proof_wc.u1.as_ref()),
+            u1: ProjectivePoint::from(k256::ProjectivePoint::GENERATOR + proof_wc.u1.as_ref()),
             ..proof_wc
         }
     }
@@ -363,7 +367,7 @@ mod tests {
         // create a (statement, witness) pair
         let (ek, _dk) = &keygen_unsafe(&mut rand::thread_rng()).unwrap();
         let msg = &k256::Scalar::random(rand::thread_rng());
-        let g = &k256::ProjectivePoint::generator();
+        let g = &k256::ProjectivePoint::GENERATOR;
         let msg_g = &(g * msg);
         let (ciphertext, randomness) = &ek.encrypt(&msg.into());
         let prover_id = TypedUsize::from_usize(10);

@@ -1,12 +1,12 @@
 use std::convert::TryFrom;
 
-use crate::common::keygen;
+use crate::common;
 use ecdsa::{elliptic_curve::sec1::FromEncodedPoint, hazmat::VerifyPrimitive};
 use execute::*;
 use tofn::{
     collections::{TypedUsize, VecMap},
     gg20::{
-        keygen::{KeygenShareId, SecretKeyShare},
+        keygen,
         sign::{new_sign, MessageDigest, SignParties, SignShareId},
     },
     sdk::api::{PartyShareCounts, Protocol},
@@ -55,9 +55,9 @@ fn basic_correctness() {
     );
 
     debug!("keygen...");
-    let keygen_shares = keygen::initialize_honest_parties(&party_share_counts, threshold);
+    let keygen_shares = common::initialize_honest_parties(&party_share_counts, threshold);
     let keygen_share_outputs = execute_protocol(keygen_shares).expect("internal tofn error");
-    let secret_key_shares: VecMap<KeygenShareId, SecretKeyShare> =
+    let secret_key_shares: VecMap<keygen::KeygenShareId, keygen::SecretKeyShare> =
         keygen_share_outputs.map2(|(keygen_share_id, keygen_share)| match keygen_share {
             Protocol::NotDone(_) => panic!("share_id {} not done yet", keygen_share_id),
             Protocol::Done(result) => result.expect("share finished with error"),
@@ -103,7 +103,7 @@ fn basic_correctness() {
     let sig = k256::ecdsa::Signature::from_der(signatures.get(TypedUsize::from_usize(0)).unwrap())
         .unwrap();
     assert!(pubkey
-        .verify_prehashed(&k256::Scalar::from(&msg_to_sign), &sig)
+        .verify_prehashed(k256::Scalar::from(&msg_to_sign), &sig)
         .is_ok());
 }
 

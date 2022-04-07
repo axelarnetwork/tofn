@@ -82,7 +82,7 @@ fn execute_keygen_from_recovery(
 
     let mut r1_parties: Vec<_> = party_share_counts
         .iter()
-        .map(|(party_id, &party_share_count)| {
+        .flat_map(|(party_id, &party_share_count)| {
             let party_keygen_data = create_party_keypair_and_zksetup_unsafe(
                 party_id,
                 secret_recovery_keys.get(party_id).unwrap(),
@@ -108,7 +108,6 @@ fn execute_keygen_from_recovery(
                 }
             })
         })
-        .flatten()
         .collect();
 
     // deliver r1 messages
@@ -230,7 +229,7 @@ fn execute_keygen_from_recovery(
     // 2. from the first t+1 shares
     let secret_key_sum_u = all_u_secrets
         .iter()
-        .fold(k256::Scalar::zero(), |acc, &x| acc + x);
+        .fold(k256::Scalar::ZERO, |acc, &x| acc + x);
 
     let all_vss_shares: Vec<vss::Share> = all_secret_key_shares
         .iter()
@@ -242,7 +241,7 @@ fn execute_keygen_from_recovery(
 
     // test: verify that the reconstructed secret key yields the public key everyone deduced
     for (share_id, secret_key_share) in all_secret_key_shares.iter() {
-        let test_pubkey = k256::ProjectivePoint::generator() * secret_key_recovered;
+        let test_pubkey = k256::ProjectivePoint::GENERATOR * secret_key_recovered;
         assert_eq!(
             &test_pubkey,
             secret_key_share.group().y().as_ref(),
@@ -262,7 +261,7 @@ fn execute_keygen_from_recovery(
                     .unwrap()
                     .X_i()
                     .as_ref(),
-                k256::ProjectivePoint::generator() * other_secret_key_share.share().x_i().as_ref(),
+                k256::ProjectivePoint::GENERATOR * other_secret_key_share.share().x_i().as_ref(),
                 "party {} got party {} key wrong",
                 i,
                 j

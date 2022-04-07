@@ -78,7 +78,7 @@ fn execute_keygen_from_recovery(
 
     let mut r1_parties: Vec<_> = party_share_counts
         .iter()
-        .map(|(party_id, &party_share_count)| {
+        .flat_map(|(party_id, &party_share_count)| {
             (0..party_share_count).map(move |subshare_id| {
                 // each party use the same secret recovery key for all its subshares
                 match new_keygen(
@@ -96,7 +96,6 @@ fn execute_keygen_from_recovery(
                 }
             })
         })
-        .flatten()
         .collect();
 
     // deliver r1 messages
@@ -141,7 +140,7 @@ fn execute_keygen_from_recovery(
     // test: each party's signing key matches her verifying key
     for (share_id, secret_key_share) in all_secret_key_shares.iter() {
         let verifying_key =
-            k256::ProjectivePoint::generator() * secret_key_share.share().signing_key().as_ref();
+            k256::ProjectivePoint::GENERATOR * secret_key_share.share().signing_key().as_ref();
         assert_eq!(
             &verifying_key,
             secret_key_share

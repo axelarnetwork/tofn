@@ -6,9 +6,11 @@ use crate::{
     },
     gg20::sign::SignShareId,
 };
-use ecdsa::hazmat::FromDigest;
+
+use ecdsa::elliptic_curve::ops::Reduce;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+use sha2::digest::FixedOutput;
+use sha2::{digest::Update, Digest, Sha256};
 use tracing::warn;
 
 #[derive(Clone, Debug)]
@@ -37,7 +39,7 @@ fn compute_challenge(
     alpha1: &k256_serde::ProjectivePoint,
     alpha2: &k256_serde::ProjectivePoint,
 ) -> k256::Scalar {
-    k256::Scalar::from_digest(
+    <k256::Scalar as Reduce<k256::U256>>::from_be_bytes_reduced(
         Sha256::new()
             .chain(constants::CHAUM_PEDERSEN_PROOF_TAG.to_be_bytes())
             .chain(stmt.prover_id.to_bytes())
@@ -46,7 +48,8 @@ fn compute_challenge(
             .chain(k256_serde::point_to_bytes(stmt.target1))
             .chain(k256_serde::point_to_bytes(stmt.target2))
             .chain(alpha1.to_bytes())
-            .chain(alpha2.to_bytes()),
+            .chain(alpha2.to_bytes())
+            .finalize_fixed(),
     )
 }
 
@@ -109,7 +112,7 @@ pub(crate) mod malicious {
 
     pub fn corrupt_proof(proof: &Proof) -> Proof {
         Proof {
-            t: (proof.t.as_ref() + k256::Scalar::one()).into(),
+            t: (proof.t.as_ref() + k256::Scalar::ONE).into(),
             ..proof.clone()
         }
     }

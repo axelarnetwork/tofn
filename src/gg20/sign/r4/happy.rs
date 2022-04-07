@@ -137,9 +137,7 @@ impl Executer for R4Happy {
         // compute delta_inv
         let delta_inv = bcasts_in
             .iter()
-            .fold(Scalar::zero(), |acc, (_, bcast)| {
-                acc + bcast.delta_i.as_ref()
-            })
+            .fold(Scalar::ZERO, |acc, (_, bcast)| acc + bcast.delta_i.as_ref())
             .invert();
 
         // if delta_inv is undefined then move to 'type 5' sad path https://github.com/axelarnetwork/tofn/issues/110

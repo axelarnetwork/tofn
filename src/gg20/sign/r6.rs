@@ -47,6 +47,7 @@ pub(super) struct R6 {
     pub(super) behaviour: Behaviour,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Bcast {
     Happy(BcastHappy),
@@ -184,13 +185,13 @@ impl Executer for R6 {
         // check for failure of type 5 from section 4.2 of https://eprint.iacr.org/2020/540.pdf
         let R_i_sum = bcasts_in
             .iter()
-            .fold(ProjectivePoint::identity(), |acc, (_, bcast)| {
+            .fold(ProjectivePoint::IDENTITY, |acc, (_, bcast)| {
                 acc + bcast.R_i.as_ref()
             });
 
         // malicious actor falsely claim type 5 fault by comparing against a corrupted curve generator
         // TODO how best to squelch build warnings without _ prefix? https://github.com/axelarnetwork/tofn/issues/137
-        let _curve_generator = ProjectivePoint::generator();
+        let _curve_generator = ProjectivePoint::GENERATOR;
         corrupt!(_curve_generator, self.corrupt_curve_generator(info.my_id()));
 
         // check for type 5 fault
@@ -407,9 +408,9 @@ mod malicious {
         ) -> k256::ProjectivePoint {
             if let R6FalseType5Claim = self.behaviour {
                 log_confess_info(my_sign_id, &self.behaviour, "");
-                return k256::ProjectivePoint::identity();
+                return k256::ProjectivePoint::IDENTITY;
             }
-            k256::ProjectivePoint::generator()
+            k256::ProjectivePoint::GENERATOR
         }
     }
 }

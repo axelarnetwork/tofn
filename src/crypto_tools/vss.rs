@@ -15,6 +15,8 @@ pub struct Vss {
 }
 
 impl Vss {
+    /// Recall that a t-of-n sharing requires t+1 points of a degree t polynomial to recover the secret.
+    /// Therefore, select t random coefficients.
     pub fn new(threshold: usize) -> Self {
         let secret_coeffs: Vec<k256::Scalar> = (0..=threshold)
             .map(|_| k256::Scalar::random(rand::thread_rng()))
@@ -35,7 +37,7 @@ impl Vss {
             coeff_commits: self
                 .secret_coeffs
                 .iter()
-                .map(|coeff| (k256::ProjectivePoint::generator() * coeff).into())
+                .map(|coeff| (k256::ProjectivePoint::GENERATOR * coeff).into())
                 .collect(),
         }
     }
@@ -69,6 +71,10 @@ pub struct Commit {
 }
 
 impl Commit {
+    pub fn is_empty(&self) -> bool {
+        self.coeff_commits.is_empty()
+    }
+
     pub fn len(&self) -> usize {
         self.coeff_commits.len()
     }
@@ -78,7 +84,7 @@ impl Commit {
         self.coeff_commits
             .iter()
             .rev()
-            .fold(k256::ProjectivePoint::identity(), |acc, p| {
+            .fold(k256::ProjectivePoint::IDENTITY, |acc, p| {
                 acc * index_scalar + p.as_ref()
             })
     }
@@ -97,7 +103,7 @@ impl Commit {
 
     pub fn validate_share(&self, share: &Share) -> bool {
         self.validate_share_commit(
-            &(k256::ProjectivePoint::generator() * share.get_scalar()),
+            &(k256::ProjectivePoint::GENERATOR * share.get_scalar()),
             share.get_index(),
         )
     }
@@ -147,7 +153,7 @@ pub fn recover_secret_commit(
 
     let indices: Vec<usize> = share_commits.iter().map(|s| s.index).collect();
     share_commits.iter().enumerate().try_fold(
-        k256::ProjectivePoint::identity(),
+        k256::ProjectivePoint::IDENTITY,
         |sum, (i, share_commit)| {
             Ok(sum + share_commit.point.as_ref() * &lagrange_coefficient(i, &indices)?)
         },
@@ -271,7 +277,7 @@ mod tests {
         let shuffled_share_commits: Vec<ShareCommit> = shuffled_shares
             .iter()
             .map(|share| ShareCommit {
-                point: (k256::ProjectivePoint::generator() * share.get_scalar()).into(),
+                point: (k256::ProjectivePoint::GENERATOR * share.get_scalar()).into(),
                 index: share.get_index(),
             })
             .collect();

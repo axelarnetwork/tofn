@@ -82,25 +82,19 @@ impl Executer for R8Happy {
         // compute s = sum_i s_i
         let s = bcasts_in
             .iter()
-            .fold(Scalar::zero(), |acc, (_, bcast)| acc + bcast.s_i.as_ref());
+            .fold(Scalar::ZERO, |acc, (_, bcast)| acc + bcast.s_i.as_ref());
 
         let sig = {
-            let mut sig = Signature::from_scalars(self.r, s).map_err(|_| {
+            let sig = Signature::from_scalars(self.r, s).map_err(|_| {
                 error!("scalars to signature conversion failed");
                 TofnFatal
             })?;
-
-            sig.normalize_s().map_err(|_| {
-                error!("signature normalization failed");
-                TofnFatal
-            })?;
-
-            sig
+            sig.normalize_s().unwrap_or(sig)
         };
 
         let pub_key = &self.secret_key_share.group().y().as_ref().to_affine();
 
-        if pub_key.verify_prehashed(&self.msg_to_sign, &sig).is_ok() {
+        if pub_key.verify_prehashed(self.msg_to_sign, &sig).is_ok() {
             // convert signature into ASN1/DER (Bitcoin) format
             let sig_bytes = sig.to_der().as_bytes().to_vec();
 

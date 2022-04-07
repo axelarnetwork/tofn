@@ -3,6 +3,9 @@
 //! * provide an ergonomic API
 //! * facilitate easy swap-out of Paillier back-end
 
+use std::borrow::Borrow;
+
+use ecdsa::elliptic_curve::ops::Reduce;
 use libpaillier::unknown_order::BigNumber;
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
@@ -23,7 +26,7 @@ pub fn keygen_unsafe(
     let q = BigNumber::prime_with_rng(rng, 1024);
 
     let dk = libpaillier::DecryptionKey::with_safe_primes_unchecked(&p, &q).ok_or(TofnFatal)?;
-    let ek = (&dk).into();
+    let ek = dk.borrow().into();
 
     Ok((EncryptionKey(ek), DecryptionKey(dk)))
 }
@@ -31,7 +34,7 @@ pub fn keygen_unsafe(
 /// Generate a Paillier keypair (using safe primes)
 pub fn keygen(rng: &mut (impl CryptoRng + RngCore)) -> TofnResult<(EncryptionKey, DecryptionKey)> {
     let dk = libpaillier::DecryptionKey::with_rng(rng).ok_or(TofnFatal)?;
-    let ek = (&dk).into();
+    let ek = dk.borrow().into();
 
     Ok((EncryptionKey(ek), DecryptionKey(dk)))
 }
@@ -175,7 +178,7 @@ fn to_scalar(bigint: &BigNumber) -> k256::Scalar {
     let s_vec = to_vec(&s);
     let s_pad = pad32(s_vec);
     let s_bytes = *k256::FieldBytes::from_slice(&s_pad);
-    k256::Scalar::from_bytes_reduced(&s_bytes)
+    <k256::Scalar as Reduce<k256::U256>>::from_be_bytes_reduced(s_bytes)
 }
 
 fn to_vec(bigint: &BigNumber) -> Vec<u8> {
@@ -264,11 +267,11 @@ mod tests {
     #[test]
     fn secp256k1_order() {
         // Test that secp256k1 modulus is the order of the generator
-        let g = k256::ProjectivePoint::generator();
+        let g = k256::ProjectivePoint::GENERATOR;
 
         assert_eq!(
             g * to_scalar(&secp256k1_modulus()),
-            k256::ProjectivePoint::identity()
+            k256::ProjectivePoint::IDENTITY
         );
     }
 

@@ -34,7 +34,7 @@ pub(super) fn start(
     let (y_i_commit, y_i_reveal) = hash::commit(
         constants::Y_I_COMMIT_TAG,
         my_keygen_id,
-        k256_serde::point_to_bytes(&(k256::ProjectivePoint::generator() * u_i_vss.get_secret())),
+        k256_serde::point_to_bytes(&(k256::ProjectivePoint::GENERATOR * u_i_vss.get_secret())),
     );
     corrupt!(
         y_i_commit,

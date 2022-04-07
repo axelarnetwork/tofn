@@ -32,7 +32,7 @@ pub fn start(
     )?;
 
     let signing_key = k256::Scalar::random(rng);
-    let verifying_key = k256::ProjectivePoint::generator() * signing_key;
+    let verifying_key = k256::ProjectivePoint::GENERATOR * signing_key;
 
     let bcast_out = Some(serialize(&Bcast {
         verifying_key: verifying_key.into(),

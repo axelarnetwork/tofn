@@ -131,7 +131,7 @@ impl Executer for R5 {
 
         let Gamma = bcasts_in
             .iter()
-            .fold(ProjectivePoint::identity(), |acc, (_, bcast)| {
+            .fold(ProjectivePoint::IDENTITY, |acc, (_, bcast)| {
                 acc + bcast.Gamma_i.as_ref()
             });
 

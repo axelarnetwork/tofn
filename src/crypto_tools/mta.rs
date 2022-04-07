@@ -118,7 +118,7 @@ pub fn mta_response_with_proof_wc(
                 ciphertext2: &c_b,
                 ek: a_ek,
             },
-            x_g: &(k256::ProjectivePoint::generator() * b),
+            x_g: &(k256::ProjectivePoint::GENERATOR * b),
         },
         &mta::Witness {
             x: b,
@@ -131,7 +131,7 @@ pub fn mta_response_with_proof_wc(
 
 #[cfg(test)]
 mod tests {
-    use ecdsa::elliptic_curve::Field;
+    use std::borrow::Borrow;
 
     use super::{mta_response_with_proof_wc, verify_mta_response};
     use crate::{
@@ -141,12 +141,13 @@ mod tests {
             zk::{mta, range, ZkSetup},
         },
     };
+    use ecdsa::elliptic_curve::Field;
 
     #[test]
     fn basic_correctness() {
         let a = k256::Scalar::random(rand::thread_rng());
         let b = k256::Scalar::random(rand::thread_rng());
-        let b_g = k256::ProjectivePoint::generator() * b;
+        let b_g = k256::ProjectivePoint::GENERATOR * b;
         let (a_ek, a_dk) = keygen_unsafe(&mut rand::thread_rng()).unwrap();
         let (a_zkp, _) =
             ZkSetup::new_unsafe(&mut rand::thread_rng(), &0_u32.to_be_bytes()).unwrap();
@@ -156,7 +157,7 @@ mod tests {
         let b_id = TypedUsize::from_usize(1);
 
         // MtA step 1: party a
-        let (a_ciphertext, a_randomness) = a_ek.encrypt(&(&a).into());
+        let (a_ciphertext, a_randomness) = a_ek.encrypt(&a.borrow().into());
         let a_range_proof = b_zkp.range_proof(
             &range::Statement {
                 prover_id: a_id,

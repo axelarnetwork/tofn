@@ -217,7 +217,7 @@ impl Executer for R3 {
         // compute y
         let y = bcasts_in
             .iter()
-            .fold(k256::ProjectivePoint::identity(), |acc, (_, r2bcast)| {
+            .fold(k256::ProjectivePoint::IDENTITY, |acc, (_, r2bcast)| {
                 acc + r2bcast.u_i_vss_commit.secret_commit()
             });
 
@@ -226,7 +226,7 @@ impl Executer for R3 {
             .map(|i| {
                 bcasts_in
                     .iter()
-                    .fold(k256::ProjectivePoint::identity(), |acc, (_, x)| {
+                    .fold(k256::ProjectivePoint::IDENTITY, |acc, (_, x)| {
                         acc + x.u_i_vss_commit.share_commit(i)
                     })
             })
@@ -237,7 +237,7 @@ impl Executer for R3 {
         let x_i_proof = schnorr::prove(
             &schnorr::Statement {
                 prover_id: my_keygen_id,
-                base: &k256::ProjectivePoint::generator(),
+                base: &k256::ProjectivePoint::GENERATOR,
                 target: all_X_i.get(my_keygen_id)?,
             },
             &schnorr::Witness { scalar: &x_i },

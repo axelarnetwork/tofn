@@ -6,7 +6,7 @@
 //! [Implementing Deserialize · Serde](https://serde.rs/impl-deserialize.html)
 
 use ecdsa::elliptic_curve::{
-    consts::U33, generic_array::GenericArray, group::GroupEncoding, Field,
+    consts::U33, generic_array::GenericArray, group::GroupEncoding, ops::Reduce, Field,
 };
 use k256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
 use rand::{CryptoRng, RngCore};
@@ -76,7 +76,7 @@ impl<'de> Deserialize<'de> for Scalar {
     {
         let bytes: [u8; 32] = Deserialize::deserialize(deserializer)?;
         let field_bytes = k256::FieldBytes::from(bytes);
-        let scalar = k256::Scalar::from_bytes_reduced(&field_bytes);
+        let scalar = <k256::Scalar as Reduce<k256::U256>>::from_be_bytes_reduced(field_bytes);
 
         // ensure bytes encodes an integer less than the secp256k1 modulus
         // if not then scalar.to_bytes() will differ from bytes
@@ -180,6 +180,9 @@ impl<'de> Visitor<'de> for EncodedPointVisitor {
 pub struct ProjectivePoint(k256::ProjectivePoint);
 
 impl ProjectivePoint {
+    /// Base point of secp256k1. Wraps k256 `ProjectivePoint` generator.
+    pub const GENERATOR: Self = Self(k256::ProjectivePoint::GENERATOR);
+
     /// Returns a SEC1-encoded compressed curve point.
     pub fn to_bytes(&self) -> [u8; 33] {
         to_array33(self.0.to_affine().to_bytes())
@@ -187,9 +190,31 @@ impl ProjectivePoint {
 
     /// Decode from a SEC1-encoded curve point.
     pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
-        Some(Self(k256::ProjectivePoint::from_encoded_point(
-            &k256::EncodedPoint::from_bytes(bytes).ok()?,
-        )?))
+        Some(Self(
+            k256::ProjectivePoint::from_encoded_point(&k256::EncodedPoint::from_bytes(bytes).ok()?)
+                .unwrap(),
+        ))
+    }
+
+    // wraps `k256::generator()`
+    pub fn generator() -> Self {
+        ProjectivePoint::from(k256::ProjectivePoint::GENERATOR)
+    }
+}
+
+impl std::ops::Mul<k256::Scalar> for ProjectivePoint {
+    type Output = Self;
+
+    fn mul(self, rhs: k256::Scalar) -> Self::Output {
+        Self(self.0.mul(rhs))
+    }
+}
+
+impl std::ops::Mul<Scalar> for ProjectivePoint {
+    type Output = Self;
+
+    fn mul(self, rhs: Scalar) -> Self::Output {
+        Self(self.0.mul(rhs.0))
     }
 }
 
@@ -226,7 +251,7 @@ impl From<&k256::ProjectivePoint> for ProjectivePoint {
 
 impl From<&SecretScalar> for ProjectivePoint {
     fn from(s: &SecretScalar) -> Self {
-        ProjectivePoint(k256::ProjectivePoint::generator() * s.0 .0)
+        ProjectivePoint(k256::ProjectivePoint::GENERATOR * s.0 .0)
     }
 }
 
@@ -244,12 +269,15 @@ impl<'de> Deserialize<'de> for ProjectivePoint {
     where
         D: Deserializer<'de>,
     {
-        Ok(ProjectivePoint(
+        let projective_pt: Option<_> =
             k256::ProjectivePoint::from_encoded_point(&EncodedPoint::deserialize(deserializer)?.0)
-                .ok_or_else(|| {
-                    D::Error::custom("SEC1-encoded point is not on curve secp256k (K-256)")
-                })?,
-        ))
+                .into();
+        match projective_pt {
+            Some(x) => Ok(Self(x)),
+            None => Err(D::Error::custom(
+                "SEC1-encoded point is not on curve secp256k (K-256)",
+            )),
+        }
     }
 }
 
@@ -277,18 +305,16 @@ mod tests {
         let s = k256::Scalar::random(rand::thread_rng());
         basic_round_trip_impl::<_, Scalar>(s, Some(32));
 
-        let p = k256::ProjectivePoint::generator() * s;
+        let p = k256::ProjectivePoint::GENERATOR * s;
         basic_round_trip_impl::<_, ProjectivePoint>(p, None);
 
         let hashed_msg = k256::Scalar::random(rand::thread_rng());
         let ephemeral_scalar = k256::Scalar::random(rand::thread_rng());
-        let signature = s
-            .try_sign_prehashed(&ephemeral_scalar, &hashed_msg)
-            .unwrap();
+        let signature = s.try_sign_prehashed(ephemeral_scalar, hashed_msg).unwrap();
         p.to_affine()
-            .verify_prehashed(&hashed_msg, &signature)
+            .verify_prehashed(hashed_msg, &signature.0)
             .unwrap();
-        basic_round_trip_impl::<_, Signature>(signature, None);
+        basic_round_trip_impl::<_, Signature>(signature.0, None);
 
         let p_bytes = ProjectivePoint(p).to_bytes();
         let p_decoded = ProjectivePoint::from_bytes(&p_bytes).unwrap();

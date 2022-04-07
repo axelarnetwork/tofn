@@ -5,6 +5,7 @@ use super::{
 use crate::collections::{FillVecMap, TypedUsize};
 use serde::{Deserialize, Serialize};
 
+#[allow(clippy::large_enum_variant)]
 pub enum Protocol<F, K, P, const MAX_MSG_IN_LEN: usize> {
     NotDone(Round<F, K, P, MAX_MSG_IN_LEN>),
     Done(ProtocolOutput<F, P>),
