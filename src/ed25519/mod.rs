@@ -3,7 +3,12 @@ use crate::{
     crypto_tools::{message_digest::MessageDigest, rng},
     sdk::api::{BytesVec, TofnFatal, TofnResult},
 };
+use ed25519::pkcs8::{
+    spki::der::{Decode, Encode},
+    ALGORITHM_ID,
+};
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey, PUBLIC_KEY_LENGTH};
+use std::convert::TryInto;
 
 #[derive(Debug)]
 pub struct KeyPair(SigningKey);
@@ -30,10 +35,17 @@ pub fn keygen(
     Ok(KeyPair(signing_key))
 }
 
-/// Returns the 64 bytes signature containing the (R, s) components.
+/// Returns a ASN.1 DER-encoded Ed25519 signature.
 pub fn sign(signing_key: &KeyPair, message_digest: &MessageDigest) -> TofnResult<BytesVec> {
     let sig = signing_key.0.sign(message_digest.as_ref());
-    Ok(sig.to_vec())
+
+    x509_ocsp::Signature {
+        signature_algorithm: ALGORITHM_ID,
+        signature: (&sig.to_bytes()[..]).try_into().map_err(|_| TofnFatal)?,
+        certs: None,
+    }
+    .to_der()
+    .map_err(|_| TofnFatal)
 }
 
 pub fn verify(
@@ -43,7 +55,15 @@ pub fn verify(
 ) -> TofnResult<bool> {
     // TODO decode failure should not be `TofnFatal`?
     let verifying_key = VerifyingKey::from_bytes(encoded_verifying_key).map_err(|_| TofnFatal)?;
-    let signature = Signature::from_slice(encoded_signature).map_err(|_| TofnFatal)?;
+
+    let asn_signature = x509_ocsp::Signature::from_der(encoded_signature).map_err(|_| TofnFatal)?;
+    if asn_signature.signature_algorithm != ALGORITHM_ID {
+        return Err(TofnFatal);
+    }
+
+    // Using raw_bytes() here is safe since we do not have any unused bits.
+    let signature =
+        Signature::from_slice(asn_signature.signature.raw_bytes()).map_err(|_| TofnFatal)?;
 
     Ok(verifying_key
         .verify_strict(message_digest.as_ref(), &signature)
@@ -77,7 +97,7 @@ mod tests {
         assert!(success);
 
         // Tamper with the signature, it should no longer verify.
-        encoded_signature[0] += 1;
+        *encoded_signature.last_mut().unwrap() += 1;
 
         let success = verify(
             &key_pair.encoded_verifying_key(),
@@ -87,6 +107,5 @@ mod tests {
         .unwrap();
 
         assert!(!success);
-
     }
 }
