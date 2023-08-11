@@ -3,8 +3,12 @@ use crate::{
     crypto_tools::{message_digest::MessageDigest, rng},
     sdk::api::{BytesVec, TofnFatal, TofnResult},
 };
+use der::{asn1::BitStringRef, Sequence};
 use ed25519::pkcs8::{
-    spki::der::{Decode, Encode},
+    spki::{
+        der::{Decode, Encode},
+        AlgorithmIdentifierRef,
+    },
     ALGORITHM_ID,
 };
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey, PUBLIC_KEY_LENGTH};
@@ -39,10 +43,9 @@ pub fn keygen(
 pub fn sign(signing_key: &KeyPair, message_digest: &MessageDigest) -> TofnResult<BytesVec> {
     let sig = signing_key.0.sign(message_digest.as_ref());
 
-    x509_ocsp::Signature {
+    Asn1Signature {
         signature_algorithm: ALGORITHM_ID,
         signature: (&sig.to_bytes()[..]).try_into().map_err(|_| TofnFatal)?,
-        certs: None,
     }
     .to_der()
     .map_err(|_| TofnFatal)
@@ -56,7 +59,7 @@ pub fn verify(
     // TODO decode failure should not be `TofnFatal`?
     let verifying_key = VerifyingKey::from_bytes(encoded_verifying_key).map_err(|_| TofnFatal)?;
 
-    let asn_signature = x509_ocsp::Signature::from_der(encoded_signature).map_err(|_| TofnFatal)?;
+    let asn_signature = Asn1Signature::from_der(encoded_signature).map_err(|_| TofnFatal)?;
     if asn_signature.signature_algorithm != ALGORITHM_ID {
         return Err(TofnFatal);
     }
@@ -72,6 +75,24 @@ pub fn verify(
 
 /// Domain separation for seeding the RNG
 const KEYGEN_TAG: u8 = 0x00;
+
+/// Signature structure as defined in [RFC 6960 Section 4.1.1].
+///
+/// ```text
+/// Signature ::= SEQUENCE {
+///    signatureAlgorithm      AlgorithmIdentifier,
+///    signature               BIT STRING,
+///    certs                  [0] EXPLICIT SEQUENCE OF Certificate OPTIONAL }
+/// ```
+///
+/// [RFC 6960 Section 4.1.1]: https://datatracker.ietf.org/doc/html/rfc6960#section-4.1.1
+/// This was taken from https://github.com/RustCrypto/formats/blob/master/x509-ocsp/src/lib.rs
+#[derive(Clone, Debug, Eq, PartialEq, Sequence)]
+#[allow(missing_docs)]
+pub struct Asn1Signature<'a> {
+    pub signature_algorithm: AlgorithmIdentifierRef<'a>,
+    pub signature: BitStringRef<'a>,
+}
 
 #[cfg(test)]
 mod tests {
