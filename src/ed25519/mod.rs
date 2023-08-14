@@ -27,7 +27,7 @@ pub fn keygen(
     secret_recovery_key: &rng::SecretRecoveryKey,
     session_nonce: &[u8],
 ) -> TofnResult<KeyPair> {
-    let mut rng = rng::rng_seed_ecdsa_signing_key(
+    let mut rng = rng::rng_seed_signing_key(
         ED25519_TAG,
         KEYGEN_TAG,
         secret_recovery_key,
