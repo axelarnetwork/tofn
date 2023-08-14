@@ -20,7 +20,7 @@ k256 = { version = "0.9", features = ["ecdsa", "zeroize"], default-features = fa
 der = { version = "0.7", features = ["alloc", "derive", "oid"] }
 ecdsa = { version = "0.12", features = ["digest"], default-features = false } # needed only for FromDigest trait
 ed25519 = { version = ">=2.2, <2.3", features = ["pkcs8"], default-features = false }
-ed25519-dalek = { git = "https://github.com/dalek-cryptography/ed25519-dalek", tag = "2.0.0-rc.3", features = ["alloc", "digest", "rand_core"], default_features = false }
+ed25519-dalek = { version = "2.0", features = ["alloc", "digest", "rand_core"], default_features = false }
 rand = "0.8"
 sha2 = { version = "0.9", features = ["std", "asm"], default-features = false }
 sha3 = { version = "0.9", default-features = false }
