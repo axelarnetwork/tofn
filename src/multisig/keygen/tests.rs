@@ -78,7 +78,7 @@ fn execute_keygen_from_recovery(
 
     let mut r1_parties: Vec<_> = party_share_counts
         .iter()
-        .map(|(party_id, &party_share_count)| {
+        .flat_map(|(party_id, &party_share_count)| {
             (0..party_share_count).map(move |subshare_id| {
                 // each party use the same secret recovery key for all its subshares
                 match new_keygen(
@@ -96,7 +96,6 @@ fn execute_keygen_from_recovery(
                 }
             })
         })
-        .flatten()
         .collect();
 
     // deliver r1 messages

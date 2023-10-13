@@ -392,11 +392,11 @@ mod tests {
         let proof_wc = zkp.range_proof_wc(stmt_wc, wit).unwrap();
         assert!(zkp.verify_range_proof_wc(stmt_wc, &proof_wc));
 
-        let mut bad_stmt_wc = &mut stmt_wc.clone();
+        let bad_stmt_wc = &mut stmt_wc.clone();
         bad_stmt_wc.stmt.prover_id = verifier_id;
         bad_stmt_wc.stmt.verifier_id = prover_id;
 
-        let mut bad_stmt = &mut bad_stmt_wc.stmt.clone();
+        let bad_stmt = &mut bad_stmt_wc.stmt.clone();
 
         // test: valid proof and bad id
         assert!(!zkp.verify_range_proof(bad_stmt, &proof));
