@@ -34,7 +34,7 @@ impl<K> Copy for TypedUsize<K> {}
 
 impl<K> Clone for TypedUsize<K> {
     fn clone(&self) -> Self {
-        Self::from_usize(self.0)
+        *self
     }
 }
 

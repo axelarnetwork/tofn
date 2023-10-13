@@ -414,7 +414,7 @@ fn execute_round(
             assert_eq!(party.bcast_out().is_some(), expect_bcast_in);
             assert_eq!(party.p2ps_out().is_some(), expect_p2p_in);
 
-            let round = match party
+            match party
                 .execute_next_round()
                 .expect("Encountered protocol fault")
             {
@@ -423,8 +423,7 @@ fn execute_round(
                     "party {} done after round {}, expected not done",
                     i, round_num
                 ),
-            };
-            round
+            }
         })
         .collect();
 
