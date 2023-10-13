@@ -17,7 +17,10 @@ zeroize = { version = "1.4", features = ["zeroize_derive"] }
 
 # k256 baggage
 k256 = { version = "0.9", features = ["ecdsa", "zeroize"], default-features = false }
+der = { version = "0.7", features = ["alloc", "derive", "oid"] }
 ecdsa = { version = "0.12", features = ["digest"], default-features = false } # needed only for FromDigest trait
+ed25519 = { version = ">=2.2, <2.3", features = ["pkcs8"], default-features = false }
+ed25519-dalek = { version = "2.0", features = ["alloc", "digest", "rand_core", "zeroize"], default_features = false }
 rand = "0.8"
 sha2 = { version = "0.9", features = ["std", "asm"], default-features = false }
 sha3 = { version = "0.9", default-features = false }

@@ -37,7 +37,7 @@ pub fn keygen(
     session_nonce: &[u8],
 ) -> TofnResult<KeyPair> {
     let rng =
-        rng::rng_seed_ecdsa_signing_key(ECDSA_TAG, KEYGEN_TAG, secret_recovery_key, session_nonce)?;
+        rng::rng_seed_signing_key(ECDSA_TAG, KEYGEN_TAG, secret_recovery_key, session_nonce)?;
 
     let signing_key = k256_serde::SecretScalar::random(rng);
 

@@ -63,7 +63,7 @@ pub(crate) fn rng_seed<K>(
 
 /// Initialize a RNG by hashing the arguments.
 /// Intended for use generating a ECDSA signing key.
-pub(crate) fn rng_seed_ecdsa_signing_key(
+pub(crate) fn rng_seed_signing_key(
     protocol_tag: u8,
     tag: u8,
     secret_recovery_key: &SecretRecoveryKey,
