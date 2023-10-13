@@ -202,7 +202,7 @@ fn next_sign_round(
                 .unwrap()
                 .as_mut()
                 .unwrap(),
-            &mut all_p2ps
+            all_p2ps
                 .get_mut(test_case.faulter_share_id)
                 .unwrap()
                 .as_mut()
