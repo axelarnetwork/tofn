@@ -1,9 +1,14 @@
 pub mod constants;
 pub mod hash;
+#[cfg(feature = "secp256k1")]
 pub mod k256_serde;
 pub mod message_digest;
+#[cfg(feature = "threshold")]
 pub mod mta;
+#[cfg(feature = "threshold")]
 pub mod paillier;
 pub mod rng;
+#[cfg(feature = "threshold")]
 pub mod vss;
+#[cfg(feature = "threshold")]
 pub mod zkp;

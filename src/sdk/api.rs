@@ -2,6 +2,7 @@
 pub type TofnResult<T> = Result<T, TofnFatal>;
 pub type BytesVec = Vec<u8>;
 
+#[cfg(feature = "threshold")]
 pub use super::{
     party_share_counts::PartyShareCounts,
     protocol::{Fault, Protocol, ProtocolFaulters, ProtocolOutput},
