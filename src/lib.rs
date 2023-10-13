@@ -1,4 +1,3 @@
-#[cfg(feature = "threshold")]
 pub mod collections;
 mod constants;
 mod crypto_tools;
