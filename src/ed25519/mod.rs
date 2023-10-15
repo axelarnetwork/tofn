@@ -27,12 +27,8 @@ pub fn keygen(
     secret_recovery_key: &rng::SecretRecoveryKey,
     session_nonce: &[u8],
 ) -> TofnResult<KeyPair> {
-    let mut rng = rng::rng_seed_signing_key(
-        ED25519_TAG,
-        KEYGEN_TAG,
-        secret_recovery_key,
-        session_nonce,
-    )?;
+    let mut rng =
+        rng::rng_seed_signing_key(ED25519_TAG, KEYGEN_TAG, secret_recovery_key, session_nonce)?;
 
     let signing_key = SigningKey::generate(&mut rng);
 
@@ -97,7 +93,7 @@ pub struct Asn1Signature<'a> {
 #[cfg(test)]
 mod tests {
     use super::{keygen, sign, verify};
-    use crate::{crypto_tools::rng::dummy_secret_recovery_key, multisig::sign::MessageDigest};
+    use crate::crypto_tools::{message_digest::MessageDigest, rng::dummy_secret_recovery_key};
     use std::convert::TryFrom;
 
     #[test]
