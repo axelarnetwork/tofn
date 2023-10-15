@@ -180,6 +180,7 @@ impl<'de> Visitor<'de> for EncodedPointVisitor {
 pub struct ProjectivePoint(k256::ProjectivePoint);
 
 impl ProjectivePoint {
+    #[allow(dead_code)]
     /// Returns a SEC1-encoded compressed curve point.
     pub fn to_bytes(&self) -> [u8; 33] {
         to_array33(self.0.to_affine().to_bytes())
@@ -204,12 +205,6 @@ impl AsMut<k256::ProjectivePoint> for ProjectivePoint {
     fn as_mut(&mut self) -> &mut k256::ProjectivePoint {
         &mut self.0
     }
-}
-
-/// Use [to_bytes] when you have a [k256::ProjectivePoint] but not a [ProjectivePoint].
-/// Otherwise prefer [ProjectivePoint::to_bytes].
-pub fn point_to_bytes(p: &k256::ProjectivePoint) -> [u8; 33] {
-    ProjectivePoint(*p).to_bytes()
 }
 
 impl From<k256::ProjectivePoint> for ProjectivePoint {
