@@ -1,6 +1,6 @@
 [package]
 name = "tofn"
-version = "0.1.0"
+version = "0.2.0"
 authors = [
     "Gus Gutoski <gus@axelar.network>",
     "Milap Sheth <milap@axelar.network>",
@@ -43,21 +43,12 @@ sha3 = { version = "0.9", default-features = false }
 # logging
 tracing = { version = "0.1", default-features = false }
 
-libpaillier = { git = "https://github.com/axelarnetwork/paillier-rs", features = [
-    "gmp",
-], default-features = false }
-
 [dev-dependencies]
 tracing-test = "0" # enable logging for tests
 tracing-subscriber = { version = "0", features = [
     "env-filter",
     "fmt",
 ], default-features = false }
-criterion = "0.3"
-
-[[bench]]
-name = "safe_primes"
-harness = false
 
 # Don't abort in case there is a panic to clean up data
 [profile.dev]
@@ -70,6 +61,3 @@ panic = "unwind"
 default = ["secp256k1", "ed25519"]
 secp256k1 = []
 ed25519 = []
-threshold = ["secp256k1"]
-gg20 = ["threshold"]
-malicious = ["gg20"]
