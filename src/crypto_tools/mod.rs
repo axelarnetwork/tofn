@@ -1,4 +1,6 @@
+#[cfg(feature = "threshold")]
 pub mod constants;
+#[cfg(feature = "threshold")]
 pub mod hash;
 #[cfg(feature = "secp256k1")]
 pub mod k256_serde;

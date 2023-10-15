@@ -7,6 +7,7 @@ pub(crate) mod implementer_api;
 
 #[cfg(feature = "threshold")]
 mod executer;
+#[cfg(feature = "threshold")]
 mod party_share_counts;
 #[cfg(feature = "threshold")]
 mod protocol;
@@ -16,4 +17,5 @@ mod protocol_builder;
 mod protocol_info;
 #[cfg(feature = "threshold")]
 mod round;
-mod wire_bytes;
+
+pub(crate) mod wire_bytes;

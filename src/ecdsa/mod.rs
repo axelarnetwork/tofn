@@ -108,7 +108,7 @@ const SIGN_TAG: u8 = 0x01;
 #[cfg(test)]
 mod tests {
     use super::{keygen, sign, verify};
-    use crate::{crypto_tools::rng::dummy_secret_recovery_key, multisig::sign::MessageDigest};
+    use crate::crypto_tools::{message_digest::MessageDigest, rng::dummy_secret_recovery_key};
     use std::convert::TryFrom;
 
     #[test]
