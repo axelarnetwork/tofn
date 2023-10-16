@@ -6,7 +6,7 @@ use std::{
 
 /// Sign only 32-byte hash digests
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MessageDigest(pub(crate) [u8; 32]);
+pub struct MessageDigest(pub(super) [u8; 32]);
 
 impl TryFrom<&[u8]> for MessageDigest {
     type Error = TryFromSliceError;
