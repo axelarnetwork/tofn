@@ -48,9 +48,9 @@ pub(crate) fn rng_seed_signing_key(
     }
 
     let mut prf =
-        SimpleHmac::<Sha256>::new_from_slice(&secret_recovery_key.0[..]).or_else(|_| {
+        SimpleHmac::<Sha256>::new_from_slice(&secret_recovery_key.0[..]).map_err(|_| {
             error!("failure to initialize hmac");
-            Err(TofnFatal)
+            TofnFatal
         })?;
 
     prf.update(&protocol_tag.to_be_bytes());
