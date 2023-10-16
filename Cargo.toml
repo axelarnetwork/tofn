@@ -5,7 +5,7 @@ authors = [
     "Gus Gutoski <gus@axelar.network>",
     "Milap Sheth <milap@axelar.network>",
 ]
-edition = "2018"
+edition = "2021"
 license = "MIT OR Apache-2.0"
 
 [lib]
