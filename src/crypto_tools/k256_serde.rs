@@ -26,7 +26,6 @@ use crate::sdk::api::BytesVec;
 impl From<&MessageDigest> for k256::Scalar {
     fn from(v: &MessageDigest) -> Self {
         k256::Scalar::reduce(U256::from_be_byte_array(v.0.into()))
-        // k256::Scalar::reduce_bytes(&v.0)
     }
 }
 
@@ -96,13 +95,14 @@ impl<'de> Deserialize<'de> for Scalar {
         D: Deserializer<'de>,
     {
         let bytes: [u8; 32] = Deserialize::deserialize(deserializer)?;
+        let field_bytes = k256::FieldBytes::from(bytes);
         let scalar = k256::Scalar::reduce(U256::from_be_byte_array(bytes.into()));
 
         // ensure bytes encodes an integer less than the secp256k1 modulus
         // if not then scalar.to_bytes() will differ from bytes
-        // if bytes != scalar.to_bytes() {
-        //     return Err(D::Error::custom("integer exceeds secp256k1 modulus"));
-        // }
+        if field_bytes != scalar.to_bytes() {
+            return Err(D::Error::custom("integer exceeds secp256k1 modulus"));
+        }
 
         Ok(Scalar(scalar))
     }
@@ -209,7 +209,7 @@ impl ProjectivePoint {
     /// Decode from a SEC1-encoded curve point.
     pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
         k256::ProjectivePoint::from_encoded_point(&k256::EncodedPoint::from_bytes(bytes).ok()?)
-            .map(|p| Self(p))
+            .map(Self)
             .into()
     }
 }
@@ -261,7 +261,7 @@ impl<'de> Deserialize<'de> for ProjectivePoint {
     {
         Option::<_>::from(
             k256::ProjectivePoint::from_encoded_point(&EncodedPoint::deserialize(deserializer)?.0)
-                .map(|p| Self(p)),
+                .map(Self),
         )
         .ok_or_else(|| D::Error::custom("SEC1-encoded point is not on curve secp256k1 (K-256)"))
     }
@@ -296,11 +296,11 @@ mod tests {
 
         let hashed_msg = k256::Scalar::random(rand::thread_rng());
         let ephemeral_scalar = k256::Scalar::random(rand::thread_rng());
-        let signature = s
-            .try_sign_prehashed(&ephemeral_scalar, &hashed_msg)
+        let (signature, _) = s
+            .try_sign_prehashed(ephemeral_scalar, &hashed_msg.to_bytes())
             .unwrap();
         p.to_affine()
-            .verify_prehashed(&hashed_msg, &signature)
+            .verify_prehashed(&hashed_msg.to_bytes(), &signature)
             .unwrap();
         basic_round_trip_impl::<_, Signature>(signature, None);
 
