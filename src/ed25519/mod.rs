@@ -52,7 +52,6 @@ pub fn verify(
     message_digest: &MessageDigest,
     encoded_signature: &[u8],
 ) -> TofnResult<bool> {
-    // TODO decode failure should not be `TofnFatal`?
     let verifying_key = VerifyingKey::from_bytes(encoded_verifying_key).map_err(|_| TofnFatal)?;
 
     let asn_signature = Asn1Signature::from_der(encoded_signature).map_err(|_| TofnFatal)?;

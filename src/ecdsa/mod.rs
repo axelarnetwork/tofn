@@ -65,19 +65,24 @@ pub fn sign(
     message_digest: &MessageDigest,
 ) -> TofnResult<BytesVec> {
     let signing_key = signing_key.as_ref();
-    let message_digest = k256::Scalar::from(message_digest);
+    let message_digest_scalar = k256::Scalar::from(message_digest);
 
-    let rng =
-        rng::rng_seed_ecdsa_ephemeral_scalar(ECDSA_TAG, SIGN_TAG, signing_key, &message_digest)?;
+    let rng = rng::rng_seed_ecdsa_ephemeral_scalar(
+        ECDSA_TAG,
+        SIGN_TAG,
+        signing_key,
+        &message_digest_scalar,
+    )?;
     let ephemeral_scalar = k256::Scalar::random(rng);
 
     let signature = k256_serde::Signature::from(
         signing_key
-            .try_sign_prehashed(&ephemeral_scalar, &message_digest)
+            .try_sign_prehashed(ephemeral_scalar, &message_digest_scalar.to_bytes())
             .map_err(|_| {
                 error!("failure to sign");
                 TofnFatal
-            })?,
+            })
+            .map(|(r, _)| r)?,
     );
 
     Ok(signature.to_bytes())
@@ -88,16 +93,14 @@ pub fn verify(
     message_digest: &MessageDigest,
     encoded_signature: &[u8],
 ) -> TofnResult<bool> {
-    // TODO decode failure should not be `TofnFatal`?
     let verifying_key =
         k256_serde::ProjectivePoint::from_bytes(encoded_verifying_key).ok_or(TofnFatal)?;
     let signature = k256::ecdsa::Signature::from_der(encoded_signature).map_err(|_| TofnFatal)?;
-    let hashed_msg = k256::Scalar::from(message_digest);
 
     Ok(verifying_key
         .as_ref()
         .to_affine()
-        .verify_prehashed(&hashed_msg, &signature)
+        .verify_prehashed(&k256::FieldBytes::from(message_digest), &signature)
         .is_ok())
 }
 
