@@ -17,7 +17,7 @@ Tofn provides the following:
 ## Threshold cryptography
 
 For an implementation of the [GG20](https://eprint.iacr.org/2020/540.pdf) threshold-ECDSA protocol,
-see this version of [tofn](https://github.com/axelarnetwork/tofn/tree/0b441ed758ebed6726f7a2cf1ccce6a95c33152c). The GG20 protocol implementation should not be considered ready for production since it doesn't protect against recently discovered attacks on the protocol implementation. This was removed from `tofn` as it is not being used in the Axelar protocol.
+see this version (with *known vulnerabilities*) of [tofn](https://github.com/axelarnetwork/tofn/tree/0b441ed758ebed6726f7a2cf1ccce6a95c33152c). The GG20 protocol implementation should not be considered ready for production since it doesn't protect against [recently discovered attacks](https://www.verichains.io/tsshock/) on the protocol implementation. This was removed from `tofn` as it is not being used in the Axelar protocol.
 
 ## Security notes
 
