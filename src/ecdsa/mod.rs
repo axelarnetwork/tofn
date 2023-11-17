@@ -10,7 +10,10 @@ use tracing::error;
 use crate::{
     constants::ECDSA_TAG,
     crypto_tools::{k256_serde, message_digest, rng},
-    sdk::api::{BytesVec, TofnFatal, TofnResult},
+    sdk::{
+        api::{BytesVec, TofnFatal, TofnResult},
+        key::SecretRecoveryKey,
+    },
 };
 
 #[derive(Debug)]
@@ -33,7 +36,7 @@ impl KeyPair {
 }
 
 pub fn keygen(
-    secret_recovery_key: &rng::SecretRecoveryKey,
+    secret_recovery_key: &SecretRecoveryKey,
     session_nonce: &[u8],
 ) -> TofnResult<KeyPair> {
     let rng = rng::rng_seed_signing_key(ECDSA_TAG, KEYGEN_TAG, secret_recovery_key, session_nonce)?;

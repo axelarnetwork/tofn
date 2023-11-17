@@ -1,7 +1,10 @@
 use crate::{
     constants::ED25519_TAG,
     crypto_tools::{message_digest::MessageDigest, rng},
-    sdk::api::{BytesVec, TofnFatal, TofnResult},
+    sdk::{
+        api::{BytesVec, TofnFatal, TofnResult},
+        key::SecretRecoveryKey,
+    },
 };
 use der::{asn1::BitStringRef, Sequence};
 use ed25519::pkcs8::{
@@ -24,7 +27,7 @@ impl KeyPair {
 }
 
 pub fn keygen(
-    secret_recovery_key: &rng::SecretRecoveryKey,
+    secret_recovery_key: &SecretRecoveryKey,
     session_nonce: &[u8],
 ) -> TofnResult<KeyPair> {
     let mut rng =

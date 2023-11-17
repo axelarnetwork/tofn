@@ -1,8 +1,3 @@
-use std::{
-    array::TryFromSliceError,
-    convert::{TryFrom, TryInto},
-};
-
 use hmac::{Mac, SimpleHmac};
 use rand::{CryptoRng, RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
@@ -10,19 +5,10 @@ use sha2::Sha256;
 use tracing::error;
 use zeroize::Zeroize;
 
-use crate::sdk::api::{TofnFatal, TofnResult};
-
-#[derive(Debug, Clone, Zeroize)]
-#[zeroize(drop)]
-pub struct SecretRecoveryKey(pub(crate) [u8; 64]);
-
-impl TryFrom<&[u8]> for SecretRecoveryKey {
-    type Error = TryFromSliceError;
-
-    fn try_from(v: &[u8]) -> Result<Self, Self::Error> {
-        Ok(Self(v.try_into()?))
-    }
-}
+use crate::sdk::{
+    api::{TofnFatal, TofnResult},
+    key::SecretRecoveryKey,
+};
 
 const SESSION_NONCE_LENGTH_MIN: usize = 4;
 const SESSION_NONCE_LENGTH_MAX: usize = 256;
