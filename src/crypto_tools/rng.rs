@@ -1,29 +1,14 @@
-use std::{
-    array::TryFromSliceError,
-    convert::{TryFrom, TryInto},
-};
-
-use ecdsa::elliptic_curve::generic_array::GenericArray;
-use hmac::{Hmac, Mac, NewMac};
+use hmac::{Mac, SimpleHmac};
 use rand::{CryptoRng, RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use sha2::Sha256;
 use tracing::error;
 use zeroize::Zeroize;
 
-use crate::sdk::api::{TofnFatal, TofnResult};
-
-#[derive(Debug, Clone, Zeroize)]
-#[zeroize(drop)]
-pub struct SecretRecoveryKey(pub(crate) [u8; 64]);
-
-impl TryFrom<&[u8]> for SecretRecoveryKey {
-    type Error = TryFromSliceError;
-
-    fn try_from(v: &[u8]) -> Result<Self, Self::Error> {
-        Ok(Self(v.try_into()?))
-    }
-}
+use crate::sdk::{
+    api::{TofnFatal, TofnResult},
+    key::SecretRecoveryKey,
+};
 
 const SESSION_NONCE_LENGTH_MIN: usize = 4;
 const SESSION_NONCE_LENGTH_MAX: usize = 256;
@@ -48,12 +33,11 @@ pub(crate) fn rng_seed_signing_key(
         return Err(TofnFatal);
     }
 
-    // Take care not to copy [secret_recovery_key]
-    // This explicit declaration ensures that we use the following reference-to-reference conversion:
-    // https://docs.rs/generic-array/0.14.4/src/generic_array/lib.rs.html#553-563
-    let hmac_key: &GenericArray<_, _> = (&secret_recovery_key.0[..]).into();
-
-    let mut prf = Hmac::<Sha256>::new(hmac_key);
+    let mut prf =
+        SimpleHmac::<Sha256>::new_from_slice(&secret_recovery_key.0[..]).map_err(|_| {
+            error!("failure to initialize hmac");
+            TofnFatal
+        })?;
 
     prf.update(&protocol_tag.to_be_bytes());
     prf.update(&tag.to_be_bytes());
@@ -78,7 +62,7 @@ pub(crate) fn rng_seed_ecdsa_ephemeral_scalar(
     let mut signing_key_bytes = signing_key.to_bytes();
     let msg_to_sign_bytes = message_digest.to_bytes();
 
-    let mut prf = Hmac::<Sha256>::new(&Default::default());
+    let mut prf = SimpleHmac::<Sha256>::new(&Default::default());
 
     prf.update(&protocol_tag.to_be_bytes());
     prf.update(&tag.to_be_bytes());

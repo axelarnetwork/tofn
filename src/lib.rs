@@ -1,7 +1,10 @@
 pub mod collections;
+
 mod constants;
-mod crypto_tools;
+
 pub mod sdk;
+
+mod crypto_tools;
 
 #[cfg(feature = "secp256k1")]
 pub mod ecdsa;
