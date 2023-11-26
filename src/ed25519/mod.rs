@@ -95,7 +95,7 @@ pub struct Asn1Signature<'a> {
 #[cfg(test)]
 mod tests {
     use super::{keygen, sign, verify};
-    use crate::crypto_tools::{message_digest::MessageDigest, rng::dummy_secret_recovery_key};
+    use crate::{crypto_tools::message_digest::MessageDigest, sdk::key::dummy_secret_recovery_key};
     use std::convert::TryFrom;
 
     #[test]
