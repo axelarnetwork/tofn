@@ -15,7 +15,6 @@ pub use super::secret_key_share::*;
 /// Maximum byte length of messages exchanged during keygen.
 pub const MAX_MSG_LEN: usize = 100;
 
-pub use super::secret_key_share::*;
 pub use rng::SecretRecoveryKey;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]

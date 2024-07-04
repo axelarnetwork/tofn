@@ -40,10 +40,7 @@ pub fn encode<T: Serialize>(payload: &T) -> TofnResult<BytesVec> {
 }
 
 /// Serialize a value using bincode and log errors
-pub fn serialize<T: ?Sized>(value: &T) -> TofnResult<BytesVec>
-where
-    T: serde::Serialize,
-{
+pub fn serialize<T: ?Sized + Serialize>(value: &T) -> TofnResult<BytesVec> {
     let bincode = bincoder();
 
     bincode.serialize(value).map_err(|err| {
