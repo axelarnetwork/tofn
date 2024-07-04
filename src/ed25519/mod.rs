@@ -95,12 +95,11 @@ pub struct Asn1Signature<'a> {
 #[cfg(test)]
 mod tests {
     use super::{keygen, sign, verify};
-    use crate::{crypto_tools::message_digest::MessageDigest, sdk::key::dummy_secret_recovery_key};
-    use std::convert::TryFrom;
+    use crate::sdk::key::dummy_secret_recovery_key;
 
     #[test]
     fn keygen_sign_decode_verify() {
-        let message_digest = MessageDigest::try_from(&[42; 32][..]).unwrap();
+        let message_digest = [42; 32].into();
 
         let key_pair = keygen(&dummy_secret_recovery_key(42), b"tofn nonce").unwrap();
         let mut encoded_signature = sign(&key_pair, &message_digest).unwrap();
