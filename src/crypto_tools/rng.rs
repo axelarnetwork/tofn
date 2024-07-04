@@ -163,7 +163,6 @@ pub fn dummy_secret_recovery_key(index: usize) -> SecretRecoveryKey {
     SecretRecoveryKey(result)
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
