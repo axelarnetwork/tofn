@@ -91,6 +91,8 @@ mod tests {
     use k256::U256;
     use rand::RngCore;
 
+    /// Check rng outputs against known vectors to catch regressions (such as on updating deps).
+    /// Known vectors were generated from tofn commit corresponding to tofnd v0.10.1 release
     #[test]
     fn rng_seed_signing_key_known_vectors() {
         struct TestCase {
@@ -140,6 +142,8 @@ mod tests {
         }
     }
 
+    /// Check rng outputs against known vectors to catch regressions (such as on updating deps).
+    /// Known vectors were generated from tofn commit corresponding to tofnd v0.10.1 release
     #[test]
     fn rng_seed_ecdsa_ephemeral_scalar_known_vectors() {
         struct TestCase {

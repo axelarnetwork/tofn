@@ -132,6 +132,8 @@ mod tests {
         assert!(success);
     }
 
+    /// Check keygen/signing outputs against known vectors to catch regressions (such as on updating deps).
+    /// Known vectors were generated from tofn commit corresponding to tofnd v0.10.1 release
     #[test]
     fn keygen_sign_known_vectors() {
         struct TestCase {
