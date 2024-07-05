@@ -8,3 +8,7 @@ pub struct TofnFatal;
 /// Expose tofn's (de)serialization functions
 /// that use the appropriate bincode config options.
 pub use super::wire_bytes::{deserialize, serialize};
+
+pub use super::key::SecretRecoveryKey;
+
+pub use crate::crypto_tools::message_digest::MessageDigest;
