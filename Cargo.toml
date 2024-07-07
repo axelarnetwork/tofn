@@ -42,7 +42,7 @@ der = { version = "0.7", features = [
 ed25519 = { version = "2.2", features = [
     "pkcs8",
 ], default-features = false, optional = true }
-ed25519-dalek = { version = "2.1", features = [
+ed25519-dalek = { version = "^2", features = [
     "std",
     "alloc",
     "digest",
