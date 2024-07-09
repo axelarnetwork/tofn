@@ -1,6 +1,6 @@
 [package]
 name = "tofn"
-version = "0.3.0"
+version = "1.0.0"
 authors = [
     "Gus Gutoski <gus@axelar.network>",
     "Milap Sheth <milap@axelar.network>",
@@ -42,7 +42,7 @@ der = { version = "0.7", features = [
 ed25519 = { version = "2.2", features = [
     "pkcs8",
 ], default-features = false, optional = true }
-ed25519-dalek = { version = "^2", features = [
+ed25519-dalek = { version = "2.1", features = [
     "std",
     "alloc",
     "digest",
@@ -60,6 +60,8 @@ tracing-subscriber = { version = "0.3", features = [
     "env-filter",
     "fmt",
 ], default-features = false }
+goldie = "0.5"
+hex = "0.4"
 
 # Don't abort in case there is a panic to clean up data
 [profile.dev]

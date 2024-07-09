@@ -132,17 +132,14 @@ mod tests {
         assert!(success);
     }
 
-    /// Check keygen/signing outputs against known vectors to catch regressions (such as on updating deps).
-    /// Known vectors were generated from tofn commit corresponding to tofnd v0.10.1 release
+    /// Check keygen/signing outputs against golden files to catch regressions (such as on updating deps).
+    /// Golden files were generated from tofn commit corresponding to tofnd v0.10.1 release
     #[test]
     fn keygen_sign_known_vectors() {
         struct TestCase {
             secret_recovery_key: SecretRecoveryKey,
             session_nonce: Vec<u8>,
             message_digest: [u8; 32],
-            expected_signing_key: Vec<u8>,
-            expected_verifying_key: Vec<u8>,
-            expected_signature: Vec<u8>,
         }
 
         let test_cases = vec![
@@ -150,64 +147,40 @@ mod tests {
                 secret_recovery_key: SecretRecoveryKey([0; 64]),
                 session_nonce: vec![0; 4],
                 message_digest: [42; 32],
-                expected_signing_key: vec![
-                    178, 195, 90, 168, 218, 224, 244, 241, 22, 212, 134, 206, 49, 137, 57, 138,
-                    175, 204, 132, 22, 121, 4, 175, 173, 27, 119, 145, 174, 104, 1, 204, 121,
-                ],
-                expected_verifying_key: vec![
-                    2, 246, 184, 67, 10, 45, 112, 93, 220, 139, 26, 229, 48, 5, 46, 162, 97, 131,
-                    170, 102, 114, 63, 46, 53, 179, 167, 215, 210, 19, 253, 188, 182, 65,
-                ],
-                expected_signature: vec![
-                    48, 68, 2, 32, 55, 67, 30, 153, 65, 188, 47, 219, 11, 121, 191, 80, 110, 97,
-                    224, 58, 33, 170, 233, 242, 173, 87, 109, 227, 167, 28, 150, 137, 49, 62, 87,
-                    205, 2, 32, 119, 170, 189, 3, 234, 15, 17, 116, 22, 195, 36, 163, 183, 165, 94,
-                    250, 245, 149, 93, 96, 224, 61, 29, 56, 157, 41, 187, 149, 216, 169, 196, 122,
-                ],
             },
             TestCase {
                 secret_recovery_key: SecretRecoveryKey([0xff; 64]),
                 session_nonce: vec![0xff; 32],
                 message_digest: [0xff; 32],
-                expected_signing_key: vec![
-                    20, 0, 197, 123, 117, 125, 190, 14, 195, 142, 6, 244, 108, 51, 142, 49, 183,
-                    192, 157, 104, 94, 167, 185, 231, 91, 127, 73, 196, 41, 34, 146, 121,
-                ],
-                expected_verifying_key: vec![
-                    3, 91, 141, 151, 206, 207, 158, 244, 130, 143, 119, 0, 127, 148, 235, 116, 106,
-                    163, 0, 247, 219, 238, 136, 51, 212, 102, 129, 19, 59, 245, 118, 93, 63,
-                ],
-                expected_signature: vec![
-                    48, 68, 2, 32, 62, 44, 34, 73, 116, 181, 52, 82, 255, 15, 237, 134, 90, 25, 24,
-                    214, 211, 169, 77, 253, 1, 240, 130, 198, 10, 16, 66, 48, 141, 59, 113, 152, 2,
-                    32, 57, 103, 40, 179, 179, 188, 120, 172, 61, 181, 138, 128, 75, 180, 209, 156,
-                    225, 83, 186, 247, 159, 113, 135, 44, 18, 74, 100, 226, 136, 59, 142, 194,
-                ],
             },
         ];
 
-        for test_case in test_cases {
-            let keypair = keygen(&test_case.secret_recovery_key, &test_case.session_nonce).unwrap();
+        let expected_outputs: Vec<Vec<_>> = test_cases
+            .into_iter()
+            .map(|test_case| {
+                let keypair =
+                    keygen(&test_case.secret_recovery_key, &test_case.session_nonce).unwrap();
+                let encoded_signing_key = keypair.signing_key().as_ref().to_bytes().to_vec();
+                let encoded_verifying_key = keypair.encoded_verifying_key().to_vec();
 
-            assert_eq!(
-                keypair.signing_key().as_ref().to_bytes().to_vec(),
-                test_case.expected_signing_key
-            );
-            assert_eq!(
-                keypair.encoded_verifying_key().to_vec(),
-                test_case.expected_verifying_key
-            );
+                let signature: Vec<u8> =
+                    sign(keypair.signing_key(), &test_case.message_digest.into()).unwrap();
 
-            let signature = sign(keypair.signing_key(), &test_case.message_digest.into()).unwrap();
-            assert_eq!(signature, test_case.expected_signature);
+                let success = verify(
+                    keypair.encoded_verifying_key(),
+                    &test_case.message_digest.into(),
+                    &signature,
+                )
+                .unwrap();
+                assert!(success);
 
-            let success = verify(
-                keypair.encoded_verifying_key(),
-                &test_case.message_digest.into(),
-                &signature,
-            )
-            .unwrap();
-            assert!(success);
-        }
+                [encoded_signing_key, encoded_verifying_key, signature]
+                    .into_iter()
+                    .map(hex::encode)
+                    .collect()
+            })
+            .collect();
+
+        goldie::assert_json!(expected_outputs);
     }
 }
