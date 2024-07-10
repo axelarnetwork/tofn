@@ -15,10 +15,7 @@ use bincode::{
 const MAX_MSG_LEN: u64 = 1000 * 1000; // 1 MB
 
 /// Serialize a value using bincode and log errors
-pub fn serialize<T: ?Sized>(value: &T) -> TofnResult<BytesVec>
-where
-    T: Serialize,
-{
+pub fn serialize<T: ?Sized + Serialize>(value: &T) -> TofnResult<BytesVec> {
     let bincode = bincoder();
 
     bincode.serialize(value).map_err(|err| {

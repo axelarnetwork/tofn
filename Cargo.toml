@@ -1,12 +1,13 @@
 [package]
 name = "tofn"
-version = "0.2.0"
+version = "1.0.0"
 authors = [
     "Gus Gutoski <gus@axelar.network>",
     "Milap Sheth <milap@axelar.network>",
 ]
-edition = "2018"
+edition = "2021"
 license = "MIT OR Apache-2.0"
+rust-version = "1.78.0"
 
 [lib]
 crate-type = ["lib"]
@@ -15,40 +16,52 @@ crate-type = ["lib"]
 serde = { version = "1.0", features = ["derive"] }
 bincode = "1.3.3"
 rand_chacha = "0.3"
-hmac = "0.11"
-zeroize = { version = "1.4", features = ["zeroize_derive"] }
+hmac = "0.12"
+zeroize = { version = "1.8", features = ["zeroize_derive"] }
+rand = "0.8"
+sha2 = { version = "0.10", features = [
+    "std",
+    "asm",
+], default-features = false }
 
-# k256 baggage
-k256 = { version = "0.9", features = [
+# Ecdsa deps
+k256 = { version = "0.13", features = [
     "ecdsa",
-    "zeroize",
-], default-features = false }
-der = { version = "0.7", features = ["alloc", "derive", "oid"] }
-ecdsa = { version = "0.12", features = [
+], default-features = false, optional = true }
+ecdsa = { version = "0.16", features = [
     "digest",
-], default-features = false } # needed only for FromDigest trait
-ed25519 = { version = ">=2.2, <2.3", features = [
+], default-features = false, optional = true } # needed only for FromDigest trait
+crypto-bigint = { version = "0.5", default-features = false, optional = true }
+
+# Ed25519 deps
+der = { version = "0.7", features = [
+    "alloc",
+    "derive",
+    "oid",
+], optional = true }
+ed25519 = { version = "2.2", features = [
     "pkcs8",
-], default-features = false }
-ed25519-dalek = { version = "2.0", features = [
+], default-features = false, optional = true }
+ed25519-dalek = { version = "2.1", features = [
+    "std",
     "alloc",
     "digest",
     "rand_core",
     "zeroize",
-], default_features = false }
-rand = "0.8"
-sha2 = { version = "0.9", features = ["std", "asm"], default-features = false }
-sha3 = { version = "0.9", default-features = false }
+    "asm",
+], default_features = false, optional = true }
 
 # logging
 tracing = { version = "0.1", default-features = false }
 
 [dev-dependencies]
-tracing-test = "0" # enable logging for tests
-tracing-subscriber = { version = "0", features = [
+tracing-test = "0.2" # enable logging for tests
+tracing-subscriber = { version = "0.3", features = [
     "env-filter",
     "fmt",
 ], default-features = false }
+goldie = "0.5"
+hex = "0.4"
 
 # Don't abort in case there is a panic to clean up data
 [profile.dev]
@@ -59,5 +72,5 @@ panic = "unwind"
 
 [features]
 default = ["secp256k1", "ed25519"]
-secp256k1 = []
-ed25519 = []
+secp256k1 = ["dep:ecdsa", "dep:k256", "dep:crypto-bigint"]
+ed25519 = ["dep:ed25519", "dep:ed25519-dalek", "dep:der"]

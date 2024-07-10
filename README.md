@@ -5,14 +5,13 @@ Tofn provides the following:
 * An implementation of ECDSA SECP256k1 signing scheme.
 * An implementation of ED25519 signing scheme.
 
-* A general-purpose SDK (software development kit) to facilitate the development and use of threshold cryptography protocols such as GG20.
-
 ## Setup
 
 * Get the latest version of Rust stable.
 * Clone this repo.
-* Run `cargo build --release` to build the library.
-* Run `cargo test --release` to run the tests.
+* Run `cargo build` to build the library.
+* Run `cargo test` to run the tests.
+* Run `GOLDIE_UPDATE=1 cargo test` to generate golden files for relevant tests.
 
 ## Threshold cryptography
 
@@ -21,12 +20,7 @@ see this version (with *known vulnerabilities*) of [tofn](https://github.com/axe
 
 ## Security notes
 
-* In our security model, we don't guarantee security if the attacker has access to the device.
-
-## Message ordering
-
-* We assume that an honest party's Round x message is sent before Round x + i.
-* We also assume that no party receives a Round x + i message from any other party before their Round x message.
+* In our security model, we don't guarantee security if the attacker has access to the device. Secret key material is zeroized on a best effort basis.
 
 ## License
 
