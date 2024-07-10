@@ -5,15 +5,35 @@
 //! [Implementing Serialize · Serde](https://serde.rs/impl-serialize.html)
 //! [Implementing Deserialize · Serde](https://serde.rs/impl-deserialize.html)
 
+use crypto_bigint::ArrayEncoding;
+use ecdsa::elliptic_curve::ops::Reduce;
 use ecdsa::elliptic_curve::{
     consts::U33, generic_array::GenericArray, group::GroupEncoding, Field,
 };
 use k256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
+use k256::U256;
 use rand::{CryptoRng, RngCore};
 use serde::{de, de::Error, de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 use zeroize::Zeroize;
 
+use crate::crypto_tools::message_digest::MessageDigest;
 use crate::sdk::api::BytesVec;
+
+/// Convert a 32-byte hash digest into a scalar as per SEC1:
+/// <https://www.secg.org/sec1-v2.pdf< Section 4.1.3 steps 5-6 page 45
+///
+/// SEC1 specifies to subtract the secp256k1 modulus when the byte array is larger than the modulus.
+impl From<&MessageDigest> for k256::Scalar {
+    fn from(v: &MessageDigest) -> Self {
+        k256::Scalar::reduce(U256::from_be_byte_array(v.0.into()))
+    }
+}
+
+impl From<&MessageDigest> for k256::FieldBytes {
+    fn from(v: &MessageDigest) -> Self {
+        k256::Scalar::from(v).to_bytes()
+    }
+}
 
 /// A wrapper for a random scalar value that is zeroized on drop
 /// TODO why not just do this for Scalar below?
@@ -76,7 +96,7 @@ impl<'de> Deserialize<'de> for Scalar {
     {
         let bytes: [u8; 32] = Deserialize::deserialize(deserializer)?;
         let field_bytes = k256::FieldBytes::from(bytes);
-        let scalar = k256::Scalar::from_bytes_reduced(&field_bytes);
+        let scalar = k256::Scalar::reduce(U256::from_be_byte_array(bytes.into()));
 
         // ensure bytes encodes an integer less than the secp256k1 modulus
         // if not then scalar.to_bytes() will differ from bytes
@@ -188,9 +208,9 @@ impl ProjectivePoint {
 
     /// Decode from a SEC1-encoded curve point.
     pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
-        Some(Self(k256::ProjectivePoint::from_encoded_point(
-            &k256::EncodedPoint::from_bytes(bytes).ok()?,
-        )?))
+        k256::ProjectivePoint::from_encoded_point(&k256::EncodedPoint::from_bytes(bytes).ok()?)
+            .map(Self)
+            .into()
     }
 }
 
@@ -221,7 +241,7 @@ impl From<&k256::ProjectivePoint> for ProjectivePoint {
 
 impl From<&SecretScalar> for ProjectivePoint {
     fn from(s: &SecretScalar) -> Self {
-        ProjectivePoint(k256::ProjectivePoint::generator() * s.0 .0)
+        ProjectivePoint(k256::ProjectivePoint::GENERATOR * s.0 .0)
     }
 }
 
@@ -239,12 +259,11 @@ impl<'de> Deserialize<'de> for ProjectivePoint {
     where
         D: Deserializer<'de>,
     {
-        Ok(ProjectivePoint(
+        Option::<_>::from(
             k256::ProjectivePoint::from_encoded_point(&EncodedPoint::deserialize(deserializer)?.0)
-                .ok_or_else(|| {
-                    D::Error::custom("SEC1-encoded point is not on curve secp256k (K-256)")
-                })?,
-        ))
+                .map(Self),
+        )
+        .ok_or_else(|| D::Error::custom("SEC1-encoded point is not on curve secp256k1 (K-256)"))
     }
 }
 
@@ -272,16 +291,16 @@ mod tests {
         let s = k256::Scalar::random(rand::thread_rng());
         basic_round_trip_impl::<_, Scalar>(s, Some(32));
 
-        let p = k256::ProjectivePoint::generator() * s;
+        let p = k256::ProjectivePoint::GENERATOR * s;
         basic_round_trip_impl::<_, ProjectivePoint>(p, None);
 
         let hashed_msg = k256::Scalar::random(rand::thread_rng());
         let ephemeral_scalar = k256::Scalar::random(rand::thread_rng());
-        let signature = s
-            .try_sign_prehashed(&ephemeral_scalar, &hashed_msg)
+        let (signature, _) = s
+            .try_sign_prehashed(ephemeral_scalar, &hashed_msg.to_bytes())
             .unwrap();
         p.to_affine()
-            .verify_prehashed(&hashed_msg, &signature)
+            .verify_prehashed(&hashed_msg.to_bytes(), &signature)
             .unwrap();
         basic_round_trip_impl::<_, Signature>(signature, None);
 

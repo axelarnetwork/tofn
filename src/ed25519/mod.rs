@@ -1,7 +1,10 @@
 use crate::{
     constants::ED25519_TAG,
     crypto_tools::{message_digest::MessageDigest, rng},
-    sdk::api::{BytesVec, TofnFatal, TofnResult},
+    sdk::{
+        api::{BytesVec, TofnFatal, TofnResult},
+        key::SecretRecoveryKey,
+    },
 };
 use der::{asn1::BitStringRef, Sequence};
 use ed25519::pkcs8::{
@@ -24,7 +27,7 @@ impl KeyPair {
 }
 
 pub fn keygen(
-    secret_recovery_key: &rng::SecretRecoveryKey,
+    secret_recovery_key: &SecretRecoveryKey,
     session_nonce: &[u8],
 ) -> TofnResult<KeyPair> {
     let mut rng =
@@ -52,7 +55,6 @@ pub fn verify(
     message_digest: &MessageDigest,
     encoded_signature: &[u8],
 ) -> TofnResult<bool> {
-    // TODO decode failure should not be `TofnFatal`?
     let verifying_key = VerifyingKey::from_bytes(encoded_verifying_key).map_err(|_| TofnFatal)?;
 
     let asn_signature = Asn1Signature::from_der(encoded_signature).map_err(|_| TofnFatal)?;
@@ -93,12 +95,11 @@ pub struct Asn1Signature<'a> {
 #[cfg(test)]
 mod tests {
     use super::{keygen, sign, verify};
-    use crate::crypto_tools::{message_digest::MessageDigest, rng::dummy_secret_recovery_key};
-    use std::convert::TryFrom;
+    use crate::sdk::key::{dummy_secret_recovery_key, SecretRecoveryKey};
 
     #[test]
     fn keygen_sign_decode_verify() {
-        let message_digest = MessageDigest::try_from(&[42; 32][..]).unwrap();
+        let message_digest = [42; 32].into();
 
         let key_pair = keygen(&dummy_secret_recovery_key(42), b"tofn nonce").unwrap();
         let mut encoded_signature = sign(&key_pair, &message_digest).unwrap();
@@ -124,5 +125,56 @@ mod tests {
         .unwrap();
 
         assert!(!success);
+    }
+
+    /// Check keygen/signing outputs against golden files to catch regressions (such as on updating deps).
+    /// Golden files were generated from tofn v0.2.0 release when ed25519 was added.
+    #[test]
+    fn keygen_sign_known_vectors() {
+        struct TestCase {
+            secret_recovery_key: SecretRecoveryKey,
+            session_nonce: Vec<u8>,
+            message_digest: [u8; 32],
+        }
+
+        let test_cases = vec![
+            TestCase {
+                secret_recovery_key: SecretRecoveryKey([0; 64]),
+                session_nonce: vec![0; 4],
+                message_digest: [42; 32],
+            },
+            TestCase {
+                secret_recovery_key: SecretRecoveryKey([0xff; 64]),
+                session_nonce: vec![0xff; 32],
+                message_digest: [0xff; 32],
+            },
+        ];
+
+        let expected_outputs: Vec<Vec<_>> = test_cases
+            .into_iter()
+            .map(|test_case| {
+                let keypair =
+                    keygen(&test_case.secret_recovery_key, &test_case.session_nonce).unwrap();
+                let encoded_signing_key = keypair.0.to_bytes().into();
+                let encoded_verifying_key = keypair.encoded_verifying_key().to_vec();
+
+                let signature = sign(&keypair, &test_case.message_digest.into()).unwrap();
+
+                let success = verify(
+                    &keypair.encoded_verifying_key(),
+                    &test_case.message_digest.into(),
+                    &signature,
+                )
+                .unwrap();
+                assert!(success);
+
+                [encoded_signing_key, encoded_verifying_key, signature]
+                    .into_iter()
+                    .map(hex::encode)
+                    .collect()
+            })
+            .collect();
+
+        goldie::assert_json!(expected_outputs);
     }
 }
