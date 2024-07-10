@@ -1,9 +1,11 @@
-# Tofn (t-of-n): a threshold cryptography library in Rust
+# tofn: a cryptography library in Rust
 
 Tofn provides the following:
 
 * An implementation of ECDSA SECP256k1 signing scheme.
 * An implementation of ED25519 signing scheme.
+
+tofn is primarily used as part of [tofnd](https://github.com/axelarnetwork/tofnd) for the [Axelar network](https://www.axelar.network). For an older version of the library that included a threshold ECDSA implementation, see the section below on Threshold cryptography.
 
 ## Setup
 
@@ -16,11 +18,7 @@ Tofn provides the following:
 ## Threshold cryptography
 
 For an implementation of the [GG20](https://eprint.iacr.org/2020/540.pdf) threshold-ECDSA protocol,
-see this version (with *known vulnerabilities*) of [tofn](https://github.com/axelarnetwork/tofn/tree/0b441ed758ebed6726f7a2cf1ccce6a95c33152c). The GG20 protocol implementation should not be considered ready for production since it doesn't protect against [recently discovered attacks](https://www.verichains.io/tsshock/) on the protocol implementation. This was removed from `tofn` as it is not being used in the Axelar protocol.
-
-## Security notes
-
-* In our security model, we don't guarantee security if the attacker has access to the device. Secret key material is zeroized on a best effort basis.
+see this version of [tofn](https://github.com/axelarnetwork/tofn/tree/0b441ed758ebed6726f7a2cf1ccce6a95c33152c). This GG20 protocol implementation should not be considered ready for production since it has *known vulnerabilities* against [recently discovered attacks](https://www.verichains.io/tsshock/) on the protocol implementation. This was removed from `tofn` as it is not being used in the Axelar protocol.
 
 ## License
 

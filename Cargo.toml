@@ -2,12 +2,13 @@
 name = "tofn"
 version = "1.0.0"
 authors = [
-    "Gus Gutoski <gus@axelar.network>",
-    "Milap Sheth <milap@axelar.network>",
+    "Interoplabs Eng <eng@interoplabs.io>",
 ]
 edition = "2021"
 license = "MIT OR Apache-2.0"
 rust-version = "1.78.0"
+description = "A cryptography library in Rust, used by the Axelar Network."
+keywords = ["cryptography", "axelar", "blockchain"]
 
 [lib]
 crate-type = ["lib"]
