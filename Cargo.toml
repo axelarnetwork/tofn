@@ -1,6 +1,6 @@
 [package]
 name = "tofn"
-version = "1.0.0"
+version = "1.1.0"
 authors = [
     "Interoplabs Eng <eng@interoplabs.io>",
 ]
@@ -35,18 +35,8 @@ ecdsa = { version = "0.16", features = [
 crypto-bigint = { version = "0.5", default-features = false, optional = true }
 
 # Ed25519 deps
-der = { version = "0.7", features = [
-    "alloc",
-    "derive",
-    "oid",
-], optional = true }
-ed25519 = { version = "2.2", features = [
-    "pkcs8",
-], default-features = false, optional = true }
+ed25519 = { version = "2.2", default-features = false, optional = true }
 ed25519-dalek = { version = "2.1", features = [
-    "std",
-    "alloc",
-    "digest",
     "rand_core",
     "zeroize",
     "asm",
@@ -74,4 +64,4 @@ panic = "unwind"
 [features]
 default = ["secp256k1", "ed25519"]
 secp256k1 = ["dep:ecdsa", "dep:k256", "dep:crypto-bigint"]
-ed25519 = ["dep:ed25519", "dep:ed25519-dalek", "dep:der"]
+ed25519 = ["dep:ed25519", "dep:ed25519-dalek"]

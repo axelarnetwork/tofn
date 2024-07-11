@@ -6,16 +6,7 @@ use crate::{
         key::SecretRecoveryKey,
     },
 };
-use der::{asn1::BitStringRef, Sequence};
-use ed25519::pkcs8::{
-    spki::{
-        der::{Decode, Encode},
-        AlgorithmIdentifierRef,
-    },
-    ALGORITHM_ID,
-};
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey, PUBLIC_KEY_LENGTH};
-use std::convert::TryInto;
 
 #[derive(Debug)]
 pub struct KeyPair(SigningKey);
@@ -38,16 +29,14 @@ pub fn keygen(
     Ok(KeyPair(signing_key))
 }
 
-/// Returns a ASN.1 DER-encoded Ed25519 signature.
+/// Returns a Ed25519 signature.
+/// The signature is encoded raw (R and S bytes) as a 64-byte array as per this [RFC](https://www.rfc-editor.org/rfc/rfc8032#section-3.3)
 pub fn sign(signing_key: &KeyPair, message_digest: &MessageDigest) -> TofnResult<BytesVec> {
-    let sig = signing_key.0.sign(message_digest.as_ref());
-
-    Asn1Signature {
-        signature_algorithm: ALGORITHM_ID,
-        signature: (&sig.to_bytes()[..]).try_into().map_err(|_| TofnFatal)?,
-    }
-    .to_der()
-    .map_err(|_| TofnFatal)
+    Ok(signing_key
+        .0
+        .sign(message_digest.as_ref())
+        .to_bytes()
+        .into())
 }
 
 pub fn verify(
@@ -57,14 +46,7 @@ pub fn verify(
 ) -> TofnResult<bool> {
     let verifying_key = VerifyingKey::from_bytes(encoded_verifying_key).map_err(|_| TofnFatal)?;
 
-    let asn_signature = Asn1Signature::from_der(encoded_signature).map_err(|_| TofnFatal)?;
-    if asn_signature.signature_algorithm != ALGORITHM_ID {
-        return Err(TofnFatal);
-    }
-
-    // Using raw_bytes() here is safe since we do not have any unused bits.
-    let signature =
-        Signature::from_slice(asn_signature.signature.raw_bytes()).map_err(|_| TofnFatal)?;
+    let signature = Signature::from_slice(encoded_signature).map_err(|_| TofnFatal)?;
 
     Ok(verifying_key
         .verify_strict(message_digest.as_ref(), &signature)
@@ -73,24 +55,6 @@ pub fn verify(
 
 /// Domain separation for seeding the RNG
 const KEYGEN_TAG: u8 = 0x00;
-
-/// Signature structure as defined in [RFC 6960 Section 4.1.1].
-///
-/// ```text
-/// Signature ::= SEQUENCE {
-///    signatureAlgorithm      AlgorithmIdentifier,
-///    signature               BIT STRING,
-///    certs                  [0] EXPLICIT SEQUENCE OF Certificate OPTIONAL }
-/// ```
-///
-/// [RFC 6960 Section 4.1.1]: https://datatracker.ietf.org/doc/html/rfc6960#section-4.1.1
-/// This was taken from https://github.com/RustCrypto/formats/blob/master/x509-ocsp/src/lib.rs
-#[derive(Clone, Debug, Eq, PartialEq, Sequence)]
-#[allow(missing_docs)]
-pub struct Asn1Signature<'a> {
-    pub signature_algorithm: AlgorithmIdentifierRef<'a>,
-    pub signature: BitStringRef<'a>,
-}
 
 #[cfg(test)]
 mod tests {
