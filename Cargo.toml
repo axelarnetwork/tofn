@@ -4,6 +4,8 @@ version = "0.1.0"
 authors = ["Gus Gutoski <gus@axelar.network>", "Milap Sheth <milap@axelar.network>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
+description = "A threshold cryptography library in Rust, used by the Axelar Network."
+keywords = ["cryptography", "axelar", "blockchain", "threshold"]
 
 [lib]
 crate-type = ["lib"]
