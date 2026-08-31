@@ -16,10 +16,17 @@ use crate::{
     },
 };
 
-#[derive(Debug)]
 pub struct KeyPair {
     signing_key: k256_serde::SecretScalar,
     encoded_verifying_key: [u8; 33], // SEC1-encoded compressed curve point
+}
+
+impl std::fmt::Debug for KeyPair {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("KeyPair")
+            .field("encoded_verifying_key", &self.encoded_verifying_key)
+            .finish_non_exhaustive()
+    }
 }
 
 impl KeyPair {

@@ -37,9 +37,15 @@ impl From<&MessageDigest> for k256::FieldBytes {
 
 /// A wrapper for a random scalar value that is zeroized on drop
 /// TODO why not just do this for Scalar below?
-#[derive(Debug, Serialize, Deserialize, PartialEq, Zeroize)]
+#[derive(Serialize, Deserialize, PartialEq, Zeroize)]
 #[zeroize(drop)]
 pub struct SecretScalar(Scalar);
+
+impl std::fmt::Debug for SecretScalar {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SecretScalar").finish_non_exhaustive()
+    }
+}
 
 impl AsRef<k256::Scalar> for SecretScalar {
     fn as_ref(&self) -> &k256::Scalar {
@@ -57,8 +63,14 @@ impl SecretScalar {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Zeroize)]
+#[derive(Clone, PartialEq, Zeroize)]
 pub struct Scalar(k256::Scalar);
+
+impl std::fmt::Debug for Scalar {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Scalar").finish_non_exhaustive()
+    }
+}
 
 impl AsRef<k256::Scalar> for Scalar {
     fn as_ref(&self) -> &k256::Scalar {
