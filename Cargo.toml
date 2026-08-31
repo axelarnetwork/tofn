@@ -37,7 +37,7 @@ crypto-bigint = { version = "0.5", default-features = false, optional = true }
 
 # Ed25519 deps
 ed25519 = { version = "2.2", default-features = false, optional = true }
-ed25519-dalek = { version = "2.1", features = [
+ed25519-dalek = { version = "~2.1", features = [
     "rand_core",
     "zeroize",
     "asm",
