@@ -1,12 +1,19 @@
 use std::{
     array::TryFromSliceError,
     convert::{TryFrom, TryInto},
+    fmt,
 };
 use zeroize::Zeroize;
 
-#[derive(Debug, Clone, Zeroize)]
+#[derive(Clone, Zeroize)]
 #[zeroize(drop)]
 pub struct SecretRecoveryKey(pub(crate) [u8; 64]);
+
+impl fmt::Debug for SecretRecoveryKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SecretRecoveryKey").finish_non_exhaustive()
+    }
+}
 
 impl TryFrom<&[u8]> for SecretRecoveryKey {
     type Error = TryFromSliceError;
