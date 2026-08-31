@@ -34,6 +34,7 @@ ecdsa = { version = "0.16", features = [
     "digest",
 ], default-features = false, optional = true } # needed only for FromDigest trait
 crypto-bigint = { version = "0.5", default-features = false, optional = true }
+generic-array = "=0.14.7"
 
 # Ed25519 deps
 ed25519 = { version = "2.2", default-features = false, optional = true }
