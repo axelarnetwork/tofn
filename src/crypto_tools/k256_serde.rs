@@ -7,6 +7,7 @@
 
 use crypto_bigint::ArrayEncoding;
 use ecdsa::elliptic_curve::ops::Reduce;
+#[allow(deprecated)]
 use ecdsa::elliptic_curve::{
     consts::U33, generic_array::GenericArray, group::GroupEncoding, Field,
 };
@@ -281,6 +282,7 @@ impl<'de> Deserialize<'de> for ProjectivePoint {
 
 /// [GenericArray] does not impl `From` for arrays of length exceeding 32.
 /// Hence, this helper function.
+#[allow(deprecated)]
 fn to_array33(g: GenericArray<u8, U33>) -> [u8; 33] {
     [
         g[0], g[1], g[2], g[3], g[4], g[5], g[6], g[7], g[8], g[9], g[10], g[11], g[12], g[13],
