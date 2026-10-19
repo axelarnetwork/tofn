@@ -139,6 +139,23 @@ mod tests {
         assert!(success);
     }
 
+    #[test]
+    fn debug_redacts_signing_key() {
+        let key_pair = keygen(&dummy_secret_recovery_key(42), b"tofn nonce").unwrap();
+
+        assert_eq!(
+            format!("{key_pair:?}"),
+            format!(
+                "KeyPair {{ encoded_verifying_key: {:?}, .. }}",
+                key_pair.encoded_verifying_key()
+            )
+        );
+        assert_eq!(
+            format!("{:?}", key_pair.signing_key()),
+            "SecretScalar { .. }"
+        );
+    }
+
     /// Check keygen/signing outputs against golden files to catch regressions (such as on updating deps).
     /// Golden files were generated from tofn commit corresponding to tofnd v0.10.1 release
     #[test]

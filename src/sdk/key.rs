@@ -33,3 +33,14 @@ pub fn dummy_secret_recovery_key(index: usize) -> SecretRecoveryKey {
     }
     SecretRecoveryKey(result)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::dummy_secret_recovery_key;
+
+    #[test]
+    fn debug_redacts_secret_recovery_key() {
+        let key = dummy_secret_recovery_key(42);
+        assert_eq!(format!("{key:?}"), "SecretRecoveryKey { .. }");
+    }
+}

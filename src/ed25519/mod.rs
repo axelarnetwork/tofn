@@ -8,8 +8,15 @@ use crate::{
 };
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey, PUBLIC_KEY_LENGTH};
 
-#[derive(Debug)]
 pub struct KeyPair(SigningKey);
+
+impl std::fmt::Debug for KeyPair {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("KeyPair")
+            .field("encoded_verifying_key", &self.encoded_verifying_key())
+            .finish_non_exhaustive()
+    }
+}
 
 impl KeyPair {
     pub fn encoded_verifying_key(&self) -> [u8; PUBLIC_KEY_LENGTH] {
@@ -89,6 +96,19 @@ mod tests {
         .unwrap();
 
         assert!(!success);
+    }
+
+    #[test]
+    fn debug_redacts_signing_key() {
+        let key_pair = keygen(&dummy_secret_recovery_key(42), b"tofn nonce").unwrap();
+
+        assert_eq!(
+            format!("{key_pair:?}"),
+            format!(
+                "KeyPair {{ encoded_verifying_key: {:?}, .. }}",
+                key_pair.encoded_verifying_key()
+            )
+        );
     }
 
     /// Check keygen/signing outputs against golden files to catch regressions (such as on updating deps).

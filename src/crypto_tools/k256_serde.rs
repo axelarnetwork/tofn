@@ -337,6 +337,15 @@ mod tests {
     }
 
     #[test]
+    fn debug_redacts_scalars() {
+        let s = Scalar(k256::Scalar::random(rand::thread_rng()));
+        assert_eq!(format!("{s:?}"), "Scalar { .. }");
+
+        let s = SecretScalar::random_with_thread_rng();
+        assert_eq!(format!("{s:?}"), "SecretScalar { .. }");
+    }
+
+    #[test]
     fn scalar_deserialization_fail() {
         let s = Scalar(k256::Scalar::random(rand::thread_rng()));
         scalar_deserialization_fail_impl(s);
