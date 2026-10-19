@@ -7,6 +7,7 @@
 
 use crypto_bigint::ArrayEncoding;
 use ecdsa::elliptic_curve::ops::Reduce;
+#[allow(deprecated)]
 use ecdsa::elliptic_curve::{
     consts::U33, generic_array::GenericArray, group::GroupEncoding, Field,
 };
@@ -37,9 +38,15 @@ impl From<&MessageDigest> for k256::FieldBytes {
 
 /// A wrapper for a random scalar value that is zeroized on drop
 /// TODO why not just do this for Scalar below?
-#[derive(Debug, Serialize, Deserialize, PartialEq, Zeroize)]
+#[derive(Serialize, Deserialize, PartialEq, Zeroize)]
 #[zeroize(drop)]
 pub struct SecretScalar(Scalar);
+
+impl std::fmt::Debug for SecretScalar {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SecretScalar").finish_non_exhaustive()
+    }
+}
 
 impl AsRef<k256::Scalar> for SecretScalar {
     fn as_ref(&self) -> &k256::Scalar {
@@ -57,8 +64,14 @@ impl SecretScalar {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Zeroize)]
+#[derive(Clone, PartialEq, Zeroize)]
 pub struct Scalar(k256::Scalar);
+
+impl std::fmt::Debug for Scalar {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Scalar").finish_non_exhaustive()
+    }
+}
 
 impl AsRef<k256::Scalar> for Scalar {
     fn as_ref(&self) -> &k256::Scalar {
@@ -269,6 +282,7 @@ impl<'de> Deserialize<'de> for ProjectivePoint {
 
 /// [GenericArray] does not impl `From` for arrays of length exceeding 32.
 /// Hence, this helper function.
+#[allow(deprecated)]
 fn to_array33(g: GenericArray<u8, U33>) -> [u8; 33] {
     [
         g[0], g[1], g[2], g[3], g[4], g[5], g[6], g[7], g[8], g[9], g[10], g[11], g[12], g[13],
@@ -322,6 +336,15 @@ mod tests {
         }
         let v_deserialized = bincode.deserialize(&v_serialized).unwrap();
         assert_eq!(v, v_deserialized);
+    }
+
+    #[test]
+    fn debug_redacts_scalars() {
+        let s = Scalar(k256::Scalar::random(rand::thread_rng()));
+        assert_eq!(format!("{s:?}"), "Scalar { .. }");
+
+        let s = SecretScalar::random_with_thread_rng();
+        assert_eq!(format!("{s:?}"), "SecretScalar { .. }");
     }
 
     #[test]

@@ -16,10 +16,17 @@ use crate::{
     },
 };
 
-#[derive(Debug)]
 pub struct KeyPair {
     signing_key: k256_serde::SecretScalar,
     encoded_verifying_key: [u8; 33], // SEC1-encoded compressed curve point
+}
+
+impl std::fmt::Debug for KeyPair {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("KeyPair")
+            .field("encoded_verifying_key", &self.encoded_verifying_key)
+            .finish_non_exhaustive()
+    }
 }
 
 impl KeyPair {
@@ -130,6 +137,23 @@ mod tests {
         .unwrap();
 
         assert!(success);
+    }
+
+    #[test]
+    fn debug_redacts_signing_key() {
+        let key_pair = keygen(&dummy_secret_recovery_key(42), b"tofn nonce").unwrap();
+
+        assert_eq!(
+            format!("{key_pair:?}"),
+            format!(
+                "KeyPair {{ encoded_verifying_key: {:?}, .. }}",
+                key_pair.encoded_verifying_key()
+            )
+        );
+        assert_eq!(
+            format!("{:?}", key_pair.signing_key()),
+            "SecretScalar { .. }"
+        );
     }
 
     /// Check keygen/signing outputs against golden files to catch regressions (such as on updating deps).

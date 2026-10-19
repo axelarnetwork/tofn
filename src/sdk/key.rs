@@ -1,12 +1,19 @@
 use std::{
     array::TryFromSliceError,
     convert::{TryFrom, TryInto},
+    fmt,
 };
 use zeroize::Zeroize;
 
-#[derive(Debug, Clone, Zeroize)]
+#[derive(Clone, Zeroize)]
 #[zeroize(drop)]
 pub struct SecretRecoveryKey(pub(crate) [u8; 64]);
+
+impl fmt::Debug for SecretRecoveryKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SecretRecoveryKey").finish_non_exhaustive()
+    }
+}
 
 impl TryFrom<&[u8]> for SecretRecoveryKey {
     type Error = TryFromSliceError;
@@ -25,4 +32,15 @@ pub fn dummy_secret_recovery_key(index: usize) -> SecretRecoveryKey {
         result[i] = b;
     }
     SecretRecoveryKey(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::dummy_secret_recovery_key;
+
+    #[test]
+    fn debug_redacts_secret_recovery_key() {
+        let key = dummy_secret_recovery_key(42);
+        assert_eq!(format!("{key:?}"), "SecretRecoveryKey { .. }");
+    }
 }
